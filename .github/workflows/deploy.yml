@@ -96,6 +96,7 @@ jobs:
             --exclude="README.md" \
             --exclude="Claude.md" \
             --exclude="*.md" \
+            --exclude="vendor" \
             . $SSH_USER@$SSH_SERVER:$DEV_PATH
 
           # Remote commands na DEV serveru
@@ -159,6 +160,7 @@ jobs:
             --exclude="README.md" \
             --exclude="Claude.md" \
             --exclude="*.md" \
+            --exclude="vendor" \
             . $SSH_USER@$SSH_SERVER:$PROD_PATH
 
           # Remote commands na PROD serveru
@@ -172,7 +174,7 @@ jobs:
           find . -type f -exec chmod 644 {} \;
           chmod +x bin/console
           
-          # Composer install na serveru
+          # Composer install na serveru (PROD - bez dev dependencies)
           composer install --no-dev --optimize-autoloader --no-interaction
           
           # Zkontroluj že existuje .env.local s DB údaji
