@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 121 121" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;">
+    <rect id="studanka" x="0.525" y="0.835" width="120" height="120" style="fill:none;"/>
+    <clipPath id="_clip1">
+        <rect x="0.525" y="0.835" width="120" height="120"/>
+    </clipPath>
+    <g clip-path="url(#_clip1)">
+        <path d="M120.525,8.734c0,-4.36 -3.539,-7.899 -7.899,-7.899l-104.202,-0c-4.36,-0 -7.899,3.539 -7.899,7.899l0,104.202c0,4.36 3.539,7.899 7.899,7.899l104.202,-0c4.36,-0 7.899,-3.539 7.899,-7.899l0,-104.202Z" style="fill:#565139;"/>
+        <path d="M90.525,60.822l0,0.013c0,16.557 -13.443,30 -30,30c-16.557,-0 -30,-13.443 -30,-30l0,-0.013l60,0Z" style="fill:#ff0600;"/>
+        <path d="M110.525,10.822l-100,0l0,100l100,0l0,-100Zm-15.041,45c0,1.702 0.041,3.311 0.041,5.013c0,19.317 -15.683,35 -35,35c-19.317,-0 -35,-15.683 -35,-35l0,-5.013l69.959,0Z" style="fill:#fff;"/>
+    </g>
+</svg>

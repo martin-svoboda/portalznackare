@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 121 121" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;">
+    <rect id="vrchol" x="0.948" y="0.835" width="120" height="120" style="fill:none;"/>
+    <clipPath id="_clip1">
+        <rect x="0.948" y="0.835" width="120" height="120"/>
+    </clipPath>
+    <g clip-path="url(#_clip1)">
+        <path d="M120.948,8.734c0,-4.36 -3.539,-7.899 -7.899,-7.899l-104.202,-0c-4.359,-0 -7.899,3.539 -7.899,7.899l0,104.202c0,4.36 3.54,7.899 7.899,7.899l104.202,-0c4.36,-0 7.899,-3.539 7.899,-7.899l0,-104.202Z" style="fill:#565139;"/>
+        <path d="M60.948,35.835l30,55l-60,-0l30,-55Z" style="fill:#ff0600;"/>
+        <path d="M110.948,10.822l-100,0l0,100l100,0l0,-100Zm-50,14.062l38.669,70.893l-77.337,0l38.668,-70.893Z" style="fill:#fff;"/>
+    </g>
+</svg>

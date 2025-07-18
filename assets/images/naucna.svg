@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 121 120" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;">
+    <rect id="naucna" x="0.064" y="0" width="120" height="120" style="fill:none;"/>
+    <clipPath id="_clip1">
+        <rect x="0.064" y="0" width="120" height="120"/>
+    </clipPath>
+    <g clip-path="url(#_clip1)">
+        <path d="M120.064,7.899c-0,-4.36 -3.54,-7.899 -7.899,-7.899l-104.202,0c-4.36,0 -7.899,3.539 -7.899,7.899l-0,104.202c-0,4.36 3.539,7.899 7.899,7.899l104.202,0c4.359,0 7.899,-3.539 7.899,-7.899l-0,-104.202Z" style="fill:#565139;"/>
+        <path d="M88.672,109.988l-78.608,-78.609l-0,-21.336l0.055,-0.055l20.979,-0l78.966,78.965l-0,21.035l-21.392,-0Z" style="fill:#009c00;"/>
+        <path d="M10.029,38.416l71.716,71.716l-71.716,0l0,-71.716Zm100,43.432l-71.715,-71.716l71.715,0l0,71.716Z" style="fill:#fff;"/>
+    </g>
+</svg>

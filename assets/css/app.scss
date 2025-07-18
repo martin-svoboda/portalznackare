@@ -1,0 +1,24 @@
+.site-content {
+	position: relative;
+}
+
+.dropzone {
+	background-color: var(--mantine-color-default);
+	border: 1px solid var(--mantine-color-default-border);
+	border-radius: var(--mantine-radius-default);
+
+	&:hover:not([data-loading]):not([data-accept]):not([data-reject]) {
+		background-color: var(--mantine-color-default-hover);
+		cursor: pointer;
+	}
+
+	&[data-accept] {
+		background-color: var(--mantine-color-blue-light);
+		border-color: var(--mantine-color-blue-6);
+	}
+
+	&[data-reject] {
+		background-color: var(--mantine-color-red-light);
+		border-color: var(--mantine-color-red-6);
+	}
+}

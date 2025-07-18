@@ -1,0 +1,257 @@
+name: Deploy Portal Značkaře
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - '*'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-22.04
+    env:
+      SSH_SERVER: 37.235.105.56
+      SSH_USER: root
+      SSH_PORT: 22
+      DEV_PATH: /www/hosting/portalznackare.cz/dev/
+      PROD_PATH: /www/hosting/portalznackare.cz/www/
+      IS_TAG: ${{ startsWith(github.ref, 'refs/tags/') }}
+      IS_MAIN: ${{ github.ref == 'refs/heads/main' }}
+      APP_VERSION: ${{ github.ref_name }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up PHP 8.2
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: ctype, iconv, json, pdo, pdo_pgsql, pdo_sqlsrv
+          coverage: none
+          tools: composer:v2
+
+      - name: Set up Composer cache
+        uses: actions/cache@v3
+        with:
+          path: /tmp/composer-cache
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
+
+      - name: Install Composer dependencies
+        run: |
+          composer install --no-dev --optimize-autoloader --no-interaction
+          composer dump-autoload --optimize --no-dev
+
+      - name: Set up Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install Node.js dependencies
+        run: npm ci
+
+      - name: Build frontend assets
+        run: |
+          npm run build
+
+      - name: Prepare deployment files
+        run: |
+          # Žádné .env.local zde nevytváříme!
+          # .env.local musí být vytvořen ručně na serveru s citlivými údaji
+          echo "✅ Using .env defaults, server must have .env.local configured"
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -t rsa -p $SSH_PORT $SSH_SERVER >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Deploy to DEV (main branch)
+        if: env.IS_MAIN == 'true'
+        run: |
+          # Sync soubory (bez vendor a node_modules - ty se nainstalují na serveru)
+          rsync -av --delete \
+            --exclude=".git" \
+            --exclude=".gitignore" \
+            --exclude=".github" \
+            --exclude="node_modules" \
+            --exclude="var/cache" \
+            --exclude="var/log" \
+            --exclude="var/testdata.json" \
+            --exclude=".env.local*" \
+            --exclude="README.md" \
+            --exclude="Claude.md" \
+            --exclude="*.md" \
+            . $SSH_USER@$SSH_SERVER:$DEV_PATH
+
+          # Remote commands na DEV serveru
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no $SSH_USER@$SSH_SERVER << 'EOF'
+          set -euxo pipefail
+          cd ${{ env.DEV_PATH }}
+          
+          # Nastav správná oprávnění
+          chown -R www-data:www-data .
+          find . -type d -exec chmod 755 {} \;
+          find . -type f -exec chmod 644 {} \;
+          chmod +x bin/console
+          
+          # Composer install na serveru
+          composer install --no-dev --optimize-autoloader --no-interaction
+          
+          # Zkontroluj že existuje .env.local s DB údaji
+          if [ ! -f .env.local ]; then
+            echo "❌ Missing .env.local file with database credentials!"
+            echo "Please create .env.local on server with:"
+            echo "USE_TEST_DATA=false"
+            echo "INSYS_DB_HOST=your_server"
+            echo "INSYS_DB_NAME=your_database"
+            echo "INSYS_DB_USER=your_user"
+            echo "INSYS_DB_PASS=your_password"
+            echo "DATABASE_URL=postgresql://..."
+            exit 1
+          fi
+          
+          # Symfony deployment
+          php bin/console cache:clear --env=prod
+          php bin/console doctrine:migrations:migrate --no-interaction --env=prod || echo "⚠️ Migration skipped (DB not available)"
+          
+          # Nastav writable adresáře
+          chmod -R 777 var/cache var/log public/build 2>/dev/null || true
+          
+          echo "✅ DEV deployment completed"
+          EOF
+
+      - name: Deploy to PROD (tagged release)
+        if: env.IS_TAG == 'true'
+        run: |
+          # Backup produkce před deployment
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no $SSH_USER@$SSH_SERVER << 'EOF'
+          if [ -d ${{ env.PROD_PATH }} ]; then
+            cp -r ${{ env.PROD_PATH }} /backup/portal-znackare-$(date +%Y%m%d-%H%M%S)
+            echo "✅ Production backup created"
+          fi
+          EOF
+
+          # Sync soubory na produkci
+          rsync -av --delete \
+            --exclude=".git" \
+            --exclude=".gitignore" \
+            --exclude=".github" \
+            --exclude="node_modules" \
+            --exclude="var/cache" \
+            --exclude="var/log" \
+            --exclude="var/testdata.json" \
+            --exclude=".env.local*" \
+            --exclude="README.md" \
+            --exclude="Claude.md" \
+            --exclude="*.md" \
+            . $SSH_USER@$SSH_SERVER:$PROD_PATH
+
+          # Remote commands na PROD serveru
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no $SSH_USER@$SSH_SERVER << 'EOF'
+          set -euxo pipefail
+          cd ${{ env.PROD_PATH }}
+          
+          # Nastav správná oprávnění
+          chown -R www-data:www-data .
+          find . -type d -exec chmod 755 {} \;
+          find . -type f -exec chmod 644 {} \;
+          chmod +x bin/console
+          
+          # Composer install na serveru
+          composer install --no-dev --optimize-autoloader --no-interaction
+          
+          # Zkontroluj že existuje .env.local s DB údaji
+          if [ ! -f .env.local ]; then
+            echo "❌ Missing .env.local file with database credentials!"
+            echo "Please create .env.local on server with:"
+            echo "USE_TEST_DATA=false"
+            echo "INSYS_DB_HOST=your_server"
+            echo "INSYS_DB_NAME=your_database"
+            echo "INSYS_DB_USER=your_user"
+            echo "INSYS_DB_PASS=your_password"
+            echo "DATABASE_URL=postgresql://..."
+            exit 1
+          fi
+          
+          # Symfony deployment
+          php bin/console cache:clear --env=prod
+          php bin/console doctrine:migrations:migrate --no-interaction --env=prod || echo "⚠️ Migration skipped (DB not available)"
+          
+          # Nastav writable adresáře
+          chmod -R 777 var/cache var/log public/build 2>/dev/null || true
+          
+          # Restart PHP-FPM pokud potřeba
+          systemctl reload php8.2-fpm 2>/dev/null || true
+          
+          echo "✅ PROD deployment completed"
+          EOF
+
+      - name: Health check DEV
+        if: env.IS_MAIN == 'true'
+        run: |
+          sleep 10
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://dev.portalznackare.cz/api/test/insys-user || echo "000")
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "❌ DEV health check failed with HTTP $HTTP_CODE"
+            exit 1
+          else
+            echo "✅ DEV health check passed"
+          fi
+
+      - name: Health check PROD
+        if: env.IS_TAG == 'true'
+        run: |
+          sleep 10
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://portalznackare.cz/api/test/insys-user || echo "000")
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "❌ PROD health check failed with HTTP $HTTP_CODE"
+            echo "🔄 Rolling back..."
+            ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no $SSH_USER@$SSH_SERVER << 'EOF'
+            BACKUP_DIR=$(ls -td /backup/portal-znackare-* 2>/dev/null | head -1)
+            if [ -n "$BACKUP_DIR" ]; then
+              rm -rf ${{ env.PROD_PATH }}
+              cp -r "$BACKUP_DIR" ${{ env.PROD_PATH }}
+              echo "✅ Rollback completed"
+            fi
+            EOF
+            exit 1
+          else
+            echo "✅ PROD health check passed"
+          fi
+
+      - name: Create GitHub Release (only for tag)
+        if: env.IS_TAG == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: "Portal Značkaře ${{ github.ref_name }}"
+          body: |
+            ## 🚀 Nová verze Portal Značkaře
+            
+            **Verze:** ${{ github.ref_name }}
+            **Datum:** ${{ github.event.head_commit.timestamp }}
+            
+            ### Změny v této verzi
+            ${{ github.event.head_commit.message }}
+            
+            ### Deployment
+            - ✅ Nasazeno na produkci: https://portalznackare.cz
+            - ✅ API endpointy ověřeny
+            - ✅ Health check prošel
+
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Cleanup
+        if: always()
+        run: |
+          rm -f ~/.ssh/id_rsa
