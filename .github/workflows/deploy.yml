@@ -40,7 +40,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-composer-
 
-      - name: Install Composer dependencies
+      - name: Install Composer dependencies (DEV)
+        if: env.IS_MAIN == 'true'
+        run: |
+          composer install --optimize-autoloader --no-interaction
+          composer dump-autoload --optimize
+
+      - name: Install Composer dependencies (PROD)
+        if: env.IS_TAG == 'true'
         run: |
           composer install --no-dev --optimize-autoloader --no-interaction
           composer dump-autoload --optimize --no-dev
@@ -102,8 +109,8 @@ jobs:
           find . -type f -exec chmod 644 {} \;
           chmod +x bin/console
           
-          # Composer install na serveru
-          composer install --no-dev --optimize-autoloader --no-interaction
+          # Composer install na serveru (DEV - včetně dev dependencies)
+          composer install --optimize-autoloader --no-interaction
           
           # Zkontroluj že existuje .env.local s DB údaji
           if [ ! -f .env.local ]; then
@@ -118,9 +125,9 @@ jobs:
             exit 1
           fi
           
-          # Symfony deployment
-          php bin/console cache:clear --env=prod
-          php bin/console doctrine:migrations:migrate --no-interaction --env=prod || echo "⚠️ Migration skipped (DB not available)"
+          # Symfony deployment (DEV environment)
+          php bin/console cache:clear --env=dev
+          php bin/console doctrine:migrations:migrate --no-interaction --env=dev || echo "⚠️ Migration skipped (DB not available)"
           
           # Nastav writable adresáře
           chmod -R 777 var/cache var/log public/build 2>/dev/null || true
