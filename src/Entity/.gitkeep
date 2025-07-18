@@ -1,0 +1,2 @@
+# This file ensures the Entity directory is tracked by Git
+# Doctrine requires this directory to exist even if empty

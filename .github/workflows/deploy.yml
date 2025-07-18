@@ -79,12 +79,20 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -t rsa -p $SSH_PORT $SSH_SERVER >> ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
+          
+          # Debug SSH key
+          echo "SSH key fingerprint:"
+          ssh-keygen -lf ~/.ssh/id_rsa
+          
+          # Test SSH connection
+          echo "Testing SSH connection..."
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -o BatchMode=yes -v $SSH_USER@$SSH_SERVER "echo 'SSH connection successful'" || echo "SSH test failed"
 
       - name: Deploy to DEV (main branch)
         if: env.IS_MAIN == 'true'
         run: |
           # Sync soubory (bez vendor a node_modules - ty se nainstalují na serveru)
-          rsync -av --delete \
+          rsync -av --delete -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no" \
             --exclude=".git" \
             --exclude=".gitignore" \
             --exclude=".github" \
@@ -148,7 +156,7 @@ jobs:
           EOF
 
           # Sync soubory na produkci
-          rsync -av --delete \
+          rsync -av --delete -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no" \
             --exclude=".git" \
             --exclude=".gitignore" \
             --exclude=".github" \
