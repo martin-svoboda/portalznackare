@@ -268,22 +268,7 @@ jobs:
           
           if [ "$HTTP_CODE" != "200" ]; then
             echo "❌ DEV health check failed with HTTP $HTTP_CODE"
-            echo "🔍 Checking server logs and config..."
-            
-            # Zobraz error log pro debugging
-            ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no $SSH_USER@$SSH_SERVER << 'EOF'
-            echo "=== PHP Error Log ==="
-            tail -20 /var/log/php8.3-fpm.log 2>/dev/null || echo "No PHP-FPM log found"
-            echo "=== Symfony Log ==="
-            tail -20 ${{ env.DEV_PATH }}var/log/dev.log 2>/dev/null || echo "No Symfony dev.log found"
-            echo "=== Nginx Error Log ==="
-            tail -10 /var/log/nginx/error.log 2>/dev/null || echo "No Nginx error log found"
-            echo "=== Check if public/index.php exists ==="
-            ls -la ${{ env.DEV_PATH }}public/index.php || echo "index.php not found"
-            EOF
-            
-            # Don't exit on health check failure during debugging
-            echo "⚠️ Health check failed but continuing for debugging"
+            exit 1
           else
             echo "✅ DEV health check passed"
           fi
