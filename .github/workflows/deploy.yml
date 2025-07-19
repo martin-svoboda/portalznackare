@@ -43,12 +43,16 @@ jobs:
       - name: Install Composer dependencies (DEV)
         if: env.IS_MAIN == 'true'
         run: |
+          # Přidej chybějící symfony/runtime pokud není
+          composer require symfony/runtime:6.4.* --no-scripts
           composer install --optimize-autoloader --no-interaction
           composer dump-autoload --optimize
 
       - name: Install Composer dependencies (PROD)
         if: env.IS_TAG == 'true'
         run: |
+          # Přidej chybějící symfony/runtime pokud není
+          composer require symfony/runtime:6.4.* --no-scripts --no-dev
           composer install --no-dev --optimize-autoloader --no-interaction
           composer dump-autoload --optimize --no-dev
 
