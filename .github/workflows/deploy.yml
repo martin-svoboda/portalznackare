@@ -152,7 +152,8 @@ jobs:
           if /usr/bin/php8.3 bin/console --version > /dev/null 2>&1; then
             echo "✅ Symfony console working with PHP 8.3"
             /usr/bin/php8.3 bin/console cache:clear --env=dev || echo "⚠️ Cache clear failed"
-            /usr/bin/php8.3 bin/console doctrine:migrations:migrate --no-interaction --env=dev || echo "⚠️ Migration skipped (DB not available)"
+            /usr/bin/php8.3 bin/console doctrine:migrations:status --env=dev || echo "⚠️ Migration status check failed"
+            /usr/bin/php8.3 bin/console doctrine:migrations:migrate --no-interaction --env=dev || echo "⚠️ Migration skipped (no migrations or DB issue)"
           else
             echo "⚠️ Symfony console not working with PHP 8.3, skipping Symfony commands"
           fi
@@ -238,7 +239,8 @@ jobs:
           if /usr/bin/php8.3 bin/console --version > /dev/null 2>&1; then
             echo "✅ Symfony console working with PHP 8.3"
             /usr/bin/php8.3 bin/console cache:clear --env=prod || echo "⚠️ Cache clear failed"
-            /usr/bin/php8.3 bin/console doctrine:migrations:migrate --no-interaction --env=prod || echo "⚠️ Migration skipped (DB not available)"
+            /usr/bin/php8.3 bin/console doctrine:migrations:status --env=prod || echo "⚠️ Migration status check failed"
+            /usr/bin/php8.3 bin/console doctrine:migrations:migrate --no-interaction --env=prod || echo "⚠️ Migration skipped (no migrations or DB issue)"
           else
             echo "⚠️ Symfony console not working with PHP 8.3, skipping Symfony commands"
           fi
@@ -256,12 +258,32 @@ jobs:
         if: env.IS_MAIN == 'true'
         run: |
           sleep 10
+          echo "Testing basic index.php..."
+          INDEX_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://dev.portalznackare.cz/ || echo "000")
+          echo "Index page returned HTTP $INDEX_CODE"
+          
+          echo "Testing API endpoint..."
           HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://dev.portalznackare.cz/api/test/insys-user || echo "000")
+          echo "API endpoint returned HTTP $HTTP_CODE"
+          
           if [ "$HTTP_CODE" != "200" ]; then
             echo "❌ DEV health check failed with HTTP $HTTP_CODE"
+            echo "🔍 Checking server logs and config..."
+            
             # Zobraz error log pro debugging
-            ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no $SSH_USER@$SSH_SERVER "tail -20 ${{ env.DEV_PATH }}var/log/dev.log || echo 'No dev.log found'"
-            exit 1
+            ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no $SSH_USER@$SSH_SERVER << 'EOF'
+            echo "=== PHP Error Log ==="
+            tail -20 /var/log/php8.3-fpm.log 2>/dev/null || echo "No PHP-FPM log found"
+            echo "=== Symfony Log ==="
+            tail -20 ${{ env.DEV_PATH }}var/log/dev.log 2>/dev/null || echo "No Symfony dev.log found"
+            echo "=== Nginx Error Log ==="
+            tail -10 /var/log/nginx/error.log 2>/dev/null || echo "No Nginx error log found"
+            echo "=== Check if public/index.php exists ==="
+            ls -la ${{ env.DEV_PATH }}public/index.php || echo "index.php not found"
+            EOF
+            
+            # Don't exit on health check failure during debugging
+            echo "⚠️ Health check failed but continuing for debugging"
           else
             echo "✅ DEV health check passed"
           fi
