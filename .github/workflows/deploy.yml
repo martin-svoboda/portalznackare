@@ -80,13 +80,9 @@ jobs:
           ssh-keyscan -t rsa -p $SSH_PORT $SSH_SERVER >> ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
           
-          # Debug SSH key
-          echo "SSH key fingerprint:"
-          ssh-keygen -lf ~/.ssh/id_rsa
-          
           # Test SSH connection
           echo "Testing SSH connection..."
-          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -o BatchMode=yes -v $SSH_USER@$SSH_SERVER "echo 'SSH connection successful'" || echo "SSH test failed"
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -o BatchMode=yes $SSH_USER@$SSH_SERVER "echo 'SSH connection successful'"
 
       - name: Deploy to DEV (main branch)
         if: env.IS_MAIN == 'true'
@@ -117,6 +113,14 @@ jobs:
           find . -type d -exec chmod 755 {} \;
           find . -type f -exec chmod 644 {} \;
           chmod +x bin/console
+          
+          # Check if composer exists and install if needed
+          if ! command -v composer &> /dev/null; then
+            echo "Installing Composer..."
+            curl -sS https://getcomposer.org/installer | php
+            mv composer.phar /usr/local/bin/composer
+            chmod +x /usr/local/bin/composer
+          fi
           
           # Composer install na serveru (DEV - včetně dev dependencies)
           composer install --optimize-autoloader --no-interaction
@@ -181,6 +185,14 @@ jobs:
           find . -type d -exec chmod 755 {} \;
           find . -type f -exec chmod 644 {} \;
           chmod +x bin/console
+          
+          # Check if composer exists and install if needed
+          if ! command -v composer &> /dev/null; then
+            echo "Installing Composer..."
+            curl -sS https://getcomposer.org/installer | php
+            mv composer.phar /usr/local/bin/composer
+            chmod +x /usr/local/bin/composer
+          fi
           
           # Composer install na serveru (PROD - bez dev dependencies)
           composer install --no-dev --optimize-autoloader --no-interaction
