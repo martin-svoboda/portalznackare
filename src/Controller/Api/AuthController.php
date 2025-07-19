@@ -9,12 +9,14 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\HttpFoundation\Session\SessionInterface;
 use App\Service\MockMSSQLService;
+use App\Service\InsysService;
 
 #[Route('/api/auth')]
 class AuthController extends AbstractController
 {
     public function __construct(
-        private MockMSSQLService $mssqlService
+        private MockMSSQLService $mssqlService,
+        private InsysService $insysService
     ) {}
 
     #[Route('/status', name: 'api_auth_status', methods: ['GET'])]
@@ -78,14 +80,50 @@ class AuthController extends AbstractController
         }
 
         try {
-            // Ověřit přihlašovací údaje přes INSYS
-            $userData = $this->mssqlService->authenticateUser($username, $password);
+            // Zkusit autentizaci přes InsysService pro reálnou MSSQL databázi
+            $useTestData = $_ENV['USE_TEST_DATA'] ?? 'true';
             
-            if (!$userData) {
-                return new JsonResponse([
-                    'success' => false,
-                    'message' => 'Neplatné přihlašovací údaje'
-                ], Response::HTTP_UNAUTHORIZED);
+            if ($useTestData === 'false') {
+                // Použít reálnou MSSQL autentizaci přes InsysService
+                // InsysService.loginUser očekává email a hash, takže použijeme username jako email a password jako hash
+                $intAdr = $this->insysService->loginUser($username, $password);
+                
+                if (!$intAdr) {
+                    return new JsonResponse([
+                        'success' => false,
+                        'message' => 'Neplatné přihlašovací údaje'
+                    ], Response::HTTP_UNAUTHORIZED);
+                }
+                
+                // Načíst user data přes INT_ADR
+                $userDataArray = $this->insysService->getUser((int)$intAdr);
+                $userData = is_array($userDataArray) && isset($userDataArray[0]) ? $userDataArray[0] : $userDataArray;
+                
+                if (!$userData) {
+                    return new JsonResponse([
+                        'success' => false,
+                        'message' => 'Uživatel nenalezen'
+                    ], Response::HTTP_UNAUTHORIZED);
+                }
+                
+                // Standardizovat formát
+                $userData = [
+                    'INT_ADR' => (string)$userData['INT_ADR'],
+                    'Jmeno' => $userData['Jmeno'] ?? '',
+                    'Prijmeni' => $userData['Prijmeni'] ?? '',
+                    'Email' => $userData['eMail'] ?? '',
+                    'Prukaz_znackare' => $userData['Prukaz_znackare'] ?? ''
+                ];
+            } else {
+                // Použít mock data pro lokální vývoj
+                $userData = $this->mssqlService->authenticateUser($username, $password);
+                
+                if (!$userData) {
+                    return new JsonResponse([
+                        'success' => false,
+                        'message' => 'Neplatné přihlašovací údaje'
+                    ], Response::HTTP_UNAUTHORIZED);
+                }
             }
 
             // Určit role uživatele
