@@ -136,8 +136,14 @@ jobs:
           if [ ! -f .env.local ]; then
             echo "❌ Missing .env.local file with database credentials!"
             echo "Please create .env.local on server with:"
-            echo "DATABASE_URL=postgresql://..."
-            echo "MSSQL_DATABASE_URL=sqlsrv://..."
+            echo "# Internal PostgreSQL database for portal content"
+            echo "DATABASE_URL=postgresql://portal_user:password@localhost:5432/portal_db"
+            echo "# External MSSQL INSYS connection"
+            echo "USE_TEST_DATA=false"
+            echo "INSYS_DB_HOST=insys_server"
+            echo "INSYS_DB_NAME=insys_database"
+            echo "INSYS_DB_USER=insys_user"
+            echo "INSYS_DB_PASS=insys_password"
             echo "APP_SECRET=your-secret-here"
             exit 1
           fi
@@ -216,8 +222,14 @@ jobs:
             echo "❌ Missing .env.local file with database credentials!"
             echo "Please create .env.local on server with:"
             echo "APP_ENV=prod"
-            echo "DATABASE_URL=postgresql://..."
-            echo "MSSQL_DATABASE_URL=sqlsrv://..."
+            echo "# Internal PostgreSQL database for portal content"
+            echo "DATABASE_URL=postgresql://portal_user:password@localhost:5432/portal_db"
+            echo "# External MSSQL INSYS connection"
+            echo "USE_TEST_DATA=false"
+            echo "INSYS_DB_HOST=insys_server"
+            echo "INSYS_DB_NAME=insys_database"
+            echo "INSYS_DB_USER=insys_user"
+            echo "INSYS_DB_PASS=insys_password"
             echo "APP_SECRET=your-production-secret"
             exit 1
           fi
