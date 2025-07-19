@@ -26,6 +26,14 @@ class InsysService
 
     public function loginUser(string $email, string $hash): int
     {
+        if ($this->useTestData()) {
+            // Pro testovací data používat MockMSSQLService logiku
+            if ($email === 'test@test.com' && $hash === 'test123') {
+                return 4133; // Test INT_ADR
+            }
+            throw new Exception('Chyba přihlášení, zkontrolujte údaje a zkuste to znovu.');
+        }
+
         $result = $this->connect("trasy.WEB_Login", [
             '@Email' => $email,
             '@WEBPwdHash' => $hash

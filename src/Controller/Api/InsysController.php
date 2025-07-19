@@ -3,13 +3,13 @@
 namespace App\Controller\Api;
 
 use App\Service\InsysService;
+use App\Entity\User;
 use Exception;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
-use Symfony\Component\HttpFoundation\Session\SessionInterface;
 
 #[Route('/api/insys')]
 class InsysController extends AbstractController
@@ -41,42 +41,40 @@ class InsysController extends AbstractController
     }
 
     #[Route('/user', methods: ['GET'])]
-    public function getInsysUser(Request $request, SessionInterface $session): JsonResponse
+    public function getInsysUser(Request $request): JsonResponse
     {
-        // Zkontrolovat autentizaci
-        $sessionIntAdr = $session->get('int_adr');
-        if (!$sessionIntAdr) {
+        // Použít Symfony Security
+        $user = $this->getUser();
+        if (!$user instanceof User) {
             return new JsonResponse([
                 'error' => 'Nepřihlášený uživatel'
             ], Response::HTTP_UNAUTHORIZED);
         }
 
-        // Použít INT_ADR ze session místo parametru pro bezpečnost
-        $intAdr = $sessionIntAdr;
+        $intAdr = $user->getIntAdr();
 
         try {
-            $user = $this->insysService->getUser((int) $intAdr);
+            $userData = $this->insysService->getUser((int) $intAdr);
             
-            return new JsonResponse($user);
+            return new JsonResponse($userData);
         } catch (Exception $e) {
             return new JsonResponse(['error' => $e->getMessage()], 500);
         }
     }
 
     #[Route('/prikazy', methods: ['GET'])]
-    public function getPrikazy(Request $request, SessionInterface $session): JsonResponse
+    public function getPrikazy(Request $request): JsonResponse
     {
-        // Zkontrolovat autentizaci
-        $sessionIntAdr = $session->get('int_adr');
-        if (!$sessionIntAdr) {
+        // Použít Symfony Security
+        $user = $this->getUser();
+        if (!$user instanceof User) {
             return new JsonResponse([
                 'error' => 'Nepřihlášený uživatel'
             ], Response::HTTP_UNAUTHORIZED);
         }
 
         $year = $request->query->get('year');
-        // Použít INT_ADR ze session místo parametru pro bezpečnost
-        $intAdr = $sessionIntAdr;
+        $intAdr = $user->getIntAdr();
 
         try {
             $prikazy = $this->insysService->getPrikazy((int) $intAdr, $year ? (int) $year : null);
@@ -88,11 +86,11 @@ class InsysController extends AbstractController
     }
 
     #[Route('/prikaz', methods: ['GET'])]
-    public function getPrikaz(Request $request, SessionInterface $session): JsonResponse
+    public function getPrikaz(Request $request): JsonResponse
     {
-        // Zkontrolovat autentizaci
-        $sessionIntAdr = $session->get('int_adr');
-        if (!$sessionIntAdr) {
+        // Použít Symfony Security
+        $user = $this->getUser();
+        if (!$user instanceof User) {
             return new JsonResponse([
                 'error' => 'Nepřihlášený uživatel'
             ], Response::HTTP_UNAUTHORIZED);
@@ -104,8 +102,7 @@ class InsysController extends AbstractController
             return new JsonResponse(['message' => 'Vyžadovaný parametr: id'], 400);
         }
 
-        // Použít INT_ADR ze session místo parametru pro bezpečnost
-        $intAdr = $sessionIntAdr;
+        $intAdr = $user->getIntAdr();
 
         try {
             $prikaz = $this->insysService->getPrikaz((int) $intAdr, (int) $id);
@@ -117,11 +114,11 @@ class InsysController extends AbstractController
     }
 
     #[Route('/ceniky', methods: ['GET'])]
-    public function getCeniky(Request $request, SessionInterface $session): JsonResponse
+    public function getCeniky(Request $request): JsonResponse
     {
-        // Zkontrolovat autentizaci
-        $sessionIntAdr = $session->get('int_adr');
-        if (!$sessionIntAdr) {
+        // Použít Symfony Security
+        $user = $this->getUser();
+        if (!$user instanceof User) {
             return new JsonResponse([
                 'error' => 'Nepřihlášený uživatel'
             ], Response::HTTP_UNAUTHORIZED);

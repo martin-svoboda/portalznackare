@@ -79,7 +79,8 @@ export const ProvedeniPrikazu: React.FC<ProvedeniPrikazuProps> = ({
 		// Načtení reportu pro aktuálního uživatele
 		const loadUserReport = apiCall("/portal/report", "GET", {id_zp: prikazId})
 			.then(result => {
-				if (result && Object.keys(result).length > 0) {
+				// Zkontroluj jestli je result null, prázdný, nebo obsahuje smysluplná data
+				if (result && typeof result === 'object' && Object.keys(result).length > 0 && result.id_zp) {
 					setReportData(result);
 				} else {
 					setReportData(null);
@@ -97,7 +98,13 @@ export const ProvedeniPrikazu: React.FC<ProvedeniPrikazuProps> = ({
 				.filter(adr => adr && adr > 0 && adr != intAdr)
 				.map(adr =>
 					apiCall("/portal/report", "GET", {int_adr: adr, id_zp: prikazId})
-						.then(result => result && Object.keys(result).length > 0 ? result : null)
+						.then(result => {
+							// Zkontroluj jestli je result validní hlášení
+							if (result && typeof result === 'object' && Object.keys(result).length > 0 && result.id_zp) {
+								return result;
+							}
+							return null;
+						})
 						.catch(() => null)
 				)
 		).then(results => {
@@ -227,7 +234,7 @@ export const ProvedeniPrikazu: React.FC<ProvedeniPrikazuProps> = ({
 				</Alert>
 			)}
 
-			{reportData && reportData ? (
+			{reportData ? (
 				<>
 					<Title order={4} mb="md">Vaše hlášení</Title>
 					<Grid mb="lg">

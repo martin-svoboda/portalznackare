@@ -7,8 +7,8 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
-use Symfony\Component\HttpFoundation\Session\SessionInterface;
 use App\Service\MockMSSQLService;
+use App\Entity\User;
 
 #[Route('/api/portal')]
 class PortalController extends AbstractController
@@ -53,15 +53,17 @@ class PortalController extends AbstractController
     }
 
     #[Route('/report', name: 'api_portal_report', methods: ['GET', 'POST'])]
-    public function report(Request $request, SessionInterface $session): JsonResponse
+    public function report(Request $request): JsonResponse
     {
-        // Zkontrolovat autentizaci
-        $intAdr = $session->get('int_adr');
-        if (!$intAdr) {
+        // Použít Symfony Security
+        $user = $this->getUser();
+        if (!$user instanceof User) {
             return new JsonResponse([
                 'error' => 'Nepřihlášený uživatel'
             ], Response::HTTP_UNAUTHORIZED);
         }
+        
+        $intAdr = $user->getIntAdr();
 
         if ($request->isMethod('GET')) {
             // Načíst existující hlášení
@@ -75,6 +77,9 @@ class PortalController extends AbstractController
 
             try {
                 // Mock data - v produkci by se načítalo z databáze
+                // Pro nyní vracíme prázdnou odpověď (žádné hlášení neexistuje)
+                // Pokud by hlášení existovalo, vrátili bychom:
+                /*
                 $reportData = [
                     'id_zp' => (int)$idZp,
                     'int_adr' => $intAdr,
@@ -85,8 +90,11 @@ class PortalController extends AbstractController
                     'created_at' => date('Y-m-d H:i:s'),
                     'updated_at' => date('Y-m-d H:i:s')
                 ];
-
                 return new JsonResponse($reportData);
+                */
+                
+                // Žádné hlášení neexistuje - vrátíme null s HTTP 200
+                return new JsonResponse(null);
                 
             } catch (\Exception $e) {
                 return new JsonResponse([
@@ -150,11 +158,11 @@ class PortalController extends AbstractController
     }
 
     #[Route('/prikaz', name: 'api_portal_prikaz', methods: ['GET'])]
-    public function prikaz(Request $request, SessionInterface $session): JsonResponse
+    public function prikaz(Request $request): JsonResponse
     {
-        // Zkontrolovat autentizaci
-        $intAdr = $session->get('int_adr');
-        if (!$intAdr) {
+        // Použít Symfony Security
+        $user = $this->getUser();
+        if (!$user instanceof User) {
             return new JsonResponse([
                 'error' => 'Nepřihlášený uživatel'
             ], Response::HTTP_UNAUTHORIZED);
@@ -169,6 +177,7 @@ class PortalController extends AbstractController
         }
 
         try {
+            $intAdr = $user->getIntAdr();
             $prikazData = $this->mssqlService->getPrikaz((int)$intAdr, (int)$id);
             return new JsonResponse($prikazData);
             

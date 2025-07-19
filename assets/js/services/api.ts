@@ -39,11 +39,35 @@ export async function apiCall<T = any>(
 		console.log('call API:', url);
 		const response = await fetch(url, options);
 
-		const responseData = await response.json();
+		// Zkontroluj jestli je odpověď JSON
+		const contentType = response.headers.get('content-type');
+		const isJson = contentType && contentType.includes('application/json');
+
+		let responseData: any = null;
+		
+		if (isJson) {
+			responseData = await response.json();
+		} else if (!response.ok) {
+			// Pro non-JSON error responses (např. HTML error pages)
+			const text = await response.text();
+			console.error('Non-JSON response:', text.substring(0, 200));
+			responseData = {
+				error: true,
+				message: `Server error (${response.status})`,
+				code: response.status
+			};
+		}
 
 		if (!response.ok) {
 			// Pokud má chybová odpověď message z Symfony, použij ji
 			const errorMessage = responseData?.message || `HTTP error! status: ${response.status}`;
+			
+			// Pro 401 Unauthorized - přesměruj na login
+			if (response.status === 401 && !endpoint.includes('/auth/')) {
+				// Může být potřeba odhlásit uživatele
+				window.location.href = '/';
+			}
+			
 			throw new Error(errorMessage);
 		}
 
