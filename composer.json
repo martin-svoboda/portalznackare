@@ -6,7 +6,7 @@
     "minimum-stability": "stable",
     "prefer-stable": true,
     "require": {
-        "php": ">=8.2",
+        "php": ">=8.3",
         "ext-ctype": "*",
         "ext-iconv": "*",
         "doctrine/dbal": "^4.3",
@@ -35,7 +35,10 @@
             "symfony/flex": true,
             "symfony/runtime": true
         },
-        "sort-packages": true
+        "sort-packages": true,
+        "platform": {
+            "php": "8.3.0"
+        }
     },
     "autoload": {
         "psr-4": {
@@ -57,16 +60,9 @@
         "symfony/polyfill-php81": "*"
     },
     "scripts": {
-        "auto-scripts": {
-            "cache:clear": "symfony-cmd",
-            "assets:install %PUBLIC_DIR%": "symfony-cmd"
-        },
-        "post-install-cmd": [
-            "@auto-scripts"
-        ],
-        "post-update-cmd": [
-            "@auto-scripts"
-        ],
+        "auto-scripts": "{}",
+        "post-install-cmd": "[]",
+        "post-update-cmd": "[]",
         "cs-fix": "php-cs-fixer fix",
         "phpstan": "phpstan analyse",
         "test": "phpunit"
