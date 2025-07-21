@@ -5,39 +5,39 @@ Kompletní dokumentace webové aplikace pro správu turistického značení.
 ## 📋 Obsah dokumentace
 
 ### 🚀 Začínáme
-- [[Instalace a setup|getting-started-installation]]
+- [Instalace a setup](getting-started/installation.md)
 
 ### 🏗️ Architektura  
-- [[CMS architektura|architecture-cms]]
+- [CMS architektura](architecture/cms.md)
 
 ### 🎨 Frontend
-- [[React micro-apps architektura|frontend-architecture]]
-- [[Build systém (Webpack Encore)|frontend-build-system]]
-- [[Styling (BEM + Tailwind)|frontend-styling]]
+- [React micro-apps architektura](frontend/architecture.md)
+- [Build systém (Webpack Encore)](frontend/build-system.md)
+- [Styling (BEM + Tailwind)](frontend/styling.md)
 
 ### 🔌 API Reference
-- [[API přehled|api-README]]
+- [API přehled](api/README.md)
 
 ### 🔄 Migrace
-- [[Z WordPress pluginu|migration-wordpress]]
+- [Z WordPress pluginu](migration/wordpress.md)
 
 ### 👥 Uživatelská dokumentace
-- [[Uživatelská nápověda|user-docs-README]]
-- [[První přihlášení|user-docs-getting-started-first-login]]
+- [Uživatelská nápověda](../user-docs/README.md)
+- [První přihlášení](../user-docs/getting-started/first-login.md)
 
 ---
 
 ## 🔗 Rychlé odkazy
 
-- **API dokumentace:** [[api-README]]
-- **Uživatelská nápověda:** [[user-docs-README]]
+- **API dokumentace:** [api/README.md](api/README.md)
+- **Uživatelská nápověda:** [../user-docs/README.md](../user-docs/README.md)
 
 ## 📖 Jak číst dokumentaci
 
-1. **Nový vývojář:** Začni s [[getting-started-installation]]
-2. **Architektura:** Prostuduj [[architecture-cms]]
-3. **Frontend vývoj:** Pokračuj [[frontend-architecture]]
-4. **Migrace z WordPress:** Zkontroluj [[migration-wordpress]]
+1. **Nový vývojář:** Začni s [getting-started/installation.md](getting-started/installation.md)
+2. **Architektura:** Prostuduj [architecture/cms.md](architecture/cms.md)
+3. **Frontend vývoj:** Pokračuj [frontend/architecture.md](frontend/architecture.md)
+4. **Migrace z WordPress:** Zkontroluj [migration/wordpress.md](migration/wordpress.md)
 
 ---
 
