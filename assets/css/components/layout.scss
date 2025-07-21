@@ -1,0 +1,202 @@
+// Layout Components - BEM methodology
+// Základní layout prvky jako sections, containers, grids
+
+// Container system - jednotný pro celou aplikaci
+.container {
+  @apply w-full mx-auto;
+
+  &--sm {
+    @apply max-w-2xl;
+  }
+
+  &--md {
+    @apply max-w-4xl;
+  }
+
+  &--lg {
+    @apply max-w-6xl;
+  }
+
+  &--xl {
+    @apply max-w-7xl;
+  }
+
+  &--full {
+    @apply max-w-full;
+  }
+
+  &--fluid {
+    @apply px-0;
+  }
+
+  &--no-padding {
+    @apply py-0;
+  }
+}
+
+// Section wrapper
+.section {
+  @apply py-8;
+
+  &--small {
+    @apply py-4;
+  }
+
+  &--large {
+    @apply py-12;
+  }
+
+  &--hero {
+    @apply py-16 md:py-24;
+  }
+
+  &__header {
+    @apply mb-6;
+  }
+
+  &__title {
+    @apply text-2xl md:text-3xl font-bold text-gray-900 mb-2;
+  }
+
+  &__subtitle {
+    @apply text-gray-600 text-lg;
+  }
+
+  &__content {
+    @apply space-y-6;
+  }
+}
+
+// Grid layouts
+.grid-layout {
+  @apply grid gap-6;
+
+  &--cols-1 {
+    @apply grid-cols-1;
+  }
+
+  &--cols-2 {
+    @apply grid-cols-1 md:grid-cols-2;
+  }
+
+  &--cols-3 {
+    @apply grid-cols-1 md:grid-cols-2 lg:grid-cols-3;
+  }
+
+  &--cols-4 {
+    @apply grid-cols-1 md:grid-cols-2 lg:grid-cols-4;
+  }
+
+  &--auto-fit {
+    @apply grid-cols-[repeat(auto-fit,minmax(300px,1fr))];
+  }
+
+  &--gap-small {
+    @apply gap-3;
+  }
+
+  &--gap-large {
+    @apply gap-8;
+  }
+}
+
+// Flex layouts
+.flex-layout {
+  @apply flex;
+
+  &--column {
+    @apply flex-col;
+  }
+
+  &--row {
+    @apply flex-row;
+  }
+
+  &--center {
+    @apply items-center justify-center;
+  }
+
+  &--between {
+    @apply justify-between items-center;
+  }
+
+  &--start {
+    @apply justify-start items-center;
+  }
+
+  &--end {
+    @apply justify-end items-center;
+  }
+
+  &--wrap {
+    @apply flex-wrap;
+  }
+
+  &--gap-small {
+    @apply gap-2;
+  }
+
+  &--gap-medium {
+    @apply gap-4;
+  }
+
+  &--gap-large {
+    @apply gap-6;
+  }
+}
+
+
+// Sidebar layout
+.sidebar-layout {
+  @apply flex flex-col lg:flex-row gap-6;
+
+  &__sidebar {
+    @apply lg:w-64 lg:flex-shrink-0;
+  }
+
+  &__content {
+    @apply flex-1 min-w-0;
+  }
+}
+
+// Header layout
+.header-layout {
+  @apply bg-white shadow-sm border-b border-gray-200;
+
+  &__container {
+    @apply max-w-screen-xl mx-auto px-4 py-4;
+  }
+
+  &__content {
+    @apply flex items-center justify-between;
+  }
+
+  &__brand {
+    @apply flex items-center space-x-3;
+  }
+
+  &__nav {
+    @apply hidden md:flex items-center space-x-6;
+  }
+
+  &__actions {
+    @apply flex items-center space-x-3;
+  }
+}
+
+// Footer layout
+.footer-layout {
+  @apply bg-gray-50 border-t border-gray-200 mt-auto;
+
+  &__container {
+    @apply max-w-screen-xl mx-auto px-4 py-8;
+  }
+
+  &__content {
+    @apply grid grid-cols-1 md:grid-cols-3 gap-8;
+  }
+
+  &__bottom {
+    @apply border-t border-gray-200 pt-6 mt-6 text-center text-gray-600 text-sm;
+  }
+}

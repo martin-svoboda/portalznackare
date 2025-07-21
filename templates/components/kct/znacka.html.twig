@@ -1,0 +1,54 @@
+{# 
+    KČT Značka komponenta
+    Použití: {{ include('components/kct/znacka.html.twig', {color: 'red', type: 'pasova', size: 'md'}) }}
+#}
+{% set sizeClasses = {
+    'sm': 'w-6 h-3',
+    'md': 'w-8 h-4',
+    'lg': 'w-12 h-6'
+} %}
+
+{% set colorClasses = {
+    'red': 'bg-red-500',
+    'blue': 'bg-blue-500', 
+    'green': 'bg-green-500',
+    'yellow': 'bg-yellow-400'
+} %}
+
+{% set type = type|default('pasova') %}
+{% set size = size|default('md') %}
+{% set className = className|default('') %}
+
+{% if type == 'pasova' %}
+    <span class="inline-flex items-center justify-center {{ sizeClasses[size] }} {{ colorClasses[color] }} rounded-sm {{ className }}" 
+          aria-label="{{ color }} pásová značka"
+          data-kct-znacka>
+    </span>
+
+{% elseif type == 'sipka' %}
+    <span class="inline-flex items-center justify-center {{ sizeClasses[size] }} {{ className }}" 
+          aria-label="{{ color }} šipková značka"
+          data-kct-znacka>
+        <svg viewBox="0 0 24 24" class="w-full h-full">
+            <path d="M5 12l5 5V7z" fill="{{ color == 'red' ? '#ef4444' : color == 'blue' ? '#3b82f6' : color == 'green' ? '#10b981' : '#facc15' }}" />
+        </svg>
+    </span>
+
+{% elseif type == 'koncova' %}
+    <span class="inline-flex items-center justify-center {{ sizeClasses[size] }} {{ className }}" 
+          aria-label="{{ color }} koncová značka"
+          data-kct-znacka>
+        <span class="{{ colorClasses[color] }} w-full h-full flex items-center justify-center rounded-sm relative">
+            <span class="bg-white w-1/3 h-1/3 rounded-full absolute"></span>
+        </span>
+    </span>
+
+{% elseif type == 'smerovka' %}
+    <span class="inline-flex items-center justify-center {{ sizeClasses[size] }} {{ className }}" 
+          aria-label="{{ color }} směrovka"
+          data-kct-znacka>
+        <span class="w-full h-full border-2 border-{{ color }}-500 flex items-center justify-center rounded-sm">
+            <span class="text-xs font-bold">S</span>
+        </span>
+    </span>
+{% endif %}

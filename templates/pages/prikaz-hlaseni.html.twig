@@ -1,0 +1,65 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Hlášení příkazu {{ id }} - Portál značkaře{% endblock %}
+
+{% block body %}
+    <div class="container container--lg">
+        {% include 'components/page-header.html.twig' with {
+            title: 'Hlášení k příkazu <span class="prikaz-id">' ~ id ~ '</span>',
+            subtitle: 'Hlášení o provedení značkařské činnosti.',
+            breadcrumbs: [
+                {
+                    url: path('app_index'),
+                    text: 'Úvod'
+                },
+                {
+                    url: path('app_dashboard'),
+                    text: 'Nástěnka'
+                },
+                {
+                    url: path('app_prikazy'),
+                    text: 'Příkazy'
+                },
+                {
+                    url: path('app_prikaz_detail', {id: id}),
+                    text: 'Příkaz ' ~ id
+                },
+                {
+                    text: 'Hlášení'
+                }
+            ]
+        } %}
+
+        {% if not app.user %}
+            {% include 'components/alert.html.twig' with {
+                type: 'warning',
+                title: 'Přihlášení vyžadováno',
+                message: 'Pro vyplnění hlášení příkazu se musíte přihlásit.',
+                actions: [
+                    {
+                        url: path('app_dashboard'),
+                        text: 'Přihlásit se'
+                    }
+                ]
+            } %}
+        {% else %}
+            <div data-app="hlaseni-prikazu" 
+                 data-prikaz-id="{{ id }}"
+                 data-user="{{ app.user ? {INT_ADR: app.user.intAdr, name: app.user.fullName}|json_encode|e('html_attr') : '{}' }}">
+                <div class="card">
+                    <div class="card__content">
+                        <div class="loader-container">
+                            <div class="loader"></div>
+                            <p class="text text--small text--muted mt-2">Načítání aplikace pro hlášení příkazu...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    {{ encore_entry_script_tags('app-hlaseni-prikazu') }}
+{% endblock %}

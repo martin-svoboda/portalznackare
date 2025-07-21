@@ -1,0 +1,224 @@
+// Form Components - BEM methodology
+// Formulářové prvky, inputy, buttony, labels
+
+// Form container
+.form {
+  @apply space-y-6;
+
+  &--compact {
+    @apply space-y-4;
+  }
+
+  &--inline {
+    @apply flex items-center space-x-4 space-y-0;
+  }
+
+  &--grid {
+    @apply grid grid-cols-1 md:grid-cols-2 gap-6;
+  }
+
+
+  // Form group (label + input + help)
+  &__group {
+    @apply space-y-2;
+
+    &--inline {
+      @apply flex items-center space-x-3 space-y-0;
+    }
+
+    &--error {
+      .form-input {
+        @apply border-red-300 focus:border-red-500 focus:ring-red-500;
+      }
+    }
+  }
+
+  // Labels
+  &__label {
+    @apply block text-sm font-medium text-gray-700;
+
+    &--required {
+      @apply after:content-['*'] after:text-red-500 after:ml-1;
+    }
+
+    &--inline {
+      @apply inline-block;
+    }
+
+    &--large {
+      @apply text-base;
+    }
+
+    &--small {
+      @apply text-xs;
+    }
+  }
+
+  // Input fields
+  &__input {
+    @apply block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500;
+
+    &--small {
+      @apply px-2 py-1 text-sm;
+    }
+
+    &--large {
+      @apply px-4 py-3 text-lg;
+    }
+
+    &--error {
+      @apply border-red-300 focus:border-red-500 focus:ring-red-500;
+    }
+
+    &--success {
+      @apply border-green-300 focus:border-green-500 focus:ring-green-500;
+    }
+
+    &--disabled {
+      @apply bg-gray-100 text-gray-500 cursor-not-allowed;
+    }
+
+    &--readonly {
+      @apply bg-gray-50 focus:ring-0 focus:border-gray-300;
+    }
+  }
+
+  // Textarea
+  &__textarea {
+    @apply block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 resize-y;
+
+    &--small {
+      @apply text-sm min-h-[80px];
+    }
+
+    &--large {
+      @apply text-lg min-h-[120px];
+    }
+
+    &--no-resize {
+      @apply resize-none;
+    }
+  }
+
+  // Select
+  &__select {
+    @apply block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white;
+
+    &--small {
+      @apply px-2 py-1 text-sm;
+    }
+
+    &--large {
+      @apply px-4 py-3 text-lg;
+    }
+  }
+
+  // Checkbox a radio
+  &__checkbox,
+  &__radio {
+    @apply h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded;
+
+    &--large {
+      @apply h-5 w-5;
+    }
+  }
+
+  &__radio {
+    @apply rounded-full;
+  }
+
+  // Checkbox/radio group
+  &__check-group {
+    @apply space-y-3;
+
+    &--inline {
+      @apply flex items-center space-x-6 space-y-0;
+    }
+  }
+
+  &__check {
+    @apply flex items-center;
+
+    &__input {
+      @apply h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded;
+    }
+
+    &__label {
+      @apply ml-2 block text-sm text-gray-900;
+    }
+
+    &--disabled {
+      @apply opacity-50;
+    }
+  }
+
+  // File upload
+  &__file {
+    @apply block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100;
+  }
+
+  // Help text
+  &__help {
+    @apply text-sm text-gray-600;
+
+    &--error {
+      @apply text-red-600;
+    }
+
+    &--success {
+      @apply text-green-600;
+    }
+
+    &--warning {
+      @apply text-yellow-600;
+    }
+  }
+
+  // Form actions (submit oblasti)
+  &__actions {
+    @apply flex items-center justify-end space-x-3 pt-6 border-t border-gray-200;
+
+    &--start {
+      @apply justify-start;
+    }
+
+    &--center {
+      @apply justify-center;
+    }
+
+    &--between {
+      @apply justify-between;
+    }
+
+    &--stacked {
+      @apply flex-col space-x-0 space-y-3 items-stretch;
+    }
+  }
+}
+
+// Input groups (input s ikonou nebo textem)
+.input-group {
+  @apply relative;
+
+  &__addon {
+    @apply absolute inset-y-0 flex items-center px-3 text-gray-500;
+
+    &--left {
+      @apply left-0;
+    }
+
+    &--right {
+      @apply right-0;
+    }
+  }
+
+  &__input {
+    &--left-addon {
+      @apply pl-10;
+    }
+
+    &--right-addon {
+      @apply pr-10;
+    }
+  }
+}

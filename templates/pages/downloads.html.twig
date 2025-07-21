@@ -1,0 +1,93 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Ke stažení - Portál značkaře{% endblock %}
+
+{% block body %}
+    <div class="container container--lg">
+        {% include 'components/page-header.html.twig' with {
+            title: 'Ke stažení',
+            subtitle: 'Dokumenty, formuláře a materiály potřebné pro značení turistických tras.',
+            breadcrumbs: [
+                {
+                    url: path('app_index'),
+                    text: 'Úvod'
+                },
+                {
+                    text: 'Ke stažení'
+                }
+            ]
+        } %}
+
+        <div class="grid-layout grid-layout--gap-lg">
+            <div class="card">
+                <div class="card__header">
+                    <h3 class="card__title">Formuláře a dokumenty</h3>
+                </div>
+                <div class="card__content">
+                    <div class="grid-layout grid-layout--gap-md">
+                        <div class="download-item">
+                            <div class="download-item__info">
+                                <h4 class="download-item__title">Hlášení o značení tras</h4>
+                                <p class="download-item__desc">Formulář pro hlášení dokončených prací</p>
+                            </div>
+                            <a href="#" class="btn btn--primary" onclick="alert('Soubor bude k dispozici po implementaci')">
+                                <svg class="btn__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                    <polyline points="7,10 12,15 17,10"/>
+                                    <line x1="12" y1="15" x2="12" y2="3"/>
+                                </svg>
+                                Stáhnout
+                            </a>
+                        </div>
+
+                        <div class="download-item">
+                            <div class="download-item__info">
+                                <h4 class="download-item__title">Metodika značení (PDF)</h4>
+                                <p class="download-item__desc">Kompletní metodika ve formátu PDF</p>
+                            </div>
+                            <a href="#" class="btn btn--primary" onclick="alert('Soubor bude k dispozici po implementaci')">
+                                <svg class="btn__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                    <polyline points="7,10 12,15 17,10"/>
+                                    <line x1="12" y1="15" x2="12" y2="3"/>
+                                </svg>
+                                Stáhnout
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card__header">
+                    <h3 class="card__title">Aplikace a nástroje</h3>
+                </div>
+                <div class="card__content">
+                    <div class="grid-layout grid-layout--gap-md">
+
+                        <div class="download-item">
+                            <div class="download-item__info">
+                                <h4 class="download-item__title">GPS nástroje</h4>
+                                <p class="download-item__desc">Nástroje pro práci s GPS souřadnicemi</p>
+                            </div>
+                            <a href="#" class="btn btn--secondary" onclick="alert('Link bude k dispozici po implementaci')">
+                                <svg class="btn__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                                    <polyline points="15,3 21,3 21,9"/>
+                                    <line x1="10" y1="14" x2="21" y2="3"/>
+                                </svg>
+                                Otevřít
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% include 'components/alert.html.twig' with {
+                type: 'info',
+                title: 'Poznámka k implementaci',
+                message: 'Tato stránka je připravena pro budoucí implementaci systému správy souborů. Soubory budou ukládány a spravovány přes administrační rozhraní.'
+            } %}
+        </div>
+    </div>
+{% endblock %}

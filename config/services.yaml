@@ -24,10 +24,23 @@ services:
         arguments:
             $projectDir: '%kernel.project_dir%'
 
+    App\Controller\FileServeController:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+
+    App\Controller\HelpController:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+
     # API Exception listener pro JSON error responses
     App\EventListener\ApiExceptionListener:
         tags:
             - { name: kernel.event_listener, event: kernel.exception, priority: 100 }
+
+    # Twig extension pro KČT komponenty
+    App\Twig\KctExtension:
+        tags:
+            - { name: twig.extension }
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

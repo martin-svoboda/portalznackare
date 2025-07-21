@@ -52,6 +52,11 @@ class User implements UserInterface
         return $this->prukazZnackare;
     }
 
+    public function getFullName(): string
+    {
+        return trim($this->jmeno . ' ' . $this->prijmeni);
+    }
+
     public function setPrukazZnackare(?string $prukazZnackare): void
     {
         $this->prukazZnackare = $prukazZnackare;

@@ -1,0 +1,46 @@
+{#
+  Statistics Card Component
+  
+  Parameters:
+  - title: Card title (default: 'Statistiky')
+  - stats: Array of stat objects with 'label', 'value', 'variant' (optional)
+  - variant: 'default', 'compact' (default: 'default')
+#}
+
+{% set cardClass = 'card' %}
+{% if variant is defined and variant == 'compact' %}
+    {% set cardClass = 'compact-card' %}
+{% endif %}
+
+<div class="{{ cardClass }}">
+    {% if variant is not defined or variant != 'compact' %}
+        <div class="card__header">
+            <h3 class="card__title">{{ title|default('Statistiky') }}</h3>
+        </div>
+        <div class="card__content">
+    {% else %}
+        <h3 class="compact-card__title">{{ title|default('Statistiky') }}</h3>
+        <div class="compact-card__content">
+    {% endif %}
+    
+    {% if stats is defined and stats %}
+        <div class="space-y-2">
+            {% for stat in stats %}
+                <div class="flex-layout flex-layout--between">
+                    <span class="text text--muted">{{ stat.label }}:</span>
+                    <strong class="text {{ stat.variant is defined ? 'text--' ~ stat.variant : 'text--dark' }}">
+                        {{ stat.value }}
+                    </strong>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="text text--muted">Žádné statistiky k zobrazení</p>
+    {% endif %}
+    
+    {% if variant is not defined or variant != 'compact' %}
+        </div>
+    {% else %}
+        </div>
+    {% endif %}
+</div>

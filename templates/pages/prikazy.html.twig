@@ -1,0 +1,50 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Příkazy - Portál značkaře{% endblock %}
+
+{% block body %}
+    <div class="container container--lg">
+        {% include 'components/page-header.html.twig' with {
+            title: 'Moje příkazy',
+            subtitle: 'Výpis příkazů v přehledné tabulce.',
+            breadcrumbs: [
+                {
+                    url: path('app_index'),
+                    text: 'Úvod'
+                },
+                {
+                    url: path('app_dashboard'),
+                    text: 'Nástěnka'
+                },
+                {
+                    text: 'Příkazy'
+                }
+            ]
+        } %}
+
+        {% if not app.user %}
+            {% include 'components/alert.html.twig' with {
+                type: 'warning',
+                title: 'Přihlášení vyžadováno',
+                message: 'Pro zobrazení příkazů se musíte přihlásit.',
+                actions: [
+                    {
+                        url: path('app_dashboard'),
+                        text: 'Přihlásit se'
+                    }
+                ]
+            } %}
+        {% else %}
+            <div class="card">
+                <div data-app="prikazy">
+                    <p class="text text--small text--muted">Načítání aplikace pro výpis příkazů...</p>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    {{ encore_entry_script_tags('app-prikazy') }}
+{% endblock %}

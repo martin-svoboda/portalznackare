@@ -1,0 +1,56 @@
+{#
+  Login Form Component
+  
+  Parameters:
+  - title: Form title (default: 'Přihlášení')
+  - description: Form description (optional)
+  - action_url: Form action URL (default: api_auth_login route)
+  - username_placeholder: Username field placeholder (default: 'test@test.com')
+  - password_placeholder: Password field placeholder (default: 'test123')
+  - submit_text: Submit button text (default: 'Přihlásit se')
+  - show_flash_messages: true/false (default: true)
+#}
+
+{% if show_flash_messages is not defined or show_flash_messages %}
+    {% for message in app.flashes('error') %}
+        {% include 'components/alert.html.twig' with {
+            type: 'error',
+            message: message,
+            dismissible: true
+        } %}
+    {% endfor %}
+{% endif %}
+
+<div class="card">
+    <div class="card__header">
+        <h2 class="card__title">{{ title|default('Přihlášení') }}</h2>
+    </div>
+    
+    <div class="card__content">
+        <form action="{{ action_url|default(path('api_auth_login')) }}" method="post" class="form">
+            {% if description is defined and description %}
+                <p class="text text--muted mb-6">{{ description }}</p>
+            {% else %}
+                <p class="text text--muted mb-6">
+                    Přihlaste se pomocí svých přihlašovacích údajů.
+                </p>
+            {% endif %}
+            
+            <div class="form-group">
+                <label class="form__label">Email:</label>
+                <input type="email" name="username" required class="form__input"
+                       placeholder="{{ username_placeholder|default('test@test.com') }}">
+            </div>
+            
+            <div class="form-group">
+                <label class="form__label">Heslo:</label>
+                <input type="password" name="password" required class="form__input"
+                       placeholder="{{ password_placeholder|default('test123') }}">
+            </div>
+            
+            <button type="submit" class="btn btn--primary btn--full">
+                {{ submit_text|default('Přihlásit se') }}
+            </button>
+        </form>
+    </div>
+</div>

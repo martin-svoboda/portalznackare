@@ -1,0 +1,91 @@
+name: Sync Documentation to Wiki
+
+on:
+  push:
+    branches: [main]
+    paths: ['docs/**', 'user-docs/**']
+  workflow_dispatch:
+
+jobs:
+  sync-wiki:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Checkout wiki repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository }}.wiki
+          path: wiki/
+          token: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Sync docs to wiki
+        run: |
+          # Remove old wiki content (except .git)
+          find wiki/ -type f -name "*.md" -delete
+          
+          # Copy docs to wiki (if docs exists)
+          if [ -d "docs" ]; then
+            cp -r docs/* wiki/
+          fi
+          
+          # Copy user-docs to wiki (if user-docs exists)  
+          if [ -d "user-docs" ]; then
+            mkdir -p wiki/user-docs
+            cp -r user-docs/* wiki/user-docs/
+          fi
+          
+          # Rename main README to Home (wiki homepage)
+          if [ -f "wiki/README.md" ]; then
+            mv wiki/README.md wiki/Home.md
+          fi
+          
+          # Convert internal markdown links to wiki format
+          find wiki/ -name "*.md" -type f -exec sed -i 's/\.md)/)/g' {} \;
+          find wiki/ -name "*.md" -type f -exec sed -i 's/](docs\//](/g' {} \;
+          find wiki/ -name "*.md" -type f -exec sed -i 's/](\.\.\//](/g' {} \;
+          
+          # Create wiki sidebar navigation
+          cat > wiki/_Sidebar.md << 'EOF'
+          ## 📖 Dokumentace
+          
+          ### 📋 Projekt
+          - [Přehled](Home)
+          - [Instalace a setup](README)
+          
+          ### 👥 Uživatelská nápověda
+          - [Nápověda](user-docs/README)
+          
+          ### 🏗️ Technická dokumentace
+          - [Architektura](CMS_ARCHITECTURE)
+          - [TODO seznam](TODO)
+          - [Development](DEVELOPMENT)
+          
+          ### 🔄 Migrace
+          - [WordPress analýza](WORDPRESS_ANALYSIS)
+          
+          ### 🛠️ Development
+          - [Coding standards](docs/coding-standards)
+          - [Troubleshooting](docs/troubleshooting)
+          EOF
+          
+      - name: Commit and push to wiki
+        run: |
+          cd wiki/
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          
+          git commit -m "🤖 Auto-sync documentation from main branch"
+          git push
+          
+          echo "✅ Wiki synchronized successfully"

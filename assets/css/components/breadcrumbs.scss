@@ -1,0 +1,37 @@
+// Breadcrumbs component
+// Used for navigation hierarchy
+.breadcrumbs {
+    @apply text-sm;
+    
+    &__list {
+        @apply flex flex-wrap items-center gap-2 list-none p-0 m-0;
+    }
+    
+    &__item {
+        @apply flex items-center gap-2;
+        
+        // Separator between items
+        &:not(:last-child)::after {
+            content: '/';
+            @apply text-gray-400 dark:text-gray-600;
+        }
+    }
+    
+    &__link {
+        @apply text-gray-600 hover:text-blue-600 transition-colors;
+        @apply dark:text-gray-400 dark:hover:text-blue-400;
+        @apply no-underline;
+        
+        &:hover {
+            @apply underline;
+        }
+    }
+    
+    &__current {
+        @apply text-gray-900 font-medium;
+        @apply dark:text-gray-100;
+    }
+}
+
+// Note: Spacing should be applied directly in templates using mb-4 class
+// No need to redefine utility classes here

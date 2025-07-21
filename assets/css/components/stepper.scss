@@ -1,0 +1,62 @@
+// Stepper component
+.stepper {
+    @apply flex flex-col md:flex-row gap-4 md:gap-8;
+    
+    &__step {
+        @apply flex items-start gap-3 cursor-pointer;
+        @apply opacity-60 transition-opacity;
+        
+        &--active {
+            @apply opacity-100;
+        }
+        
+        &--completed {
+            @apply opacity-100;
+            
+            .stepper__icon {
+                @apply bg-green-500 text-white;
+            }
+        }
+        
+        &:hover {
+            @apply opacity-80;
+        }
+    }
+    
+    &__icon {
+        @apply w-10 h-10 rounded-full flex items-center justify-center;
+        @apply bg-gray-200 dark:bg-gray-700;
+        @apply text-gray-600 dark:text-gray-400;
+        @apply transition-colors;
+        
+        .stepper__step--active & {
+            @apply bg-blue-500 text-white;
+        }
+    }
+    
+    &__content {
+        @apply flex-1;
+    }
+    
+    &__label {
+        @apply font-medium text-gray-900 dark:text-gray-100;
+    }
+    
+    &__description {
+        @apply text-sm text-gray-600 dark:text-gray-400 mt-1;
+    }
+    
+    // Connector line for desktop
+    @media (min-width: 768px) {
+        &__step {
+            @apply flex-1 relative;
+            
+            &:not(:last-child)::after {
+                content: '';
+                @apply absolute top-5 left-full w-full h-px;
+                @apply bg-gray-300 dark:bg-gray-600;
+                @apply -translate-x-1/2;
+            }
+        }
+    }
+}

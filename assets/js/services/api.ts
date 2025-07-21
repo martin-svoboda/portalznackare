@@ -1,88 +1,100 @@
-import { notifications } from "@mantine/notifications";
+/**
+ * API služba pro komunikaci se Symfony backendem
+ * Sdílená mezi všemi micro-aplikacemi
+ */
 
-// TODO: Replace with proper config
 const API_BASE_URL = '/api';
 
-function addQueryArgs(url: string, params: Record<string, any>): string {
-	const searchParams = new URLSearchParams();
-	Object.entries(params).forEach(([key, value]) => {
-		if (value !== undefined && value !== null) {
-			searchParams.append(key, String(value));
-		}
-	});
-	const queryString = searchParams.toString();
-	return queryString ? `${url}?${queryString}` : url;
+export interface ApiResponse<T = any> {
+    success?: boolean;
+    data?: T;
+    error?: string;
+    message?: string;
 }
 
+export class ApiError extends Error {
+    constructor(public status: number, message: string) {
+        super(message);
+        this.name = 'ApiError';
+    }
+}
+
+/**
+ * Základní API volání
+ */
 export async function apiCall<T = any>(
-	endpoint: string,
-	method: 'GET' | 'POST' = 'GET',
-	data?: Record<string, any>
+    endpoint: string,
+    method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET',
+    data?: any
 ): Promise<T> {
-	try {
-		let url = API_BASE_URL + endpoint;
-		const options: RequestInit = {
-			method,
-			headers: {
-				'Content-Type': 'application/json',
-				'X-Requested-With': 'XMLHttpRequest', // Pro rozpoznání AJAX requestů v Symfony
-			},
-			credentials: 'same-origin', // Posílat cookies pro session
-		};
+    const url = `${API_BASE_URL}${endpoint}`;
+    const options: RequestInit = {
+        method,
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        credentials: 'same-origin',
+    };
 
-		if (method === 'GET' && data) {
-			url = addQueryArgs(url, data);
-		} else if (method !== 'GET') {
-			options.body = JSON.stringify(data);
-		}
+    if (data && method !== 'GET') {
+        options.body = JSON.stringify(data);
+    } else if (data && method === 'GET') {
+        const params = new URLSearchParams(data);
+        return apiCall(`${endpoint}?${params}`, 'GET');
+    }
 
-		console.log('call API:', url);
-		const response = await fetch(url, options);
+    try {
+        const response = await fetch(url, options);
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new ApiError(
+                response.status,
+                errorData.message || `HTTP ${response.status}`
+            );
+        }
 
-		// Zkontroluj jestli je odpověď JSON
-		const contentType = response.headers.get('content-type');
-		const isJson = contentType && contentType.includes('application/json');
-
-		let responseData: any = null;
-		
-		if (isJson) {
-			responseData = await response.json();
-		} else if (!response.ok) {
-			// Pro non-JSON error responses (např. HTML error pages)
-			const text = await response.text();
-			console.error('Non-JSON response:', text.substring(0, 200));
-			responseData = {
-				error: true,
-				message: `Server error (${response.status})`,
-				code: response.status
-			};
-		}
-
-		if (!response.ok) {
-			// Pokud má chybová odpověď message z Symfony, použij ji
-			const errorMessage = responseData?.message || `HTTP error! status: ${response.status}`;
-			
-			// Pro 401 Unauthorized - přesměruj na login
-			if (response.status === 401 && !endpoint.includes('/auth/')) {
-				// Může být potřeba odhlásit uživatele
-				window.location.href = '/';
-			}
-			
-			throw new Error(errorMessage);
-		}
-
-		return responseData;
-	} catch (error: any) {
-		console.error(`API error at ${endpoint}:`, error);
-		notifications.show({
-			color: 'red',
-			title: 'Chyba při získávání dat',
-			message: error.message,
-			autoClose: 5000,
-		});
-		throw error;
-	}
+        return await response.json();
+    } catch (error) {
+        if (error instanceof ApiError) {
+            throw error;
+        }
+        throw new Error('Network error');
+    }
 }
 
-// Legacy alias for compatibility
-export const apiRequest = apiCall;
+/**
+ * API endpoints
+ */
+export const api = {
+    // Auth
+    auth: {
+        login: (username: string, password: string) =>
+            apiCall<ApiResponse>('/auth/login', 'POST', { username, password }),
+        logout: () =>
+            apiCall<ApiResponse>('/auth/logout', 'POST'),
+        status: () =>
+            apiCall<{ authenticated: boolean; user: any }>('/auth/status'),
+    },
+
+    // Příkazy
+    prikazy: {
+        list: (params?: { year?: number; int_adr?: number }) =>
+            apiCall<any[]>('/insys/prikazy', 'GET', params),
+        detail: (id: number) =>
+            apiCall<any>('/portal/prikaz', 'GET', { id }),
+        report: (id: number) =>
+            apiCall<any>('/portal/report', 'GET', { id_zp: id }),
+        saveReport: (data: any) =>
+            apiCall<ApiResponse>('/portal/report', 'POST', data),
+    },
+
+    // Insys
+    insys: {
+        user: () =>
+            apiCall<any>('/insys/user'),
+        ceniky: (date?: string) =>
+            apiCall<any>('/insys/ceniky', 'GET', { date }),
+    },
+};

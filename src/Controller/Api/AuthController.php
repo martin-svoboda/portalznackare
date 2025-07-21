@@ -77,15 +77,11 @@ class AuthController extends AbstractController
         ]);
     }
 
-    #[Route('/logout', name: 'api_auth_logout', methods: ['POST'])]
-    public function logout(): JsonResponse
+    #[Route('/logout', name: 'api_auth_logout')]
+    public function logout(): void
     {
-        // Symfony Security automaticky zneplatní autentizaci
-        // díky konfiguraci v security.yaml na řádku 22-23
-        return new JsonResponse([
-            'success' => true,
-            'message' => 'Odhlášení bylo úspěšné'
-        ]);
+        // Tento method se nikdy nespustí - Symfony Security ho přebírá
+        throw new \Exception('Tato metoda by měla být přebrána Symfony firewall-em.');
     }
 
 }

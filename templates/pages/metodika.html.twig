@@ -1,0 +1,157 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Metodika značení - Portál značkaře{% endblock %}
+
+{% block body %}
+    <div class="container container--xl">
+        {% include 'components/page-header.html.twig' with {
+            title: 'Metodika značení turistických tras',
+            subtitle: 'Kompletní průvodce pro značkaře KČT.',
+            breadcrumbs: [
+                {
+                    url: path('app_index'),
+                    text: 'Úvod'
+                },
+                {
+                    text: 'Metodika'
+                }
+            ]
+        } %}
+        
+        <div class="alert alert--info mb-8">
+            <div class="alert__content">
+                <div class="alert__body">
+                    <strong>Info:</strong> React aplikace pro metodiku bude implementována v další fázi. 
+                    Zde je připravena Twig šablona pro statický obsah.
+                </div>
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 250px 1fr; gap: 2rem;">
+            <!-- Sidebar navigace -->
+            <nav style="background: white; padding: 1.5rem; border-radius: var(--border-radius); box-shadow: var(--shadow); height: fit-content;" class="dark:bg-gray-100">
+                <h3 style="margin: 0 0 1rem 0; font-size: 1rem; color: var(--gray-900);">Obsah metodiky</h3>
+                <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                    <a href="#uvod" class="nav-link" style="margin: 0; font-size: 0.875rem;">1. Úvod</a>
+                    <a href="#zakladni-pojmy" class="nav-link" style="margin: 0; font-size: 0.875rem;">2. Základní pojmy</a>
+                    <a href="#znacky" class="nav-link" style="margin: 0; font-size: 0.875rem;">3. Druhy značek</a>
+                    <a href="#pravidla" class="nav-link" style="margin: 0; font-size: 0.875rem;">4. Pravidla značení</a>
+                    <a href="#udrzba" class="nav-link" style="margin: 0; font-size: 0.875rem;">5. Údržba tras</a>
+                    <a href="#kontrola" class="nav-link" style="margin: 0; font-size: 0.875rem;">6. Kontrola kvality</a>
+                    <a href="#bezpecnost" class="nav-link" style="margin: 0; font-size: 0.875rem;">7. Bezpečnost</a>
+                </div>
+            </nav>
+
+            <!-- Hlavní obsah -->
+            <main style="background: white; padding: 2rem; border-radius: var(--border-radius); box-shadow: var(--shadow);" class="dark:bg-gray-100">
+                <section id="uvod" style="margin-bottom: 3rem;">
+                    <h2 style="font-size: 1.5rem; font-weight: 600; margin-bottom: 1rem; color: var(--primary-color);">1. Úvod</h2>
+                    <p style="margin-bottom: 1rem; color: var(--gray-700); line-height: 1.7;">
+                        Metodika značení turistických tras definuje jednotné postupy a standardy pro značení a údržbu 
+                        turistických cest v rámci sítě Klubu českých turistů (KČT).
+                    </p>
+                    <p style="margin-bottom: 1rem; color: var(--gray-700); line-height: 1.7;">
+                        Cílem je zajistit kvalitní a bezpečné značení, které turistům umožní snadnou orientaci v terénu 
+                        a bezpečný pohyb po značených trasách.
+                    </p>
+                </section>
+
+                <section id="zakladni-pojmy" style="margin-bottom: 3rem;">
+                    <h2 style="font-size: 1.5rem; font-weight: 600; margin-bottom: 1rem; color: var(--primary-color);">2. Základní pojmy</h2>
+                    <div style="background: var(--gray-50); padding: 1.5rem; border-radius: var(--border-radius-sm); margin-bottom: 1rem;">
+                        <h4 style="margin: 0 0 0.5rem 0; color: var(--gray-900);">Turistická trasa</h4>
+                        <p style="margin: 0; color: var(--gray-700);">Označená cesta určená pro pěší turistiku, vedoucí krajinou a spojující turisticky zajímavá místa.</p>
+                    </div>
+                    <div style="background: var(--gray-50); padding: 1.5rem; border-radius: var(--border-radius-sm); margin-bottom: 1rem;">
+                        <h4 style="margin: 0 0 0.5rem 0; color: var(--gray-900);">Značka</h4>
+                        <p style="margin: 0; color: var(--gray-700);">Viditelné označení na objektech v terénu, které vede turisty po trase.</p>
+                    </div>
+                    <div style="background: var(--gray-50); padding: 1.5rem; border-radius: var(--border-radius-sm);">
+                        <h4 style="margin: 0 0 0.5rem 0; color: var(--gray-900);">Značkař</h4>
+                        <p style="margin: 0; color: var(--gray-700);">Osoba pověřená značením a údržbou turistických tras v určené oblasti.</p>
+                    </div>
+                </section>
+
+                <section id="znacky" style="margin-bottom: 3rem;">
+                    <h2 style="font-size: 1.5rem; font-weight: 600; margin-bottom: 1rem; color: var(--primary-color);">3. Druhy značek</h2>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                        <div style="text-align: center; padding: 1rem; border: 2px solid #f44336; border-radius: var(--border-radius-sm);">
+                            <div style="width: 60px; height: 60px; background: #f44336; margin: 0 auto 0.5rem; border-radius: 50%;"></div>
+                            <strong>Červená</strong>
+                            <p style="margin: 0.5rem 0 0 0; font-size: 0.875rem; color: var(--gray-600);">Dálkové trasy</p>
+                        </div>
+                        <div style="text-align: center; padding: 1rem; border: 2px solid #2196f3; border-radius: var(--border-radius-sm);">
+                            <div style="width: 60px; height: 60px; background: #2196f3; margin: 0 auto 0.5rem; border-radius: 50%;"></div>
+                            <strong>Modrá</strong>
+                            <p style="margin: 0.5rem 0 0 0; font-size: 0.875rem; color: var(--gray-600);">Hlavní trasy</p>
+                        </div>
+                        <div style="text-align: center; padding: 1rem; border: 2px solid #4caf50; border-radius: var(--border-radius-sm);">
+                            <div style="width: 60px; height: 60px; background: #4caf50; margin: 0 auto 0.5rem; border-radius: 50%;"></div>
+                            <strong>Zelená</strong>
+                            <p style="margin: 0.5rem 0 0 0; font-size: 0.875rem; color: var(--gray-600);">Regionální trasy</p>
+                        </div>
+                        <div style="text-align: center; padding: 1rem; border: 2px solid #ff9800; border-radius: var(--border-radius-sm);">
+                            <div style="width: 60px; height: 60px; background: #ff9800; margin: 0 auto 0.5rem; border-radius: 50%;"></div>
+                            <strong>Žlutá</strong>
+                            <p style="margin: 0.5rem 0 0 0; font-size: 0.875rem; color: var(--gray-600);">Místní trasy</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="pravidla" style="margin-bottom: 3rem;">
+                    <h2 style="font-size: 1.5rem; font-weight: 600; margin-bottom: 1rem; color: var(--primary-color);">4. Pravidla značení</h2>
+                    <ul style="color: var(--gray-700); line-height: 1.7; margin-left: 1rem;">
+                        <li style="margin-bottom: 0.5rem;">Značky umísťujte na viditelných místech ve výšce 1,5-2,5 m</li>
+                        <li style="margin-bottom: 0.5rem;">Zachovávejte jednotnou velikost a orientaci značek</li>
+                        <li style="margin-bottom: 0.5rem;">Dbajte na dostatečnou frekvenci značení (cca každých 100-200 m)</li>
+                        <li style="margin-bottom: 0.5rem;">Používejte pouze certifikované materiály a barvy</li>
+                        <li style="margin-bottom: 0.5rem;">Značky umísťujte s respektem k majitelům pozemků</li>
+                    </ul>
+                </section>
+
+                <section id="udrzba" style="margin-bottom: 3rem;">
+                    <h2 style="font-size: 1.5rem; font-weight: 600; margin-bottom: 1rem; color: var(--primary-color);">5. Údržba tras</h2>
+                    <p style="margin-bottom: 1rem; color: var(--gray-700); line-height: 1.7;">
+                        Pravidelná údržba zahrnuje kontrolu stavu značek, jejich obnovování a případné přeznačování tras.
+                    </p>
+                    <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 1rem; border-radius: var(--border-radius-sm); color: #856404;">
+                        <strong>Důležité:</strong> Kontrola tras by měla probíhat minimálně jednou ročně, 
+                        ideálně na jaře před začátkem turistické sezóny.
+                    </div>
+                </section>
+
+                <section id="kontrola" style="margin-bottom: 3rem;">
+                    <h2 style="font-size: 1.5rem; font-weight: 600; margin-bottom: 1rem; color: var(--primary-color);">6. Kontrola kvality</h2>
+                    <p style="color: var(--gray-700); line-height: 1.7;">
+                        Systém kontroly kvality zahrnuje pravidelné inspekce, zpětnou vazbu od turistů 
+                        a koordinaci s regionálními odpovědnými osobami.
+                    </p>
+                </section>
+
+                <section id="bezpecnost">
+                    <h2 style="font-size: 1.5rem; font-weight: 600; margin-bottom: 1rem; color: var(--primary-color);">7. Bezpečnost</h2>
+                    <p style="color: var(--gray-700); line-height: 1.7;">
+                        Při značení dbejte na vlastní bezpečnost i bezpečnost ostatních. 
+                        Používejte vhodné ochranné pomůcky a dodržujte bezpečnostní předpisy.
+                    </p>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        // Smooth scrolling pro kotvy
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+    </script>
+{% endblock %}

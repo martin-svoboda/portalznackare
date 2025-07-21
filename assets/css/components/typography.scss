@@ -1,0 +1,410 @@
+// Typography Components - BEM methodology
+// Nadpisy, texty, seznamy a typografické prvky
+
+// Heading system
+.heading, h1, h2, h3, h4, h4, h5, h6 {
+  @apply font-bold text-gray-900;
+
+  // Heading variants
+  &--light {
+    @apply font-light;
+  }
+
+  &--normal {
+    @apply font-normal;
+  }
+
+  &--medium {
+    @apply font-medium;
+  }
+
+  &--semibold {
+    @apply font-semibold;
+  }
+
+  // Colors
+  &--primary {
+    @apply text-blue-900;
+  }
+
+  &--secondary {
+    @apply text-gray-600;
+  }
+
+  &--muted {
+    @apply text-gray-500;
+  }
+}
+
+.heading--1, h1 {
+  @apply text-4xl  mb-6;
+}
+
+.heading--2, h2 {
+  @apply text-3xl mb-5;
+}
+
+.heading--3, h3 {
+  @apply text-2xl mb-4;
+}
+
+.heading--4, h4 {
+  @apply text-xl mb-3;
+}
+
+.heading--5, h5 {
+  @apply text-lg mb-2;
+}
+
+.heading--6, h6 {
+  @apply text-base mb-2;
+}
+
+.content {
+  h1, h2, h3, h4, h4, h5, h6 {
+    @apply mt-5;
+  }
+  p {
+    @apply mb-4;
+  }
+
+  a {
+    @apply text-blue-600 hover:text-blue-800 transition-colors underline;
+  }
+  ul {
+    @apply list-disc list-inside;
+  }
+  ol {
+    @apply list-decimal list-inside;
+  }
+}
+
+// Page title
+.page-title {
+  @apply text-3xl font-bold text-gray-900 mb-2;
+
+  &__subtitle {
+    @apply text-lg text-gray-600 font-normal;
+  }
+
+  &--center {
+    @apply text-center;
+  }
+
+  &--small {
+    @apply text-2xl;
+  }
+
+  &--large {
+    @apply text-4xl;
+  }
+}
+
+// Section title
+.section-title {
+  @apply text-xl font-semibold text-gray-900 mb-4;
+
+  &--small {
+    @apply text-lg mb-3;
+  }
+
+  &--large {
+    @apply text-2xl mb-6;
+  }
+
+  &--center {
+    @apply text-center;
+  }
+}
+
+// Text variants
+.text {
+  @apply text-gray-700;
+
+  &--small {
+    @apply text-sm;
+  }
+
+  &--large {
+    @apply text-lg;
+  }
+
+  &--xl {
+    @apply text-xl;
+  }
+
+  &--muted {
+    @apply text-gray-500;
+  }
+
+  &--light {
+    @apply text-gray-400;
+  }
+
+  &--dark {
+    @apply text-gray-900;
+  }
+
+  // Text colors
+  &--primary {
+    @apply text-blue-600;
+  }
+
+  &--secondary {
+    @apply text-gray-600;
+  }
+
+  &--success {
+    @apply text-green-600;
+  }
+
+  &--warning {
+    @apply text-yellow-600;
+  }
+
+  &--danger {
+    @apply text-red-600;
+  }
+
+  &--info {
+    @apply text-blue-600;
+  }
+
+  // Text weights
+  &--light {
+    @apply font-light;
+  }
+
+  &--normal {
+    @apply font-normal;
+  }
+
+  &--medium {
+    @apply font-medium;
+  }
+
+  &--semibold {
+    @apply font-semibold;
+  }
+
+  &--bold {
+    @apply font-bold;
+  }
+
+  // Text alignment
+  &--left {
+    @apply text-left;
+  }
+
+  &--center {
+    @apply text-center;
+  }
+
+  &--right {
+    @apply text-right;
+  }
+
+  &--justify {
+    @apply text-justify;
+  }
+}
+
+// Paragraphs
+.paragraph {
+  @apply text-gray-700 mb-4 leading-relaxed;
+
+  &--small {
+    @apply text-sm mb-3;
+  }
+
+  &--large {
+    @apply text-lg mb-5;
+  }
+
+  &--lead {
+    @apply text-xl text-gray-600 font-light mb-6;
+  }
+
+  &--tight {
+    @apply leading-snug;
+  }
+
+  &--loose {
+    @apply leading-loose;
+  }
+}
+
+// Links
+.link {
+  @apply text-blue-600 hover:text-blue-800 transition-colors;
+
+  &--underline {
+    @apply underline;
+  }
+
+  &--no-underline {
+    @apply no-underline hover:underline;
+  }
+
+  &--muted {
+    @apply text-gray-600 hover:text-gray-800;
+  }
+
+  &--danger {
+    @apply text-red-600 hover:text-red-800;
+  }
+
+  &--external {
+    @apply after:content-['↗'] after:ml-1 after:text-xs;
+  }
+}
+
+// Lists
+.list {
+  @apply space-y-2;
+
+  &--ordered {
+    @apply list-decimal list-inside;
+  }
+
+  &--unordered {
+    @apply list-disc list-inside;
+  }
+
+  &--none {
+    @apply list-none;
+  }
+
+  &--compact {
+    @apply space-y-1;
+  }
+
+  &--loose {
+    @apply space-y-3;
+  }
+
+  &__item {
+    @apply text-gray-700;
+
+    &--highlight {
+      @apply font-medium text-gray-900;
+    }
+
+    &--muted {
+      @apply text-gray-500;
+    }
+  }
+}
+
+// Definition lists
+.definition-list {
+  @apply space-y-4;
+
+  &__term {
+    @apply font-medium text-gray-900;
+  }
+
+  &__description {
+    @apply text-gray-700 ml-4;
+  }
+
+  &--compact {
+    @apply space-y-2;
+
+    .definition-list__description {
+      @apply ml-2;
+    }
+  }
+}
+
+// Quotes
+.quote {
+  @apply border-l-4 border-gray-300 pl-4 italic text-gray-600;
+
+  &--primary {
+    @apply border-blue-400 text-blue-700;
+  }
+
+  &--large {
+    @apply text-lg border-l-8 pl-6;
+  }
+
+  &__author {
+    @apply block mt-2 text-sm text-gray-500 not-italic;
+  }
+}
+
+// Code elements
+.code {
+  @apply font-mono text-sm;
+
+  &--inline {
+    @apply bg-gray-100 text-gray-800 px-1 py-0.5 rounded;
+  }
+
+  &--block {
+    @apply bg-gray-100 text-gray-800 p-4 rounded-lg overflow-x-auto;
+  }
+}
+
+// Abbreviations
+.abbreviation {
+  @apply border-b border-dotted border-gray-400 cursor-help;
+}
+
+// Emphasis
+.emphasis {
+  &--strong {
+    @apply font-bold;
+  }
+
+  &--italic {
+    @apply italic;
+  }
+
+  &--underline {
+    @apply underline;
+  }
+
+  &--strikethrough {
+    @apply line-through;
+  }
+
+  &--mark {
+    @apply bg-yellow-200 px-1;
+  }
+}
+
+// Meta information
+.meta {
+  @apply text-sm text-gray-500;
+
+  &__item {
+    @apply inline-block;
+
+    &:not(:last-child):after {
+      @apply content-['•'] mx-2;
+    }
+  }
+
+  &--large {
+    @apply text-base;
+  }
+
+  &--compact {
+    @apply text-xs;
+  }
+}
+
+// Badge/tag typography
+.badge-text {
+  @apply text-xs font-medium uppercase tracking-wide;
+
+  &--small {
+    @apply text-[10px];
+  }
+
+  &--normal {
+    @apply text-sm normal-case tracking-normal;
+  }
+}

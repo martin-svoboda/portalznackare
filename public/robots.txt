@@ -1,0 +1,21 @@
+User-agent: *
+# Disallow protected file uploads (with hash tokens in URL)
+Disallow: /uploads/reports/
+Disallow: /uploads/users/
+Disallow: /uploads/temp/
+
+# Allow public content
+Allow: /uploads/methodologies/
+Allow: /uploads/downloads/
+Allow: /uploads/gallery/
+Allow: /uploads/public/
+Allow: /uploads/documentation/
+
+# Disallow admin and development areas
+Disallow: /api/
+Disallow: /admin/
+Disallow: /_profiler/
+Disallow: /_wdt/
+
+# Sitemap location (if you have one)
+# Sitemap: https://example.com/sitemap.xml

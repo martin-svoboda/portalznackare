@@ -1,0 +1,46 @@
+{#
+  Page Header Component
+  
+  Parameters:
+  - title: Page title (required)
+  - subtitle: Page subtitle (optional)
+  - breadcrumbs: Array of breadcrumb objects with 'text' and 'url' (optional)
+  - actions: Array of action objects with 'text', 'url', 'class' (optional)
+#}
+
+<div class="page__header">
+    {% if breadcrumbs is defined and breadcrumbs %}
+        <nav class="breadcrumbs mb-4" aria-label="Breadcrumb">
+            <ol class="breadcrumbs__list">
+                {% for breadcrumb in breadcrumbs %}
+                    <li class="breadcrumbs__item">
+                        {% if breadcrumb.url is defined and breadcrumb.url %}
+                            <a href="{{ breadcrumb.url }}" class="breadcrumbs__link">{{ breadcrumb.text }}</a>
+                        {% else %}
+                            <span class="breadcrumbs__current">{{ breadcrumb.text }}</span>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ol>
+        </nav>
+    {% endif %}
+    
+    <div class="flex-layout flex-layout--between flex-layout--wrap">
+        <div>
+            <h1 class="page__title">{{ title|raw }}</h1>
+            {% if subtitle is defined and subtitle %}
+                <p class="page__subtitle">{{ subtitle|raw }}</p>
+            {% endif %}
+        </div>
+        
+        {% if actions is defined and actions %}
+            <div class="flex-layout flex-layout--gap-small">
+                {% for action in actions %}
+                    <a href="{{ action.url }}" class="{{ action.class|default('btn btn--secondary') }}">
+                        {{ action.text }}
+                    </a>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+</div>

@@ -1,0 +1,40 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Nápověda - Portál značkaře{% endblock %}
+
+{% block body %}
+<div class="section">
+    <div class="container mx-auto">
+        <div class="card max-w-2xl mx-auto">
+            <div class="card__content text-center py-12">
+                <div class="text-6xl mb-6">📚</div>
+                <h1 class="page-title mb-4">Nápověda se připravuje</h1>
+                <p class="text--muted text-lg mb-8">
+                    Pracujeme na kompletní dokumentaci pro snadné používání aplikace.
+                </p>
+                
+                <div class="alert alert--info text-left max-w-lg mx-auto mb-8">
+                    <div class="alert__content">
+                        <h3 class="alert__title">Co bude v nápovědě?</h3>
+                        <ul class="list list--checked">
+                            <li>Návod na první přihlášení</li>
+                            <li>Práce s příkazy krok za krokem</li>
+                            <li>Hlášení práce a vyúčtování</li>
+                            <li>Stahování metodik a dokumentů</li>
+                            <li>Časté dotazy a řešení problémů</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <p class="text--muted mb-6">
+                    Mezitím se můžete obrátit na podporu:
+                </p>
+                
+                <a href="mailto:support@kct.cz" class="btn btn--primary">
+                    📞 Kontaktovat podporu
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

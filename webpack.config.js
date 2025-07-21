@@ -9,8 +9,13 @@ Encore
     .setOutputPath('public/build/')
     .setPublicPath('/build')
 
-    .addEntry('app', './assets/js/app.tsx')
+    // CSS entry pro základní styly
     .addStyleEntry('app-styles', './assets/css/app.scss')
+    
+    // React apps entries
+    .addEntry('app-prikazy', './assets/js/apps/prikazy/index.jsx')
+    .addEntry('app-prikaz-detail', './assets/js/apps/prikaz-detail/index.jsx')
+    .addEntry('app-hlaseni-prikazu', './assets/js/apps/hlaseni-prikazu/index.jsx')
 
     .enableReactPreset()
     .enableTypeScriptLoader()
@@ -22,6 +27,7 @@ Encore
     .enableVersioning(Encore.isProduction())
 
     .enableSassLoader()
+    .enablePostCssLoader()
 
     .configureBabelPresetEnv((config) => {
         config.useBuiltIns = 'usage';
@@ -35,7 +41,6 @@ Encore
         '@services': path.resolve(__dirname, 'assets/js/services'),
         '@utils': path.resolve(__dirname, 'assets/js/utils'),
         '@hooks': path.resolve(__dirname, 'assets/js/hooks'),
-        '@contexts': path.resolve(__dirname, 'assets/js/contexts'),
         '@types': path.resolve(__dirname, 'assets/types'),
         '@images': path.resolve(__dirname, 'assets/images')
     });

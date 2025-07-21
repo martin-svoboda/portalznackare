@@ -1,0 +1,49 @@
+{#
+  Alert Component
+  
+  Parameters:
+  - type: 'info', 'warning', 'error', 'success' (default: 'info')
+  - title: Alert title (optional)
+  - message: Alert message content
+  - actions: Array of action objects with 'text', 'url', 'class' (optional)
+  - dismissible: true/false (default: false)
+#}
+
+{% set alertType = type|default('info') %}
+{% set alertClass = 'alert alert--' ~ alertType %}
+{% if dismissible is defined and dismissible %}
+    {% set alertClass = alertClass ~ ' alert--dismissible' %}
+{% endif %}
+
+<div class="{{ alertClass }}">
+    <div class="alert__content">
+        <div class="alert__body">
+            {% if title is defined and title %}
+                <h3 class="alert__title">{{ title }}</h3>
+            {% endif %}
+            
+            {% if message is defined and message %}
+                <div class="alert__message">{{ message }}</div>
+            {% endif %}
+            
+            {% if actions is defined and actions %}
+                <div class="alert__actions">
+                    {% for action in actions %}
+                        <a href="{{ action.url }}" class="{{ action.class|default('btn btn--primary') }}">
+                            {{ action.text }}
+                        </a>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+        
+        {% if dismissible is defined and dismissible %}
+            <button class="alert__close" onclick="this.parentElement.parentElement.remove()" aria-label="Zavřít">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        {% endif %}
+    </div>
+</div>

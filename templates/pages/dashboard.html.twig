@@ -1,0 +1,85 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Nástěnka - Portál značkaře{% endblock %}
+
+{% block body %}
+    {% if not app.user %}
+        <div class="container max-w-md mx-auto mt-8">
+            {% include 'components/login-form.html.twig' %}
+        </div>
+    {% else %}
+        <div class="container container--lg">
+            {% include 'components/page-header.html.twig' with {
+                title: 'Vítej, ' ~ app.user.jmeno ~ '!',
+                subtitle: 'Přehled tvých aktivit a rychlé akce.',
+                breadcrumbs: [
+                    {
+                        url: path('app_index'),
+                        text: 'Úvod'
+                    },
+                    {
+                        text: 'Nástěnka'
+                    }
+                ]
+            } %}
+            
+            <div class="grid-layout grid-layout--auto-fit mb-8">
+                <div class="card">
+                    <div class="card__header">
+                        <h3 class="card__title">Rychlé akce</h3>
+                    </div>
+                    <div class="card__content">
+                        <div class="flex-layout flex-layout--column flex-layout--gap-small">
+                            <a href="{{ path('app_prikazy') }}" class="nav-link">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <path d="M9 11l3 3L22 4"/>
+                                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                                </svg>
+                                Zobrazit moje příkazy
+                            </a>
+                            <a href="{{ path('app_metodika') }}" class="nav-link">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                                </svg>
+                                Metodika značení
+                            </a>
+                            <a href="{{ path('app_profil') }}" class="nav-link">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                    <circle cx="12" cy="7" r="4"/>
+                                </svg>
+                                Můj profil
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                {% include 'components/statistics-card.html.twig' with {
+                    stats: [
+                        { label: 'Aktivní příkazy', value: '3' },
+                        { label: 'Dokončené', value: '12' },
+                        { label: 'Celkem km', value: '148' }
+                    ]
+                } %}
+                
+                <div class="card">
+                    <h3 class="card__title">Oznámení</h3>
+                    <div>
+                        <p class="text text--small text--muted">Žádná nová oznámení</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card__header">
+                    <h3 class="card__title">Poslední aktivita</h3>
+                </div>
+                <div class="card__content">
+                    <p class="text text--muted">Zde se budou zobrazovat poslední změny a aktivity v systému.</p>
+                    <p class="text text--muted mt-4"><em>React aplikace pro správu příkazů bude implementována v další fázi.</em></p>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+{% endblock %}

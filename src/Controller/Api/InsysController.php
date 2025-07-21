@@ -3,6 +3,7 @@
 namespace App\Controller\Api;
 
 use App\Service\InsysService;
+use App\Service\DataEnricherService;
 use App\Entity\User;
 use Exception;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -15,7 +16,8 @@ use Symfony\Component\Routing\Annotation\Route;
 class InsysController extends AbstractController
 {
     public function __construct(
-        private InsysService $insysService
+        private InsysService $insysService,
+        private DataEnricherService $dataEnricher
     ) {
     }
 
@@ -79,14 +81,17 @@ class InsysController extends AbstractController
         try {
             $prikazy = $this->insysService->getPrikazy((int) $intAdr, $year ? (int) $year : null);
             
-            return new JsonResponse($prikazy);
+            // Obohatí data o HTML komponenty
+            $enrichedPrikazy = $this->dataEnricher->enrichPrikazyList($prikazy);
+            
+            return new JsonResponse($enrichedPrikazy);
         } catch (Exception $e) {
             return new JsonResponse(['message' => $e->getMessage()], 500);
         }
     }
 
-    #[Route('/prikaz', methods: ['GET'])]
-    public function getPrikaz(Request $request): JsonResponse
+    #[Route('/prikaz/{id}', methods: ['GET'], requirements: ['id' => '\d+'])]
+    public function getPrikaz(int $id): JsonResponse
     {
         // Použít Symfony Security
         $user = $this->getUser();
@@ -96,20 +101,17 @@ class InsysController extends AbstractController
             ], Response::HTTP_UNAUTHORIZED);
         }
 
-        $id = $request->query->get('id');
-        
-        if (!$id) {
-            return new JsonResponse(['message' => 'Vyžadovaný parametr: id'], 400);
-        }
-
         $intAdr = $user->getIntAdr();
 
         try {
-            $prikaz = $this->insysService->getPrikaz((int) $intAdr, (int) $id);
+            $prikaz = $this->insysService->getPrikaz((int) $intAdr, $id);
             
-            return new JsonResponse($prikaz);
+            // Obohatí detail o HTML komponenty
+            $enrichedPrikaz = $this->dataEnricher->enrichPrikazDetail($prikaz);
+            
+            return new JsonResponse($enrichedPrikaz);
         } catch (Exception $e) {
-            return new JsonResponse(['message' => $e->getMessage()], 500);
+            return new JsonResponse(['error' => $e->getMessage()], 500);
         }
     }
 

@@ -1,0 +1,76 @@
+{# Příklady použití KČT komponent v Twig #}
+
+{# 1. Značky - funkce #}
+<h3>Značky pomocí funkcí:</h3>
+<div>
+    Červená: {{ kct_znacka('CE', 'pasova', 24) }}
+    Modrá: {{ kct_znacka('MO', 'sipka', 24) }}
+    Zelená: {{ kct_znacka('ZE', 'koncova', 24) }}
+    Žlutá: {{ kct_znacka('ZL', 'smerovka', 24) }}
+</div>
+
+{# 2. Značky - filtry #}
+<h3>Značky pomocí filtrů:</h3>
+<div>
+    {{ 'CE'|kct_znacka('pasova', 24) }}
+    {{ 'MO'|kct_znacka('sipka', 24) }}
+</div>
+
+{# 3. TIM arrows #}
+<h3>TIM arrows:</h3>
+<div>
+    {{ kct_tim_arrow('1', 'left', 32) }}
+    {{ kct_tim_arrow('2', 'straight', 32) }}
+    {{ kct_tim_arrow('3', 'right', 32) }}
+</div>
+
+{# 4. TIM preview #}
+<h3>TIM preview:</h3>
+{% set timy = [
+    {'cislo': '1', 'smer': 'left'},
+    {'cislo': '2', 'smer': 'straight'},
+    {'cislo': '3', 'smer': 'right'}
+] %}
+{{ kct_tim_preview(timy, 24) }}
+
+{# 5. Text s ikonami #}
+<h3>Text s automaticky nahrazenými ikonami:</h3>
+<p>{{ 'Trasa {ce} z Příbrami pokračuje {mo} směrem na Tok. Značení: {pas} každých 100m.'|kct_replace_icons }}</p>
+
+{# 6. V tabulce příkazů #}
+<h3>Použití v tabulce:</h3>
+<table class="table">
+    <thead>
+        <tr>
+            <th>Číslo</th>
+            <th>Trasa</th>
+            <th>Popis</th>
+            <th>Týmy</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for prikaz in prikazy %}
+        <tr>
+            <td>{{ prikaz.Cislo_ZP }}</td>
+            <td>
+                {{ kct_znacka(prikaz.Barva_Kod, 'pasova', 20) }}
+                {{ prikaz.Popis_ZP }}
+            </td>
+            <td>{{ prikaz.Popis_ZP|kct_replace_icons }}</td>
+            <td>
+                {% if prikaz.timy is defined %}
+                    {{ kct_tim_preview(prikaz.timy, 20) }}
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{# 7. Barvy #}
+<h3>Práce s barvami:</h3>
+<div>
+    <div>Hex barva: {{ kct_barva_kod('CE') }}</div>
+    <div>Název: {{ 'MO'|kct_barva_nazev }}</div>
+    <div>Tailwind: {{ kct_tailwind_barva('ZE') }}</div>
+</div>

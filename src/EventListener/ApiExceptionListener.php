@@ -5,8 +5,6 @@ namespace App\EventListener;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpKernel\Event\ExceptionEvent;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
-use Symfony\Component\Security\Core\Exception\AccessDeniedException;
-use Symfony\Component\Security\Core\Exception\AuthenticationException;
 
 class ApiExceptionListener
 {
@@ -14,52 +12,37 @@ class ApiExceptionListener
     {
         $request = $event->getRequest();
         
-        // Zpracovat pouze API požadavky
+        // Pouze pro API endpointy
         if (!str_starts_with($request->getPathInfo(), '/api/')) {
             return;
         }
-
+        
         $exception = $event->getThrowable();
         
-        // Připravit error response
-        $response = new JsonResponse();
+        // Připravit data pro JSON odpověď
+        $data = [
+            'error' => true,
+            'message' => $exception->getMessage()
+        ];
         
-        // Určit status code a message
+        // Nastavit status kód
+        $statusCode = 500;
         if ($exception instanceof HttpExceptionInterface) {
             $statusCode = $exception->getStatusCode();
-            $message = $exception->getMessage();
-        } elseif ($exception instanceof AuthenticationException) {
-            $statusCode = 401;
-            $message = 'Authentication required';
-        } elseif ($exception instanceof AccessDeniedException) {
-            $statusCode = 403;
-            $message = 'Access denied';
-        } else {
-            $statusCode = 500;
-            $message = 'Internal server error';
         }
-
-        // Nastavit response data
-        $responseData = [
-            'error' => true,
-            'message' => $message,
-            'code' => $statusCode
-        ];
-
-        // V dev prostředí přidat debug info
-        if ($_ENV['APP_ENV'] === 'dev') {
-            $responseData['debug'] = [
-                'exception' => get_class($exception),
-                'file' => $exception->getFile(),
-                'line' => $exception->getLine(),
-                'trace' => $exception->getTraceAsString()
-            ];
-        }
-
-        $response->setData($responseData);
-        $response->setStatusCode($statusCode);
         
-        // Nastavit response
+        // V dev módu přidat více informací
+        if ($_ENV['APP_ENV'] === 'dev') {
+            $data['exception'] = get_class($exception);
+            $data['file'] = $exception->getFile();
+            $data['line'] = $exception->getLine();
+            $data['trace'] = $exception->getTraceAsString();
+        }
+        
+        // Vytvořit JSON odpověď
+        $response = new JsonResponse($data, $statusCode);
+        
+        // Nastavit odpověď
         $event->setResponse($response);
     }
 }

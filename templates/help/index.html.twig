@@ -1,0 +1,69 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Nápověda - Portál značkaře{% endblock %}
+
+{% block body %}
+<div class="section">
+    <div class="container mx-auto">
+        <div class="flex gap-8">
+            {# Sidebar s navigací #}
+            <aside class="w-64 flex-shrink-0">
+                <div class="card">
+                    <div class="card__header">
+                        <h2 class="card__title">📚 Nápověda</h2>
+                    </div>
+                    <div class="card__content p-0">
+                        <nav class="nav nav--vertical">
+                            {% for section in navigation %}
+                                <div class="nav__section">
+                                    <a href="{{ section.url }}" class="nav__section-title">
+                                        <span class="nav__icon">{{ section.icon }}</span>
+                                        {{ section.title }}
+                                    </a>
+                                    
+                                    {% if section.pages %}
+                                        <ul class="nav__list">
+                                            {% for page in section.pages %}
+                                                <li class="nav__item">
+                                                    <a href="{{ page.url }}" class="nav__link">
+                                                        {{ page.title }}
+                                                    </a>
+                                                </li>
+                                            {% endfor %}
+                                        </ul>
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
+                        </nav>
+                    </div>
+                </div>
+                
+                {# Kontakt na podporu #}
+                <div class="card mt-6">
+                    <div class="card__content text-center">
+                        <p class="text--muted mb-4">Potřebujete pomoc?</p>
+                        <a href="mailto:support@kct.cz" class="btn btn--secondary btn--block">
+                            📞 Kontaktovat podporu
+                        </a>
+                    </div>
+                </div>
+            </aside>
+            
+            {# Hlavní obsah #}
+            <main class="flex-1">
+                <div class="card">
+                    <div class="card__header">
+                        <h1 class="page-title">Nápověda</h1>
+                        <p class="text--muted">Návod pro použití aplikace Portál značkaře</p>
+                    </div>
+                    <div class="card__content">
+                        <div class="content">
+                            {{ content|raw }}
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+</div>
+{% endblock %}

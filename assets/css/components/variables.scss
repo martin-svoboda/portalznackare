@@ -1,0 +1,12 @@
+// Pouze KČT brand colors - zbytek je v Tailwind
+:root {
+  // KČT brand colors
+  --color-kct-green: #2d7d20;
+  --color-kct-blue: #1e40af;
+  --color-kct-yellow: #ca8a04;
+  --color-kct-red: #dc2626;
+  
+  // Layout dimensions (specifické pro aplikaci)
+  --header-height: 4rem;
+  --sidebar-width: 16rem;
+}

@@ -26,7 +26,8 @@ security:
                 path: /
                 domain: ~
             logout:
-                path: api_auth_logout
+                path: /api/auth/logout
+                target: /
                 
         main:
             pattern: ^/

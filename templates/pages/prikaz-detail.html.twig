@@ -1,0 +1,54 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Příkaz {{ id }} - Portál značkaře{% endblock %}
+
+{% block body %}
+    <div class="container container--lg">
+        {% include 'components/page-header.html.twig' with {
+            title: 'Značkařský příkaz <span class="prikaz-id">' ~ id ~ '</span>',
+            subtitle: '<span class="prikaz-description">Detail příkazu.</span>',
+            breadcrumbs: [
+                {
+                    url: path('app_index'),
+                    text: 'Úvod'
+                },
+                {
+                    url: path('app_dashboard'),
+                    text: 'Nástěnka'
+                },
+                {
+                    url: path('app_prikazy'),
+                    text: 'Příkazy'
+                },
+                {
+                    text: 'Příkaz ' ~ id
+                }
+            ]
+        } %}
+
+        {% if not app.user %}
+            {% include 'components/alert.html.twig' with {
+                type: 'warning',
+                title: 'Přihlášení vyžadováno',
+                message: 'Pro zobrazení detailu příkazu se musíte přihlásit.',
+                actions: [
+                    {
+                        url: path('app_dashboard'),
+                        text: 'Přihlásit se'
+                    }
+                ]
+            } %}
+        {% else %}
+            <div data-app="prikaz-detail" data-prikaz-id="{{ id }}">
+                <div class="card">
+                    <p class="text text--small text--muted">Načítání aplikace pro výpis detailu příkazu...</p>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    {{ encore_entry_script_tags('app-prikaz-detail') }}
+{% endblock %}

@@ -1,0 +1,172 @@
+// Card Components - BEM methodology
+// Card komponenty pro obsah, statistiky, akce
+
+// Základní card
+.card {
+  @apply p-5 bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden;
+
+  // Card variants
+  &--elevated {
+    @apply shadow-lg;
+  }
+
+  &--flat {
+    @apply shadow-none;
+  }
+
+  &--outlined {
+    @apply shadow-none border-gray-300 dark:border-gray-700;
+  }
+
+  &--danger {
+    @apply border-red-200 bg-red-50 dark:bg-red-950 dark:border-red-900;
+  }
+
+  &--warning {
+    @apply border-yellow-200 bg-yellow-50 dark:bg-yellow-950 dark:border-yellow-900;
+  }
+
+  &--success {
+    @apply border-green-200 bg-green-50 dark:bg-green-950 dark:border-green-900;
+  }
+
+  &--info {
+    @apply border-blue-200 bg-blue-50 dark:bg-blue-950 dark:border-blue-900;
+  }
+
+  // Card části
+  &__header {
+    @apply pb-3 mb-5 border-b border-gray-200 dark:border-gray-700;
+
+    &--no-border {
+      @apply border-b-0 pb-0 mb-3;
+    }
+  }
+
+  &__title {
+    @apply text-lg font-semibold mb-1;
+  }
+
+  &__subtitle {
+    @apply text-sm opacity-75;
+  }
+
+  &__content {
+
+  }
+
+  &__footer {
+    @apply pt-3 mt-5 border-t border-gray-200 dark:border-gray-700;
+
+    &--no-border {
+      @apply border-t-0 pt-0;
+    }
+  }
+
+  &__actions {
+    @apply flex items-center justify-end space-x-3;
+
+    &--start {
+      @apply justify-start;
+    }
+
+    &--center {
+      @apply justify-center;
+    }
+
+    &--between {
+      @apply justify-between;
+    }
+  }
+}
+
+// Action card (pro rychlé akce)
+.action-card {
+  @apply card hover:shadow-md transition-shadow cursor-pointer hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-gray-800;
+
+  &__icon {
+    @apply w-8 h-8 text-blue-600 mb-3;
+  }
+
+  &__title {
+    @apply font-medium  mb-1;
+  }
+
+  &__description {
+    @apply text-sm;
+  }
+
+  &--primary {
+    @apply border-blue-200 bg-blue-50;
+
+    &:hover {
+      @apply border-blue-400 bg-blue-100;
+    }
+  }
+
+  &--secondary {
+    @apply border-gray-200 bg-gray-50;
+
+    &:hover {
+      @apply border-gray-400 bg-gray-100;
+    }
+  }
+}
+
+// List card (pro seznamy)
+.list-card {
+  @apply bg-white rounded-lg shadow-sm border border-gray-200;
+
+  &__header {
+    @apply px-6 py-4 border-b border-gray-200;
+  }
+
+  &__title {
+    @apply text-lg font-medium text-gray-900;
+  }
+
+  &__item {
+    @apply px-6 py-4 border-b border-gray-100 last:border-b-0 hover:bg-gray-50;
+
+    &--active {
+      @apply bg-blue-50 border-blue-200;
+    }
+
+    &--clickable {
+      @apply cursor-pointer;
+    }
+  }
+
+  &__item-content {
+    @apply flex items-center justify-between;
+  }
+
+  &__item-title {
+    @apply font-medium text-gray-900;
+  }
+
+  &__item-subtitle {
+    @apply text-sm text-gray-600;
+  }
+
+  &__item-meta {
+    @apply text-sm text-gray-500;
+  }
+}
+
+// Compact card (pro malé prostory)
+.compact-card {
+  @apply bg-white rounded border border-gray-200 p-3;
+
+  &__title {
+    @apply text-sm font-medium text-gray-900 mb-1;
+  }
+
+  &__content {
+    @apply text-xs text-gray-600;
+  }
+
+  &--clickable {
+    @apply cursor-pointer hover:bg-gray-50 hover:border-gray-300 transition-colors;
+  }
+}

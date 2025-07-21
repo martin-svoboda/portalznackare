@@ -4,6 +4,7 @@ namespace App\Security;
 
 use App\Service\InsysService;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
@@ -37,9 +38,16 @@ class InsysAuthenticator extends AbstractAuthenticator
 
     public function authenticate(Request $request): Passport
     {
-        $data = json_decode($request->getContent(), true);
-        $username = $data['username'] ?? '';
-        $password = $data['password'] ?? '';
+        // Podporuj jak JSON data (pro AJAX), tak form data (pro HTML formuláře)
+        if ($request->getContentType() === 'json') {
+            $data = json_decode($request->getContent(), true);
+            $username = $data['username'] ?? '';
+            $password = $data['password'] ?? '';
+        } else {
+            // Standard HTML form data
+            $username = $request->request->get('username', '');
+            $password = $request->request->get('password', '');
+        }
 
         if (empty($username) || empty($password)) {
             throw new CustomUserMessageAuthenticationException('Username and password are required');
@@ -70,25 +78,37 @@ class InsysAuthenticator extends AbstractAuthenticator
     {
         $user = $token->getUser();
         
-        // Vrať JSON odpověď s user daty
-        return new JsonResponse([
-            'success' => true,
-            'user' => [
-                'INT_ADR' => $user->getIntAdr(),
-                'Jmeno' => $user->getJmeno(),
-                'Prijmeni' => $user->getPrijmeni(),
-                'eMail' => $user->getEmail(),
-                'Prukaz_znackare' => $user->getPrukazZnackare(),
-                'roles' => $user->getRoles()
-            ]
-        ]);
+        // Pro JSON požadavky vrať JSON odpověď
+        if ($request->getContentType() === 'json') {
+            return new JsonResponse([
+                'success' => true,
+                'user' => [
+                    'INT_ADR' => $user->getIntAdr(),
+                    'Jmeno' => $user->getJmeno(),
+                    'Prijmeni' => $user->getPrijmeni(),
+                    'eMail' => $user->getEmail(),
+                    'Prukaz_znackare' => $user->getPrukazZnackare(),
+                    'roles' => $user->getRoles()
+                ]
+            ]);
+        }
+        
+        // Pro HTML formuláře přesměruj na dashboard
+        return new RedirectResponse('/');
     }
 
     public function onAuthenticationFailure(Request $request, AuthenticationException $exception): ?Response
     {
-        return new JsonResponse([
-            'success' => false,
-            'message' => $exception->getMessageKey()
-        ], Response::HTTP_UNAUTHORIZED);
+        // Pro JSON požadavky vrať JSON odpověď
+        if ($request->getContentType() === 'json') {
+            return new JsonResponse([
+                'success' => false,
+                'message' => $exception->getMessageKey()
+            ], Response::HTTP_UNAUTHORIZED);
+        }
+        
+        // Pro HTML formuláře přesměruj zpět s chybou
+        $request->getSession()->getFlashBag()->add('error', 'Chyba přihlášení: ' . $exception->getMessageKey());
+        return new RedirectResponse('/');
     }
 }
