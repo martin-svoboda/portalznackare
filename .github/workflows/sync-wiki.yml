@@ -49,62 +49,62 @@ jobs:
           
           # Create conversion script
           cat > convert-links.py << 'PYTHON_EOF'
-import os
-import re
-import glob
-
-# Mapping of file paths to wiki page names
-file_to_wiki = {
-    'getting-started/installation.md': 'getting-started-installation',
-    'architecture/cms.md': 'architecture-cms', 
-    'frontend/architecture.md': 'frontend-architecture',
-    'frontend/build-system.md': 'frontend-build-system',
-    'frontend/styling.md': 'frontend-styling',
-    'api/README.md': 'api-README',
-    'migration/wordpress.md': 'migration-wordpress',
-    '../user-docs/README.md': 'user-docs-README',
-    'user-docs/README.md': 'user-docs-README',
-    '../user-docs/getting-started/first-login.md': 'user-docs-getting-started-first-login',
-    'user-docs/getting-started/first-login.md': 'user-docs-getting-started-first-login'
-}
-
-def convert_links(content):
-    # Convert markdown links [text](path.md) to wiki links [[text|page-name]]
-    def replace_link(match):
-        text = match.group(1)
-        path = match.group(2)
-        
-        # Remove leading dots and slashes
-        clean_path = path.lstrip('./')
-        
-        # Look up wiki page name
-        if clean_path in file_to_wiki:
-            wiki_page = file_to_wiki[clean_path]
-            return f'[[{text}|{wiki_page}]]'
-        elif path in file_to_wiki:
-            wiki_page = file_to_wiki[path]
-            return f'[[{text}|{wiki_page}]]'
-        else:
-            # Keep original link if no mapping found
-            return match.group(0)
-    
-    # Pattern to match [text](path.md) links
-    pattern = r'\[([^\]]+)\]\(([^)]+\.md)\)'
-    return re.sub(pattern, replace_link, content)
-
-# Process all markdown files in wiki directory
-for filepath in glob.glob('wiki/**/*.md', recursive=True):
-    print(f"Processing {filepath}")
-    with open(filepath, 'r', encoding='utf-8') as f:
-        content = f.read()
-    
-    converted = convert_links(content)
-    
-    with open(filepath, 'w', encoding='utf-8') as f:
-        f.write(converted)
-
-print("Link conversion completed")
-PYTHON_EOF
+          import os
+          import re
+          import glob
+          
+          # Mapping of file paths to wiki page names
+          file_to_wiki = {
+              'getting-started/installation.md': 'getting-started-installation',
+              'architecture/cms.md': 'architecture-cms', 
+              'frontend/architecture.md': 'frontend-architecture',
+              'frontend/build-system.md': 'frontend-build-system',
+              'frontend/styling.md': 'frontend-styling',
+              'api/README.md': 'api-README',
+              'migration/wordpress.md': 'migration-wordpress',
+              '../user-docs/README.md': 'user-docs-README',
+              'user-docs/README.md': 'user-docs-README',
+              '../user-docs/getting-started/first-login.md': 'user-docs-getting-started-first-login',
+              'user-docs/getting-started/first-login.md': 'user-docs-getting-started-first-login'
+          }
+          
+          def convert_links(content):
+              # Convert markdown links [text](path.md) to wiki links [[text|page-name]]
+              def replace_link(match):
+                  text = match.group(1)
+                  path = match.group(2)
+                  
+                  # Remove leading dots and slashes
+                  clean_path = path.lstrip('./')
+                  
+                  # Look up wiki page name
+                  if clean_path in file_to_wiki:
+                      wiki_page = file_to_wiki[clean_path]
+                      return f'[[{text}|{wiki_page}]]'
+                  elif path in file_to_wiki:
+                      wiki_page = file_to_wiki[path]
+                      return f'[[{text}|{wiki_page}]]'
+                  else:
+                      # Keep original link if no mapping found
+                      return match.group(0)
+              
+              # Pattern to match [text](path.md) links
+              pattern = r'\[([^\]]+)\]\(([^)]+\.md)\)'
+              return re.sub(pattern, replace_link, content)
+          
+          # Process all markdown files in wiki directory
+          for filepath in glob.glob('wiki/**/*.md', recursive=True):
+              print(f"Processing {filepath}")
+              with open(filepath, 'r', encoding='utf-8') as f:
+                  content = f.read()
+              
+              converted = convert_links(content)
+              
+              with open(filepath, 'w', encoding='utf-8') as f:
+                  f.write(converted)
+          
+          print("Link conversion completed")
+          PYTHON_EOF
           
           # Run the conversion
           python3 convert-links.py
