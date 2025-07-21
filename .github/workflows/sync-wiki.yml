@@ -1,9 +1,10 @@
 name: Sync Documentation to Wiki
 
 on:
-  push:
-    branches: [main]
-    paths: ['docs/**', 'user-docs/**']
+  # Temporarily disabled until wiki is created
+  # push:
+  #   branches: [main]
+  #   paths: ['docs/**', 'user-docs/**']
   workflow_dispatch:
 
 jobs:
