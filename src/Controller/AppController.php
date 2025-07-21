@@ -2,9 +2,11 @@
 
 namespace App\Controller;
 
+use App\Service\CzechVocativeService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Core\Security;
 
 class AppController extends AbstractController
 {
@@ -15,9 +17,23 @@ class AppController extends AbstractController
     }
 
     #[Route('/nastenka', name: 'app_dashboard')]
-    public function dashboard(): Response
+    public function dashboard(CzechVocativeService $vocativeService): Response
     {
-        return $this->render('pages/dashboard.html.twig');
+        $user = $this->getUser();
+        $greeting = '';
+        
+        if ($user) {
+            // Získáme jméno uživatele z security kontextu
+            $firstName = $user->getJmeno() ?? '';
+            
+            if (!empty($firstName)) {
+                $greeting = $vocativeService->createTimeBasedGreeting($firstName);
+            }
+        }
+        
+        return $this->render('pages/dashboard.html.twig', [
+            'greeting' => $greeting
+        ]);
     }
 
     #[Route('/prikazy', name: 'app_prikazy')]

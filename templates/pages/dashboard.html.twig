@@ -10,7 +10,7 @@
     {% else %}
         <div class="container container--lg">
             {% include 'components/page-header.html.twig' with {
-                title: 'Vítej, ' ~ app.user.jmeno ~ '!',
+                title: greeting ? greeting ~ '!' : ('Vítej, ' ~ app.user.jmeno ~ '!'),
                 subtitle: 'Přehled tvých aktivit a rychlé akce.',
                 breadcrumbs: [
                     {

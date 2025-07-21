@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "2d5aee8b9e2799787f1dde6e17d92dbd",
+    "content-hash": "1f25ede27915abd7ea076eb3ae40f94c",
     "packages": [
         {
             "name": "doctrine/collections",
@@ -1124,6 +1124,55 @@
                 "source": "https://github.com/doctrine/sql-formatter/tree/1.5.2"
             },
             "time": "2025-01-24T11:45:48+00:00"
+        },
+        {
+            "name": "granam/czech-vocative",
+            "version": "2.2.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/granam/czech-vocative.git",
+                "reference": "c9ccf9e189ea56bbe78b0e71bf2212632cc6b7f3"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/granam/czech-vocative/zipball/c9ccf9e189ea56bbe78b0e71bf2212632cc6b7f3",
+                "reference": "c9ccf9e189ea56bbe78b0e71bf2212632cc6b7f3",
+                "shasum": ""
+            },
+            "require": {
+                "ext-mbstring": "*",
+                "php": ">=7.4"
+            },
+            "require-dev": {
+                "phpunit/phpunit": ">=9.1",
+                "rector/rector": "^0.14.2"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Granam\\CzechVocative\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Petr Joachim",
+                    "email": "petr@joachim.cz"
+                },
+                {
+                    "name": "Jaroslav Týc",
+                    "email": "mail@jaroslavtyc.com"
+                }
+            ],
+            "description": "Inflect czech names and surnames.",
+            "support": {
+                "issues": "https://github.com/granam/czech-vocative/issues",
+                "source": "https://github.com/granam/czech-vocative/tree/2.2.0"
+            },
+            "time": "2022-09-05T10:42:07+00:00"
         },
         {
             "name": "imagine/imagine",
@@ -9098,7 +9147,7 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": [],
+    "stability-flags": {},
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
@@ -9106,7 +9155,7 @@
         "ext-ctype": "*",
         "ext-iconv": "*"
     },
-    "platform-dev": [],
+    "platform-dev": {},
     "platform-overrides": {
         "php": "8.3.0"
     },
