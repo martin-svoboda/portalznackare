@@ -45,35 +45,40 @@ jobs:
           fi
           
           # Convert internal markdown links to wiki format
+          # Remove .md extensions from links
           find wiki/ -name "*.md" -type f -exec sed -i 's/\.md)/)/g' {} \;
+          # Remove docs/ prefixes  
           find wiki/ -name "*.md" -type f -exec sed -i 's/](docs\//](/g' {} \;
+          # Remove ../ parent directory references
           find wiki/ -name "*.md" -type f -exec sed -i 's/](\.\.\//](/g' {} \;
+          # Convert remaining markdown links [text](link) to wiki format [[link|text]] where appropriate
+          # Note: This is a basic conversion, complex links may need manual adjustment
           
           # Create wiki sidebar navigation
           cat > wiki/_Sidebar.md << 'EOF'
           ## 📖 Dokumentace
           
           ### 📋 Základní informace
-          - [Úvod](Home)
-          - [Instalace a setup](getting-started-installation)
+          - [[Úvod|Home]]
+          - [[Instalace a setup|getting-started-installation]]
           
           ### 🏗️ Architektura
-          - [CMS architektura](architecture-cms)
+          - [[CMS architektura|architecture-cms]]
           
           ### 🎨 Frontend
-          - [React micro-apps](frontend-architecture)
-          - [Build systém](frontend-build-system)
-          - [Styling](frontend-styling)
+          - [[React micro-apps|frontend-architecture]]
+          - [[Build systém|frontend-build-system]]
+          - [[Styling|frontend-styling]]
           
           ### 🔌 API
-          - [API přehled](api-README)
+          - [[API přehled|api-README]]
           
           ### 🔄 Migrace
-          - [Z WordPress](migration-wordpress)
+          - [[Z WordPress|migration-wordpress]]
           
           ### 👥 Uživatelská nápověda
-          - [Nápověda](user-docs-README)
-          - [První přihlášení](user-docs-getting-started-first-login)
+          - [[Nápověda|user-docs-README]]
+          - [[První přihlášení|user-docs-getting-started-first-login]]
           EOF
           
       - name: Commit and push to wiki
