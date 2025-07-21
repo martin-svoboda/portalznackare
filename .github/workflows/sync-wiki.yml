@@ -21,7 +21,7 @@ jobs:
         with:
           repository: ${{ github.repository }}.wiki
           path: wiki/
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.WIKI_TOKEN || secrets.GITHUB_TOKEN }}
           
       - name: Sync docs to wiki
         run: |
@@ -86,6 +86,19 @@ jobs:
           fi
           
           git commit -m "🤖 Auto-sync documentation from main branch"
-          git push
+          
+          # Try to push with better error handling
+          if ! git push; then
+            echo "❌ Failed to push to wiki repository"
+            echo "This usually means the WIKI_TOKEN secret is missing or has insufficient permissions."
+            echo ""
+            echo "To fix this:"
+            echo "1. Go to GitHub Settings → Developer settings → Personal access tokens"
+            echo "2. Create a new token with 'repo' and 'workflow' permissions"
+            echo "3. Add it as WIKI_TOKEN secret in repository settings"
+            echo ""
+            echo "Current token being used: ${{ secrets.WIKI_TOKEN && 'WIKI_TOKEN (custom)' || 'GITHUB_TOKEN (default)' }}"
+            exit 1
+          fi
           
           echo "✅ Wiki synchronized successfully"
