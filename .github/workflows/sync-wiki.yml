@@ -53,24 +53,27 @@ jobs:
           cat > wiki/_Sidebar.md << 'EOF'
           ## 📖 Dokumentace
           
-          ### 📋 Projekt
-          - [Přehled](Home)
-          - [Instalace a setup](README)
+          ### 📋 Základní informace
+          - [Úvod](Home)
+          - [Instalace a setup](getting-started-installation)
           
-          ### 👥 Uživatelská nápověda
-          - [Nápověda](user-docs/README)
+          ### 🏗️ Architektura
+          - [CMS architektura](architecture-cms)
           
-          ### 🏗️ Technická dokumentace
-          - [Architektura](CMS_ARCHITECTURE)
-          - [TODO seznam](TODO)
-          - [Development](DEVELOPMENT)
+          ### 🎨 Frontend
+          - [React micro-apps](frontend-architecture)
+          - [Build systém](frontend-build-system)
+          - [Styling](frontend-styling)
+          
+          ### 🔌 API
+          - [API přehled](api-README)
           
           ### 🔄 Migrace
-          - [WordPress analýza](WORDPRESS_ANALYSIS)
+          - [Z WordPress](migration-wordpress)
           
-          ### 🛠️ Development
-          - [Coding standards](docs/coding-standards)
-          - [Troubleshooting](docs/troubleshooting)
+          ### 👥 Uživatelská nápověda
+          - [Nápověda](user-docs-README)
+          - [První přihlášení](user-docs-getting-started-first-login)
           EOF
           
       - name: Commit and push to wiki

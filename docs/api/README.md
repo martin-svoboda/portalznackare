@@ -14,30 +14,35 @@ Frontend (React) → Symfony API → Backend Services
 
 ## 📋 API Skupiny
 
-### 🏛️ [INSYS API](insys.md)
+### 🏛️ INSYS API
 - **Účel:** Integrace s databází KČT (MSSQL)
 - **Base URL:** `/api/insys/`
 - **Data:** Příkazy, uživatelé, ceníky z INSYS systému
+- **Endpointy:** `/user`, `/prikazy`, `/prikaz/{id}`, `/ceniky`, `/login`
 
-### 🏠 [Portal API](portal.md) 
+### 🏠 Portal API
 - **Účel:** Lokální funkcionalita (PostgreSQL)
 - **Base URL:** `/api/portal/`
-- **Data:** Metodiky, reporty, soubory, uživatelské nastavení
+- **Data:** Reporty hlášení (zatím implementované)
+- **Endpointy:** `/report` (GET/POST)
 
-### 🔐 [Autentifikace](authentication.md)
-- **Hybrid systém:** INSYS login + Symfony Security
-- **Session management:** Cookie-based
-- **Role-based access:** Symfony voters
+### 🧪 Test API
+- **Účel:** Debugging a zdravotní kontroly
+- **Base URL:** `/api/test/`
+- **Endpointy:** `/insys-user`, `/insys-prikazy`, `/mssql-connection`, `/login-test`
 
 ## 🚀 Rychlé příklady
 
 ### Test API připojení
 ```bash
-# Test INSYS API
-curl "https://portalznackare.ddev.site/api/insys/user"
+# Test INSYS připojení
+curl "https://dev.portalznackare.cz/api/test/mssql-connection"
 
-# Test Portal API  
-curl "https://portalznackare.ddev.site/api/portal/methodologies"
+# Test INSYS uživatelských dat
+curl "https://dev.portalznackare.cz/api/test/insys-user"
+
+# Test Portal API reporty
+curl "https://dev.portalznackare.cz/api/portal/report?id_zp=1"
 ```
 
 ### Autentifikace
@@ -55,12 +60,12 @@ const response = await fetch('/api/insys/login', {
 
 ### Získání dat
 ```javascript
-// Příkazy z INSYS
+// Příkazy z INSYS (vyžaduje přihlášení)
 const prikazy = await fetch('/api/insys/prikazy?year=2025')
     .then(r => r.json());
 
-// Metodiky z Portal API
-const metodiky = await fetch('/api/portal/methodologies')
+// Reporty hlášení z Portal API
+const report = await fetch('/api/portal/report?id_zp=1')
     .then(r => r.json());
 ```
 
@@ -119,24 +124,35 @@ GET /api/portal/methodologies?page=2&limit=10
 ### Debug endpointy
 ```bash
 # Test INSYS připojení
+GET /api/test/mssql-connection
+
+# Test INSYS uživatelských dat
 GET /api/test/insys-user
 
-# Test dat
+# Test INSYS příkazů
 GET /api/test/insys-prikazy
 
-# Health check
-GET /api/health
+# Test login
+POST /api/test/login-test
 ```
 
 ### Symfony Profiler
 - **URL:** `/_profiler` (development mode)
 - **API profiling:** Automaticky pro všechny API požadavky
 
-## 📚 Detailní dokumentace
+## 📚 Současný stav API
 
-- **[INSYS API](insys.md)** - Integrace s databází KČT
-- **[Portal API](portal.md)** - Lokální funkcionalita
-- **[Autentifikace](authentication.md)** - Přihlášení a oprávnění
+### ✅ Implementované endpointy
+- **INSYS API:** Plně funkční integrace s MSSQL databází
+- **Portal API:** Základní reporty hlášení (GET/POST `/api/portal/report`)
+- **Test API:** Debugging a health check endpointy
+- **Autentifikace:** Symfony Security s INSYS integrací
+
+### 🚧 Plánované rozšíření
+- CMS API pro metodiky, stránky, příspěvky
+- File management API
+- User management API
+- Taxonomy API (kategorie, tagy)
 
 ## 🛠️ Postman Collection
 
