@@ -132,71 +132,20 @@ jobs:
           # Composer install na serveru bez spouštění auto-scripts
           composer install --optimize-autoloader --no-scripts --no-interaction
           
-          # Ensure .env.local exists for DEV with test data enabled
+          # Zkontroluj že existuje .env.local s DB údaji
           if [ ! -f .env.local ]; then
-            echo "Creating .env.local for DEV environment with test data..."
-            cat > .env.local << 'ENV_EOF'
-# DEV Environment Configuration
-APP_ENV=dev
-APP_SECRET=dev-secret-change-in-prod
-
-# Use test data for DEV (no MSSQL needed)
-USE_TEST_DATA=true
-
-# Internal PostgreSQL database (if needed later)
-# DATABASE_URL=postgresql://portal_user:password@localhost:5432/portal_db
-
-# MSSQL INSYS connection (not used when USE_TEST_DATA=true)
-INSYS_DB_HOST=insys_server
-INSYS_DB_NAME=insys_database
-INSYS_DB_USER=insys_user
-INSYS_DB_PASS=insys_password
-ENV_EOF
-            echo "✅ .env.local created for DEV environment"
-          else
-            echo "✅ .env.local already exists"
-          fi
-          
-          # Create test data file if missing (needed for DEV API testing)
-          if [ ! -f var/testdata.json ]; then
-            echo "Creating basic testdata.json for DEV API testing..."
-            mkdir -p var
-            cat > var/testdata.json << 'TESTDATA_EOF'
-{
-    "user": [
-        {
-            "INT_ADR": "4133",
-            "Jmeno": "Test",
-            "Prijmeni": "Značkař",
-            "eMail": "test@znackar.cz",
-            "Prukaz_znackare": "ZN4133"
-        }
-    ],
-    "prikazy": {
-        "2025": [
-            {
-                "ID_Znackarske_Prikazy": "1",
-                "Cislo_ZP": "ZP001/2025",
-                "Druh_ZP": "J",
-                "Popis_ZP": "Test příkaz pro DEV",
-                "Stav_ZP_Naz": "Test"
-            }
-        ]
-    },
-    "detaily": {
-        "1": {
-            "head": {
-                "ID_Znackarske_Prikazy": "1",
-                "Cislo_ZP": "ZP001/2025",
-                "INT_ADR_1": "4133"
-            },
-            "predmety": [],
-            "useky": []
-        }
-    }
-}
-TESTDATA_EOF
-            echo "✅ Test data file created"
+            echo "❌ Missing .env.local file with database credentials!"
+            echo "Please create .env.local on server with:"
+            echo "# Internal PostgreSQL database for portal content"
+            echo "DATABASE_URL=postgresql://portal_user:password@localhost:5432/portal_db"
+            echo "# External MSSQL INSYS connection"
+            echo "USE_TEST_DATA=false"
+            echo "INSYS_DB_HOST=insys_server"
+            echo "INSYS_DB_NAME=insys_database"
+            echo "INSYS_DB_USER=insys_user"
+            echo "INSYS_DB_PASS=insys_password"
+            echo "APP_SECRET=your-secret-here"
+            exit 1
           fi
           
           # Symfony commands ručně s PHP 8.3 (jako web server)
