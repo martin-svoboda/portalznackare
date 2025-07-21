@@ -51,6 +51,7 @@ Kompletní dokumentace webové aplikace pro správu turistického značení.
 - **Pracovní dokumenty:** [TODO.md](../TODO.md), [Claude.md](../Claude.md)
 - **API dokumentace:** [api/](api/)
 - **Vývoj:** [getting-started/development.md](getting-started/development.md)
+- **GitHub Wiki:** [Wiki](https://github.com/martin-svoboda/portalznackare/wiki) - Automaticky synchronizovaná dokumentace
 
 ## 📖 Jak číst dokumentaci
 
