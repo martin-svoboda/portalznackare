@@ -1,7 +1,23 @@
 import React from 'react';
 
 const formatKm = (km) => km ? parseFloat(km).toFixed(1) : '0';
-const replaceTextWithIcons = (text, size = 14) => text || '';
+
+// Function to render HTML content safely from server data
+const renderHtmlContent = (htmlString) => {
+    if (!htmlString) return null;
+    return <span dangerouslySetInnerHTML={{__html: htmlString}} />;
+};
+
+// Function to replace text with icons - now uses server-side processed HTML
+const replaceTextWithIcons = (text, size = 14) => {
+    if (!text) return '';
+    // If text contains HTML tags (from server processing), render as HTML
+    if (text.includes('<')) {
+        return renderHtmlContent(text);
+    }
+    // Otherwise return as plain text
+    return text;
+};
 
 // Color mapping
 const barvaDleKodu = (kod) => {
@@ -22,15 +38,21 @@ const colorClasses = {
     gray: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200',
 };
 
-// Zástupný placeholder pro značku (bude řešeno přes Twig/PHP jako hotové HTML)
-const ZnackaPlaceholder = ({ size }) => (
-    <div 
-        className="flex items-center justify-center bg-gray-200 rounded text-xs"
-        style={{ width: size, height: size }}
-    >
-        Z
-    </div>
-);
+// Komponenta pro vykreslování značek - používá HTML ze serveru
+const ZnackaRenderer = ({ htmlString, size = 30 }) => {
+    if (htmlString) {
+        return renderHtmlContent(htmlString);
+    }
+    // Fallback placeholder pokud není HTML ze serveru
+    return (
+        <div 
+            className="flex items-center justify-center bg-gray-200 rounded text-xs"
+            style={{ width: size, height: size }}
+        >
+            Z
+        </div>
+    );
+};
 
 export const PrikazUseky = ({ useky, soubeh }) => {
     return (
@@ -41,7 +63,7 @@ export const PrikazUseky = ({ useky, soubeh }) => {
                         {useky.map((usek) => (
                             <tr key={usek.Kod_ZU} className="border-b border-gray-200 dark:border-gray-700">
                                 <td className="py-3 px-2">
-                                    <ZnackaPlaceholder size={30} />
+                                    <ZnackaRenderer htmlString={usek.Znacka_HTML} size={30} />
                                 </td>
                                 <td className="py-3 px-2">
                                     {replaceTextWithIcons(usek.Nazev_ZU, 14)}
@@ -72,7 +94,7 @@ export const PrikazUseky = ({ useky, soubeh }) => {
                         </div>
                         <div className="flex flex-wrap gap-1">
                             {soubeh.map((row, index) => (
-                                <ZnackaPlaceholder key={index} size={30} />
+                                <ZnackaRenderer key={index} htmlString={row.Znacka_HTML} size={30} />
                             ))}
                         </div>
                     </div>

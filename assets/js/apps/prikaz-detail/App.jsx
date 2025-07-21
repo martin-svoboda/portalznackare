@@ -96,7 +96,23 @@ const barvaDleKodu = (kod) => {
 
 // Format functions
 const formatKm = (km) => km ? parseFloat(km).toFixed(1) : '0';
-const replaceTextWithIcons = (text, size = 14) => text || '';
+
+// Function to render HTML content safely from server data
+const renderHtmlContent = (htmlString) => {
+    if (!htmlString) return null;
+    return <span dangerouslySetInnerHTML={{__html: htmlString}}/>;
+};
+
+// Function to replace text with icons - now uses server-side processed HTML
+const replaceTextWithIcons = (text, size = 14) => {
+    if (!text) return '';
+    // If text contains HTML tags (from server processing), render as HTML
+    if (text.includes('<')) {
+        return renderHtmlContent(text);
+    }
+    // Otherwise return as plain text
+    return text;
+};
 
 // Validation functions from original
 function validateSingleItem(item) {
@@ -255,7 +271,8 @@ const App = () => {
                 Druh_Znaceni: item.Druh_Znaceni,
                 Druh_Znaceni_Kod: item.Druh_Znaceni_Kod,
                 Druh_Odbocky: item.Druh_Odbocky,
-                Druh_Odbocky_Kod: item.Druh_Odbocky_Kod
+                Druh_Odbocky_Kod: item.Druh_Odbocky_Kod,
+                Znacka_HTML: item.Znacka_HTML
             }))
             .filter((item) => {
                 const key = `${item.Barva}|${item.Barva_Kod}|${item.Druh_Presunu}|${item.Druh_Znaceni_Kod || ''}|${item.Druh_Odbocky_Kod || ''}`;
@@ -282,7 +299,7 @@ const App = () => {
                     lon: Number(d.GPS_Delka),   // GPS_Delka = longitude
                     content: (
                         <p>
-                            <strong>{d.Naz_TIM}</strong>
+                            <strong>{replaceTextWithIcons(d.Naz_TIM)}</strong>
                             <br/>
                             {d.EvCi_TIM}
                         </p>
@@ -373,10 +390,7 @@ const App = () => {
                         return (
                             <div key={i} className="border-t pt-4 first:border-t-0 first:pt-0">
                                 <div className="flex flex-wrap items-center gap-4">
-                                    <div
-                                        className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center text-xs">
-                                        TIM
-                                    </div>
+                                    {item.Tim_HTML ? renderHtmlContent(item.Tim_HTML) : 'TIM'}
                                     <div>
                                         <div className="font-bold">{item.Druh_Predmetu_Naz}</div>
                                         {item.Smerovani && (
@@ -388,18 +402,21 @@ const App = () => {
                                             <div className="text-sm text-gray-600">{item.Druh_Odbocky}</div>
                                         )}
                                     </div>
-                                    <div>
+                                    <div className="flex items-center gap-2">
                                         {item.Barva && (
-                                            <span
-                                                className={`px-2 py-1 rounded text-xs font-medium bg-${barvaDleKodu(item.Barva_Kod)}-100 text-${barvaDleKodu(item.Barva_Kod)}-800`}>
+                                            <>
+                                                {item.Znacka_HTML && renderHtmlContent(item.Znacka_HTML)}
+                                                <span
+                                                    className={`px-2 py-1 rounded text-xs font-medium bg-${barvaDleKodu(item.Barva_Kod)}-100 text-${barvaDleKodu(item.Barva_Kod)}-800`}>
                                                 {item.Barva}
                                             </span>
+                                            </>
                                         )}
                                     </div>
                                     <div>
                                         <div
                                             className="text-sm text-gray-600">{item.Druh_Presunu} {item.Druh_Znaceni}</div>
-                                        <div className="text-sm">ID: {item.EvCi_TIM + item.Predmet_Index}</div>
+                                        <div className="text-sm">Ev. č.: {item.EvCi_TIM + item.Predmet_Index}</div>
                                     </div>
                                     {itemErrors.length > 0 && (
                                         <div

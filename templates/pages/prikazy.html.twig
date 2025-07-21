@@ -37,7 +37,7 @@
         {% else %}
             <div class="card">
                 <div data-app="prikazy">
-                    <p class="text text--small text--muted">Načítání aplikace pro výpis příkazů...</p>
+                    {% include 'components/loader.html.twig' %}
                 </div>
             </div>
         {% endif %}

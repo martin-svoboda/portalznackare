@@ -5,16 +5,17 @@ import {
     IconEdit,
     IconCheckbox,
     IconCopyCheck,
-    IconCash,
+    IconCash, IconSquareX,
 } from '@tabler/icons-react';
 
 const stavMap = {
-    'Nové': { icon: IconSquare, color: 'gray' },
-    'Vystavený': { icon: IconSquareArrowRight, color: 'indigo' },
-    'Přidělený': { icon: IconEdit, color: 'blue' },
-    'Provedený': { icon: IconCheckbox, color: 'teal' },
-    'Předaný KKZ': { icon: IconCopyCheck, color: 'green' },
-    'Zaúčtovaný': { icon: IconCash, color: 'lime' },
+    'Nové': {icon: IconSquare, color: 'gray'},
+    'Vystavený': {icon: IconSquareArrowRight, color: 'indigo'},
+    'Přidělený': {icon: IconEdit, color: 'blue'},
+    'Provedený': {icon: IconCheckbox, color: 'teal'},
+    'Předaný KKZ': {icon: IconCopyCheck, color: 'green'},
+    'Zaúčtovaný': {icon: IconCash, color: 'lime'},
+    'Stornovaný': {icon: IconSquareX, color: 'red'},
 };
 
 const colorClasses = {
@@ -24,19 +25,20 @@ const colorClasses = {
     teal: 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200',
     green: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
     lime: 'bg-lime-100 text-lime-800 dark:bg-lime-900 dark:text-lime-200',
+    red: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
 };
 
-export function PrikazStavBadge({ stav }) {
-    const conf = stavMap[stav] || { icon: IconSquare, color: 'gray' };
+export function PrikazStavBadge({stav}) {
+    const conf = stavMap[stav] || {icon: IconSquare, color: 'gray'};
     const Icon = conf.icon;
     const colorClass = colorClasses[conf.color] || colorClasses.gray;
 
     return (
-        <span 
+        <span
             className={`inline-flex items-center px-3 py-1 rounded text-sm font-medium ${colorClass}`}
             title={stav}
         >
-            <Icon size={14} className="mr-1" />
+            <Icon size={14} className="mr-1"/>
             {stav}
         </span>
     );

@@ -43,7 +43,7 @@ class ColorService
             'MO' => '#1a6dff',   // RAL 5015 (modrá nebeská)
             'ZE' => '#009C00',   // RAL 6024 (zelená dopravní)
             'ZL' => '#ffdd00',   // RAL 1003 (žlutá signální)
-            'BI' => '#ffffff',   // RAL 1013 (bílá perlová)
+            'BI' => '#f5f5f5',   // RAL 1013 (bílá perlová)
             'KH' => '#6A5F31',   // RAL 7008 (Khaki Gray)
             'BE' => 'transparent', // bezbarvá
             'XX' => 'transparent', // nerozlišeno

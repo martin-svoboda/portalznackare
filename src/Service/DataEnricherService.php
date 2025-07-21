@@ -6,106 +6,118 @@ namespace App\Service;
  * Služba pro obohacování dat o HTML komponenty
  * Používá se v API controllerech
  */
-class DataEnricherService
-{
-    public function __construct(
-        private ZnackaService $znackaService,
-        private TimService $timService,
-        private ColorService $colorService
-    ) {}
+class DataEnricherService {
+	public function __construct(
+		private ZnackaService $znackaService,
+		private TimService $timService,
+		private TransportIconService $transportIconService
+	) {
+	}
 
-    /**
-     * Obohatí data příkazu o HTML komponenty
-     */
-    public function enrichPrikazData(array $prikaz): array
-    {
-        // Přidej HTML značky
-        if (isset($prikaz['Barva_Kod'])) {
-            $prikaz['znacka_html'] = $this->znackaService->znacka($prikaz['Barva_Kod'], 'pasova', 24);
-            $prikaz['znacka_css'] = $this->znackaService->renderZnackaCSS($prikaz['Barva_Kod'], 'pasova', 'md');
-            $prikaz['barva_hex'] = $this->colorService->barvaDleKodu($prikaz['Barva_Kod']);
-            $prikaz['barva_nazev'] = $this->colorService->nazevBarvy($prikaz['Barva_Kod']);
-        }
+	/**
+	 * Obohatí data seznamu příkazů
+	 */
+	public function enrichPrikazyList( array $prikazy ): array {
+		return array_map( [ $this, 'enrichPrikazData' ], $prikazy );
+	}
 
-        // Obohatí popis o ikony
-        if (isset($prikaz['Popis_ZP'])) {
-            $prikaz['popis_html'] = $this->replaceIconsInText($prikaz['Popis_ZP']);
-        }
+	/**
+	 * Obohatí jednotlivý příkaz v seznamu
+	 */
+	private function enrichPrikazData( array $prikaz ): array {
+		// Nahradí ikony v popisu příkazu
+		if ( isset( $prikaz['Popis_ZP'] ) ) {
+			$prikaz['Popis_ZP'] = $this->replaceIconsInText( $prikaz['Popis_ZP'] );
+		}
 
-        return $prikaz;
-    }
+		// Můžeme přidat další pole podle potřeby
+		if ( isset( $prikaz['Poznamka'] ) ) {
+			$prikaz['Poznamka'] = $this->replaceIconsInText( $prikaz['Poznamka'] );
+		}
 
-    /**
-     * Obohatí data seznamu příkazů
-     */
-    public function enrichPrikazyList(array $prikazy): array
-    {
-        return array_map([$this, 'enrichPrikazData'], $prikazy);
-    }
+		return $prikaz;
+	}
 
-    /**
-     * Obohatí detail příkazu s předměty
-     */
-    public function enrichPrikazDetail(array $detail): array
-    {
-        // Obohatí hlavičku
-        if (isset($detail['head'])) {
-            $detail['head'] = $this->enrichPrikazData($detail['head']);
-        }
+	/**
+	 * Obohatí detail příkazu s předměty
+	 */
+	public function enrichPrikazDetail( array $detail ): array {
+		// Obohatí hlavičku
+		if ( isset( $detail['head'] ) ) {
+			// nic co by se dalo obohatit
+		}
 
-        // Obohatí předměty
-        if (isset($detail['predmety'])) {
-            $detail['predmety'] = array_map(function($predmet) {
-                // Značka podle barvy
-                if (isset($predmet['Barva_Kod'])) {
-                    $predmet['znacka_html'] = $this->znackaService->znacka(
-                        $predmet['Barva_Kod'], 
-                        $this->mapDruhZnaceni($predmet['Druh_Znaceni_Kod'] ?? ''), 
-                        20
-                    );
-                }
+		// Obohatí useky
+		if ( isset( $detail['useky'] ) && is_array( $detail['useky'] ) ) {
+			$detail['useky'] = array_map( function ( $usek ) {
+				// Značka úseku
+				$usek['Znacka_HTML'] = $this->znackaService->znacka(
+					$usek['Barva_Kod'] ?? null,
+					($usek['Druh_Odbocky_Kod'] ?? null) ?: ($usek['Druh_Znaceni_Kod'] ?? null) ?: null,
+					$usek['Druh_Presunu'] ?? null,
+					24
+				);
 
-                // TIM arrows pokud existují
-                if (isset($predmet['TIM_Data'])) {
-                    $predmet['tim_html'] = $this->timService->timPreview($predmet['TIM_Data'], 20);
-                }
+				// Název úseku s ikonami
+				if ( isset( $usek['Nazev_ZU'] ) ) {
+					$usek['Nazev_ZU'] = $this->replaceIconsInText( $usek['Nazev_ZU'] );
+				}
 
-                return $predmet;
-            }, $detail['predmety']);
-        }
+				return $usek;
+			}, $detail['useky'] );
+		}
 
-        return $detail;
-    }
+		// Obohatí předměty
+		if ( isset( $detail['predmety'] ) ) {
+			$detail['predmety'] = array_map( function ( $predmet ) {
+				$predmet['Tim_HTML'] = '';
 
-    /**
-     * Nahradí zkratky v textu za ikony
-     */
-    private function replaceIconsInText(string $text): string
-    {
-        $patterns = [
-            '/\{ce\}/' => $this->znackaService->znacka('CE', 'pasova', 16),
-            '/\{mo\}/' => $this->znackaService->znacka('MO', 'pasova', 16),
-            '/\{ze\}/' => $this->znackaService->znacka('ZE', 'pasova', 16),
-            '/\{zl\}/' => $this->znackaService->znacka('ZL', 'pasova', 16),
-            '/\{pas\}/' => '<span class="text-gray-600 text-sm">[pás]</span>',
-            '/\{sip\}/' => '<span class="text-gray-600 text-sm">[→]</span>',
-            '/\{kon\}/' => '<span class="text-gray-600 text-sm">[●]</span>',
-        ];
-        
-        return preg_replace(array_keys($patterns), array_values($patterns), $text);
-    }
+				// Značka podle barvy
+				$predmet['Znacka_HTML'] = $this->znackaService->znacka(
+					$predmet['Barva_Kod'] ?? null,
+					($predmet['Druh_Odbocky_Kod'] ?? null) ?: ($predmet['Druh_Znaceni_Kod'] ?? null) ?: null,
+					$predmet['Druh_Presunu'] ?? null,
+					24
+				);
 
-    /**
-     * Mapuje druh značení na typ značky
-     */
-    private function mapDruhZnaceni(?string $kod): string
-    {
-        return match(strtoupper($kod ?? '')) {
-            'PA' => 'pasova',
-            'SI' => 'sipka', 
-            'KO' => 'koncova',
-            'SM' => 'smerovka',
-            default => 'pasova'
-        };
-    }
+				// náhledy TIM
+				if ( isset( $predmet['Radek1'] ) ) {
+					$predmet['Tim_HTML'] = $this->timService->timPreview( $predmet );
+				}
+
+				// Název TIM s ikonami
+				if ( isset( $predmet['Naz_TIM'] ) ) {
+					$predmet['Naz_TIM'] = $this->replaceIconsInText( $predmet['Naz_TIM'] );
+				}
+
+				// Texty TIM s ikonami
+				if ( isset( $predmet['Radek1'] ) ) {
+					$predmet['Radek1'] = $this->replaceIconsInText( $predmet['Radek1'] );
+				}
+				if ( isset( $predmet['Radek2'] ) ) {
+					$predmet['Radek2'] = $this->replaceIconsInText( $predmet['Radek2'] );
+				}
+				if ( isset( $predmet['Radek3'] ) ) {
+					$predmet['Radek3'] = $this->replaceIconsInText( $predmet['Radek3'] );
+				}
+
+				return $predmet;
+			}, $detail['predmety'] );
+		}
+
+		return $detail;
+	}
+
+	/**
+	 * Nahradí zkratky v textu za ikony
+	 * Nahrazuje pouze dopravní ikony ve formátu &TAG
+	 */
+	private function replaceIconsInText( ?string $text ): string {
+		if ( empty( $text ) ) {
+			return '';
+		}
+
+		// Nahraď dopravní ikony (&BUS, &ŽST, atd.)
+		return $this->transportIconService->replaceIconsInText( $text );
+	}
 }

@@ -41,7 +41,7 @@
         {% else %}
             <div data-app="prikaz-detail" data-prikaz-id="{{ id }}">
                 <div class="card">
-                    <p class="text text--small text--muted">Načítání aplikace pro výpis detailu příkazu...</p>
+                    {% include 'components/loader.html.twig' %}
                 </div>
             </div>
         {% endif %}

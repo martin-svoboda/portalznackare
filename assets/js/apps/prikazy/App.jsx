@@ -5,14 +5,30 @@ import {
 } from 'material-react-table';
 import { MRT_Localization_CS } from 'material-react-table/locales/cs';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { PrikazStavBadge } from './components/PrikazStavBadge';
-import { PrikazTypeIcon } from './components/PrikazTypeIcon';
-import { replaceTextWithIcons } from './components/textIconReplacer';
+import { PrikazStavBadge } from '../../components/prikazy/PrikazStavBadge';
+import { PrikazTypeIcon } from '../../components/prikazy/PrikazTypeIcon';
 import { IconCrown } from '@tabler/icons-react';
 
 const getAvailableYears = () => {
     const currentYear = new Date().getFullYear();
     return Array.from({ length: 5 }, (_, i) => `${currentYear - i}`);
+};
+
+// Function to render HTML content safely from server data
+const renderHtmlContent = (htmlString) => {
+    if (!htmlString) return null;
+    return <span dangerouslySetInnerHTML={{__html: htmlString}} />;
+};
+
+// Function to replace text with icons - now uses server-side processed HTML
+const replaceTextWithIcons = (text, size = 14) => {
+    if (!text) return '';
+    // If text contains HTML tags (from server processing), render as HTML
+    if (text.includes('<')) {
+        return renderHtmlContent(text);
+    }
+    // Otherwise return as plain text
+    return text;
 };
 
 
@@ -115,7 +131,7 @@ const App = () => {
                 filterVariant: 'select',
                 Cell: ({ row }) => (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <PrikazTypeIcon type={row.original.Druh_ZP} size={28} />
+                        <div><PrikazTypeIcon type={row.original.Druh_ZP} size={28} /></div>
                         <span>{row.original.Druh_ZP_Naz}</span>
                     </div>
                 ),

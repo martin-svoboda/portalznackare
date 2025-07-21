@@ -81,7 +81,7 @@ class InsysController extends AbstractController
         try {
             $prikazy = $this->insysService->getPrikazy((int) $intAdr, $year ? (int) $year : null);
             
-            // Obohatí data o HTML komponenty
+            // Obohatí data o HTML komponenty (ikony v textech)
             $enrichedPrikazy = $this->dataEnricher->enrichPrikazyList($prikazy);
             
             return new JsonResponse($enrichedPrikazy);

@@ -47,12 +47,7 @@
                  data-prikaz-id="{{ id }}"
                  data-user="{{ app.user ? {INT_ADR: app.user.intAdr, name: app.user.fullName}|json_encode|e('html_attr') : '{}' }}">
                 <div class="card">
-                    <div class="card__content">
-                        <div class="loader-container">
-                            <div class="loader"></div>
-                            <p class="text text--small text--muted mt-2">Načítání aplikace pro hlášení příkazu...</p>
-                        </div>
-                    </div>
+                    {% include 'components/loader.html.twig' %}
                 </div>
             </div>
         {% endif %}
