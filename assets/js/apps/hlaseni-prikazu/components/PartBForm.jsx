@@ -22,14 +22,19 @@ const arrowOrientationOptions = [
     { value: "P", label: "Pravá (P)" }
 ];
 
-// Helper function for generating consistent identifiers
+// Helper function for generating safe identifiers
 const getItemIdentifier = (item) => {
-    // Prefer ID_PREDMETY from DB, fallback to combination of EvCi_TIM + Predmet_Index
-    return item.ID_PREDMETY?.toString() || `${item.EvCi_TIM}${item.Predmet_Index}`;
+    // ALWAYS use ID_PREDMETY as primary identifier (unique and safe)
+    // If missing, we have a data integrity problem that should be addressed
+    if (!item.ID_PREDMETY) {
+        console.warn('Item missing ID_PREDMETY:', item);
+        return `fallback_${item.EvCi_TIM}_${item.Predmet_Index}_${Date.now()}`;
+    }
+    return item.ID_PREDMETY.toString();
 };
 
 const getLegacyItemIdentifier = (item) => {
-    return `${item.EvCi_TIM}${item.Predmet_Index}`;
+    return `${item.EvCi_TIM}_${item.Predmet_Index}`;
 };
 
 // HTML utility functions now imported from shared utils
@@ -137,17 +142,39 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                 ...status,
                 itemId: primaryId, // Update to new identifier
                 legacyItemId: legacyId,
-                evCiTim: item.EvCi_TIM,
-                predmetIndex: item.Predmet_Index
+                // Complete metadata for full traceability
+                metadata: {
+                    ID_PREDMETY: item.ID_PREDMETY,
+                    EvCi_TIM: item.EvCi_TIM,
+                    Predmet_Index: item.Predmet_Index,
+                    Druh_Predmetu: item.Druh_Predmetu,
+                    Druh_Predmetu_Naz: item.Druh_Predmetu_Naz,
+                    Radek1: item.Radek1,
+                    Barva_Kod: item.Barva_Kod,
+                    Barva: item.Barva,
+                    Smerovani: item.Smerovani,
+                    lastUpdated: new Date().toISOString()
+                }
             };
         } else {
             newItemStatuses.push({
                 itemId: primaryId,
                 legacyItemId: legacyId,
-                evCiTim: item.EvCi_TIM,
-                predmetIndex: item.Predmet_Index,
                 status: 1,
-                ...status
+                ...status,
+                // Complete metadata for full traceability
+                metadata: {
+                    ID_PREDMETY: item.ID_PREDMETY,
+                    EvCi_TIM: item.EvCi_TIM,
+                    Predmet_Index: item.Predmet_Index,
+                    Druh_Predmetu: item.Druh_Predmetu,
+                    Druh_Predmetu_Naz: item.Druh_Predmetu_Naz,
+                    Radek1: item.Radek1,
+                    Barva_Kod: item.Barva_Kod,
+                    Barva: item.Barva,
+                    Smerovani: item.Smerovani,
+                    createdAt: new Date().toISOString()
+                }
             });
         }
 
@@ -322,7 +349,7 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                                 id={`structural-${timGroup.EvCi_TIM}`}
                                                                 files={timReport?.structuralAttachments || []}
                                                                 onFilesChange={(files) => updateTimReport(timGroup.EvCi_TIM, {
-                                                                    ...timReport,
+                                                                    ...(timReport || {}),
                                                                     timId: timGroup.EvCi_TIM,
                                                                     structuralAttachments: files
                                                                 })}
@@ -351,7 +378,7 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                                     value="true"
                                                                     checked={timReport?.centerRuleCompliant === true}
                                                                     onChange={() => updateTimReport(timGroup.EvCi_TIM, {
-                                                                        ...timReport,
+                                                                        ...(timReport || {}),
                                                                         timId: timGroup.EvCi_TIM,
                                                                         centerRuleCompliant: true
                                                                     })}
@@ -367,7 +394,7 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                                     value="false"
                                                                     checked={timReport?.centerRuleCompliant === false}
                                                                     onChange={() => updateTimReport(timGroup.EvCi_TIM, {
-                                                                        ...timReport,
+                                                                        ...(timReport || {}),
                                                                         timId: timGroup.EvCi_TIM,
                                                                         centerRuleCompliant: false
                                                                     })}
@@ -389,7 +416,8 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                                     placeholder="Komentář k nesplnění středového pravidla..."
                                                                     value={timReport?.centerRuleComment || ""}
                                                                     onChange={(e) => updateTimReport(timGroup.EvCi_TIM, {
-                                                                        ...timReport,
+                                                                        ...(timReport || {}),
+                                                                        timId: timGroup.EvCi_TIM,
                                                                         centerRuleComment: e.target.value
                                                                     })}
                                                                     rows={2}
@@ -582,7 +610,7 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                             placeholder="Dodatečné poznámky k tomuto TIMu..."
                                                             value={timReport?.generalComment || ""}
                                                             onChange={(e) => updateTimReport(timGroup.EvCi_TIM, {
-                                                                ...timReport,
+                                                                ...(timReport || {}),
                                                                 timId: timGroup.EvCi_TIM,
                                                                 generalComment: e.target.value
                                                             })}
@@ -599,7 +627,7 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                             id={`photos-${timGroup.EvCi_TIM}`}
                                                             files={timReport?.photos || []}
                                                             onFilesChange={(files) => updateTimReport(timGroup.EvCi_TIM, {
-                                                                ...timReport,
+                                                                ...(timReport || {}),
                                                                 timId: timGroup.EvCi_TIM,
                                                                 photos: files
                                                             })}

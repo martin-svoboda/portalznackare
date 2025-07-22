@@ -9,12 +9,18 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use App\Service\MockMSSQLService;
 use App\Entity\User;
+use App\Entity\Report;
+use App\Repository\ReportRepository;
+use App\Enum\ReportStateEnum;
+use Doctrine\ORM\EntityManagerInterface;
 
 #[Route('/api/portal')]
 class PortalController extends AbstractController
 {
     public function __construct(
-        private MockMSSQLService $mssqlService
+        private MockMSSQLService $mssqlService,
+        private ReportRepository $reportRepository,
+        private EntityManagerInterface $entityManager
     ) {}
     #[Route('/post', methods: ['GET'])]
     public function getPost(Request $request): JsonResponse
@@ -76,22 +82,25 @@ class PortalController extends AbstractController
             }
 
             try {
-                // Mock data - v produkci by se načítalo z databáze
-                // Pro nyní vracíme prázdnou odpověď (žádné hlášení neexistuje)
-                // Pokud by hlášení existovalo, vrátili bychom:
-                /*
-                $reportData = [
-                    'id_zp' => (int)$idZp,
-                    'int_adr' => $intAdr,
-                    'state' => 'draft', // draft, send
-                    'data_a' => null, // Data části A
-                    'data_b' => null, // Data části B
-                    'calculation' => null, // Výpočet náhrad
-                    'created_at' => date('Y-m-d H:i:s'),
-                    'updated_at' => date('Y-m-d H:i:s')
-                ];
-                return new JsonResponse($reportData);
-                */
+                // Načíst hlášení z databáze
+                $report = $this->reportRepository->findByOrderAndUser((int)$idZp, $intAdr);
+                
+                if ($report) {
+                    return new JsonResponse([
+                        'id' => $report->getId(),
+                        'id_zp' => $report->getIdZp(),
+                        'cislo_zp' => $report->getCisloZp(),
+                        'int_adr' => $report->getIntAdr(),
+                        'je_vedouci' => $report->isJeVedouci(),
+                        'dataA' => $report->getDataA(),
+                        'dataB' => $report->getDataB(),
+                        'calculation' => $report->getCalculation(),
+                        'state' => $report->getState()->value,
+                        'date_send' => $report->getDateSend()?->format('Y-m-d H:i:s'),
+                        'date_created' => $report->getDateCreated()->format('Y-m-d H:i:s'),
+                        'date_updated' => $report->getDateUpdated()->format('Y-m-d H:i:s')
+                    ]);
+                }
                 
                 // Žádné hlášení neexistuje - vrátíme null s HTTP 200
                 return new JsonResponse(null);
@@ -124,25 +133,54 @@ class PortalController extends AbstractController
                     }
                 }
 
-                // Mock uložení - v produkci by se ukládalo do databáze
-                $reportData = [
-                    'id' => uniqid(),
-                    'id_zp' => $data['id_zp'],
-                    'cislo_zp' => $data['cislo_zp'],
-                    'int_adr' => $intAdr,
-                    'je_vedouci' => $data['je_vedouci'] ?? false,
-                    'data_a' => $data['data_a'],
-                    'data_b' => $data['data_b'],
-                    'calculation' => $data['calculation'],
-                    'state' => $data['state'] ?? 'draft',
-                    'created_at' => date('Y-m-d H:i:s'),
-                    'updated_at' => date('Y-m-d H:i:s')
-                ];
+                // Zkontrolovat, zda už existuje hlášení pro tento příkaz a uživatele
+                $report = $this->reportRepository->findByOrderAndUser((int)$data['id_zp'], $intAdr);
+                
+                if (!$report) {
+                    // Vytvořit nové hlášení
+                    $report = new Report();
+                    $report->setIdZp((int)$data['id_zp']);
+                    $report->setIntAdr($intAdr);
+                }
+                
+                // Nastavit/aktualizovat data
+                $report->setCisloZp($data['cislo_zp']);
+                $report->setJeVedouci($data['je_vedouci'] ?? false);
+                $report->setDataA($data['data_a'] ?? []);
+                $report->setDataB($data['data_b'] ?? []);
+                $report->setCalculation($data['calculation'] ?? []);
+                
+                // Nastavit stav
+                $state = $data['state'] ?? 'draft';
+                $reportState = match ($state) {
+                    'send' => ReportStateEnum::SEND,
+                    'approved' => ReportStateEnum::APPROVED,
+                    'rejected' => ReportStateEnum::REJECTED,
+                    default => ReportStateEnum::DRAFT
+                };
+                $report->setState($reportState);
+                
+                // Uložit do databáze
+                $this->entityManager->persist($report);
+                $this->entityManager->flush();
 
                 return new JsonResponse([
                     'success' => true,
                     'message' => 'Hlášení bylo úspěšně uloženo',
-                    'data' => $reportData
+                    'data' => [
+                        'id' => $report->getId(),
+                        'id_zp' => $report->getIdZp(),
+                        'cislo_zp' => $report->getCisloZp(),
+                        'int_adr' => $report->getIntAdr(),
+                        'je_vedouci' => $report->isJeVedouci(),
+                        'data_a' => $report->getDataA(),
+                        'data_b' => $report->getDataB(),
+                        'calculation' => $report->getCalculation(),
+                        'state' => $report->getState()->value,
+                        'date_send' => $report->getDateSend()?->format('Y-m-d H:i:s'),
+                        'date_created' => $report->getDateCreated()->format('Y-m-d H:i:s'),
+                        'date_updated' => $report->getDateUpdated()->format('Y-m-d H:i:s')
+                    ]
                 ]);
                 
             } catch (\Exception $e) {

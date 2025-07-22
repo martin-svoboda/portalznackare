@@ -103,6 +103,11 @@ class FileController extends AbstractController
                     'file' => $file->getClientOriginalName(),
                     'error' => 'Chyba při ukládání souboru: ' . $e->getMessage()
                 ];
+            } catch (\Exception $e) {
+                $errors[] = [
+                    'file' => $file->getClientOriginalName(),
+                    'error' => 'Neočekávaná chyba: ' . $e->getMessage()
+                ];
             }
         }
 

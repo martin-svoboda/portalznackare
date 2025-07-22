@@ -34,7 +34,7 @@ const createEmptyTravelSegment = () => ({
     attachments: []
 });
 
-export const PartAForm = ({ formData, setFormData, priceList, head, prikazId, fileUploadService }) => {
+export const PartAForm = ({ formData, setFormData, priceList, head, prikazId, fileUploadService, currentUser, isLeader, canEdit = true }) => {
     // Generate storage path for this report
     const generateStoragePath = () => {
         if (!prikazId) return null;

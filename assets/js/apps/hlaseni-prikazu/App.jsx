@@ -17,8 +17,8 @@ import {PartBForm, validateAllTimItemsCompleted} from './components/PartBForm';
 import {CompensationSummary} from './components/CompensationSummary';
 import {AdvancedFileUpload} from './components/AdvancedFileUpload';
 import {
-    parsePriceListFromAPI, 
-    calculateCompensation, 
+    parsePriceListFromAPI,
+    calculateCompensation,
     calculateCompensationForAllMembers,
     extractTeamMembers,
     isUserLeader,
@@ -192,7 +192,7 @@ const App = () => {
         if (!formData.executionDate || !reportLoaded) return;
 
         const dateParam = formData.executionDate.toISOString().split('T')[0];
-        
+
         setPriceListLoading(true);
         setPriceListError(null);
 
@@ -211,7 +211,7 @@ const App = () => {
                 const parsedPriceList = parsePriceListFromAPI(result);
                 console.log('Parsed price list:', parsedPriceList);
                 setPriceList(parsedPriceList);
-                
+
                 // Show feedback to user
                 if (!parsedPriceList || Object.keys(parsedPriceList).length === 0) {
                     console.warn('Empty price list received');
@@ -260,38 +260,14 @@ const App = () => {
         if (head && currentUser) {
             const members = extractTeamMembers(head);
             setTeamMembers(members);
-            
+
             const userIsLeader = isUserLeader(currentUser, head);
             setIsLeader(userIsLeader);
             setCanEditOthers(userIsLeader);
         }
     }, [head, currentUser]);
 
-    // Calculate compensation
-    const compensation = useMemo(() => {
-        if (!priceList) return null;
-        
-        if (isLeader && teamMembers.length > 0) {
-            // Vedoucí vidí náhrady všech členů
-            return calculateCompensationForAllMembers(
-                formData, 
-                priceList, 
-                teamMembers, 
-                formData.primaryDriver, 
-                formData.higherKmRate
-            );
-        } else {
-            // Člen vidí jen svou náhradu
-            const isCurrentUserDriver = currentUser && formData.primaryDriver === currentUser.INT_ADR;
-            return calculateCompensation(
-                formData, 
-                priceList, 
-                isCurrentUserDriver, 
-                formData.higherKmRate, 
-                currentUser?.INT_ADR
-            );
-        }
-    }, [formData, priceList, isLeader, teamMembers, currentUser]);
+    // Compensation is now calculated in CompensationSummary component
 
     // Automatic completion status for Part A
     const canCompletePartA = useMemo(() => {
@@ -355,7 +331,7 @@ const App = () => {
             const data = {
                 id_zp: prikazId,
                 cislo_zp: head?.Cislo_ZP || '',
-                je_vedouci: false, // Will be determined server-side
+                je_vedouci: isLeader,
                 data_a: {
                     executionDate: formData.executionDate,
                     travelSegments: formData.travelSegments.filter(segment => segment && segment.id),
@@ -373,12 +349,33 @@ const App = () => {
                     routeAttachments: formData.routeAttachments,
                     partBCompleted: formData.partBCompleted
                 },
-                calculation: compensation || {},
+                calculation: (() => {
+                    if (!priceList) return {};
+                    
+                    if (isLeader && teamMembers.length > 0) {
+                        return calculateCompensationForAllMembers(
+                            formData,
+                            priceList,
+                            teamMembers,
+                            formData.primaryDriver,
+                            formData.higherKmRate
+                        );
+                    } else {
+                        const isCurrentUserDriver = currentUser && formData.primaryDriver === currentUser.INT_ADR;
+                        return calculateCompensation(
+                            formData,
+                            priceList,
+                            isCurrentUserDriver,
+                            formData.higherKmRate,
+                            currentUser?.INT_ADR
+                        ) || {};
+                    }
+                })(),
                 state: final ? 'send' : 'draft'
             };
 
             console.log('Saving report data:', data);
-            
+
             const response = await fetch('/api/portal/report', {
                 method: 'POST',
                 headers: {
@@ -479,15 +476,22 @@ const App = () => {
                             <div className="stepper__description">
                                 {step.description}
                                 {!step.completed && index < activeStep && (
-                                    <span
-                                        className="inline-block px-2 py-1 text-xs bg-orange-100 text-orange-800 rounded ml-2">
-                                                Nedokončeno
-                                            </span>
+                                    <span className="badge badge--danger badge--light">
+                                        Nedokončeno
+                                    </span>
                                 )}
                             </div>
                         </div>
                     </div>
                 ))}
+                <div
+                    key="send"
+                    className={`!flex-none stepper__step ${'send' === formData.status ? 'stepper__step--active' : ''} ${'submitted' === formData.status ? 'stepper__step--completed' : ''}`}
+                >
+                    <div className="stepper__icon">
+                        { saving ? <Loader size={'small'} color={'white'} center={false}/> : <IconCheck size={18}/> }
+                    </div>
+                </div>
             </div>
 
             {/* Step 0 - Part A */}
@@ -520,7 +524,7 @@ const App = () => {
                                 onClick={() => handleSave(false)}
                                 disabled={saving}
                             >
-                                {saving ? <Loader size="small" center={false}/> : <IconDeviceFloppy />} Uložit změny
+                                {saving ? <Loader size="small" center={false}/> : <IconDeviceFloppy/>} Uložit změny
                             </button>
                             <button
                                 className="btn btn--primary"
@@ -544,7 +548,6 @@ const App = () => {
                                 <div className="card__content">
                                     <CompensationSummary
                                         formData={formData}
-                                        compensation={compensation}
                                         priceList={priceList}
                                         priceListLoading={priceListLoading}
                                         priceListError={priceListError}
@@ -552,6 +555,7 @@ const App = () => {
                                         isLeader={isLeader}
                                         teamMembers={teamMembers}
                                         currentUser={currentUser}
+                                        head={head}
                                     />
                                 </div>
                             </div>
@@ -639,7 +643,7 @@ const App = () => {
                                 onClick={() => handleSave(false)}
                                 disabled={saving}
                             >
-                                {saving ? <Loader size="small" center={false}/> : <IconDeviceFloppy />} Uložit změny
+                                {saving ? <Loader size="small" center={false}/> : <IconDeviceFloppy/>} Uložit změny
                             </button>
                             <button
                                 className="btn btn--primary"
@@ -773,7 +777,6 @@ const App = () => {
                         <div className="card__content">
                             <CompensationSummary
                                 formData={formData}
-                                compensation={compensation}
                                 priceList={priceList}
                                 priceListLoading={priceListLoading}
                                 priceListError={priceListError}
@@ -781,6 +784,7 @@ const App = () => {
                                 isLeader={isLeader}
                                 teamMembers={teamMembers}
                                 currentUser={currentUser}
+                                head={head}
                             />
                         </div>
                     </div>

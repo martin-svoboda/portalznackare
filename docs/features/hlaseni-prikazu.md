@@ -182,6 +182,8 @@ class TravelSegmentDto {
 
 ### Aplikační struktura
 
+React aplikace `hlaseni-prikazu` používá multi-step formulář:
+
 ```jsx
 const App = () => {
     const [currentStep, setCurrentStep] = useState(1);
@@ -189,58 +191,22 @@ const App = () => {
         dataA: { travelSegments: [], accommodations: [], expenses: [] },
         dataB: { timItems: [], activityReport: '' }
     });
-    const [calculation, setCalculation] = useState({});
-    const [priceList, setPriceList] = useState(null);
     
+    // Načtení dat při startu
     useEffect(() => {
-        loadReportData();
-        loadPriceList();
+        loadReportData();  // Načte existující hlášení z DB
+        loadPriceList();   // Načte ceníky pro kalkulaci
     }, [prikazId]);
     
-    const loadReportData = async () => {
-        const response = await fetch(`/api/portal/report?id_zp=${prikazId}`);
-        const data = await response.json();
-        
-        if (data.report) {
-            setFormData({ dataA: data.report.data_a, dataB: data.report.data_b });
-            setCalculation(data.report.calculation);
-        }
-    };
-    
     return (
-        <div className="max-w-4xl mx-auto p-6">
-            {/* Progress bar */}
-            <div className="mb-8">
-                {/* Progress steps UI ... */}
-            </div>
+        <div>
+            {/* Stepper progress bar */}
+            <Stepper currentStep={currentStep} steps={steps} />
             
-            {/* Step content */}
-            {currentStep === 1 && (
-                <PartAForm 
-                    data={formData.dataA}
-                    onChange={(dataA) => setFormData(prev => ({...prev, dataA}))}
-                    priceList={priceList}
-                    onCalculationChange={setCalculation}
-                />
-            )}
-            
-            {currentStep === 2 && (
-                <PartBForm 
-                    data={formData.dataB}
-                    onChange={(dataB) => setFormData(prev => ({...prev, dataB}))}
-                    prikazType={prikazDetails?.Druh_ZP_Kod}
-                />
-            )}
-            
-            {/* Navigation */}
-            <div className="flex justify-between mt-8">
-                <button onClick={() => setCurrentStep(Math.max(1, currentStep - 1))}>
-                    Zpět
-                </button>
-                <button onClick={handleNext}>
-                    {currentStep === 4 ? 'Uložit' : 'Další'}
-                </button>
-            </div>
+            {/* Dynamické zobrazení kroků */}
+            {currentStep === 1 && <PartAForm {...formData} />}
+            {currentStep === 2 && <PartBForm {...formData} />}
+            {currentStep === 3 && <Summary {...formData} />}
         </div>
     );
 };
@@ -249,9 +215,10 @@ const App = () => {
 ### Část A - Vyúčtování formulář
 
 ```jsx
-const PartAForm = ({ data, onChange, priceList, onCalculationChange }) => {
+const PartAForm = ({ data, onChange, priceList }) => {
     const [activeTab, setActiveTab] = useState('travel');
     
+    // Real-time kalkulace při změně dat
     useEffect(() => {
         if (priceList) {
             const calculation = calculateCompensation(data, priceList);
@@ -260,174 +227,121 @@ const PartAForm = ({ data, onChange, priceList, onCalculationChange }) => {
     }, [data, priceList]);
     
     return (
-        <div className="space-y-6">
-            <h2 className="text-2xl font-bold">Část A - Vyúčtování</h2>
-            
+        <div>
             {/* Tab navigation */}
-            <div className="flex border-b">
-                {['travel', 'accommodation', 'expenses', 'driver'].map(tab => (
-                    <button key={tab} onClick={() => setActiveTab(tab)}>
-                        {/* Tab titles ... */}
-                    </button>
-                ))}
-            </div>
+            <Tabs value={activeTab} onChange={setActiveTab}>
+                <Tab value="travel" label="Doprava" />
+                <Tab value="accommodation" label="Ubytování" />
+                <Tab value="expenses" label="Výdaje" />
+                <Tab value="driver" label="Řidič" />
+            </Tabs>
             
-            {/* Tab content */}
-            {activeTab === 'travel' && (
-                <TravelSegmentsForm
-                    segments={data.travelSegments}
-                    onChange={(segments) => onChange({...data, travelSegments: segments})}
-                    priceList={priceList}
-                />
-            )}
-            
-            {/* Other tabs ... */}
-        </div>
-    );
-};
-
-const TravelSegmentsForm = ({ segments, onChange, priceList }) => {
-    const addSegment = () => {
-        const newSegment = { id: Date.now(), transport: '', from: '', to: '', ... };
-        onChange([...segments, newSegment]);
-    };
-    
-    return (
-        <div className="space-y-4">
-            <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold">Cestovní segmenty</h3>
-                <button onClick={addSegment} className="btn btn--primary">
-                    Přidat segment
-                </button>
-            </div>
-            
-            {segments.map((segment, index) => (
-                <div key={segment.id} className="p-4 border rounded-lg">
-                    <div className="grid grid-cols-3 gap-4">
-                        {/* Transport, from, to, times */}
-                        <select value={segment.transport} onChange={...}>
-                            <option value="auto">Auto</option>
-                            <option value="vlak">Vlak</option>
-                            {/* ... */}
-                        </select>
-                        
-                        <input type="text" value={segment.from} onChange={...} />
-                        <input type="text" value={segment.to} onChange={...} />
-                        
-                        {segment.transport === 'auto' && (
-                            <input type="number" value={segment.kilometers} onChange={...} />
-                        )}
-                        
-                        {/* Preview kalkulace */}
-                        {segment.transport && priceList && (
-                            <div className="mt-2 p-2 bg-blue-50 rounded">
-                                Náhrada: {calculateSegmentCompensation(segment, priceList)} Kč
-                            </div>
-                        )}
-                    </div>
-                </div>
-            ))}
+            {/* Dynamický obsah podle aktivní záložky */}
+            {activeTab === 'travel' && <TravelSegmentsForm {...data} />}
+            {activeTab === 'accommodation' && <AccommodationForm {...data} />}
+            {activeTab === 'expenses' && <ExpensesForm {...data} />}
+            {activeTab === 'driver' && <DriverForm {...data} />}
         </div>
     );
 };
 ```
 
+#### Cestovní segmenty
+```jsx
+const TravelSegmentsForm = ({ segments, onChange }) => (
+    <div>
+        {segments.map(segment => (
+            <div key={segment.id} className="segment-card">
+                <select value={segment.transport} onChange={e => updateSegment(segment.id, 'transport', e.target.value)}>
+                    <option value="auto">Auto</option>
+                    <option value="vlak">Vlak</option>
+                    <option value="autobus">Autobus</option>
+                </select>
+                
+                <input placeholder="Odkud" value={segment.from} onChange={...} />
+                <input placeholder="Kam" value={segment.to} onChange={...} />
+                <input type="time" value={segment.startTime} onChange={...} />
+                <input type="time" value={segment.endTime} onChange={...} />
+                
+                {segment.transport === 'auto' && (
+                    <input type="number" placeholder="Km" value={segment.kilometers} />
+                )}
+                
+                {/* Live preview kalkulace */}
+                <div className="calculation-preview">
+                    Náhrada: {calculateSegmentCompensation(segment, priceList)} Kč
+                </div>
+            </div>
+        ))}
+        
+        <button onClick={addSegment}>Přidat segment</button>
+    </div>
+);
+```
+
 ### Část B - Hlášení činnosti
 
 ```jsx
-const PartBForm = ({ data, onChange, prikazType, timItems }) => {
+const PartBForm = ({ data, onChange, prikazType, predmety }) => {
     const isObnovaType = prikazType === 'O';
     
-    if (isObnovaType) {
-        return (
-            <TimItemsForm
-                timItems={data.timItems}
-                availableItems={timItems}
-                onChange={(timItems) => onChange({...data, timItems})}
-            />
-        );
-    }
-    
-    return (
-        <ActivityReportForm
-            report={data.activityReport}
-            onChange={(activityReport) => onChange({...data, activityReport})}
+    // Dynamické zobrazení podle typu příkazu
+    return isObnovaType ? (
+        <TimItemsForm 
+            timReports={data.timReports}
+            predmety={predmety}
+            onChange={onChange}
+        />
+    ) : (
+        <ActivityReportForm 
+            report={data.routeComment}
+            attachments={data.routeAttachments}
+            onChange={onChange}
         />
     );
 };
+```
 
-const TimItemsForm = ({ timItems, availableItems, onChange }) => {
-    const updateTimItem = (itemId, updates) => {
-        onChange(timItems.map(item => item.id === itemId ? { ...item, ...updates } : item));
-    };
-    
-    const completedItems = timItems.filter(item => 
-        item.state && (item.state === '1' || item.state === '2' ? item.yearMade : true)
-    ).length;
+#### TIM hodnocení (pro Obnovy)
+```jsx
+const TimItemsForm = ({ timReports, predmety }) => {
+    // Seskupení položek podle TIM
+    const timGroups = groupItemsByTIM(predmety);
     
     return (
-        <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold">Část B - Hlášení činnosti (TIM)</h2>
-                <div className="text-sm text-gray-600">
-                    Dokončeno: {completedItems}/{availableItems.length} položek
-                </div>
-            </div>
-            
-            {/* Progress bar */}
-            <div className="w-full bg-gray-200 rounded-full h-2">
-                <div className="bg-green-600 h-2 rounded-full" 
-                     style={{ width: `${(completedItems / availableItems.length) * 100}%` }} />
-            </div>
-            
-            {/* TIM položky */}
-            {availableItems.map((availableItem, index) => {
-                const timItem = timItems.find(item => item.id === availableItem.ID_usek) || {
-                    id: availableItem.ID_usek, state: '', yearMade: '', comment: ''
-                };
-                
-                return (
-                    <div key={availableItem.ID_usek} className="p-4 border rounded-lg">
-                        <h3 className="font-semibold mb-2">{availableItem.nazev}</h3>
-                        
-                        <div className="grid grid-cols-2 gap-4">
-                            {/* Item info */}
-                            <div>
-                                <div><strong>Typ:</strong> {availableItem.typ}</div>
-                                <div><strong>Poloha:</strong> {availableItem.poloha}</div>
-                            </div>
-                            
-                            {/* Hodnocení */}
-                            <div className="space-y-4">
-                                <select value={timItem.state} 
-                                        onChange={(e) => updateTimItem(timItem.id, {state: e.target.value})}>
-                                    <option value="">Vyberte stav...</option>
-                                    <option value="1">1 - Nová</option>
-                                    <option value="2">2 - Zachovalá</option>
-                                    <option value="3">3 - Nevyhovující</option>
-                                    <option value="4">4 - Zcela chybí</option>
-                                </select>
-                                
-                                {['1', '2'].includes(timItem.state) && (
-                                    <input type="number" value={timItem.yearMade} 
-                                           onChange={(e) => updateTimItem(timItem.id, {yearMade: e.target.value})} 
-                                           placeholder="Rok výroby" />
-                                )}
-                                
-                                <textarea value={timItem.comment} 
-                                          onChange={(e) => updateTimItem(timItem.id, {comment: e.target.value})}
-                                          placeholder="Komentář..." />
-                            </div>
-                        </div>
-                    </div>
-                );
-            })}
-            
-            {/* File upload */}
-            <AdvancedFileUpload
-                storagePath={`reports/2025/${user.kkz}/${user.obvod}/${prikazId}`}
-                isPublic={false}
-            />
+        <div>
+            {timGroups.map(timGroup => (
+                <TimCard key={timGroup.EvCi_TIM}>
+                    <h3>{timGroup.Naz_TIM}</h3>
+                    
+                    {/* Středové pravidlo */}
+                    <RadioGroup 
+                        name="centerRule"
+                        value={timReport?.centerRuleCompliant}
+                        onChange={value => updateTimReport(timGroup.EvCi_TIM, {centerRuleCompliant: value})}
+                    />
+                    
+                    {/* Hodnocení jednotlivých položek */}
+                    {timGroup.items.map(item => (
+                        <TimItemRow key={item.ID_PREDMETY}>
+                            <span>{item.Radek1}</span>
+                            <select value={getItemStatus(item)?.state || ''} onChange={...}>
+                                <option value="1">1 - Nová</option>
+                                <option value="2">2 - Zachovalá</option>
+                                <option value="3">3 - Nevyhovující</option>
+                                <option value="4">4 - Zcela chybí</option>
+                            </select>
+                            {needsYearInput && <input type="number" placeholder="Rok" />}
+                        </TimItemRow>
+                    ))}
+                    
+                    {/* Fotografie TIMu */}
+                    <AdvancedFileUpload 
+                        storagePath={generateStoragePath()} 
+                        files={timReport?.photos || []}
+                    />
+                </TimCard>
+            ))}
         </div>
     );
 };
@@ -437,67 +351,50 @@ const TimItemsForm = ({ timItems, availableItems, onChange }) => {
 
 ```javascript
 export function calculateCompensation(formData, priceList, userIntAdr, isUserDriver = false, higherKmRate = false) {
-    const result = { transport: 0, meals: 0, reward: 0, accommodation: 0, expenses: 0, total: 0, workHours: 0 };
+    const result = { 
+        transport: 0,      // Doprava (pouze řidič)
+        meals: 0,          // Stravné podle hodin
+        reward: 0,         // Odměna podle hodin
+        accommodation: 0,  // Ubytování (kdo platil)
+        expenses: 0,       // Výdaje (kdo platil)
+        total: 0,          // Celkem
+        workHours: 0       // Odpracované hodiny
+    };
     
     if (!priceList) return result;
     
-    // Výpočet pracovních hodin
-    result.workHours = calculateWorkHours(formData.dataA.travelSegments);
+    // 1. Výpočet pracovních hodin (od nejdřívějšího startu po nejpozdější konec)
+    result.workHours = calculateWorkHours(formData.travelSegments);
     
-    // Doprava (pouze pro řidiče)
+    // 2. Doprava - pouze pro označeného řidiče
     if (isUserDriver) {
-        result.transport = calculateTransportCompensation(formData.dataA.travelSegments, priceList, higherKmRate);
+        const kmRate = higherKmRate ? priceList.km_sazba_zvysena : priceList.km_sazba;
+        result.transport = formData.travelSegments
+            .filter(s => s.transportType === 'AUV')
+            .reduce((sum, s) => sum + (s.kilometers * kmRate), 0);
     }
     
-    // Stravné + odměna podle odpracovaných hodin
-    const mealAndReward = calculateMealsAndReward(result.workHours, priceList);
-    result.meals = mealAndReward.meals;
-    result.reward = mealAndReward.reward;
+    // 3. Stravné a odměna podle odpracovaných hodin
+    if (result.workHours >= 5) {
+        const tier = result.workHours >= 12 ? '12h_vice' : 
+                     result.workHours >= 8 ? '8_12h' : '5_8h';
+        result.meals = priceList[`stravne_${tier}`];
+        result.reward = priceList[`odmena_${tier}`];
+    }
     
-    // Ubytování a výdaje (jen pro toho kdo platil)
-    result.accommodation = calculateAccommodationCompensation(formData.dataA.accommodations, userIntAdr);
-    result.expenses = calculateExpensesCompensation(formData.dataA.expenses, userIntAdr);
+    // 4. Ubytování a výdaje - pouze pro toho kdo platil
+    result.accommodation = formData.accommodations
+        .filter(a => a.paidByMember === userIntAdr)
+        .reduce((sum, a) => sum + a.amount, 0);
+        
+    result.expenses = formData.additionalExpenses
+        .filter(e => e.paidByMember === userIntAdr)
+        .reduce((sum, e) => sum + e.amount, 0);
     
-    result.total = result.transport + result.meals + result.reward + result.accommodation + result.expenses;
+    result.total = Object.values(result).reduce((a, b) => a + (typeof b === 'number' ? b : 0), 0);
     
     return result;
 }
-
-function calculateWorkHours(travelSegments) {
-    if (!travelSegments.length) return 0;
-    
-    let earliestStart = null;
-    let latestEnd = null;
-    
-    travelSegments.forEach(segment => {
-        const startTime = new Date(`1970-01-01T${segment.startTime}:00`);
-        const endTime = new Date(`1970-01-01T${segment.endTime}:00`);
-        
-        if (!earliestStart || startTime < earliestStart) earliestStart = startTime;
-        if (!latestEnd || endTime > latestEnd) latestEnd = endTime;
-    });
-    
-    // Handle overnight trips
-    if (latestEnd < earliestStart) {
-        latestEnd.setDate(latestEnd.getDate() + 1);
-    }
-    
-    return Math.max(0, (latestEnd - earliestStart) / (1000 * 60 * 60));
-}
-
-function calculateMealsAndReward(workHours, priceList) {
-    if (workHours >= 5 && workHours < 8) {
-        return { meals: priceList.stravne_5_8h, reward: priceList.odmena_5_8h };
-    } else if (workHours >= 8 && workHours < 12) {
-        return { meals: priceList.stravne_8_12h, reward: priceList.odmena_8_12h };
-    } else if (workHours >= 12) {
-        return { meals: priceList.stravne_12h_vice, reward: priceList.odmena_12h_vice };
-    }
-    
-    return { meals: 0, reward: 0 };
-}
-
-// ...
 ```
 
 ## 🔄 Kompletní workflow procesu
@@ -635,38 +532,26 @@ if ($reportDto->state === 'send') {
 
 ## 🧪 Testing workflow
 
-### API testing
+### Test přihlášení
+- Username: `test`
+- Password: `test`
+
+### Testovací scénáře
+
+1. **Draft ukládání**: Vyplnit část A, uložit jako draft, obnovit stránku
+2. **Kalkulace**: Přidat auto segment s km, zkontrolovat výpočet
+3. **TIM hodnocení**: Pro příkaz typu Obnova vyplnit všechny TIM položky
+4. **File upload**: Nahrát doklady a fotografie, ověřit zobrazení
+
+### Rychlý test API
 ```bash
-# Vytvoření nového hlášení
-curl -X POST "https://portalznackare.ddev.site/api/portal/report" \
-  -d '{"id_zp": 123, "state": "draft", "data_a": {"travelSegments": [...] }}'
-
-# Načtení hlášení  
+# Načtení hlášení
 curl "https://portalznackare.ddev.site/api/portal/report?id_zp=123"
-```
 
-### React component testing
-```jsx
-// Test file upload v hlášení
-<AdvancedFileUpload
-    storagePath={`reports/2025/praha/1/123`}
-    isPublic={false}
-    maxFiles={15}
-/>
-
-// Test kalkulátoru
-const testFormData = {
-    dataA: {
-        travelSegments: [{
-            transport: 'auto',
-            kilometers: 100,
-            startTime: '08:00',
-            endTime: '16:00'
-        }]
-    }
-};
-
-const calculation = calculateCompensation(testFormData, mockPriceList, userIntAdr, true);
+# Uložení draftu
+curl -X POST "https://portalznackare.ddev.site/api/portal/report" \
+  -H "Content-Type: application/json" \
+  -d '{"id_zp": 123, "state": "draft", "data_a": {...}, "data_b": {...}}'
 ```
 
 ## 📤 INSYS Submission (TODO)
@@ -739,46 +624,32 @@ class SyncReportStatusCommand extends Command {
 
 ## 🛠️ Troubleshooting
 
-### Časté problémy
+### Časté problémy a řešení
 
-#### 1. **Kalkulace se neaktualizuje**
-```javascript
-// ❌ ŠPATNĚ - missing dependency
-useEffect(() => {
-    const calc = calculateCompensation(formData, priceList);
-    setCalculation(calc);
-}, [formData]); // chybí priceList
+1. **Kalkulace se neaktualizuje**
+   - Zkontrolovat, zda se načetly ceníky správně
+   - Ověřit správné dependencies v useEffect
+   - Zkontrolovat console.log pro priceList data
 
-// ✅ SPRÁVNĚ  
-useEffect(() => {
-    if (priceList) {
-        const calc = calculateCompensation(formData, priceList, userIntAdr, isDriver);
-        setCalculation(calc);
-    }
-}, [formData, priceList, userIntAdr, isDriver]);
-```
+2. **Report se neukládá**
+   - Ověřit stav hlášení (pouze draft/rejected lze editovat)
+   - Zkontrolovat unique constraint (1 hlášení na příkaz)
+   - Ověřit autentifikaci uživatele
 
-#### 2. **Report se neukládá lokálně**
-```php
-// Zkontroluj editovatelnost
-if ($report->getState() === ReportStateEnum::SEND) {
-    // Report je připravený k odeslání, nelze editovat
-}
+3. **TIM položky se nezobrazují**
+   - Pouze pro příkazy typu "O" (Obnova)
+   - Zkontrolovat, zda příkaz obsahuje úseky s předměty
+   - Ověřit správné načtení predmety z API
 
-// Zkontroluj unique constraint
-$existingReport = $this->repository->findOneBy(['idZp' => $data['id_zp'], 'intAdr' => $user->getIntAdr()]);
-```
-
-#### 3. **TIM položky se nezobrazují**
-```javascript
-if (prikazDetails?.Druh_ZP_Kod !== 'O') {
-    // Není obnova, zobraz textové hlášení místo TIM
-}
-
-if (!prikazDetails?.useky?.length) {
-    // Žádné TIM položky k hodnocení
-}
-```
+4. **TypeError při kliknutí na radiobutton**
+   ```javascript
+   // Problém: timReport je undefined
+   // Řešení: použít optional chaining nebo default hodnotu
+   onChange={() => updateTimReport(timId, {
+       ...(timReport || {}),  // Fix
+       centerRuleCompliant: true
+   })}
+   ```
 
 ---
 
