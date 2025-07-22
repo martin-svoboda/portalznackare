@@ -1,75 +1,33 @@
-# Nápověda - Portál značkaře
+# Portál značkaře - Nápověda
 
-Vítejte v nápovědě aplikace Portál značkaře! Tato dokumentace vám pomůže rychle se zorientovat a efektivně využívat všechny funkce aplikace.
+Nápověda k webové aplikaci Portál značkaře pro značkaře KČT.
 
-## Pro koho je tato příručka
+## Přihlášení do aplikace
 
-Tato dokumentace je určena pro:
-- **Značkaře KČT** - kteří aplikaci používají pro evidenci práce
-- **Vedoucí značkaře** - kteří spravují týmy a kontrolují hlášení
-- **Nové uživatele** - kteří se s aplikací teprve seznamují
+Pro přihlášení použijte své údaje email a heslo. 
 
-## Kde začít?
+## Dostupné funkce
 
-### [Začínáme](getting-started/)
-První kroky s aplikací Portál značkaře.
-- **[První přihlášení](getting-started/first-login.md)** - jak se přihlásit do aplikace
-- **[Orientace v aplikaci](getting-started/dashboard.md)** - základní rozhraní a navigace
-- **[Základní pracovní postup](getting-started/basic-workflow.md)** - typický workflow značkaře
+Po přihlášení máte přístup k těmto sekcím:
 
-### [Práce s příkazy](prikazy/)
-Správa a zpracování značkařských příkazů.
-- **[Prohlížení příkazů](prikazy/viewing.md)** - seznam a přehled příkazů
-- **[Filtrování a vyhledávání](prikazy/filtering.md)** - jak najít konkrétní příkaz
-- **[Detail příkazu](prikazy/detail.md)** - kompletní informace o příkazu
-- **[Tisk a export](prikazy/printing.md)** - vytváření výstupů
+**Dashboard** - Hlavní stránka s vaším přehledem
 
-### [Hlášení práce](hlaseni/)
-Vyplňování a odesílání hlášení o provedené práci.
-- **[Část A - Základní údaje](hlaseni/part-a.md)** - identifikace a rozsah práce
-- **[Část B - Výkaz práce](hlaseni/part-b.md)** - detailní výkaz činností
-- **[Přikládání souborů](hlaseni/attachments.md)** - fotografie a dokumenty
-- **[Odeslání hlášení](hlaseni/submission.md)** - kontrola a odeslání
+**Příkazy** - Seznam značkařských příkazů z centrálního systému KČT s interaktivní tabulkou
 
-### [Metodiky a dokumentace](metodiky/)
-Oficiální postupy a návody pro značkaře.
-- **[Procházení metodik](metodiky/browsing.md)** - orientace v dokumentech
-- **[Vyhledávání](metodiky/search.md)** - jak najít potřebnou informaci
-- **[Stahování PDF](metodiky/downloads.md)** - offline přístup k dokumentům
+**Detail příkazu** - Detailní informace o konkrétním příkazu s možností přejít na hlášení práce
 
-### [Uživatelský profil](profil/)
-Nastavení vašeho účtu.
-- **[Osobní údaje](profil/settings.md)** - úprava kontaktních informací
-- **[Změna hesla](profil/password.md)** - bezpečné nastavení hesla
-- **[Nastavení aplikace](profil/preferences.md)** - přizpůsobení rozhraní
+**Hlášení práce** - Formulář pro vyplnění hlášení o provedené práci
 
-### [Časté dotazy](faq/)
-Odpovědi na nejčastější otázky a problémy.
-- **[Řešení problémů](faq/common-issues.md)** - časté problémy a jejich řešení
-- **[Nastavení prohlížeče](faq/browser-setup.md)** - doporučená nastavení
-- **[Kontakt na podporu](faq/contact.md)** - kdy a jak nás kontaktovat
+**Metodika** - Kompletní metodika značení turistických tras s navigací
 
-## 💡 Tipy pro efektivní práci
+**Downloads** - Stránka pro stahování dokumentů
 
-### Klávesové zkratky
-- `Ctrl + K` - rychlé vyhledávání
-- `Esc` - zavření dialogu/okna
-- `Tab` - přepínání mezi poli formuláře
+**Profil** - Správa uživatelského profilu
 
-### Doporučené prohlížeče
-Pro nejlepší zážitek doporučujeme používat:
-- Google Chrome (verze 90+)
-- Mozilla Firefox (verze 88+)
-- Microsoft Edge (verze 90+)
-- Safari (verze 14+)
+## Technické informace
 
-## 📱 Mobilní přístup
+Aplikace funguje ve všech moderních webových prohlížečích a je optimalizována pro použití na desktop i mobilních zařízeních. Podporuje automatické přepínání mezi světlým a tmavým režimem podle nastavení Vašeho zařízení.
 
-Aplikace je plně responzivní a funguje na mobilních zařízeních. Pro nejlepší zážitek na mobilu:
-- Používejte orientaci na výšku pro přehlednost
-- Využívejte gesta pro navigaci
-- Ukládejte si aplikaci na plochu jako zkratku
+## Podpora
 
----
-
-**Něco není jasné?** Neváhejte nás kontaktovat na [podpora@portalznackare.cz](mailto:podpora@portalznackare.cz)
+Při problémech s aplikací se obraťte na technickou podporu KČT.

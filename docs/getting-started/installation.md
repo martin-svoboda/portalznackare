@@ -83,11 +83,15 @@ ddev npm run watch
 
 ### Database management
 ```bash
-# Přístup k databázi
-ddev mysql
+# Přístup k PostgreSQL databázi
+ddev psql
 
-# phpMyAdmin
-open https://portalznackare.ddev.site:8037
+# Database connection pro IDE (např. PhpStorm)
+Host: 127.0.0.1
+Port: 5433
+Database: db
+Username: db
+Password: db
 ```
 
 ## 🔧 Troubleshooting
@@ -115,26 +119,44 @@ ddev exec bin/console doctrine:migrations:migrate -n
 
 ## 🔐 Výchozí přihlašovací údaje
 
-**Development prostředí:**
+**Development prostředí (s USE_TEST_DATA=true):**
 ```
-Email: admin@portal.local
-Heslo: admin123
+Email: test@test.com
+Heslo: test123
 ```
 
 ## 📝 Environment variables
 
-Kopíruj a upravy `.env` soubor:
+### Lokální development (DDEV)
 ```bash
-cp .env .env.local
+# Kopíruj vzorový soubor
+cp .env.local.example .env.local
+
+# .env.local pro lokální vývoj
+USE_TEST_DATA=true  # Použije testovací data místo MSSQL
+# DATABASE_URL je již nastaveno v .env pro DDEV PostgreSQL
 ```
 
-### Klíčové proměnné:
+### Server deployment (DEV/PROD)
 ```bash
-# .env.local
-APP_ENV=dev
-APP_SECRET=your-secret-here
-DATABASE_URL="postgresql://db:db@db:5432/db"
-MSSQL_DATABASE_URL="sqlsrv://user:pass@host:1433/INSYS"
+# Kopíruj vzorový soubor pro server
+cp .env.local.server.example .env.local
+
+# .env.local pro server
+USE_TEST_DATA=false  # Napojení na reálný MSSQL
+
+# PostgreSQL pro portál data
+DATABASE_URL="postgresql://portal_user:password@localhost:5432/portal_db?serverVersion=16&charset=utf8"
+
+# MSSQL INSYS připojení
+INSYS_DB_HOST=your.mssql.server.com
+INSYS_DB_NAME=your_insys_database
+INSYS_DB_USER=your_insys_username
+INSYS_DB_PASS=your_insys_password
+
+# Production settings
+APP_ENV=prod
+APP_SECRET=your-32-character-secret-key-here
 ```
 
 ## ✅ Ověření instalace

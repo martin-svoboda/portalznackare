@@ -25,7 +25,7 @@ const Member = ({ name, isLeader }) => {
     );
 };
 
-export const PrikazHead = ({ head, delka, simple = false }) => {
+export const PrikazHead = ({ head, simple = false }) => {
     // Pokud head není dostupný, vrátíme prázdný div
     if (!head) {
         return <div></div>;
@@ -44,11 +44,6 @@ export const PrikazHead = ({ head, delka, simple = false }) => {
                     <div className="text-sm text-gray-500 dark:text-gray-400">
                         {head.Druh_ZP_Naz}
                     </div>
-                    {delka && (
-                        <div className="text-sm">
-                            Délka: <span className="font-bold">{formatKm(delka)} Km</span>
-                        </div>
-                    )}
                     {!simple && <PrikazStavBadge stav={head.Stav_ZP_Naz} />}
                 </div>
                 

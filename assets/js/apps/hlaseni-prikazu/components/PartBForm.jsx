@@ -1,15 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import {
-    IconInfoCircle,
     IconChevronDown,
     IconChevronUp,
     IconPhoto,
-    IconCheck,
     IconX,
     IconAlertTriangle,
     IconMapPin
 } from '@tabler/icons-react';
 import { AdvancedFileUpload } from './AdvancedFileUpload';
+import { renderHtmlContent, replaceTextWithIcons } from '../../../utils/htmlUtils';
 
 const statusOptions = [
     { value: "1", label: "1 - Nová", color: "green" },
@@ -26,12 +25,14 @@ const arrowOrientationOptions = [
 // Helper function for generating consistent identifiers
 const getItemIdentifier = (item) => {
     // Prefer ID_PREDMETY from DB, fallback to combination of EvCi_TIM + Predmet_Index
-    return item.ID_PREDMETY?.toString() || `${item.EvCi_TIM}_${item.Predmet_Index}`;
+    return item.ID_PREDMETY?.toString() || `${item.EvCi_TIM}${item.Predmet_Index}`;
 };
 
 const getLegacyItemIdentifier = (item) => {
-    return `${item.EvCi_TIM}_${item.Predmet_Index}`;
+    return `${item.EvCi_TIM}${item.Predmet_Index}`;
 };
+
+// HTML utility functions now imported from shared utils
 
 // Export function to validate if all TIM items have status filled
 export const validateAllTimItemsCompleted = (predmety, timReports) => {
@@ -240,7 +241,6 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
 
                     {timGroups.length === 0 ? (
                         <div className="alert alert--info">
-                            <IconInfoCircle size={16} className="mr-2" />
                             Pro tento příkaz nejsou k dispozici žádné TIM k hodnocení.
                         </div>
                     ) : (
@@ -257,7 +257,7 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                 <div className="flex items-center gap-3">
                                                     <IconMapPin size={20} />
                                                     <div>
-                                                        <div className="font-medium">{timGroup.Naz_TIM}</div>
+                                                        <div className="font-medium">{replaceTextWithIcons(timGroup.Naz_TIM)}</div>
                                                         <div className="text-sm text-gray-600">TIM {timGroup.EvCi_TIM}</div>
                                                     </div>
                                                 </div>
@@ -440,13 +440,8 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                                                         <span className="text-sm font-bold">
                                                                                             {item.EvCi_TIM}{item.Predmet_Index}
                                                                                         </span>
-                                                                                        {item.ID_PREDMETY && (
-                                                                                            <span className="text-xs text-gray-500">
-                                                                                                (ID: {item.ID_PREDMETY})
-                                                                                            </span>
-                                                                                        )}
                                                                                         <span className="text-sm font-medium">
-                                                                                            {item.Radek1}
+                                                                                            {replaceTextWithIcons(item.Radek1)}
                                                                                         </span>
                                                                                     </div>
                                                                                     <div className="flex gap-1 mt-1">
@@ -461,7 +456,7 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                                                             </span>
                                                                                         )}
                                                                                         {item.Barva && (
-                                                                                            <span className="inline-block px-2 py-1 text-xs bg-gray-100 text-gray-800 rounded">
+                                                                                            <span className={`badge badge--kct-${item.Barva_Kod.toLowerCase()}`}>
                                                                                                 {item.Barva}
                                                                                             </span>
                                                                                         )}
@@ -572,7 +567,6 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
 
                                                         {completion.completed && (
                                                             <div className="alert alert--success mt-4">
-                                                                <IconCheck size={16} className="mr-2" />
                                                                 Hlášení o obnově TZT pro tento TIM je kompletní.
                                                             </div>
                                                         )}

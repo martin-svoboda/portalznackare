@@ -1,0 +1,255 @@
+// Icon Components - Tabler Icons support
+// Ikony pro Twig šablony a React aplikace
+
+// Base icon styles
+.icon {
+  @apply inline-block flex-shrink-0;
+  stroke: currentColor;
+  fill: none;
+  vertical-align: middle;
+
+  // Default Tabler icon styles
+  &-tabler {
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  // Size variants
+  &--xs {
+    @apply w-3 h-3;
+  }
+
+  &--sm {
+    @apply w-4 h-4;
+  }
+
+  &--md {
+    @apply w-5 h-5;
+  }
+
+  &--lg {
+    @apply w-6 h-6;
+  }
+
+  &--xl {
+    @apply w-8 h-8;
+  }
+
+  &--2xl {
+    @apply w-10 h-10;
+  }
+
+  // Color variants
+  &--primary {
+    @apply text-blue-600 dark:text-blue-400;
+  }
+
+  &--secondary {
+    @apply text-gray-600 dark:text-gray-400;
+  }
+
+  &--success {
+    @apply text-green-600 dark:text-green-400;
+  }
+
+  &--warning {
+    @apply text-yellow-600 dark:text-yellow-400;
+  }
+
+  &--danger {
+    @apply text-red-600 dark:text-red-400;
+  }
+
+  &--info {
+    @apply text-blue-600 dark:text-blue-400;
+  }
+
+  &--muted {
+    @apply text-gray-400 dark:text-gray-600;
+  }
+
+  // Stroke width variants
+  &--thin {
+    stroke-width: 1;
+  }
+
+  &--normal {
+    stroke-width: 1.5;
+  }
+
+  &--thick {
+    stroke-width: 2.5;
+  }
+
+  // Interactive states
+  &--clickable {
+    @apply cursor-pointer transition-colors duration-200;
+
+    &:hover {
+      @apply text-blue-600 dark:text-blue-400;
+    }
+  }
+
+  // Positioning helpers
+  &--inline {
+    @apply inline;
+  }
+
+  &--block {
+    @apply block;
+  }
+
+  // Spin animation for loading states
+  &--spin {
+    @apply animate-spin;
+  }
+}
+
+// Icon groups (multiple icons together)
+.icon-group {
+  @apply flex items-center gap-1;
+
+  &--vertical {
+    @apply flex-col;
+  }
+
+  &--lg {
+    @apply gap-2;
+  }
+
+  &--xl {
+    @apply gap-3;
+  }
+}
+
+// Icon with text combinations
+.icon-text {
+  @apply flex items-center gap-2;
+
+  .icon {
+    @apply flex-shrink-0;
+  }
+
+  &--reverse {
+    @apply flex-row-reverse;
+  }
+
+  &--vertical {
+    @apply flex-col items-center gap-1;
+  }
+
+  &--sm {
+    @apply gap-1 text-sm;
+  }
+
+  &--lg {
+    @apply gap-3 text-lg;
+  }
+}
+
+// Button with icon
+.btn {
+  .icon {
+    @apply flex-shrink-0;
+
+    &:first-child {
+      @apply -ml-1 mr-2;
+    }
+
+    &:last-child {
+      @apply ml-2 -mr-1;
+    }
+
+    &:only-child {
+      @apply -mx-1;
+    }
+  }
+
+  &--sm .icon {
+    @apply w-4 h-4;
+
+    &:first-child {
+      @apply -ml-0.5 mr-1.5;
+    }
+
+    &:last-child {
+      @apply ml-1.5 -mr-0.5;
+    }
+  }
+
+  &--lg .icon {
+    @apply w-6 h-6;
+
+    &:first-child {
+      @apply -ml-1 mr-3;
+    }
+
+    &:last-child {
+      @apply ml-3 -mr-1;
+    }
+  }
+}
+
+// Alert icons
+.alert {
+  &__icon {
+    @apply flex-shrink-0 w-5 h-5 mr-3 mt-0.5;
+
+    // Auto-colored icons based on alert type
+    .alert--success & {
+      @apply text-green-600 dark:text-green-400;
+    }
+
+    .alert--warning & {
+      @apply text-yellow-600 dark:text-yellow-400;
+    }
+
+    .alert--danger & {
+      @apply text-red-600 dark:text-red-400;
+    }
+
+    .alert--info & {
+      @apply text-blue-600 dark:text-blue-400;
+    }
+  }
+}
+
+// Navigation icons
+.nav {
+  .icon {
+    @apply w-5 h-5 flex-shrink-0;
+  }
+}
+
+// Card icons
+.card {
+  &__icon {
+    @apply w-6 h-6 text-gray-600 dark:text-gray-400;
+  }
+}
+
+// Form icons
+.form {
+  &__icon {
+    @apply w-5 h-5 text-gray-400 dark:text-gray-600;
+
+    &--left {
+      @apply absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none;
+    }
+
+    &--right {
+      @apply absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none;
+    }
+  }
+
+  &__input {
+    &--with-icon-left {
+      @apply pl-10;
+    }
+
+    &--with-icon-right {
+      @apply pr-10;
+    }
+  }
+}

@@ -1,410 +1,185 @@
-// Typography Components - BEM methodology
-// Nadpisy, texty, seznamy a typografické prvky
+// Typography - General HTML elements with optional utility classes
+// Pouze textové elementy a jejich formátování
 
-// Heading system
-.heading, h1, h2, h3, h4, h4, h5, h6 {
-  @apply font-bold text-gray-900;
-
-  // Heading variants
-  &--light {
-    @apply font-light;
-  }
-
-  &--normal {
-    @apply font-normal;
-  }
-
-  &--medium {
-    @apply font-medium;
-  }
-
-  &--semibold {
-    @apply font-semibold;
-  }
-
-  // Colors
-  &--primary {
-    @apply text-blue-900;
-  }
-
-  &--secondary {
-    @apply text-gray-600;
-  }
-
-  &--muted {
-    @apply text-gray-500;
-  }
+// Headings - základní stylování pro všechny nadpisy
+h1, h2, h3, h4, h5, h6 {
+  @apply font-bold text-gray-900 leading-tight;
+  @apply dark:text-gray-100;
 }
 
-.heading--1, h1 {
-  @apply text-4xl  mb-6;
+h1 {
+  @apply text-4xl mb-6;
 }
 
-.heading--2, h2 {
+h2 {
   @apply text-3xl mb-5;
 }
 
-.heading--3, h3 {
+h3 {
   @apply text-2xl mb-4;
 }
 
-.heading--4, h4 {
+h4 {
   @apply text-xl mb-3;
 }
 
-.heading--5, h5 {
-  @apply text-lg mb-2;
+h5 {
+  @apply text-lg mb-3;
 }
 
-.heading--6, h6 {
-  @apply text-base mb-2;
-}
-
-.content {
-  h1, h2, h3, h4, h4, h5, h6 {
-    @apply mt-5;
-  }
-  p {
-    @apply mb-4;
-  }
-
-  a {
-    @apply text-blue-600 hover:text-blue-800 transition-colors underline;
-  }
-  ul {
-    @apply list-disc list-inside;
-  }
-  ol {
-    @apply list-decimal list-inside;
-  }
-}
-
-// Page title
-.page-title {
-  @apply text-3xl font-bold text-gray-900 mb-2;
-
-  &__subtitle {
-    @apply text-lg text-gray-600 font-normal;
-  }
-
-  &--center {
-    @apply text-center;
-  }
-
-  &--small {
-    @apply text-2xl;
-  }
-
-  &--large {
-    @apply text-4xl;
-  }
-}
-
-// Section title
-.section-title {
-  @apply text-xl font-semibold text-gray-900 mb-4;
-
-  &--small {
-    @apply text-lg mb-3;
-  }
-
-  &--large {
-    @apply text-2xl mb-6;
-  }
-
-  &--center {
-    @apply text-center;
-  }
-}
-
-// Text variants
-.text {
-  @apply text-gray-700;
-
-  &--small {
-    @apply text-sm;
-  }
-
-  &--large {
-    @apply text-lg;
-  }
-
-  &--xl {
-    @apply text-xl;
-  }
-
-  &--muted {
-    @apply text-gray-500;
-  }
-
-  &--light {
-    @apply text-gray-400;
-  }
-
-  &--dark {
-    @apply text-gray-900;
-  }
-
-  // Text colors
-  &--primary {
-    @apply text-blue-600;
-  }
-
-  &--secondary {
-    @apply text-gray-600;
-  }
-
-  &--success {
-    @apply text-green-600;
-  }
-
-  &--warning {
-    @apply text-yellow-600;
-  }
-
-  &--danger {
-    @apply text-red-600;
-  }
-
-  &--info {
-    @apply text-blue-600;
-  }
-
-  // Text weights
-  &--light {
-    @apply font-light;
-  }
-
-  &--normal {
-    @apply font-normal;
-  }
-
-  &--medium {
-    @apply font-medium;
-  }
-
-  &--semibold {
-    @apply font-semibold;
-  }
-
-  &--bold {
-    @apply font-bold;
-  }
-
-  // Text alignment
-  &--left {
-    @apply text-left;
-  }
-
-  &--center {
-    @apply text-center;
-  }
-
-  &--right {
-    @apply text-right;
-  }
-
-  &--justify {
-    @apply text-justify;
-  }
+h6 {
+  @apply text-base mb-2 font-semibold;
 }
 
 // Paragraphs
-.paragraph {
-  @apply text-gray-700 mb-4 leading-relaxed;
-
-  &--small {
-    @apply text-sm mb-3;
-  }
-
-  &--large {
-    @apply text-lg mb-5;
-  }
-
-  &--lead {
-    @apply text-xl text-gray-600 font-light mb-6;
-  }
-
-  &--tight {
-    @apply leading-snug;
-  }
-
-  &--loose {
-    @apply leading-loose;
-  }
+p {
+  @apply mb-4 text-gray-700 leading-relaxed;
+  @apply dark:text-gray-300;
 }
 
 // Links
-.link {
+a:not(.btn):not(.nav__link):not(.breadcrumb__link):not(.nav-link) {
   @apply text-blue-600 hover:text-blue-800 transition-colors;
-
-  &--underline {
+  @apply dark:text-blue-400 dark:hover:text-blue-200;
+  
+  &:not(.btn):not(.nav__link):not(.breadcrumb__link):not(.nav-link) {
     @apply underline;
-  }
-
-  &--no-underline {
-    @apply no-underline hover:underline;
-  }
-
-  &--muted {
-    @apply text-gray-600 hover:text-gray-800;
-  }
-
-  &--danger {
-    @apply text-red-600 hover:text-red-800;
-  }
-
-  &--external {
-    @apply after:content-['↗'] after:ml-1 after:text-xs;
   }
 }
 
 // Lists
-.list {
-  @apply space-y-2;
-
-  &--ordered {
-    @apply list-decimal list-inside;
+ul, ol {
+  @apply mb-4 text-gray-700;
+  @apply dark:text-gray-300;
+  
+  li {
+    @apply mb-2;
   }
-
-  &--unordered {
-    @apply list-disc list-inside;
+  
+  // Nested lists
+  ul, ol {
+    @apply mt-2 ml-4 mb-2;
   }
+}
 
-  &--none {
-    @apply list-none;
-  }
+ul {
+  @apply list-disc list-inside;
+}
 
-  &--compact {
-    @apply space-y-1;
-  }
-
-  &--loose {
-    @apply space-y-3;
-  }
-
-  &__item {
-    @apply text-gray-700;
-
-    &--highlight {
-      @apply font-medium text-gray-900;
-    }
-
-    &--muted {
-      @apply text-gray-500;
-    }
-  }
+ol {
+  @apply list-decimal list-inside;
 }
 
 // Definition lists
-.definition-list {
-  @apply space-y-4;
-
-  &__term {
-    @apply font-medium text-gray-900;
+dl {
+  @apply mb-4;
+  
+  dt {
+    @apply font-semibold text-gray-900 mb-1;
+    @apply dark:text-gray-100;
   }
-
-  &__description {
-    @apply text-gray-700 ml-4;
-  }
-
-  &--compact {
-    @apply space-y-2;
-
-    .definition-list__description {
-      @apply ml-2;
-    }
+  
+  dd {
+    @apply text-gray-700 mb-3 ml-4;
+    @apply dark:text-gray-300;
   }
 }
 
-// Quotes
-.quote {
-  @apply border-l-4 border-gray-300 pl-4 italic text-gray-600;
+// Emphasis elements
+strong, b {
+  @apply font-bold;
+}
 
-  &--primary {
-    @apply border-blue-400 text-blue-700;
-  }
+em, i {
+  @apply italic;
+}
 
-  &--large {
-    @apply text-lg border-l-8 pl-6;
-  }
+mark {
+  @apply bg-yellow-200 px-1 rounded;
+  @apply dark:bg-yellow-800 dark:text-yellow-100;
+}
 
-  &__author {
-    @apply block mt-2 text-sm text-gray-500 not-italic;
-  }
+small {
+  font-size: 0.8em;
 }
 
 // Code elements
-.code {
-  @apply font-mono text-sm;
+code {
+  @apply font-mono text-sm bg-gray-100 text-gray-800 px-2 py-1 rounded;
+  @apply dark:bg-gray-800 dark:text-gray-200;
+}
 
-  &--inline {
-    @apply bg-gray-100 text-gray-800 px-1 py-0.5 rounded;
-  }
-
-  &--block {
-    @apply bg-gray-100 text-gray-800 p-4 rounded-lg overflow-x-auto;
+pre {
+  @apply bg-gray-100 text-gray-800 p-4 rounded-lg overflow-x-auto mb-4 border;
+  @apply dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700;
+  
+  code {
+    @apply bg-transparent p-0 text-inherit;
   }
 }
 
-// Abbreviations
-.abbreviation {
-  @apply border-b border-dotted border-gray-400 cursor-help;
-}
-
-// Emphasis
-.emphasis {
-  &--strong {
-    @apply font-bold;
-  }
-
-  &--italic {
-    @apply italic;
-  }
-
-  &--underline {
-    @apply underline;
-  }
-
-  &--strikethrough {
-    @apply line-through;
-  }
-
-  &--mark {
-    @apply bg-yellow-200 px-1;
+// Blockquotes
+blockquote {
+  @apply border-l-4 border-gray-300 pl-4 py-2 mb-4 italic text-gray-600;
+  @apply dark:border-gray-600 dark:text-gray-400;
+  
+  p:last-child {
+    @apply mb-0;
   }
 }
 
-// Meta information
-.meta {
-  @apply text-sm text-gray-500;
+// Horizontal rules
+hr {
+  @apply border-0 border-t border-gray-300 my-8;
+  @apply dark:border-gray-600;
+}
 
-  &__item {
-    @apply inline-block;
+// Images
+img {
+  @apply max-w-full h-auto rounded;
+}
 
-    &:not(:last-child):after {
-      @apply content-['•'] mx-2;
-    }
+// Content wrapper - pro markdown obsah
+.content {
+  // Zajistí správné mezery mezi elementy v contentu
+  > * + * {
+    @apply mt-0;
   }
-
-  &--large {
-    @apply text-base;
+  
+  // První nadpis bez horního marginu
+  > h1:first-child,
+  > h2:first-child,
+  > h3:first-child,
+  > h4:first-child,
+  > h5:first-child,
+  > h6:first-child {
+    @apply mt-0;
   }
-
-  &--compact {
-    @apply text-xs;
+  
+  // Větší mezery po nadpisech
+  h1, h2, h3, h4, h5, h6 {
+    @apply mt-8 first:mt-0;
+  }
+  
+  // Speciální odkazy v contentu
+  a {
+    @apply font-medium;
   }
 }
 
-// Badge/tag typography
-.badge-text {
-  @apply text-xs font-medium uppercase tracking-wide;
+// Utility classes - pouze custom, Tailwind už má text-center, font-bold atd.
+.text-muted {
+  @apply text-gray-500;
+  @apply dark:text-gray-400;
+}
 
-  &--small {
-    @apply text-[10px];
-  }
+.text-light {
+  @apply text-gray-400;
+  @apply dark:text-gray-500;
+}
 
-  &--normal {
-    @apply text-sm normal-case tracking-normal;
-  }
+// Typography-specific classes
+.page-title {
+  @apply text-3xl font-bold text-gray-900 mb-2;
+  @apply dark:text-gray-100;
 }

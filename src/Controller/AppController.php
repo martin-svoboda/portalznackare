@@ -16,6 +16,7 @@ class AppController extends AbstractController
         return $this->render('pages/index.html.twig');
     }
 
+
     #[Route('/nastenka', name: 'app_dashboard')]
     public function dashboard(CzechVocativeService $vocativeService): Response
     {

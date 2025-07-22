@@ -116,20 +116,26 @@ class MarkdownService
 
     private function processParagraphs(string $text): string
     {
-        // Split by double newlines
-        $blocks = preg_split('/\n\n+/', $text);
+        // Split by single or double newlines (proper markdown paragraph separation)
+        $blocks = preg_split('/\n\s*\n/', $text);
         $processed = [];
         
         foreach ($blocks as $block) {
             $block = trim($block);
             
-            // Skip if already wrapped in HTML tags
-            if (preg_match('/^<[^>]+>/', $block)) {
+            // Skip empty blocks
+            if (empty($block)) {
+                continue;
+            }
+            
+            // Skip if already wrapped in HTML tags (headers, lists, code blocks, etc.)
+            if (preg_match('/^<(h[1-6]|ul|ol|pre|blockquote|hr)/', $block)) {
                 $processed[] = $block;
             }
             // Otherwise wrap in paragraph
-            elseif (!empty($block)) {
-                $processed[] = '<p>' . nl2br($block) . '</p>';
+            else {
+                // Convert single newlines to line breaks within paragraph
+                $processed[] = '<p>' . nl2br(trim($block)) . '</p>';
             }
         }
         
@@ -139,36 +145,12 @@ class MarkdownService
     private function convertMarkdownLink(string $link): string
     {
         // Remove .md extension
-        $link = preg_replace('/\.md$/', '', $link);
+        $page = preg_replace('/\.md$/', '', $link);
         
-        // Handle relative paths
-        if (str_contains($link, '/')) {
-            $parts = explode('/', $link);
-            
-            // ../other-section/page -> /napoveda/other-section/page
-            if ($parts[0] === '..') {
-                array_shift($parts);
-                $section = array_shift($parts);
-                $page = implode('/', $parts);
-                
-                return $this->urlGenerator->generate('help_page', [
-                    'section' => $section,
-                    'page' => $page
-                ]);
-            }
-            // section/page -> /napoveda/section/page
-            else {
-                $section = array_shift($parts);
-                $page = implode('/', $parts);
-                
-                return $this->urlGenerator->generate('help_page', [
-                    'section' => $section,
-                    'page' => $page
-                ]);
-            }
-        }
+        // Remove any path separators for flat structure
+        $page = basename($page);
         
-        // Just section name -> /napoveda/section
-        return $this->urlGenerator->generate('help_section', ['section' => $link]);
+        // Generate help page route
+        return $this->urlGenerator->generate('help_page', ['page' => $page]);
     }
 }

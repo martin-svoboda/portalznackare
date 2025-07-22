@@ -8,22 +8,27 @@
   // Alert variants
   &--success {
     @apply bg-green-50 border-green-200 text-green-800;
+    @apply dark:bg-green-950 dark:border-green-800 dark:text-green-200;
   }
 
   &--warning {
     @apply bg-yellow-50 border-yellow-200 text-yellow-800;
+    @apply dark:bg-yellow-950 dark:border-yellow-800 dark:text-yellow-200;
   }
 
   &--danger {
     @apply bg-red-50 border-red-200 text-red-800;
+    @apply dark:bg-red-950 dark:border-red-800 dark:text-red-200;
   }
 
   &--info {
     @apply bg-blue-50 border-blue-200 text-blue-800;
+    @apply dark:bg-blue-950 dark:border-blue-800 dark:text-blue-200;
   }
 
   &--neutral {
     @apply bg-gray-50 border-gray-200 text-gray-800;
+    @apply dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200;
   }
 
   // Alert sizes
@@ -35,27 +40,6 @@
     @apply p-6 text-lg;
   }
 
-  // Alert with border styles
-  &--border-left {
-    @apply border-l-4 border-t-0 border-r-0 border-b-0 rounded-none rounded-r-lg pl-6;
-
-    &.alert--success {
-      @apply border-l-green-500;
-    }
-
-    &.alert--warning {
-      @apply border-l-yellow-500;
-    }
-
-    &.alert--danger {
-      @apply border-l-red-500;
-    }
-
-    &.alert--info {
-      @apply border-l-blue-500;
-    }
-  }
-
   // Alert content structure
   &__content {
     @apply flex items-start;
@@ -65,19 +49,19 @@
     @apply flex-shrink-0 w-5 h-5 mr-3 mt-0.5;
 
     &--success {
-      @apply text-green-600;
+      @apply text-green-600 dark:text-green-400;
     }
 
     &--warning {
-      @apply text-yellow-600;
+      @apply text-yellow-600 dark:text-yellow-400;
     }
 
     &--danger {
-      @apply text-red-600;
+      @apply text-red-600 dark:text-red-400;
     }
 
     &--info {
-      @apply text-blue-600;
+      @apply text-blue-600 dark:text-blue-400;
     }
   }
 
@@ -98,7 +82,7 @@
   }
 
   &__close {
-    @apply flex-shrink-0 ml-3 p-1 rounded-md hover:bg-black hover:bg-opacity-10 focus:outline-none focus:ring-2 focus:ring-offset-2;
+    @apply flex-shrink-0 ml-3 p-1 rounded-md hover:bg-black hover:bg-opacity-10 dark:hover:bg-white dark:hover:bg-opacity-10 focus:outline-none focus:ring-2 focus:ring-offset-2;
 
     &--success {
       @apply focus:ring-green-600;
@@ -124,19 +108,23 @@
 
   &--success {
     @apply bg-green-50 border-green-200 text-green-800;
+    @apply dark:bg-green-950 dark:border-green-800 dark:text-green-200;
   }
 
   &--error {
     @apply bg-red-50 border-red-200 text-red-800;
+    @apply dark:bg-red-950 dark:border-red-800 dark:text-red-200;
   }
 
   &--warning {
     @apply bg-yellow-50 border-yellow-200 text-yellow-800;
+    @apply dark:bg-yellow-950 dark:border-yellow-800 dark:text-yellow-200;
   }
 
   &--notice,
   &--info {
     @apply bg-blue-50 border-blue-200 text-blue-800;
+    @apply dark:bg-blue-950 dark:border-blue-800 dark:text-blue-200;
   }
 
   &__content {
@@ -149,195 +137,5 @@
 
   &__text {
     @apply flex-1;
-  }
-}
-
-// Toast notifications (pro JavaScript notifikace)
-.toast {
-  @apply pointer-events-auto w-full max-w-sm overflow-hidden rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5;
-
-  &__content {
-    @apply p-4;
-  }
-
-  &__header {
-    @apply flex items-start;
-  }
-
-  &__icon {
-    @apply flex-shrink-0 w-6 h-6;
-
-    &--success {
-      @apply text-green-600;
-    }
-
-    &--warning {
-      @apply text-yellow-600;
-    }
-
-    &--danger {
-      @apply text-red-600;
-    }
-
-    &--info {
-      @apply text-blue-600;
-    }
-  }
-
-  &__body {
-    @apply ml-3 w-0 flex-1 pt-0.5;
-  }
-
-  &__title {
-    @apply text-sm font-medium text-gray-900;
-  }
-
-  &__message {
-    @apply mt-1 text-sm text-gray-500;
-  }
-
-  &__actions {
-    @apply mt-3 flex space-x-7;
-  }
-
-  &__close {
-    @apply ml-4 flex-shrink-0 flex;
-  }
-
-  // Toast positions
-  &--top-right {
-    @apply fixed top-4 right-4 z-50;
-  }
-
-  &--top-left {
-    @apply fixed top-4 left-4 z-50;
-  }
-
-  &--bottom-right {
-    @apply fixed bottom-4 right-4 z-50;
-  }
-
-  &--bottom-left {
-    @apply fixed bottom-4 left-4 z-50;
-  }
-}
-
-// Banner alerts (celá šířka)
-.banner {
-  @apply p-4 border-b;
-
-  &--success {
-    @apply bg-green-600 border-green-700 text-white;
-  }
-
-  &--warning {
-    @apply bg-yellow-600 border-yellow-700 text-white;
-  }
-
-  &--danger {
-    @apply bg-red-600 border-red-700 text-white;
-  }
-
-  &--info {
-    @apply bg-blue-600 border-blue-700 text-white;
-  }
-
-  &__content {
-    @apply max-w-screen-xl mx-auto flex items-center justify-between;
-  }
-
-  &__message {
-    @apply font-medium;
-  }
-
-  &__actions {
-    @apply flex items-center space-x-4;
-  }
-
-  &__close {
-    @apply text-white hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2;
-  }
-}
-
-// Progress alerts (s progress barem)
-.progress-alert {
-  @apply bg-blue-50 border border-blue-200 rounded-lg p-4;
-
-  &__content {
-    @apply flex items-center;
-  }
-
-  &__icon {
-    @apply w-5 h-5 text-blue-600 mr-3 animate-spin;
-  }
-
-  &__body {
-    @apply flex-1;
-  }
-
-  &__title {
-    @apply font-medium text-blue-800;
-  }
-
-  &__progress {
-    @apply mt-2 w-full bg-blue-200 rounded-full h-2;
-  }
-
-  &__progress-bar {
-    @apply bg-blue-600 h-2 rounded-full transition-all duration-300;
-  }
-
-  &__percentage {
-    @apply text-sm text-blue-600 mt-1;
-  }
-}
-
-// Validation alerts (pro formuláře)
-.validation-alert {
-  @apply text-sm mt-1;
-
-  &--error {
-    @apply text-red-600;
-  }
-
-  &--success {
-    @apply text-green-600;
-  }
-
-  &--warning {
-    @apply text-yellow-600;
-  }
-
-  &__icon {
-    @apply inline w-4 h-4 mr-1;
-  }
-}
-
-// Callout boxes
-.callout {
-  @apply p-6 rounded-lg border-l-4;
-
-  &--note {
-    @apply bg-blue-50 border-l-blue-500 text-blue-900;
-  }
-
-  &--tip {
-    @apply bg-green-50 border-l-green-500 text-green-900;
-  }
-
-  &--warning {
-    @apply bg-yellow-50 border-l-yellow-500 text-yellow-900;
-  }
-
-  &--danger {
-    @apply bg-red-50 border-l-red-500 text-red-900;
-  }
-
-  &__title {
-    @apply font-semibold mb-2;
-  }
-
-  &__content {
-    @apply opacity-90;
   }
 }

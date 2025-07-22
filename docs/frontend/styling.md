@@ -98,6 +98,37 @@ function Card({ elevated, children }) {
 - `.table`, `.data-table`, `.responsive-table`
 - `.action-table`, `.selectable-table`
 
+## Dark mode podpora
+
+### CSS custom properties
+```scss
+:root {
+    --primary-600: #3b82f6;
+    --success-600: #10b981;
+    --card-bg: #ffffff;
+}
+
+.dark {
+    --primary-600: #60a5fa;
+    --success-600: #34d399;
+    --card-bg: #1f2937;
+}
+
+.card {
+    background-color: var(--card-bg);
+}
+```
+
+### Tailwind dark mode
+```scss
+// Automatic dark mode ve všech komponentách
+.card {
+    @apply bg-white dark:bg-gray-900;
+    @apply text-gray-900 dark:text-gray-100;
+    @apply border-gray-200 dark:border-gray-800;
+}
+```
+
 ## Build proces
 
 1. **SCSS kompilace**: `assets/css/app.scss` → CSS

@@ -32,69 +32,24 @@ class HelpController extends AbstractController
         $content = $this->loadMarkdownFile('README.md');
         $navigation = $this->buildNavigation();
         
-        return $this->render('help/index.html.twig', [
-            'content' => $this->markdownService->parse($content),
-            'navigation' => $navigation,
-            'currentSection' => null,
-            'currentPage' => null
-        ]);
-    }
-
-    #[Route('/{section}', name: 'help_section')]
-    public function section(string $section): Response
-    {
-        $sectionPath = $this->userDocsPath . '/' . $section;
-        
-        if (!is_dir($sectionPath)) {
-            // Místo výjimky zobrazíme přívětivou stránku
-            return $this->render('help/not-found.html.twig', [
-                'navigation' => $this->buildNavigation(),
-                'currentSection' => $section,
-                'sectionTitle' => $this->getSectionTitle($section),
-                'message' => 'Tato sekce nápovědy ještě není k dispozici.'
-            ]);
-        }
-        
-        // Najdi README nebo první soubor v sekci
-        $indexFile = $sectionPath . '/README.md';
-        if (!file_exists($indexFile)) {
-            $files = glob($sectionPath . '/*.md');
-            if (empty($files)) {
-                // Zobrazíme přívětivou stránku když sekce nemá obsah
-                return $this->render('help/not-found.html.twig', [
-                    'navigation' => $this->buildNavigation(),
-                    'currentSection' => $section,
-                    'sectionTitle' => $this->getSectionTitle($section),
-                    'message' => 'V této sekci zatím není žádný obsah. Pracujeme na tom!'
-                ]);
-            }
-            $indexFile = $files[0];
-        }
-        
-        $content = $this->loadMarkdownFile($indexFile);
-        $navigation = $this->buildNavigation();
-        
         return $this->render('help/page.html.twig', [
             'content' => $this->markdownService->parse($content),
             'navigation' => $navigation,
-            'currentSection' => $section,
             'currentPage' => null,
-            'sectionTitle' => $this->getSectionTitle($section)
+            'pageTitle' => null  // Pro hlavní stránku
         ]);
     }
 
-    #[Route('/{section}/{page}', name: 'help_page')]
-    public function page(string $section, string $page): Response
+    #[Route('/{page}', name: 'help_page')]
+    public function page(string $page): Response
     {
-        $filePath = $this->userDocsPath . '/' . $section . '/' . $page . '.md';
+        $filePath = $this->userDocsPath . '/' . $page . '.md';
         
         if (!file_exists($filePath)) {
             // Zobrazíme přívětivou stránku pro neexistující stránku
             return $this->render('help/not-found.html.twig', [
                 'navigation' => $this->buildNavigation(),
-                'currentSection' => $section,
                 'currentPage' => $page,
-                'sectionTitle' => $this->getSectionTitle($section),
                 'pageTitle' => $this->formatPageName($page),
                 'message' => 'Tato stránka ještě není k dispozici.'
             ]);
@@ -106,9 +61,7 @@ class HelpController extends AbstractController
         return $this->render('help/page.html.twig', [
             'content' => $this->markdownService->parse($content),
             'navigation' => $navigation,
-            'currentSection' => $section,
             'currentPage' => $page,
-            'sectionTitle' => $this->getSectionTitle($section),
             'pageTitle' => $this->extractTitle($content) ?: $this->formatPageName($page)
         ]);
     }
@@ -143,57 +96,35 @@ class HelpController extends AbstractController
         
         $navigation = [];
         
-        if (!isset($config['sections'])) {
-            return $this->buildAutomaticNavigation();
-        }
-        
-        // Projdi sekce v definovaném pořadí
-        foreach ($config['sections'] as $sectionName => $sectionConfig) {
-            $sectionPath = $this->userDocsPath . '/' . $sectionName;
-            
-            // Přeskoč sekce které neexistují
-            if (!is_dir($sectionPath)) {
-                continue;
-            }
-            
-            $pages = [];
-            
-            // Pokud jsou definované stránky, použij je v daném pořadí
-            if (isset($sectionConfig['pages']) && is_array($sectionConfig['pages'])) {
-                foreach ($sectionConfig['pages'] as $pageConfig) {
-                    if (is_array($pageConfig)) {
-                        $pageName = key($pageConfig);
-                        $pageTitle = current($pageConfig);
+        // Flat struktura - pouze pages
+        if (isset($config['pages']) && is_array($config['pages'])) {
+            foreach ($config['pages'] as $pageConfig) {
+                if (is_array($pageConfig)) {
+                    $pageName = key($pageConfig);
+                    $pageTitle = current($pageConfig);
+                } else {
+                    // String format "pageName: Title"
+                    if (strpos($pageConfig, ':') !== false) {
+                        [$pageName, $pageTitle] = explode(':', $pageConfig, 2);
+                        $pageName = trim($pageName);
+                        $pageTitle = trim($pageTitle);
                     } else {
-                        // Jednoduchý string
                         $pageName = $pageConfig;
                         $pageTitle = $this->formatPageName($pageConfig);
                     }
-                    
-                    $pagePath = $sectionPath . '/' . $pageName . '.md';
-                    
-                    // Přidej pouze existující stránky
-                    if (file_exists($pagePath)) {
-                        $pages[] = [
-                            'name' => $pageName,
-                            'title' => $pageTitle,
-                            'url' => $this->generateUrl('help_page', [
-                                'section' => $sectionName, 
-                                'page' => $pageName
-                            ])
-                        ];
-                    }
+                }
+                
+                $pagePath = $this->userDocsPath . '/' . $pageName . '.md';
+                
+                // Přidej pouze existující stránky
+                if (file_exists($pagePath)) {
+                    $navigation[] = [
+                        'name' => $pageName,
+                        'title' => $pageTitle,
+                        'url' => $this->generateUrl('help_page', ['page' => $pageName])
+                    ];
                 }
             }
-            
-            $navigation[$sectionName] = [
-                'name' => $sectionName,
-                'title' => $sectionConfig['title'] ?? $this->getSectionTitle($sectionName),
-                'url' => $this->generateUrl('help_section', ['section' => $sectionName]),
-                'pages' => $pages,
-                'icon' => $sectionConfig['icon'] ?? $this->getSectionIcon($sectionName),
-                'description' => $sectionConfig['description'] ?? null
-            ];
         }
         
         return $navigation;
@@ -201,49 +132,26 @@ class HelpController extends AbstractController
     
     private function buildAutomaticNavigation(): array
     {
-        // Původní automatická navigace jako fallback
+        // Flat automatická navigace
         if (!is_dir($this->userDocsPath)) {
             return [];
         }
 
         $navigation = [];
-        $sections = glob($this->userDocsPath . '/*', GLOB_ONLYDIR);
+        $mdFiles = glob($this->userDocsPath . '/*.md');
         
-        foreach ($sections as $sectionPath) {
-            $sectionName = basename($sectionPath);
+        foreach ($mdFiles as $file) {
+            $pageName = basename($file, '.md');
             
-            // Skip hidden directories
-            if ($sectionName[0] === '.') {
+            // Skip README as it's main index
+            if ($pageName === 'README') {
                 continue;
             }
             
-            $pages = [];
-            $mdFiles = glob($sectionPath . '/*.md');
-            
-            foreach ($mdFiles as $file) {
-                $pageName = basename($file, '.md');
-                
-                // Skip README as it's section index
-                if ($pageName === 'README') {
-                    continue;
-                }
-                
-                $pages[] = [
-                    'name' => $pageName,
-                    'title' => $this->getPageTitle($file),
-                    'url' => $this->generateUrl('help_page', [
-                        'section' => $sectionName, 
-                        'page' => $pageName
-                    ])
-                ];
-            }
-            
-            $navigation[$sectionName] = [
-                'name' => $sectionName,
-                'title' => $this->getSectionTitle($sectionName),
-                'url' => $this->generateUrl('help_section', ['section' => $sectionName]),
-                'pages' => $pages,
-                'icon' => $this->getSectionIcon($sectionName)
+            $navigation[] = [
+                'name' => $pageName,
+                'title' => $this->getPageTitle($file),
+                'url' => $this->generateUrl('help_page', ['page' => $pageName])
             ];
         }
         

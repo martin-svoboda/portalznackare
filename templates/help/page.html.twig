@@ -1,6 +1,6 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}{{ pageTitle|default(sectionTitle) }} - Nápověda{% endblock %}
+{% block title %}{{ pageTitle|default('Nápověda') }} - Portál značkaře{% endblock %}
 
 {% block body %}
 <div class="section">
@@ -11,34 +11,32 @@
                 <div class="card">
                     <div class="card__header">
                         <h2 class="card__title">
-                            <a href="{{ path('help_index') }}" class="text-inherit no-underline">📚 Nápověda</a>
+                            <a href="{{ path('help_index') }}" class="text-inherit no-underline">Nápověda</a>
                         </h2>
                     </div>
                     <div class="card__content p-0">
                         <nav class="nav nav--vertical">
-                            {% for section in navigation %}
-                                <div class="nav__section">
-                                    <a href="{{ section.url }}" 
-                                       class="nav__section-title {% if currentSection == section.name %}nav__section-title--active{% endif %}">
-                                        <span class="nav__icon">{{ section.icon }}</span>
-                                        {{ section.title }}
-                                    </a>
-                                    
-                                    {% if section.pages and currentSection == section.name %}
-                                        <ul class="nav__list">
-                                            {% for page in section.pages %}
-                                                <li class="nav__item">
-                                                    <a href="{{ page.url }}" 
-                                                       class="nav__link {% if currentPage == page.name %}nav__link--active{% endif %}">
-                                                        {{ page.title }}
-                                                    </a>
-                                                </li>
-                                            {% endfor %}
-                                        </ul>
-                                    {% endif %}
-                                </div>
-                            {% endfor %}
+                            <ul class="nav__list">
+                                {% for page in navigation %}
+                                    <li class="nav__item">
+                                        <a href="{{ page.url }}" 
+                                           class="nav__link {% if currentPage == page.name %}nav__link--active{% endif %}">
+                                            {{ page.title }}
+                                        </a>
+                                    </li>
+                                {% endfor %}
+                            </ul>
                         </nav>
+                    </div>
+                </div>
+                
+                {# Kontakt na podporu #}
+                <div class="card mt-6">
+                    <div class="card__content text-center">
+                        <p class="text--muted mb-4">Potřebujete pomoc?</p>
+                        <a href="mailto:podpora@portalznackare.cz" class="btn btn--secondary btn--block">
+                            Kontaktovat podporu
+                        </a>
                     </div>
                 </div>
             </aside>
@@ -47,34 +45,31 @@
             <main class="flex-1">
                 <div class="card">
                     <div class="card__header">
-                        {# Breadcrumb navigace #}
-                        <nav class="breadcrumb">
-                            <a href="{{ path('help_index') }}" class="breadcrumb__link">Nápověda</a>
-                            <span class="breadcrumb__separator">›</span>
-                            {% if currentPage %}
-                                <a href="{{ path('help_section', {section: currentSection}) }}" class="breadcrumb__link">
-                                    {{ sectionTitle }}
-                                </a>
+                        {% if pageTitle %}
+                            {# Breadcrumb navigace pro podstránky #}
+                            <nav class="breadcrumb">
+                                <a href="{{ path('help_index') }}" class="breadcrumb__link">Nápověda</a>
                                 <span class="breadcrumb__separator">›</span>
                                 <span class="breadcrumb__current">{{ pageTitle }}</span>
-                            {% else %}
-                                <span class="breadcrumb__current">{{ sectionTitle }}</span>
-                            {% endif %}
-                        </nav>
-                        
-                        <h1 class="page-title">{{ pageTitle|default(sectionTitle) }}</h1>
+                            </nav>
+                            
+                            <h1 class="page-title">{{ pageTitle }}</h1>
+                        {% else %}
+                            {# Hlavní stránka nápovědy #}
+                            <h1 class="page-title">Nápověda</h1>
+                            <p class="text--muted">Návod pro použití aplikace Portál značkaře</p>
+                        {% endif %}
                     </div>
                     <div class="card__content">
                         <div class="content">
                             {{ content|raw }}
                         </div>
                         
-                        {# Navigace na další/předchozí stránku #}
-                        {% if navigation[currentSection] is defined and navigation[currentSection].pages %}
-                            {% set pages = navigation[currentSection].pages %}
+                        {% if pageTitle and navigation %}
+                            {# Navigace na další/předchozí stránku #}
                             {% set currentIndex = null %}
                             
-                            {% for i, page in pages %}
+                            {% for i, page in navigation %}
                                 {% if page.name == currentPage %}
                                     {% set currentIndex = i %}
                                 {% endif %}
@@ -83,14 +78,14 @@
                             {% if currentIndex is not null %}
                                 <div class="page-navigation">
                                     {% if currentIndex > 0 %}
-                                        <a href="{{ pages[currentIndex - 1].url }}" class="page-navigation__prev">
-                                            ← {{ pages[currentIndex - 1].title }}
+                                        <a href="{{ navigation[currentIndex - 1].url }}" class="page-navigation__prev">
+                                            ← {{ navigation[currentIndex - 1].title }}
                                         </a>
                                     {% endif %}
                                     
-                                    {% if currentIndex < pages|length - 1 %}
-                                        <a href="{{ pages[currentIndex + 1].url }}" class="page-navigation__next">
-                                            {{ pages[currentIndex + 1].title }} →
+                                    {% if currentIndex < navigation|length - 1 %}
+                                        <a href="{{ navigation[currentIndex + 1].url }}" class="page-navigation__next">
+                                            {{ navigation[currentIndex + 1].title }} →
                                         </a>
                                     {% endif %}
                                 </div>
@@ -99,20 +94,22 @@
                     </div>
                 </div>
                 
-                {# Zpětná vazba #}
-                <div class="card mt-6">
-                    <div class="card__content text-center">
-                        <p class="text--muted">
-                            Pomohla vám tato stránka? Něco není jasné?
-                        </p>
-                        <p>
-                            <a href="mailto:support@kct.cz?subject=Nápověda: {{ pageTitle|default(sectionTitle) }}" 
-                               class="btn btn--secondary btn--sm">
-                                Napište nám
-                            </a>
-                        </p>
+                {% if pageTitle %}
+                    {# Zpětná vazba pro podstránky #}
+                    <div class="card mt-6">
+                        <div class="card__content text-center">
+                            <p class="text--muted">
+                                Pomohla vám tato stránka? Něco není jasné?
+                            </p>
+                            <p>
+                                <a href="mailto:podpora@portalznackare.cz?subject=Nápověda: {{ pageTitle }}"
+                                   class="btn btn--secondary btn--sm">
+                                    Napište nám
+                                </a>
+                            </p>
+                        </div>
                     </div>
-                </div>
+                {% endif %}
             </main>
         </div>
     </div>

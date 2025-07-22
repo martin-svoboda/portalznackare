@@ -42,5 +42,10 @@ services:
         tags:
             - { name: twig.extension }
 
+    # Twig extension pro Tabler ikony
+    App\Twig\TablerIconExtension:
+        tags:
+            - { name: twig.extension }
+
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

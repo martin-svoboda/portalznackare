@@ -35,8 +35,8 @@ jobs:
               cp "docs/README.md" "wiki/Home.md"
             fi
             
-            # Copy all other files with folder prefixes
-            find docs/ -name "*.md" -not -name "README.md" | while read file; do
+            # Copy all other files with folder prefixes (exclude CLAUDE.md)
+            find docs/ -name "*.md" -not -name "README.md" -not -name "CLAUDE.md" | while read file; do
               # Convert path to flat name: docs/backend/znacky-a-tim-nahledy.md -> backend-znacky-a-tim-nahledy.md
               wiki_name=$(echo "$file" | sed 's|docs/||' | sed 's|/|-|g')
               cp "$file" "wiki/$wiki_name"
@@ -45,10 +45,17 @@ jobs:
           
           # Copy user-docs to wiki (flattened with user-docs prefix)
           if [ -d "user-docs" ]; then
+            # Copy markdown files
             find user-docs/ -name "*.md" | while read file; do
               wiki_name=$(echo "$file" | sed 's|/|-|g')
               cp "$file" "wiki/$wiki_name"
             done
+            
+            # Copy images and assets
+            if [ -d "user-docs/assets" ]; then
+              echo "Copying user-docs assets to wiki..."
+              cp -r user-docs/assets wiki/user-docs-assets
+            fi
           fi
           
           # Intelligent conversion of markdown links to wiki format
@@ -62,17 +69,56 @@ jobs:
           
           # Mapping of file paths to wiki page names (flattened structure)
           file_to_wiki = {
-              'getting-started/installation.md': 'getting-started-installation',
-              'architecture/cms.md': 'architecture-cms', 
+              'overview.md': 'overview',
+              
+              # Architecture
+              'architecture/principles.md': 'architecture-principles',
+              'architecture/hybrid-architecture.md': 'architecture-hybrid-architecture',
+              'architecture/data-flow.md': 'architecture-data-flow',
+              'architecture/cms.md': 'architecture-cms',
+              
+              # Features
+              'features/insys-integration.md': 'features-insys-integration',
+              'features/authentication.md': 'features-authentication',
+              'features/file-management.md': 'features-file-management',
+              'features/hlaseni-prikazu.md': 'features-hlaseni-prikazu',
+              'features/prikazy-management.md': 'features-prikazy-management',
+              'features/visual-components.md': 'features-visual-components',
+              
+              # API
+              'api/overview.md': 'api-overview',
+              'api/insys-api.md': 'api-insys-api',
+              'api/portal-api.md': 'api-portal-api',
+              'api/file-api.md': 'api-file-api',
+              'api/authentication-api.md': 'api-authentication-api',
+              'api/test-api.md': 'api-test-api',
+              
+              # Configuration
+              'configuration/environment.md': 'configuration-environment',
+              'configuration/security.md': 'configuration-security',
+              'configuration/services.md': 'configuration-services',
+              
+              # Topics
+              'topics/czech-localization.md': 'topics-czech-localization',
+              'topics/content-management.md': 'topics-content-management',
+              
+              # Legacy frontend/backend (if still exists)
               'frontend/architecture.md': 'frontend-architecture',
               'frontend/build-system.md': 'frontend-build-system',
               'frontend/styling.md': 'frontend-styling',
-              'backend/README.md': 'backend-README',
+              'frontend/components.md': 'frontend-components',
+              'backend/overview.md': 'backend-overview',
+              'backend/services.md': 'backend-services',
               'backend/znacky-a-tim-nahledy.md': 'backend-znacky-a-tim-nahledy',
-              'api/README.md': 'api-README',
+              
+              # Getting started & deployment
+              'getting-started/installation.md': 'getting-started-installation',
+              'deployment/overview.md': 'deployment-overview',
               'migration/wordpress.md': 'migration-wordpress',
-              '../user-docs/README.md': 'user-docs-README',
-              'user-docs/README.md': 'user-docs-README',
+              
+              # User docs
+              '../user-docs/overview.md': 'user-docs-overview',
+              'user-docs/overview.md': 'user-docs-overview',
               '../user-docs/getting-started/first-login.md': 'user-docs-getting-started-first-login',
               'user-docs/getting-started/first-login.md': 'user-docs-getting-started-first-login'
           }
@@ -97,9 +143,27 @@ jobs:
                       # Keep original link if no mapping found
                       return match.group(0)
               
+              # Convert images ![alt](assets/images/path) to user-docs-assets/images/path
+              def replace_image(match):
+                  alt = match.group(1)
+                  path = match.group(2)
+                  
+                  # Convert assets/ paths to user-docs-assets/
+                  if path.startswith('assets/'):
+                      new_path = 'user-docs-' + path
+                      return f'![{alt}]({new_path})'
+                  
+                  return match.group(0)
+              
               # Pattern to match [text](path.md) links
               pattern = r'\[([^\]]+)\]\(([^)]+\.md)\)'
-              return re.sub(pattern, replace_link, content)
+              content = re.sub(pattern, replace_link, content)
+              
+              # Pattern to match ![alt](image) images  
+              image_pattern = r'!\[([^\]]*)\]\(([^)]+)\)'
+              content = re.sub(image_pattern, replace_image, content)
+              
+              return content
           
           # Process all markdown files in wiki directory
           for filepath in glob.glob('wiki/**/*.md', recursive=True):
@@ -125,28 +189,52 @@ jobs:
           
           ### 📋 Základní informace
           - [[Úvod|Home]]
+          - [[Přehled projektu|overview]]
           - [[Instalace a setup|getting-started-installation]]
           
           ### 🏗️ Architektura
+          - [[Principy a konvence|architecture-principles]]
+          - [[Hybridní architektura|architecture-hybrid-architecture]]
+          - [[Tok dat|architecture-data-flow]]
           - [[CMS architektura|architecture-cms]]
           
-          ### 🎨 Frontend
-          - [[React micro-apps|frontend-architecture]]
-          - [[Build systém|frontend-build-system]]
-          - [[Styling|frontend-styling]]
-          
-          ### ⚙️ Backend
-          - [[Backend přehled|backend-README]]
-          - [[Značky a TIM náhledy|backend-znacky-a-tim-nahledy]]
+          ### ⭐ Funkcionalita
+          - [[INSYS integrace|features-insys-integration]]
+          - [[Autentifikace|features-authentication]]
+          - [[Správa souborů|features-file-management]]
+          - [[Hlášení příkazů|features-hlaseni-prikazu]]
+          - [[Správa příkazů|features-prikazy-management]]
+          - [[Vizuální komponenty|features-visual-components]]
           
           ### 🔌 API
-          - [[API přehled|api-README]]
+          - [[API přehled|api-overview]]
+          - [[INSYS API|api-insys-api]]
+          - [[Portal API|api-portal-api]]
+          - [[File API|api-file-api]]
+          - [[Authentication API|api-authentication-api]]
+          - [[Test API|api-test-api]]
           
-          ### 🔄 Migrace
+          ### ⚙️ Konfigurace
+          - [[Environment|configuration-environment]]
+          - [[Security|configuration-security]]
+          - [[Services & DI|configuration-services]]
+          
+          ### 📚 Témata
+          - [[České skloňování|topics-czech-localization]]
+          - [[Content Management|topics-content-management]]
+          
+          ### 🎨 Frontend
+          - [[Architektura|frontend-architecture]]
+          - [[Build systém|frontend-build-system]]
+          - [[Styling|frontend-styling]]
+          - [[Komponenty|frontend-components]]
+          
+          ### 🔄 Migrace & Deployment
           - [[Z WordPress|migration-wordpress]]
+          - [[Deployment přehled|deployment-overview]]
           
           ### 👥 Uživatelská nápověda
-          - [[Nápověda|user-docs-README]]
+          - [[Nápověda|user-docs-overview]]
           - [[První přihlášení|user-docs-getting-started-first-login]]
           EOF
           

@@ -1,42 +1,13 @@
 import React from 'react';
+import { renderHtmlContent, replaceTextWithIcons } from '../../utils/htmlUtils';
 
 const formatKm = (km) => km ? parseFloat(km).toFixed(1) : '0';
 
-// Function to render HTML content safely from server data
-const renderHtmlContent = (htmlString) => {
-    if (!htmlString) return null;
-    return <span dangerouslySetInnerHTML={{__html: htmlString}} />;
-};
+// HTML utility functions now imported from shared utils
 
-// Function to replace text with icons - now uses server-side processed HTML
-const replaceTextWithIcons = (text, size = 14) => {
-    if (!text) return '';
-    // If text contains HTML tags (from server processing), render as HTML
-    if (text.includes('<')) {
-        return renderHtmlContent(text);
-    }
-    // Otherwise return as plain text
-    return text;
-};
+// Color mapping function now imported from shared utils
 
-// Color mapping
-const barvaDleKodu = (kod) => {
-    switch(kod) {
-        case 'CE': return 'red';
-        case 'MO': return 'blue';
-        case 'ZE': return 'green';
-        case 'ZL': return 'yellow';
-        default: return 'gray';
-    }
-};
-
-const colorClasses = {
-    red: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-    blue: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-    green: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-    yellow: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-    gray: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200',
-};
+// Color classes removed - using BEM badge classes directly
 
 // Komponenta pro vykreslování značek - používá HTML ze serveru
 const ZnackaRenderer = ({ htmlString, size = 30 }) => {
@@ -71,7 +42,7 @@ export const PrikazUseky = ({ useky, soubeh }) => {
                                 <td className="py-3 px-2">
                                     <div className="flex flex-wrap items-center gap-2">
                                         <span>{formatKm(usek.Delka_ZU)} Km</span>
-                                        <span className={`px-2 py-1 rounded text-xs font-medium ${colorClasses[barvaDleKodu(usek.Barva_Kod)]}`}>
+                                        <span className={`badge badge--kct-${usek.Barva_Kod.toLowerCase()}`}>
                                             {usek.Barva_Naz}
                                         </span>
                                         <span className="text-sm">

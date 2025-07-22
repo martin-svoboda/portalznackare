@@ -4,7 +4,6 @@ import {
     IconRoute,
     IconInfoCircle,
     IconCheck,
-    IconAlertTriangle,
     IconCircleX,
     IconSend,
     IconAlertSmall,
@@ -268,12 +267,6 @@ const App = () => {
         }
     }, [head, currentUser]);
 
-    // Calculate total length for "O" type orders
-    const totalLength = useMemo(() => {
-        if (head?.Druh_ZP !== "O" || !Array.isArray(useky) || useky.length === 0) return null;
-        return useky.reduce((sum, usek) => sum + Number(usek.Delka_ZU || 0), 0);
-    }, [useky, head?.Druh_ZP]);
-
     // Calculate compensation
     const compensation = useMemo(() => {
         if (!priceList) return null;
@@ -466,7 +459,7 @@ const App = () => {
             {/* Header */}
             <div className="card">
                 <div className="card__content">
-                    <PrikazHead head={head} delka={totalLength}/>
+                    <PrikazHead head={head}/>
                 </div>
             </div>
 
@@ -515,7 +508,6 @@ const App = () => {
                         />
                         {!canCompletePartA && (
                             <div className="alert alert--warning mt-4">
-                                <IconAlertTriangle size={16} className="mr-2"/>
                                 Vyplňte všechny povinné údaje
                             </div>
                         )}

@@ -1,35 +1,21 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, {useEffect, useMemo, useState} from 'react';
 import {
     MaterialReactTable,
     useMaterialReactTable,
 } from 'material-react-table';
-import { MRT_Localization_CS } from 'material-react-table/locales/cs';
-import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { PrikazStavBadge } from '../../components/prikazy/PrikazStavBadge';
-import { PrikazTypeIcon } from '../../components/prikazy/PrikazTypeIcon';
-import { IconCrown } from '@tabler/icons-react';
+import {MRT_Localization_CS} from 'material-react-table/locales/cs';
+import {createTheme, ThemeProvider} from '@mui/material/styles';
+import {PrikazStavBadge} from '../../components/prikazy/PrikazStavBadge';
+import {PrikazTypeIcon} from '../../components/prikazy/PrikazTypeIcon';
+import {IconCrown} from '@tabler/icons-react';
+import {renderHtmlContent, replaceTextWithIcons} from '../../utils/htmlUtils';
 
 const getAvailableYears = () => {
     const currentYear = new Date().getFullYear();
-    return Array.from({ length: 5 }, (_, i) => `${currentYear - i}`);
+    return Array.from({length: 5}, (_, i) => `${currentYear - i}`);
 };
 
-// Function to render HTML content safely from server data
-const renderHtmlContent = (htmlString) => {
-    if (!htmlString) return null;
-    return <span dangerouslySetInnerHTML={{__html: htmlString}} />;
-};
-
-// Function to replace text with icons - now uses server-side processed HTML
-const replaceTextWithIcons = (text, size = 14) => {
-    if (!text) return '';
-    // If text contains HTML tags (from server processing), render as HTML
-    if (text.includes('<')) {
-        return renderHtmlContent(text);
-    }
-    // Otherwise return as plain text
-    return text;
-};
+// HTML utility functions now imported from shared utils
 
 
 const App = () => {
@@ -38,25 +24,25 @@ const App = () => {
     const [error, setError] = useState(null);
     const [year, setYear] = useState('');
     const [showOnlyToProcess, setShowOnlyToProcess] = useState(false);
-    
+
     // Detect dark mode
     const [isDarkMode, setIsDarkMode] = useState(
         document.documentElement.classList.contains('dark')
     );
-    
+
     useEffect(() => {
         const observer = new MutationObserver(() => {
             setIsDarkMode(document.documentElement.classList.contains('dark'));
         });
-        
+
         observer.observe(document.documentElement, {
             attributes: true,
             attributeFilter: ['class']
         });
-        
+
         return () => observer.disconnect();
     }, []);
-    
+
     // Create theme based on dark mode
     const theme = createTheme({
         palette: {
@@ -72,7 +58,7 @@ const App = () => {
         try {
             const params = new URLSearchParams();
             if (selectedYear) params.append('year', selectedYear);
-            
+
             const response = await fetch(`/api/insys/prikazy?${params.toString()}`, {
                 method: 'GET',
                 headers: {
@@ -80,11 +66,11 @@ const App = () => {
                 },
                 credentials: 'same-origin'
             });
-            
+
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            
+
             const result = await response.json();
             setData(result);
         } catch (err) {
@@ -123,15 +109,15 @@ const App = () => {
 
     const columns = useMemo(
         () => [
-            { accessorKey: 'Cislo_ZP', header: 'Číslo ZP', size: 100 },
+            {accessorKey: 'Cislo_ZP', header: 'Číslo ZP', size: 100},
             {
                 accessorKey: 'Druh_ZP_Naz',
                 header: 'Druh ZP',
                 size: 120,
                 filterVariant: 'select',
-                Cell: ({ row }) => (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <div><PrikazTypeIcon type={row.original.Druh_ZP} size={28} /></div>
+                Cell: ({row}) => (
+                    <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                        <div><PrikazTypeIcon type={row.original.Druh_ZP} size={28}/></div>
                         <span>{row.original.Druh_ZP_Naz}</span>
                     </div>
                 ),
@@ -140,29 +126,29 @@ const App = () => {
                 accessorKey: 'Popis_ZP',
                 header: 'Popis',
                 size: 300,
-                Cell: ({ row }) => replaceTextWithIcons(row.original.Popis_ZP, 14),
+                Cell: ({row}) => replaceTextWithIcons(row.original.Popis_ZP, 14),
             },
             {
                 accessorKey: 'Stav_ZP_Naz',
                 header: 'Stav',
                 size: 150,
                 filterVariant: 'select',
-                Cell: ({ row }) => <PrikazStavBadge stav={row.original.Stav_ZP_Naz} />,
+                Cell: ({row}) => <PrikazStavBadge stav={row.original.Stav_ZP_Naz}/>,
             },
-            { 
-                accessorKey: 'Znackar', 
-                header: 'Značkař', 
-                size: 100, 
-                filterVariant: 'autocomplete' 
+            {
+                accessorKey: 'Znackar',
+                header: 'Značkař',
+                size: 100,
+                filterVariant: 'autocomplete'
             },
             {
                 accessorKey: 'Je_Vedouci',
                 header: 'Ved.',
                 size: 40,
-                Cell: ({ cell }) =>
+                Cell: ({cell}) =>
                     cell.getValue() === '1' || cell.getValue() === 1 ? (
-                        <div style={{ 
-                            display: 'flex', 
+                        <div style={{
+                            display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                             width: '28px',
@@ -171,17 +157,17 @@ const App = () => {
                             backgroundColor: '#FFC107',
                             color: '#333'
                         }}>
-                            <IconCrown size={14} />
+                            <IconCrown size={14}/>
                         </div>
                     ) : null,
                 enableColumnFilter: false,
-                meta: { align: 'center' }
+                meta: {align: 'center'}
             },
-            { 
-                accessorKey: 'Vyuctovani', 
-                header: 'Vyúč.', 
-                size: 50, 
-                filterVariant: 'select' 
+            {
+                accessorKey: 'Vyuctovani',
+                header: 'Vyúč.',
+                size: 50,
+                filterVariant: 'select'
             },
         ],
         []
@@ -198,41 +184,37 @@ const App = () => {
         enableFullScreenToggle: false,
         enableColumnResizing: false,
         layoutMode: 'semantic',
-        state: { isLoading: loading },
+        state: {isLoading: loading},
         localization: MRT_Localization_CS,
-        initialState: { 
-            columnVisibility: { 
-                Znackar: false, 
-                Trida_OTZ: false 
-            } 
-        },
-        muiTableProps: {
-            sx: {
-                border: 'none'
+        initialState: {
+            columnVisibility: {
+                Znackar: false,
+                Trida_OTZ: false
             }
         },
         muiTablePaperProps: {
-            sx: { 
-                boxShadow: 'none',
-                border: 'none'
-            },
-        },
-        muiTopToolbarProps: {
+            elevation: 0,
             sx: {
-                position: 'relative',
-            },
+                backgroundColor: 'transparent',
+                backgroundImage: 'none',
+                border: 'none'
+            }
         },
-        muiTableBodyRowProps: ({ row }) => {
+        muiTopToolbarProps: {sx: {backgroundColor: 'transparent'}},
+        muiBottomToolbarProps: {sx: {backgroundColor: 'transparent'}},
+        muiTableHeadRowProps: {sx: {backgroundColor: 'transparent'}},
+        muiTableBodyRowProps: ({row}) => {
             const isActive = isNezpracovany(row.original.Stav_ZP_Naz);
             return {
                 sx: {
                     cursor: 'pointer',
                     ...(isActive
                         ? {
-                            backgroundColor: '#E3F2FD',
+                            backgroundColor: 'rgba(37, 99, 235, 0.07)',
                             fontWeight: 600,
                         }
                         : {
+                            backgroundColor: 'transparent',
                             opacity: 0.7,
                         }),
                 },
@@ -240,7 +222,7 @@ const App = () => {
             };
         },
         renderTopToolbarCustomActions: () => (
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <div style={{display: 'flex', gap: '12px', alignItems: 'center'}}>
                 <select
                     size="sm"
                     style={{
@@ -262,7 +244,7 @@ const App = () => {
                         </option>
                     ))}
                 </select>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}>
+                <label style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px'}}>
                     <input
                         type="checkbox"
                         checked={showOnlyToProcess}
@@ -276,15 +258,15 @@ const App = () => {
 
     if (error) {
         return (
-            <div style={{ padding: '32px', backgroundColor: '#ffebee', borderRadius: '4px' }}>
-                <div style={{ color: '#c62828' }}>Chyba při načítání dat: {error}</div>
+            <div style={{padding: '32px', backgroundColor: '#ffebee', borderRadius: '4px'}}>
+                <div style={{color: '#c62828'}}>Chyba při načítání dat: {error}</div>
             </div>
         );
     }
 
     return (
         <ThemeProvider theme={theme}>
-            <MaterialReactTable table={table} />
+            <MaterialReactTable table={table}/>
         </ThemeProvider>
     );
 };

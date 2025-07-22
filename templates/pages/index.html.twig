@@ -5,7 +5,7 @@
 {% block body %}
     <div class="container container--md">
         <div class="page__header">
-            <h1 class="page__title">
+            <h1 class="page-title">
                 Vítejte v Portálu značkaře!
             </h1>
         </div>
@@ -40,7 +40,7 @@
                 {% include 'components/action-card.html.twig' with {
                     title: 'Moje příkazy',
                     description: 'Zobrazit a spravovat přidělené příkazy značení.',
-                    icon: '<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',
+                    icon: 'clipboard-list',
                     url: path('app_prikazy'),
                     button_text: 'Zobrazit příkazy'
                 } %}
@@ -48,7 +48,7 @@
                 {% include 'components/action-card.html.twig' with {
                     title: 'Nástěnka',
                     description: 'Přehled aktivit a důležitých informací.',
-                    icon: '<rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><path d="M9 9h6v6H9z"/>',
+                    icon: 'dashboard',
                     url: path('app_dashboard'),
                     button_text: 'Otevřít nástěnku'
                 } %}
@@ -56,7 +56,7 @@
                 {% include 'components/action-card.html.twig' with {
                     title: 'Metodika',
                     description: 'Pravidla a postupy pro značení tras.',
-                    icon: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',
+                    icon: 'book',
                     url: path('app_metodika'),
                     button_text: 'Zobrazit metodiku'
                 } %}

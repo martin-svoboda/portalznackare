@@ -6,7 +6,6 @@ import {
     IconBed,
     IconReceipt,
     IconArrowRight,
-    IconInfoCircle
 } from '@tabler/icons-react';
 
 export const CompensationSummary = ({ formData, compensation, priceList, compact = false, priceListLoading = false, priceListError = null }) => {
@@ -51,7 +50,6 @@ export const CompensationSummary = ({ formData, compensation, priceList, compact
     if (priceListLoading) {
         return (
             <div className="alert alert--info">
-                <IconInfoCircle size={16} className="mr-2" />
                 Načítání ceníku pro výpočet kompenzací...
             </div>
         );
@@ -61,7 +59,6 @@ export const CompensationSummary = ({ formData, compensation, priceList, compact
     if (priceListError) {
         return (
             <div className="alert alert--warning">
-                <IconInfoCircle size={16} className="mr-2" />
                 {priceListError}
             </div>
         );
@@ -71,7 +68,6 @@ export const CompensationSummary = ({ formData, compensation, priceList, compact
     if (!priceList) {
         return (
             <div className="alert alert--warning">
-                <IconInfoCircle size={16} className="mr-2" />
                 Ceník není k dispozici pro výpočet kompenzací.
             </div>
         );
@@ -86,7 +82,6 @@ export const CompensationSummary = ({ formData, compensation, priceList, compact
     if (!compensation) {
         return (
             <div className="alert alert--warning">
-                <IconInfoCircle size={16} className="mr-2" />
                 Kompenzace nejsou k dispozici.
             </div>
         );

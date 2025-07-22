@@ -1,54 +1,8 @@
-# Definice navigační struktury pro nápovědu
-# Pořadí sekcí je zachováno podle tohoto souboru
+# Navigace pro uživatelskou nápovědu (flat struktura)
+# Pouze skutečně existující stránky
 
-sections:
-  getting-started:
-    title: "Začínáme"
-    description: "První kroky s aplikací"
-    pages:
-      - first-login: "První přihlášení"
-      - dashboard: "Orientace v aplikaci"
-      - basic-workflow: "Základní pracovní postup"
-  
-  prikazy:
-    title: "Práce s příkazy"
-    description: "Správa a zpracování příkazů"
-    pages:
-      - viewing: "Prohlížení příkazů"
-      - filtering: "Filtrování a vyhledávání"
-      - detail: "Detail příkazu"
-      - printing: "Tisk a export"
-  
-  hlaseni:
-    title: "Hlášení práce"
-    description: "Vyplňování a odesílání hlášení"
-    pages:
-      - overview: "Přehled hlášení"
-      - part-a: "Část A - Základní údaje"
-      - part-b: "Část B - Výkaz práce"
-      - attachments: "Přikládání souborů"
-      - submission: "Odeslání hlášení"
-  
-  metodiky:
-    title: "Metodiky a dokumentace"
-    description: "Oficiální postupy a návody"
-    pages:
-      - browsing: "Procházení metodik"
-      - search: "Vyhledávání"
-      - downloads: "Stahování PDF"
-  
-  profil:
-    title: "Uživatelský profil"
-    description: "Nastavení účtu"
-    pages:
-      - settings: "Osobní údaje"
-      - password: "Změna hesla"
-      - preferences: "Nastavení aplikace"
-  
-  faq:
-    title: "Časté dotazy"
-    description: "Odpovědi na nejčastější otázky"
-    pages:
-      - common-issues: "Řešení problémů"
-      - browser-setup: "Nastavení prohlížeče"
-      - contact: "Kontakt na podporu"
+pages:
+  - first-login: "První přihlášení"
+  - metodika: "Metodika značení"
+  - prikazy: "Práce s příkazy"
+  - hlaseni: "Hlášení práce"

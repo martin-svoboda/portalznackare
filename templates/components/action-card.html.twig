@@ -4,7 +4,8 @@
   Parameters:
   - title: Card title (required)
   - description: Card description (optional)
-  - icon: SVG icon content (optional)
+  - icon: Tabler icon name (optional)
+  - icon_size: Icon size (default: 24)
   - url: Link URL (optional)
   - button_text: Button text (default: 'Zobrazit')
   - button_class: Button CSS class (default: 'btn btn--primary btn--full')
@@ -18,9 +19,7 @@
 
 <div class="{{ cardClass }}">
     {% if icon is defined and icon %}
-        <svg class="action-card__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            {{ icon|raw }}
-        </svg>
+        {{ tabler_icon(icon, icon_size|default(24), 'action-card__icon') }}
     {% endif %}
     
     <h3 class="action-card__title">{{ title }}</h3>

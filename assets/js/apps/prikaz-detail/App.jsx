@@ -6,7 +6,6 @@ import {
 } from 'material-react-table';
 import {MRT_Localization_CS} from 'material-react-table/locales/cs';
 import {
-    IconAlertTriangleFilled,
     IconPrinter,
     IconArrowLeft, IconMapShare, IconPlus
 } from '@tabler/icons-react';
@@ -15,6 +14,7 @@ import {PrikazUseky} from '../../components/prikazy/PrikazUseky';
 import {MapaTrasy} from '../../components/shared/MapaTrasy';
 import {Loader} from '../../components/shared/Loader';
 import {getPrikazDescription} from '../../utils/prikaz';
+import {renderHtmlContent, replaceTextWithIcons} from '../../utils/htmlUtils';
 
 // Utility functions from original app
 function groupByEvCiTIM(rows) {
@@ -78,41 +78,12 @@ function sortZnacky(items) {
     });
 }
 
-// Color mapping
-const barvaDleKodu = (kod) => {
-    switch (kod) {
-        case 'CE':
-            return 'red';
-        case 'MO':
-            return 'blue';
-        case 'ZE':
-            return 'green';
-        case 'ZL':
-            return 'yellow';
-        default:
-            return 'gray';
-    }
-};
+// Color mapping removed - using BEM badge classes directly
 
 // Format functions
 const formatKm = (km) => km ? parseFloat(km).toFixed(1) : '0';
 
-// Function to render HTML content safely from server data
-const renderHtmlContent = (htmlString) => {
-    if (!htmlString) return null;
-    return <span dangerouslySetInnerHTML={{__html: htmlString}}/>;
-};
-
-// Function to replace text with icons - now uses server-side processed HTML
-const replaceTextWithIcons = (text, size = 14) => {
-    if (!text) return '';
-    // If text contains HTML tags (from server processing), render as HTML
-    if (text.includes('<')) {
-        return renderHtmlContent(text);
-    }
-    // Otherwise return as plain text
-    return text;
-};
+// HTML utility functions now imported from shared utils
 
 // Validation functions from original
 function validateSingleItem(item) {
@@ -285,11 +256,6 @@ const App = () => {
         return sortZnacky(uniqueItems);
     }, [predmety, head?.Druh_ZP]);
 
-    const delka = useMemo(() => {
-        if (useky === undefined || head?.Druh_ZP !== "O" || !Array.isArray(useky) || useky.length === 0) return null;
-        return useky.reduce((sum, usek) => sum + Number(usek.Delka_ZU || 0), 0);
-    }, [useky, head?.Druh_ZP]);
-
     const mapPoints = useMemo(
         () =>
             groupedData
@@ -356,6 +322,7 @@ const App = () => {
         enableRowActions: false,
         enableTopToolbar: false,
         enableBottomToolbar: false,
+        layoutMode: 'semantic',
         state: {isLoading: loading},
         localization: MRT_Localization_CS,
         initialState: {
@@ -366,20 +333,21 @@ const App = () => {
                 Stav_TIM_Nazev: window.innerWidth > 768,
             }
         },
-        muiTableProps: {
+        muiTablePaperProps: {
+            elevation: 0,
             sx: {
+                backgroundColor: 'transparent',
+                backgroundImage: 'none',
                 border: 'none'
             }
         },
-        muiTablePaperProps: {
-            sx: {
-                boxShadow: 'none',
-                border: 'none'
-            },
-        },
+        muiTopToolbarProps: {sx: {backgroundColor: 'transparent'}},
+        muiBottomToolbarProps: {sx: {backgroundColor: 'transparent'}},
+        muiTableHeadRowProps: {sx: {backgroundColor: 'transparent'}},
+        muiTableBodyRowProps: {sx: {backgroundColor: 'transparent'}},
         renderDetailPanel: ({row}) => (
             <div>
-                <div className="text-sm text-gray-600 dark:text-gray-400 md:hidden">
+                <div className="text-sm opacity-75 md:hidden">
                     <div>Montáž: {row.original.NP}</div>
                     <div>Stav: {row.original.Stav_TIM_Nazev}</div>
                 </div>
@@ -394,20 +362,19 @@ const App = () => {
                                     <div>
                                         <div className="font-bold">{item.Druh_Predmetu_Naz}</div>
                                         {item.Smerovani && (
-                                            <div className="text-sm text-gray-600">
+                                            <div className="text-sm opacity-75">
                                                 {item.Smerovani === 'P' ? 'Pravá' : item.Smerovani === 'L' ? 'Levá' : item.Smerovani}
                                             </div>
                                         )}
                                         {item.Druh_Odbocky && (
-                                            <div className="text-sm text-gray-600">{item.Druh_Odbocky}</div>
+                                            <div className="text-sm opacity-75">{item.Druh_Odbocky}</div>
                                         )}
                                     </div>
                                     <div className="flex items-center gap-2">
                                         {item.Barva && (
                                             <>
                                                 {item.Znacka_HTML && renderHtmlContent(item.Znacka_HTML)}
-                                                <span
-                                                    className={`px-2 py-1 rounded text-xs font-medium bg-${barvaDleKodu(item.Barva_Kod)}-100 text-${barvaDleKodu(item.Barva_Kod)}-800`}>
+                                                <span className={`badge badge--kct-${item.Barva_Kod.toLowerCase()}`}>
                                                 {item.Barva}
                                             </span>
                                             </>
@@ -415,21 +382,21 @@ const App = () => {
                                     </div>
                                     <div>
                                         <div
-                                            className="text-sm text-gray-600">{item.Druh_Presunu} {item.Druh_Znaceni}</div>
+                                            className="text-sm opacity-75">{item.Druh_Presunu} {item.Druh_Znaceni}</div>
                                         <div className="text-sm">Ev. č.: {item.EvCi_TIM + item.Predmet_Index}</div>
                                     </div>
                                     {itemErrors.length > 0 && (
-                                        <div
-                                            className="w-full bg-red-50 border border-red-200 rounded p-3 text-red-700">
-                                            <div className="flex items-center mb-2">
-                                                <IconAlertTriangleFilled size={16} className="mr-2"/>
-                                                <span className="font-medium">Chyby validace:</span>
+                                        <div className="alert alert--danger">
+                                            <div className="alert__content">
+                                                <div className="alert__body">
+                                                    <div className="alert__title">Chyby validace:</div>
+                                                    <ul className="list-disc list-inside space-y-1">
+                                                        {itemErrors.map((error, index) => (
+                                                            <li key={index} className="text-sm">{error}</li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
                                             </div>
-                                            <ul className="list-disc list-inside space-y-1">
-                                                {itemErrors.map((error, index) => (
-                                                    <li key={index} className="text-sm">{error}</li>
-                                                ))}
-                                            </ul>
                                         </div>
                                     )}
                                 </div>
@@ -454,9 +421,13 @@ const App = () => {
     if (error) {
         return (
             <ThemeProvider theme={theme}>
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
-                    <div className="font-medium">Chyba při načítání dat</div>
-                    <div className="text-sm">{error}</div>
+                <div className="alert alert--danger">
+                    <div className="alert__content">
+                        <div className="alert__body">
+                            <div className="alert__title">Chyba při načítání dat</div>
+                            <div className="alert__message">{error}</div>
+                        </div>
+                    </div>
                 </div>
             </ThemeProvider>
         );
@@ -471,7 +442,7 @@ const App = () => {
                         {loading ? (
                             <Loader/>
                         ) : (
-                            <PrikazHead head={head} delka={delka}/>
+                            <PrikazHead head={head}/>
                         )}
                     </div>
                 </div>
@@ -503,9 +474,13 @@ const App = () => {
                     <div className="card__content">
                         {head && head.Stav_ZP_Naz && isNezpracovany(head.Stav_ZP_Naz) && (
                             <div className="space-y-4">
-                                <div className="bg-blue-50 border border-blue-200 rounded p-3 text-blue-700">
-                                    <div className="font-medium">Příkaz čeká na zpracování</div>
-                                    <div className="text-sm">Pro dokončení příkazu použijte hlášení práce.</div>
+                                <div className="alert alert--info">
+                                    <div className="alert__content">
+                                        <div className="alert__body">
+                                            <div className="alert__title">Příkaz čeká na zpracování</div>
+                                            <div className="alert__message">Pro dokončení příkazu použijte hlášení práce.</div>
+                                        </div>
+                                    </div>
                                 </div>
                                 <div className="flex gap-2">
                                     <button className="btn btn--secondary">
@@ -525,12 +500,13 @@ const App = () => {
                     </div>
                     <div className="card__content">
                         {specialAlert ? (
-                            <div className="bg-red-50 border border-red-200 rounded p-4 text-red-700">
-                                <div className="flex items-center mb-2">
-                                    <IconAlertTriangleFilled size={16} className="mr-2"/>
-                                    <span className="font-medium">{specialAlert.title}</span>
+                            <div className="alert alert--danger">
+                                <div className="alert__content">
+                                    <div className="alert__body">
+                                        <div className="alert__title">{specialAlert.title}</div>
+                                        <div className="alert__message">{specialAlert.message}</div>
+                                    </div>
                                 </div>
-                                <div>{specialAlert.message}</div>
                             </div>
                         ) : (
                             <MaterialReactTable table={table}/>

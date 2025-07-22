@@ -7,7 +7,6 @@ import {
     IconBus,
     IconWalk,
     IconBike,
-    IconInfoCircle,
     IconMapPin,
     IconArrowUp,
     IconArrowDown
@@ -890,7 +889,6 @@ export const PartAForm = ({ formData, setFormData, priceList, head, prikazId, fi
             {/* Display higher KM rate info if set for this order */}
             {formData.higherKmRate && formData.travelSegments.some(s => s.transportType === "AUV" || s.transportType === "AUV-Z") && (
                 <div className="alert alert--info">
-                    <IconInfoCircle size={16} className="mr-2" />
                     Pro tento příkaz je nastavena vyšší sazba za km (náročnější terén)
                 </div>
             )}

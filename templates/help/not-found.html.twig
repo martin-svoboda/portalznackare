@@ -1,6 +1,6 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}{{ pageTitle|default(sectionTitle|default('Stránka nenalezena')) }} - Nápověda{% endblock %}
+{% block title %}{{ pageTitle|default('Stránka nenalezena') }} - Nápověda{% endblock %}
 
 {% block body %}
 <div class="section">
@@ -11,33 +11,21 @@
                 <div class="card">
                     <div class="card__header">
                         <h2 class="card__title">
-                            <a href="{{ path('help_index') }}" class="text-inherit no-underline">📚 Nápověda</a>
+                            <a href="{{ path('help_index') }}" class="text-inherit no-underline">Nápověda</a>
                         </h2>
                     </div>
                     <div class="card__content p-0">
                         <nav class="nav nav--vertical">
-                            {% for section in navigation %}
-                                <div class="nav__section">
-                                    <a href="{{ section.url }}" 
-                                       class="nav__section-title {% if currentSection == section.name %}nav__section-title--active{% endif %}">
-                                        <span class="nav__icon">{{ section.icon }}</span>
-                                        {{ section.title }}
-                                    </a>
-                                    
-                                    {% if section.pages and currentSection == section.name %}
-                                        <ul class="nav__list">
-                                            {% for page in section.pages %}
-                                                <li class="nav__item">
-                                                    <a href="{{ page.url }}" 
-                                                       class="nav__link {% if currentPage is defined and currentPage == page.name %}nav__link--active{% endif %}">
-                                                        {{ page.title }}
-                                                    </a>
-                                                </li>
-                                            {% endfor %}
-                                        </ul>
-                                    {% endif %}
-                                </div>
-                            {% endfor %}
+                            <ul class="nav__list">
+                                {% for page in navigation %}
+                                    <li class="nav__item">
+                                        <a href="{{ page.url }}" 
+                                           class="nav__link {% if currentPage is defined and currentPage == page.name %}nav__link--active{% endif %}">
+                                            {{ page.title }}
+                                        </a>
+                                    </li>
+                                {% endfor %}
+                            </ul>
                         </nav>
                     </div>
                 </div>
@@ -50,25 +38,17 @@
                         {# Breadcrumb navigace #}
                         <nav class="breadcrumb">
                             <a href="{{ path('help_index') }}" class="breadcrumb__link">Nápověda</a>
-                            {% if currentSection is defined %}
+                            {% if pageTitle is defined %}
                                 <span class="breadcrumb__separator">›</span>
-                                {% if currentPage is defined %}
-                                    <a href="{{ path('help_section', {section: currentSection}) }}" class="breadcrumb__link">
-                                        {{ sectionTitle }}
-                                    </a>
-                                    <span class="breadcrumb__separator">›</span>
-                                    <span class="breadcrumb__current">{{ pageTitle|default('Stránka') }}</span>
-                                {% else %}
-                                    <span class="breadcrumb__current">{{ sectionTitle }}</span>
-                                {% endif %}
+                                <span class="breadcrumb__current">{{ pageTitle }}</span>
                             {% endif %}
                         </nav>
                         
-                        <h1 class="page-title">{{ pageTitle|default(sectionTitle|default('Připravujeme')) }}</h1>
+                        <h1 class="page-title">{{ pageTitle|default('Připravujeme') }}</h1>
                     </div>
                     <div class="card__content">
                         <div class="content text-center py-12">
-                            <div class="text-6xl mb-6">🚧</div>
+                            <div class="text-6xl mb-6">404</div>
                             
                             <p class="text-lg text--muted mb-6">
                                 {{ message|default('Tato stránka ještě není k dispozici.') }}
@@ -97,20 +77,11 @@
                         <h3 class="card__title">Možná hledáte</h3>
                     </div>
                     <div class="card__content">
-                        <div class="grid grid-cols-2 gap-4">
-                            {% for section in navigation|slice(0, 4) %}
-                                {% if section.pages %}
-                                    <div>
-                                        <h4 class="font-medium mb-2">{{ section.icon }} {{ section.title }}</h4>
-                                        <ul class="list list--links text-sm">
-                                            {% for page in section.pages|slice(0, 3) %}
-                                                <li><a href="{{ page.url }}">{{ page.title }}</a></li>
-                                            {% endfor %}
-                                        </ul>
-                                    </div>
-                                {% endif %}
+                        <ul class="list list--links">
+                            {% for page in navigation|slice(0, 4) %}
+                                <li><a href="{{ page.url }}">{{ page.title }}</a></li>
                             {% endfor %}
-                        </div>
+                        </ul>
                     </div>
                 </div>
                 {% endif %}
