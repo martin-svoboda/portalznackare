@@ -1,20 +1,24 @@
-import React, {useEffect, useState, useMemo} from 'react';
-import {createTheme, ThemeProvider} from '@mui/material/styles';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import { createTheme, ThemeProvider } from '@mui/material/styles';
 import {
     MaterialReactTable,
     useMaterialReactTable,
 } from 'material-react-table';
-import {MRT_Localization_CS} from 'material-react-table/locales/cs';
+import { MRT_Localization_CS } from 'material-react-table/locales/cs';
 import {
     IconPrinter,
-    IconArrowLeft, IconMapShare, IconPlus
+    IconArrowLeft,
+    IconMapShare,
+    IconPlus
 } from '@tabler/icons-react';
-import {PrikazHead} from '../../components/prikazy/PrikazHead';
-import {PrikazUseky} from '../../components/prikazy/PrikazUseky';
-import {MapaTrasy} from '../../components/shared/MapaTrasy';
-import {Loader} from '../../components/shared/Loader';
-import {getPrikazDescription} from '../../utils/prikaz';
-import {renderHtmlContent, replaceTextWithIcons} from '../../utils/htmlUtils';
+import { PrikazHead } from '../../components/prikazy/PrikazHead';
+import { PrikazUseky } from '../../components/prikazy/PrikazUseky';
+import { MapaTrasy } from '../../components/shared/MapaTrasy';
+import { Loader } from '../../components/shared/Loader';
+import { getPrikazDescription } from '../../utils/prikaz';
+import { renderHtmlContent, replaceTextWithIcons } from '../../utils/htmlUtils';
+import { api } from '../../utils/api';
+import { log } from '../../utils/debug';
 
 // Utility functions from original app
 function groupByEvCiTIM(rows) {
@@ -124,11 +128,17 @@ const App = () => {
     // Get prikaz ID from data attribute
     const container = document.querySelector('[data-app="prikaz-detail"]');
     const prikazId = container?.dataset?.prikazId;
+    const currentUser = {
+        intAdr: parseInt(container?.dataset?.userIntAdr || '0'),
+        name: container?.dataset?.userName || ''
+    };
 
     const [head, setHead] = useState(null);
     const [predmety, setPredmety] = useState([]);
     const [useky, setUseky] = useState([]);
+    const [reports, setReports] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [reportsLoading, setReportsLoading] = useState(false);
     const [error, setError] = useState(null);
 
     // Detect dark mode
@@ -156,7 +166,7 @@ const App = () => {
         },
     });
 
-    const fetchPrikazData = async () => {
+    const loadPrikazData = useCallback(async () => {
         if (!prikazId) {
             setError('ID příkazu nebylo nalezeno');
             setLoading(false);
@@ -166,45 +176,117 @@ const App = () => {
         setLoading(true);
         setError(null);
         try {
-            const response = await fetch(`/api/insys/prikaz/${prikazId}`, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                credentials: 'same-origin'
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const result = await response.json();
+            const result = await api.prikazy.detail(prikazId);
             setHead(result.head || {});
             setPredmety(result.predmety || []);
             setUseky(result.useky || []);
-        } catch (err) {
-            setError(err.message);
-            console.error('Error fetching prikaz data:', err);
+            log.info(`Načten detail příkazu ${prikazId}`);
+        } catch (error) {
+            setError(error.message);
+            log.error('Chyba při načítání detailu příkazu', error);
         } finally {
             setLoading(false);
         }
-    };
+    }, [prikazId]);
+
+    // Kontrola vedoucího týmu podle hlavičky
+    const isLeader = useMemo(() => {
+        if (!currentUser.intAdr || !head) return false;
+        return [1, 2, 3].some(i =>
+            head[`INT_ADR_${i}`] === currentUser.intAdr && head[`Je_Vedouci${i}`] === "1"
+        );
+    }, [currentUser.intAdr, head]);
+
+    // Extrakce členů týmu z hlavičky
+    const teamMembers = useMemo(() => {
+        if (!head) return [];
+        const members = [];
+        for (let i = 1; i <= 3; i++) {
+            const intAdr = head[`INT_ADR_${i}`];
+            if (intAdr) {
+                members.push({
+                    intAdr,
+                    isLeader: head[`Je_Vedouci${i}`] === "1",
+                    name: head[`Jmeno_${i}`] || `Člen ${i}`
+                });
+            }
+        }
+        return members;
+    }, [head]);
+
+    const loadReports = useCallback(async () => {
+        if (!prikazId || !currentUser.intAdr) return;
+        
+        setReportsLoading(true);
+        const loadedReports = [];
+        
+        try {
+            // Vždy načíst vlastní hlášení
+            try {
+                const ownReport = await api.prikazy.report(prikazId, currentUser.intAdr);
+                if (ownReport && ownReport.data) {
+                    loadedReports.push({
+                        ...ownReport.data,
+                        jmeno: currentUser.name
+                    });
+                }
+            } catch (error) {
+                // Vlastní hlášení neexistuje, to je v pořádku
+                log.info('Vlastní hlášení neexistuje');
+            }
+            
+            // Pokud je vedoucí a tým má více členů, načíst ostatní
+            if (isLeader && teamMembers.length > 1) {
+                for (const member of teamMembers) {
+                    if (member.intAdr !== currentUser.intAdr) {
+                        try {
+                            const memberReport = await api.prikazy.report(prikazId, member.intAdr);
+                            if (memberReport && memberReport.data) {
+                                loadedReports.push({
+                                    ...memberReport.data,
+                                    jmeno: member.name
+                                });
+                            }
+                        } catch (error) {
+                            // Hlášení člena neexistuje, to je v pořádku
+                            log.info(`Hlášení pro ${member.name} neexistuje`);
+                        }
+                    }
+                }
+            }
+            
+            setReports(loadedReports);
+            log.info(`Načteno ${loadedReports.length} hlášení práce`);
+        } catch (error) {
+            log.error('Chyba při načítání hlášení práce', error);
+            setReports([]);
+        } finally {
+            setReportsLoading(false);
+        }
+    }, [prikazId, currentUser.intAdr, currentUser.name, isLeader, teamMembers]);
 
     useEffect(() => {
-        fetchPrikazData();
-    }, [prikazId]);
+        loadPrikazData();
+    }, [loadPrikazData]);
+    
+    // Načíst hlášení až po načtení hlavičky (potřebujeme data o týmu)
+    useEffect(() => {
+        if (head) {
+            loadReports();
+        }
+    }, [head, loadReports]);
 
     // Aktualizace prvků v Twig šabloně
     useEffect(() => {
-        // Aktualizuj číslo příkazu
+        if (!head) return;
+        
         const prikazIdElement = document.querySelector('.page__header .prikaz-id');
         if (prikazIdElement) {
-            prikazIdElement.textContent = head?.Cislo_ZP || prikazId || '';
+            prikazIdElement.textContent = head.Cislo_ZP || prikazId || '';
         }
 
-        // Aktualizuj popis příkazu
         const prikazDescElement = document.querySelector('.page__header .prikaz-description');
-        if (prikazDescElement && head?.Druh_ZP) {
+        if (prikazDescElement && head.Druh_ZP) {
             prikazDescElement.textContent = getPrikazDescription(head.Druh_ZP);
         }
     }, [head, prikazId]);
@@ -309,6 +391,55 @@ const App = () => {
         []
     );
 
+    const reportsColumns = useMemo(
+        () => [
+            {
+                accessorKey: 'cislo_zp',
+                header: 'Číslo ZP',
+                size: 100,
+            },
+            {
+                accessorKey: 'jmeno',
+                header: 'Značkař',
+                size: 150,
+            },
+            {
+                accessorKey: 'state',
+                header: 'Stav',
+                size: 100,
+                Cell: ({ cell }) => {
+                    const value = cell.getValue();
+                    return (
+                        <span className={`badge ${
+                            value === 'send' ? 'badge--success' : 'badge--warning'
+                        }`}>
+                            {value === 'send' ? 'Odesláno' : 'Koncept'}
+                        </span>
+                    );
+                },
+            },
+            {
+                accessorKey: 'date_created',
+                header: 'Vytvořeno',
+                size: 120,
+                Cell: ({ cell }) => {
+                    const date = new Date(cell.getValue());
+                    return date.toLocaleDateString('cs-CZ');
+                },
+            },
+            {
+                accessorKey: 'date_send',
+                header: 'Odesláno',
+                size: 120,
+                Cell: ({ cell }) => {
+                    const date = cell.getValue();
+                    return date ? new Date(date).toLocaleDateString('cs-CZ') : '-';
+                },
+            },
+        ],
+        []
+    );
+
     const table = useMaterialReactTable({
         columns,
         data: groupedData,
@@ -408,6 +539,39 @@ const App = () => {
         ),
     });
 
+    const reportsTable = useMaterialReactTable({
+        columns: reportsColumns,
+        data: reports,
+        enableFacetedValues: true,
+        enableColumnFilters: false,
+        enableColumnActions: false,
+        enableColumnOrdering: false,
+        enableColumnResizing: false,
+        enablePagination: false,
+        enableSorting: false,
+        enableRowActions: false,
+        enableTopToolbar: false,
+        enableBottomToolbar: false,
+        layoutMode: 'semantic',
+        state: { isLoading: reportsLoading },
+        localization: MRT_Localization_CS,
+        initialState: {
+            density: 'compact',
+        },
+        muiTablePaperProps: {
+            elevation: 0,
+            sx: {
+                backgroundColor: 'transparent',
+                backgroundImage: 'none',
+                border: 'none'
+            }
+        },
+        muiTopToolbarProps: { sx: { backgroundColor: 'transparent' } },
+        muiBottomToolbarProps: { sx: { backgroundColor: 'transparent' } },
+        muiTableHeadRowProps: { sx: { backgroundColor: 'transparent' } },
+        muiTableBodyRowProps: { sx: { backgroundColor: 'transparent' } },
+    });
+
     if (loading) {
         return (
             <ThemeProvider theme={theme}>
@@ -450,7 +614,7 @@ const App = () => {
                 {/* Úseky tras */}
                 {(useky.length > 0 || soubeh.length > 1) && (
                     <div className="card">
-                        <div className="card__header card__header--no-border">
+                        <div className="card__header ">
                             <h3 className="card__title">Úseky tras k obnově</h3>
                         </div>
                         <div className="card__content">
@@ -461,7 +625,7 @@ const App = () => {
 
                 {/* Provedení příkazu */}
                 <div className="card">
-                    <div className="card__header card__header--no-border">
+                    <div className="card__header ">
                         <div className="flex justify-between items-center">
                             <h3 className="card__title">Provedení příkazu</h3>
                             {head && head.Stav_ZP_Naz && isNezpracovany(head.Stav_ZP_Naz) && (
@@ -493,9 +657,38 @@ const App = () => {
                     </div>
                 </div>
 
+                {/* Hlášení práce */}
+                {(reports.length > 0 || reportsLoading) && (
+                    <div className="card">
+                        <div className="card__header ">
+                            <div className="flex justify-between items-center">
+                                <h3 className="card__title">Hlášení práce</h3>
+                                {isLeader && teamMembers.length > 1 && (
+                                    <span className="text-sm text-gray-600">
+                                        Zobrazeno: {reports.length} z {teamMembers.length} členů týmu
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+                        <div className="card__content">
+                            {reportsLoading ? (
+                                <div className="text-center py-4">
+                                    <div className="text-sm text-gray-600">Načítání hlášení...</div>
+                                </div>
+                            ) : reports.length > 0 ? (
+                                <MaterialReactTable table={reportsTable}/>
+                            ) : (
+                                <div className="text-center py-4">
+                                    <div className="text-sm text-gray-600">Zatím nejsou k dispozici žádná hlášení práce</div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
                 {/* Informační místa na trase */}
                 <div className="card">
-                    <div className="card__header card__header--no-border">
+                    <div className="card__header ">
                         <h3 className="card__title">Informační místa na trase</h3>
                     </div>
                     <div className="card__content">

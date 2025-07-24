@@ -36,10 +36,10 @@
 
   // Card části
   &__header {
-    @apply pb-3 mb-5 border-b border-gray-200 dark:border-gray-700;
+    @apply mb-3;
 
-    &--no-border {
-      @apply border-b-0 pb-0 mb-3;
+    &--border {
+      @apply border-b border-gray-200 dark:border-gray-700 pb-3 mb-5;
     }
   }
 
@@ -56,10 +56,10 @@
   }
 
   &__footer {
-    @apply pt-3 mt-5 border-t border-gray-200 dark:border-gray-700;
+    @apply mt-3;
 
-    &--no-border {
-      @apply border-t-0 pt-0;
+    &--border {
+      @apply border-t border-gray-200 dark:border-gray-700 pt-3 mt-5;
     }
   }
 

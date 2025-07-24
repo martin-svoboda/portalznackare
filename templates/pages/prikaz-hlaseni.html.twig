@@ -45,11 +45,38 @@
         {% else %}
             <div data-app="hlaseni-prikazu" 
                  data-prikaz-id="{{ id }}"
-                 data-user="{{ app.user ? {INT_ADR: app.user.intAdr, name: app.user.fullName}|json_encode|e('html_attr') : '{}' }}">
+                 data-user="{{ app.user ? {INT_ADR: app.user.intAdr, name: app.user.fullName}|json_encode|e('html_attr') : '{}' }}"
+                 data-debug="{{ app.request.server.get('DEBUG_APPS') == 'true' ? 'true' : 'false' }}">
                 <div class="card">
                     {% include 'components/loader.html.twig' %}
                 </div>
             </div>
+            
+            <script>
+                // Debug renderování šablony
+                if (window.debugTwig) {
+                    window.debugTwig.render('StránkaHlašeníPříkazu', 'pages/prikaz-hlaseni.html.twig', {
+                        uživatel: '{{ app.user ? app.user.jmeno : 'anonymní' }}',
+                        cesta: '{{ app.request.attributes.get('_route') }}',
+                        idPříkazu: '{{ id }}',
+                        připojovací_bod: '[data-app="hlaseni-prikazu"]',
+                        uživatelskáData: '{{ app.user ? {INT_ADR: app.user.intAdr, name: app.user.fullName}|json_encode : '{}' }}'
+                    });
+                    
+                    // Debug React aplikace připojovací bod
+                    document.addEventListener('DOMContentLoaded', function() {
+                        const mountElement = document.querySelector('[data-app="hlaseni-prikazu"]');
+                        if (mountElement && window.debugTwig) {
+                            window.debugTwig.mount('hlaseni-prikazu', '[data-app="hlaseni-prikazu"]', {
+                                elementExistuje: !!mountElement,
+                                máObsah: mountElement.innerHTML.trim() !== '',
+                                idPříkazu: mountElement.dataset.prikazId,
+                                máUživatelskáData: !!mountElement.dataset.user
+                            });
+                        }
+                    });
+                }
+            </script>
         {% endif %}
     </div>
 {% endblock %}

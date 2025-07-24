@@ -36,10 +36,32 @@
             } %}
         {% else %}
             <div class="card">
-                <div data-app="prikazy">
+                <div data-app="prikazy" data-debug="{{ app.request.server.get('DEBUG_APPS') == 'true' ? 'true' : 'false' }}">
                     {% include 'components/loader.html.twig' %}
                 </div>
             </div>
+            
+            <script>
+                // Debug renderování šablony
+                if (window.debugTwig) {
+                    window.debugTwig.render('StránkaPříkazů', 'pages/prikazy.html.twig', {
+                        uživatel: '{{ app.user ? app.user.jmeno : 'anonymní' }}',
+                        cesta: '{{ app.request.attributes.get('_route') }}',
+                        připojovací_bod: '[data-app="prikazy"]'
+                    });
+                    
+                    // Debug React aplikace připojovací bod
+                    document.addEventListener('DOMContentLoaded', function() {
+                        const mountElement = document.querySelector('[data-app="prikazy"]');
+                        if (mountElement && window.debugTwig) {
+                            window.debugTwig.mount('prikazy', '[data-app="prikazy"]', {
+                                elementExistuje: !!mountElement,
+                                máObsah: mountElement.innerHTML.trim() !== ''
+                            });
+                        }
+                    });
+                }
+            </script>
         {% endif %}
     </div>
 {% endblock %}

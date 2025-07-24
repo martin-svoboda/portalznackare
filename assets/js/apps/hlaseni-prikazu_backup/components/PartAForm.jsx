@@ -11,8 +11,6 @@ import {
     IconArrowUp,
     IconArrowDown
 } from '@tabler/icons-react';
-import { BasicInfoForm } from './BasicInfoForm';
-import { PaymentRedirectsForm } from './PaymentRedirectsForm';
 import { AdvancedFileUpload } from './AdvancedFileUpload';
 
 const transportTypeOptions = [
@@ -22,11 +20,6 @@ const transportTypeOptions = [
     { value: "pěšky", label: "Pěšky", icon: IconWalk },
     { value: "kolo", label: "Kolo", icon: IconBike },
 ];
-
-const getTransportIcon = (transportType) => {
-    const option = transportTypeOptions.find(opt => opt.value === transportType);
-    return option?.icon || IconCar;
-};
 
 const createEmptyTravelSegment = () => ({
     id: crypto.randomUUID(),
@@ -41,23 +34,26 @@ const createEmptyTravelSegment = () => ({
     attachments: []
 });
 
-export const PartAForm = ({ 
-    formData, 
-    setFormData, 
-    priceList, 
-    head, 
-    prikazId, 
-    fileUploadService,
-    currentUser, 
-    teamMembers = [],
-    isLeader = false, 
-    canEditOthers = false,
-    canEdit = true,
-    disabled = false 
-}) => {
-    // Team members - use prop if provided, otherwise calculate from head data (original logic)
-    const computedTeamMembers = useMemo(() => {
-        if (teamMembers.length > 0) return teamMembers;
+export const PartAForm = ({ formData, setFormData, priceList, head, prikazId, fileUploadService, currentUser, isLeader, canEdit = true }) => {
+    // Generate storage path for this report
+    const generateStoragePath = () => {
+        if (!prikazId) return null;
+        
+        // Validate and sanitize path components
+        const year = formData.executionDate ? formData.executionDate.getFullYear() : new Date().getFullYear();
+        const kkz = head?.KKZ?.toString().trim() || 'unknown';
+        const obvod = head?.ZO?.toString().trim() || 'unknown';
+        const sanitizedPrikazId = prikazId?.toString().trim() || 'unknown';
+        
+        // Validate year is reasonable
+        const validYear = (year >= 2020 && year <= 2030) ? year : new Date().getFullYear();
+        
+        return `reports/${validYear}/${kkz}/${obvod}/${sanitizedPrikazId}`;
+    };
+    
+    const storagePath = generateStoragePath();
+
+    const teamMembers = useMemo(() => {
         if (!head) return [];
         return [1, 2, 3]
             .map(i => ({
@@ -67,34 +63,32 @@ export const PartAForm = ({
                 isLeader: head[`Je_Vedouci${i}`] === "1"
             }))
             .filter(member => member.name?.trim());
-    }, [teamMembers, head]);
+    }, [head]);
 
-    // Generate storage path for this report
-    const storagePath = useMemo(() => {
-        if (!prikazId) return null;
+    const sanitizeAttachments = (attachments) => {
+        if (!Array.isArray(attachments)) {
+            return [];
+        }
         
-        const year = formData.executionDate ? formData.executionDate.getFullYear() : new Date().getFullYear();
-        const kkz = head?.KKZ?.toString().trim() || 'unknown';
-        const obvod = head?.ZO?.toString().trim() || 'unknown';
-        const sanitizedPrikazId = prikazId?.toString().trim() || 'unknown';
-        
-        const validYear = (year >= 2020 && year <= 2030) ? year : new Date().getFullYear();
-        
-        return `reports/${validYear}/${kkz}/${obvod}/${sanitizedPrikazId}`;
-    }, [prikazId, formData.executionDate, head]);
-
-    // Helper functions for date formatting (from original)
-    const formatDate = (date) => {
-        if (!date) return '';
-        return date.toISOString().split('T')[0];
+        return attachments.map((att, index) => {
+            if (!att || typeof att !== 'object') {
+                return null;
+            }
+            
+            return {
+                id: String(att.id || ''),
+                fileName: String(att.fileName || ''),
+                fileSize: Number(att.fileSize) || 0,
+                fileType: String(att.fileType || ''),
+                uploadedAt: att.uploadedAt instanceof Date ? att.uploadedAt : new Date(),
+                uploadedBy: String(att.uploadedBy || ''),
+                url: String(att.url || ''),
+                thumbnailUrl: att.thumbnailUrl ? String(att.thumbnailUrl) : undefined,
+                rotation: Number(att.rotation) || 0
+            };
+        }).filter(att => att !== null);
     };
 
-    const parseDate = (dateString) => {
-        if (!dateString) return new Date();
-        return new Date(dateString);
-    };
-
-    // Travel segment functions (from original)
     const addTravelSegment = () => {
         const lastSegment = formData.travelSegments[formData.travelSegments.length - 1];
         const newSegment = {
@@ -103,7 +97,7 @@ export const PartAForm = ({
             startTime: "08:00",
             startPlace: lastSegment?.endPlace || "",
         };
-        
+
         setFormData(prev => ({
             ...prev,
             travelSegments: [...prev.travelSegments, newSegment]
@@ -111,11 +105,36 @@ export const PartAForm = ({
     };
 
     const updateSegmentField = (segmentId, updates) => {
+        if (updates.attachments) {
+            updates = { ...updates, attachments: sanitizeAttachments(updates.attachments) };
+        }
+        
         setFormData(prev => ({
             ...prev,
             travelSegments: prev.travelSegments.map(segment =>
-                segment.id === segmentId ? { ...segment, ...updates } : segment
+                segment.id === segmentId
+                    ? { ...segment, ...updates }
+                    : segment
             )
+        }));
+    };
+
+    const duplicateSegment = (segmentId) => {
+        const segment = formData.travelSegments.find(s => s.id === segmentId);
+        if (!segment) return;
+
+        const newSegment = {
+            ...segment,
+            id: crypto.randomUUID(),
+            startPlace: segment.endPlace,
+            endPlace: segment.startPlace,
+            startTime: "",
+            endTime: ""
+        };
+
+        setFormData(prev => ({
+            ...prev,
+            travelSegments: [...prev.travelSegments, newSegment]
         }));
     };
 
@@ -123,22 +142,6 @@ export const PartAForm = ({
         setFormData(prev => ({
             ...prev,
             travelSegments: prev.travelSegments.filter(segment => segment.id !== segmentId)
-        }));
-    };
-
-    const duplicateSegment = (segmentId) => {
-        const segmentToDuplicate = formData.travelSegments.find(s => s.id === segmentId);
-        if (!segmentToDuplicate) return;
-
-        const newSegment = {
-            ...segmentToDuplicate,
-            id: crypto.randomUUID(),
-            attachments: [] // Don't duplicate attachments
-        };
-
-        setFormData(prev => ({
-            ...prev,
-            travelSegments: [...prev.travelSegments, newSegment]
         }));
     };
 
@@ -162,7 +165,6 @@ export const PartAForm = ({
         }
     };
 
-    // Accommodation functions (from original)
     const addAccommodation = () => {
         const newAccommodation = {
             id: crypto.randomUUID(),
@@ -170,7 +172,7 @@ export const PartAForm = ({
             facility: "",
             date: formData.executionDate,
             amount: 0,
-            paidByMember: computedTeamMembers[0]?.int_adr || "",
+            paidByMember: teamMembers[0]?.int_adr || "",
             attachments: []
         };
 
@@ -181,6 +183,10 @@ export const PartAForm = ({
     };
 
     const updateAccommodation = (accommodationId, updates) => {
+        if (updates.attachments) {
+            updates = { ...updates, attachments: sanitizeAttachments(updates.attachments) };
+        }
+        
         setFormData(prev => ({
             ...prev,
             accommodations: prev.accommodations.map(acc =>
@@ -196,13 +202,13 @@ export const PartAForm = ({
         }));
     };
 
-    // Expense functions (from original)
-    const addExpense = () => {
+    const addAdditionalExpense = () => {
         const newExpense = {
             id: crypto.randomUUID(),
             description: "",
+            date: formData.executionDate,
             amount: 0,
-            paidByMember: computedTeamMembers[0]?.int_adr || "",
+            paidByMember: teamMembers[0]?.int_adr || "",
             attachments: []
         };
 
@@ -213,6 +219,10 @@ export const PartAForm = ({
     };
 
     const updateExpense = (expenseId, updates) => {
+        if (updates.attachments) {
+            updates = { ...updates, attachments: sanitizeAttachments(updates.attachments) };
+        }
+        
         setFormData(prev => ({
             ...prev,
             additionalExpenses: prev.additionalExpenses.map(exp =>
@@ -228,48 +238,94 @@ export const PartAForm = ({
         }));
     };
 
-    // Handler functions for basic info
-    const handleExecutionDateChange = (date) => {
-        setFormData(prev => ({ ...prev, executionDate: date }));
+    const getTransportIcon = (type) => {
+        const option = transportTypeOptions.find(opt => opt.value === type);
+        return option ? option.icon : IconCar;
     };
 
-    const handlePrimaryDriverChange = (driver) => {
-        setFormData(prev => ({ ...prev, primaryDriver: driver }));
+    const formatDate = (date) => {
+        if (!date) return '';
+        return date.toISOString().split('T')[0];
     };
 
-    const handleVehicleRegistrationChange = (registration) => {
-        setFormData(prev => ({ ...prev, vehicleRegistration: registration }));
+    const parseDate = (dateString) => {
+        if (!dateString) return new Date();
+        return new Date(dateString);
     };
 
-    // Handler functions for payment redirects
-    const handlePaymentRedirectsChange = (paymentRedirects) => {
-        setFormData(prev => ({ ...prev, paymentRedirects }));
+    // Check if form is valid for Part A completion
+    const isPartAComplete = () => {
+        const hasValidSegments = formData.travelSegments.length > 0 && 
+            formData.travelSegments.every(segment => 
+                segment.startPlace && segment.endPlace && segment.startTime && segment.endTime
+            );
+        
+        const hasDriverInfo = !formData.travelSegments.some(s => 
+            s.transportType === "AUV" || s.transportType === "AUV-Z"
+        ) || (formData.primaryDriver && formData.vehicleRegistration);
+        
+        return hasValidSegments && hasDriverInfo;
     };
 
-    const isFormDisabled = !canEdit || disabled || formData.status === 'submitted';
+    // Update partACompleted status
+    React.useEffect(() => {
+        const isComplete = isPartAComplete();
+        if (formData.partACompleted !== isComplete) {
+            setFormData(prev => ({ ...prev, partACompleted: isComplete }));
+        }
+    }, [formData.travelSegments, formData.primaryDriver, formData.vehicleRegistration]);
 
     return (
         <div className="space-y-6">
-            {/* Basic Information */}
-            <BasicInfoForm
-                executionDate={formData.executionDate}
-                primaryDriver={formData.primaryDriver}
-                vehicleRegistration={formData.vehicleRegistration}
-                higherKmRate={formData.higherKmRate}
-                onExecutionDateChange={handleExecutionDateChange}
-                onPrimaryDriverChange={handlePrimaryDriverChange}
-                onVehicleRegistrationChange={handleVehicleRegistrationChange}
-                teamMembers={computedTeamMembers}
-                currentUser={currentUser}
-                isLeader={isLeader}
-                canEditOthers={canEditOthers}
-                disabled={isFormDisabled}
-            />
+            {/* Základní údaje */}
+            <div className="card">
+                <div className="card__content">
+                    <h4 className="text-lg font-semibold mb-4">Základní údaje</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label htmlFor="execution-date" className="form__label">
+                                Datum provedení příkazu *
+                            </label>
+                            <input
+                                id="execution-date"
+                                name="execution-date"
+                                type="date"
+                                className="form__input"
+                                value={formatDate(formData.executionDate)}
+                                onChange={(e) => {
+                                    const date = parseDate(e.target.value);
+                                    setFormData(prev => ({
+                                        ...prev,
+                                        executionDate: date,
+                                        travelSegments: prev.travelSegments.map(segment => ({
+                                            ...segment,
+                                            date
+                                        }))
+                                    }));
+                                }}
+                                required
+                            />
+                        </div>
+                        <div className="flex items-center">
+                            <label htmlFor="copy-to-group" className="flex items-center">
+                                <input
+                                    id="copy-to-group"
+                                    name="copy-to-group"
+                                    type="checkbox"
+                                    className="form__checkbox mr-2"
+                                    defaultChecked
+                                />
+                                Kopírovat data na celou skupinu
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             {/* Segmenty cesty */}
             <div className="card">
                 <div className="card__content">
-                    <h4 className="text-lg font-semibold mb-4">Jízdné</h4>
+                    <h4 className="text-lg font-semibold mb-4">Segmenty cesty</h4>
 
                     <div className="space-y-6">
                         {formData.travelSegments.filter(seg => seg && seg.id).map((segment, index) => {
@@ -288,7 +344,6 @@ export const PartAForm = ({
                                                     className="btn btn--icon btn--gray--light"
                                                     onClick={() => moveSegmentUp(segment.id)}
                                                     title="Přesunout nahoru"
-                                                    disabled={isFormDisabled}
                                                 >
                                                     <IconArrowUp size={14} />
                                                 </button>
@@ -301,7 +356,6 @@ export const PartAForm = ({
                                                     className="btn btn--icon btn--gray--light"
                                                     onClick={() => moveSegmentDown(segment.id)}
                                                     title="Přesunout dolů"
-                                                    disabled={isFormDisabled}
                                                 >
                                                     <IconArrowDown size={14} />
                                                 </button>
@@ -313,7 +367,6 @@ export const PartAForm = ({
                                                 className="btn btn--icon btn--primary--light"
                                                 onClick={() => duplicateSegment(segment.id)}
                                                 title="Duplikovat cestu"
-                                                disabled={isFormDisabled}
                                             >
                                                 <IconCopy size={14} />
                                             </button>
@@ -325,7 +378,6 @@ export const PartAForm = ({
                                                     className="btn btn--icon btn--danger--light"
                                                     onClick={() => removeSegment(segment.id)}
                                                     title="Smazat cestu"
-                                                    disabled={isFormDisabled}
                                                 >
                                                     <IconTrash size={16} />
                                                 </button>
@@ -351,7 +403,6 @@ export const PartAForm = ({
                                                             className="form__input"
                                                             value={formatDate(segment.date || formData.executionDate)}
                                                             onChange={(e) => updateSegmentField(segment.id, { date: parseDate(e.target.value) })}
-                                                            disabled={isFormDisabled}
                                                         />
                                                     </div>
                                                 </div>
@@ -376,7 +427,6 @@ export const PartAForm = ({
                                                             placeholder="Místo"
                                                             value={segment.startPlace || ""}
                                                             onChange={(e) => updateSegmentField(segment.id, { startPlace: e.target.value })}
-                                                            disabled={isFormDisabled}
                                                         />
                                                     </div>
                                                     <div className="flex items-center gap-2">
@@ -389,7 +439,6 @@ export const PartAForm = ({
                                                             className="form__input flex-1"
                                                             value={segment.startTime || ""}
                                                             onChange={(e) => updateSegmentField(segment.id, { startTime: e.target.value })}
-                                                            disabled={isFormDisabled}
                                                         />
                                                     </div>
                                                 </div>
@@ -414,7 +463,6 @@ export const PartAForm = ({
                                                             placeholder="Místo"
                                                             value={segment.endPlace || ""}
                                                             onChange={(e) => updateSegmentField(segment.id, { endPlace: e.target.value })}
-                                                            disabled={isFormDisabled}
                                                         />
                                                     </div>
                                                     <div className="flex items-center gap-2">
@@ -427,7 +475,6 @@ export const PartAForm = ({
                                                             className="form__input flex-1"
                                                             value={segment.endTime || ""}
                                                             onChange={(e) => updateSegmentField(segment.id, { endTime: e.target.value })}
-                                                            disabled={isFormDisabled}
                                                         />
                                                     </div>
                                                 </div>
@@ -443,7 +490,6 @@ export const PartAForm = ({
                                                         className="form__select"
                                                         value={segment.transportType || "AUV"}
                                                         onChange={(e) => updateSegmentField(segment.id, { transportType: e.target.value })}
-                                                        disabled={isFormDisabled}
                                                     >
                                                         {transportTypeOptions.map(opt => (
                                                             <option key={opt.value} value={opt.value}>
@@ -465,7 +511,6 @@ export const PartAForm = ({
                                                                 onChange={(e) => updateSegmentField(segment.id, { kilometers: Number(e.target.value) || 0 })}
                                                                 min="0"
                                                                 step="0.1"
-                                                                disabled={isFormDisabled}
                                                             />
                                                         </>
                                                     ) : (
@@ -480,7 +525,6 @@ export const PartAForm = ({
                                                                 onChange={(e) => updateSegmentField(segment.id, { ticketCosts: Number(e.target.value) || 0 })}
                                                                 min="0"
                                                                 step="0.01"
-                                                                disabled={isFormDisabled}
                                                             />
                                                         </>
                                                     )}
@@ -514,61 +558,60 @@ export const PartAForm = ({
                                 type="button"
                                 className="btn btn--secondary"
                                 onClick={addTravelSegment}
-                                disabled={isFormDisabled}
                             >
                                 <IconPlus size={16} className="mr-2" />
                                 Přidat segment
                             </button>
                         </div>
-
-                        {/* Driver settings - only show if there are car segments */}
-                        {formData.travelSegments.some(s => s.transportType === "AUV" || s.transportType === "AUV-Z") && (
-                            <div className="mt-6 pt-6 border-t border-gray-200">
-                                <h5 className="text-md font-semibold mb-4">Nastavení řidiče</h5>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label htmlFor="primary-driver" className="form__label">
-                                            Primární řidič *
-                                        </label>
-                                        <select
-                                            id="primary-driver"
-                                            name="primary-driver"
-                                            className="form__select"
-                                            value={formData.primaryDriver || ""}
-                                            onChange={(e) => setFormData(prev => ({ ...prev, primaryDriver: e.target.value }))}
-                                            required
-                                            disabled={isFormDisabled}
-                                        >
-                                            <option value="">Vyberte řidiče</option>
-                                            {computedTeamMembers.map(member => (
-                                                <option key={member.int_adr} value={member.int_adr}>
-                                                    {member.name}{member.isLeader ? " (vedoucí)" : ""}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label htmlFor="vehicle-registration" className="form__label">
-                                            Registrační značka *
-                                        </label>
-                                        <input
-                                            id="vehicle-registration"
-                                            name="vehicle-registration"
-                                            type="text"
-                                            className="form__input"
-                                            placeholder="např. 1A2 3456"
-                                            value={formData.vehicleRegistration || ""}
-                                            onChange={(e) => setFormData(prev => ({ ...prev, vehicleRegistration: e.target.value }))}
-                                            required
-                                            disabled={isFormDisabled}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        )}
                     </div>
                 </div>
             </div>
+
+            {/* Driver settings - only show if there are car segments */}
+            {formData.travelSegments.some(s => s.transportType === "AUV" || s.transportType === "AUV-Z") && (
+                <div className="card">
+                    <div className="card__content">
+                        <h4 className="text-lg font-semibold mb-4">Nastavení řidiče</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label htmlFor="primary-driver" className="form__label">
+                                    Primární řidič *
+                                </label>
+                                <select
+                                    id="primary-driver"
+                                    name="primary-driver"
+                                    className="form__select"
+                                    value={formData.primaryDriver || ""}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, primaryDriver: e.target.value }))}
+                                    required
+                                >
+                                    <option value="">Vyberte řidiče</option>
+                                    {teamMembers.map(member => (
+                                        <option key={member.int_adr} value={member.int_adr}>
+                                            {member.name}{member.isLeader ? " (vedoucí)" : ""}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label htmlFor="vehicle-registration" className="form__label">
+                                    Registrační značka *
+                                </label>
+                                <input
+                                    id="vehicle-registration"
+                                    name="vehicle-registration"
+                                    type="text"
+                                    className="form__input"
+                                    placeholder="např. 1A2 3456"
+                                    value={formData.vehicleRegistration || ""}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, vehicleRegistration: e.target.value }))}
+                                    required
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Accommodation */}
             <div className="card">
@@ -586,7 +629,6 @@ export const PartAForm = ({
                                             className="btn btn--icon btn--small btn--danger"
                                             onClick={() => removeAccommodation(accommodation.id)}
                                             title="Smazat nocležné"
-                                            disabled={isFormDisabled}
                                         >
                                             <IconTrash size={16} />
                                         </button>
@@ -603,7 +645,6 @@ export const PartAForm = ({
                                                     className="form__input"
                                                     value={accommodation.place || ""}
                                                     onChange={(e) => updateAccommodation(accommodation.id, { place: e.target.value })}
-                                                    disabled={isFormDisabled}
                                                 />
                                             </div>
                                             <div>
@@ -615,7 +656,6 @@ export const PartAForm = ({
                                                     className="form__input"
                                                     value={accommodation.facility || ""}
                                                     onChange={(e) => updateAccommodation(accommodation.id, { facility: e.target.value })}
-                                                    disabled={isFormDisabled}
                                                 />
                                             </div>
                                         </div>
@@ -632,7 +672,6 @@ export const PartAForm = ({
                                                     onChange={(e) => updateAccommodation(accommodation.id, { amount: Number(e.target.value) || 0 })}
                                                     min="0"
                                                     step="0.01"
-                                                    disabled={isFormDisabled}
                                                 />
                                             </div>
                                             <div>
@@ -643,9 +682,8 @@ export const PartAForm = ({
                                                     className="form__select"
                                                     value={accommodation.paidByMember || ""}
                                                     onChange={(e) => updateAccommodation(accommodation.id, { paidByMember: e.target.value })}
-                                                    disabled={isFormDisabled}
                                                 >
-                                                    {computedTeamMembers.map(member => (
+                                                    {teamMembers.map(member => (
                                                         <option key={member.int_adr} value={member.int_adr}>
                                                             {member.name}
                                                         </option>
@@ -661,7 +699,6 @@ export const PartAForm = ({
                                                     className="form__input"
                                                     value={formatDate(accommodation.date)}
                                                     onChange={(e) => updateAccommodation(accommodation.id, { date: parseDate(e.target.value) })}
-                                                    disabled={isFormDisabled}
                                                 />
                                             </div>
                                         </div>
@@ -689,7 +726,6 @@ export const PartAForm = ({
                                 type="button"
                                 className="btn btn--secondary"
                                 onClick={addAccommodation}
-                                disabled={isFormDisabled}
                             >
                                 <IconPlus size={16} className="mr-2" />
                                 Přidat nocležné
@@ -715,7 +751,6 @@ export const PartAForm = ({
                                             className="btn btn--icon btn--small btn--danger"
                                             onClick={() => removeExpense(expense.id)}
                                             title="Smazat výdaj"
-                                            disabled={isFormDisabled}
                                         >
                                             <IconTrash size={16} />
                                         </button>
@@ -731,7 +766,6 @@ export const PartAForm = ({
                                                 className="form__input"
                                                 value={expense.description || ""}
                                                 onChange={(e) => updateExpense(expense.id, { description: e.target.value })}
-                                                disabled={isFormDisabled}
                                             />
                                         </div>
 
@@ -747,7 +781,6 @@ export const PartAForm = ({
                                                     onChange={(e) => updateExpense(expense.id, { amount: Number(e.target.value) || 0 })}
                                                     min="0"
                                                     step="0.01"
-                                                    disabled={isFormDisabled}
                                                 />
                                             </div>
                                             <div>
@@ -758,9 +791,8 @@ export const PartAForm = ({
                                                     className="form__select"
                                                     value={expense.paidByMember || ""}
                                                     onChange={(e) => updateExpense(expense.id, { paidByMember: e.target.value })}
-                                                    disabled={isFormDisabled}
                                                 >
-                                                    {computedTeamMembers.map(member => (
+                                                    {teamMembers.map(member => (
                                                         <option key={member.int_adr} value={member.int_adr}>
                                                             {member.name}
                                                         </option>
@@ -776,7 +808,6 @@ export const PartAForm = ({
                                                     className="form__input"
                                                     value={formatDate(expense.date)}
                                                     onChange={(e) => updateExpense(expense.id, { date: parseDate(e.target.value) })}
-                                                    disabled={isFormDisabled}
                                                 />
                                             </div>
                                         </div>
@@ -803,8 +834,7 @@ export const PartAForm = ({
                             <button
                                 type="button"
                                 className="btn btn--secondary"
-                                onClick={addExpense}
-                                disabled={isFormDisabled}
+                                onClick={addAdditionalExpense}
                             >
                                 <IconPlus size={16} className="mr-2" />
                                 Přidat výdaj
@@ -814,15 +844,54 @@ export const PartAForm = ({
                 </div>
             </div>
 
-            {/* Payment Redirects */}
-            <PaymentRedirectsForm
-                paymentRedirects={formData.paymentRedirects}
-                onPaymentRedirectsChange={handlePaymentRedirectsChange}
-                teamMembers={computedTeamMembers}
-                currentUser={currentUser}
-                isLeader={isLeader}
-                disabled={isFormDisabled}
-            />
+            {/* Payment redirects */}
+            <div className="card">
+                <div className="card__content">
+                    <h4 className="text-lg font-semibold mb-4">Přesměrování výplat</h4>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                        Každý člen skupiny může nastavit, aby jeho kompenzace byla vyplacena jinému členovi skupiny.
+                    </p>
+
+                    <div className="space-y-3">
+                        {teamMembers.map((member) => (
+                            <div key={member.int_adr} className="flex items-center justify-between">
+                                <label htmlFor={`payment-redirect-${member.int_adr}`}>{member.name}</label>
+                                <select
+                                    id={`payment-redirect-${member.int_adr}`}
+                                    name={`payment-redirect-${member.int_adr}`}
+                                    className="form__select w-48"
+                                    value={formData.paymentRedirects?.[member.int_adr]?.toString() || ""}
+                                    onChange={(e) => {
+                                        const newRedirects = { ...formData.paymentRedirects };
+                                        if (e.target.value) {
+                                            newRedirects[member.int_adr] = parseInt(e.target.value);
+                                        } else {
+                                            delete newRedirects[member.int_adr];
+                                        }
+                                        setFormData(prev => ({ ...prev, paymentRedirects: newRedirects }));
+                                    }}
+                                >
+                                    <option value="">Sebe (výchozí)</option>
+                                    {teamMembers
+                                        .filter(m => m.int_adr !== member.int_adr)
+                                        .map(m => (
+                                            <option key={m.int_adr} value={m.int_adr}>
+                                                {m.name}
+                                            </option>
+                                        ))}
+                                </select>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* Display higher KM rate info if set for this order */}
+            {formData.higherKmRate && formData.travelSegments.some(s => s.transportType === "AUV" || s.transportType === "AUV-Z") && (
+                <div className="alert alert--info">
+                    Pro tento příkaz je nastavena vyšší sazba za km (náročnější terén)
+                </div>
+            )}
         </div>
     );
 };

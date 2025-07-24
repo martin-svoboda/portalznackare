@@ -39,11 +39,39 @@
                 ]
             } %}
         {% else %}
-            <div data-app="prikaz-detail" data-prikaz-id="{{ id }}">
+            <div data-app="prikaz-detail" 
+                 data-prikaz-id="{{ id }}" 
+                 data-user-int-adr="{{ app.user ? app.user.intAdr : '' }}"
+                 data-user-name="{{ app.user ? app.user.jmeno : '' }}"
+                 data-debug="{{ app.request.server.get('DEBUG_APPS') == 'true' ? 'true' : 'false' }}">
                 <div class="card">
                     {% include 'components/loader.html.twig' %}
                 </div>
             </div>
+            
+            <script>
+                // Debug renderování šablony
+                if (window.debugTwig) {
+                    window.debugTwig.render('StránkaDetailuPříkazu', 'pages/prikaz-detail.html.twig', {
+                        uživatel: '{{ app.user ? app.user.jmeno : 'anonymní' }}',
+                        cesta: '{{ app.request.attributes.get('_route') }}',
+                        idPříkazu: '{{ id }}',
+                        připojovací_bod: '[data-app="prikaz-detail"]'
+                    });
+                    
+                    // Debug React aplikace připojovací bod
+                    document.addEventListener('DOMContentLoaded', function() {
+                        const mountElement = document.querySelector('[data-app="prikaz-detail"]');
+                        if (mountElement && window.debugTwig) {
+                            window.debugTwig.mount('prikaz-detail', '[data-app="prikaz-detail"]', {
+                                elementExistuje: !!mountElement,
+                                máObsah: mountElement.innerHTML.trim() !== '',
+                                idPříkazu: mountElement.dataset.prikazId
+                            });
+                        }
+                    });
+                }
+            </script>
         {% endif %}
     </div>
 {% endblock %}

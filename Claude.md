@@ -232,6 +232,95 @@ public function renderIcon(string $name, int $size = 24, string $class = '', arr
 **Sprite lokace:** `/public/images/tabler-sprite.svg` (statická cesta)
 **Použitelné ikony:** Celá Tabler Icons kolekce (4000+ ikon)
 
+## Frontend Architecture Rules (MANDATORY)
+
+### Component Structure
+```
+Component/
+├── ComponentName.jsx          // Pure UI render + minimal logic
+├── utils/
+│   ├── componentLogic.js      // Business logic, data processing
+│   ├── componentValidation.js // Form validation, data validation
+│   └── componentHelpers.js    // Helper functions, formatters
+└── hooks/
+    └── useComponentState.js   // Custom hooks for state management
+```
+
+### Debug System (MANDATORY)
+**Environment Variables:**
+- `DEBUG_PHP=true/false` - Backend debugging
+- `DEBUG_LOG=true/false` - Backend detailed logging
+- `DEBUG_APPS=true/false` - Frontend console logging
+
+**Usage in React Components:**
+```javascript
+import { createDebugLogger } from '../../utils/debug';
+
+const logger = createDebugLogger('ComponentName');
+
+// Lifecycle events
+logger.lifecycle('Component mounted', { props });
+
+// API calls
+logger.api('POST', '/api/endpoint', requestData, responseData);
+
+// State changes
+logger.state('formData', oldValue, newValue);
+
+// Errors (always logged)
+logger.error('Operation failed', error);
+
+// Performance
+logger.performance('Operation', 150); // ms
+
+// Custom logging
+logger.custom('Custom event', data);
+```
+
+### Component Separation Rules
+1. **UI Components (JSX files):**
+   - Only JSX render logic
+   - Event handlers that call utils functions
+   - Basic state for UI-only concerns (modals, dropdowns)
+   - React.memo for optimization
+
+2. **Utils Files:**
+   - Data transformation logic
+   - Business rules and calculations
+   - Form validation functions
+   - API data preparation
+   - Complex computations
+
+3. **Custom Hooks:**
+   - State management logic
+   - Effect lifecycle management
+   - Shared stateful logic between components
+
+### File Naming Convention
+```
+utils/
+├── apiService.js           // API calls and data fetching
+├── formUtils.js           // Form helpers, validation
+├── dataProcessing.js      // Data transformation
+├── businessLogic.js       // Domain-specific logic
+└── helpers.js             // Generic helper functions
+```
+
+### Debug Logger Configuration
+**Set via Twig template:**
+```twig
+<div id="app-root" data-debug="{{ app.debug ? 'true' : 'false' }}"></div>
+```
+
+**Logger Types:**
+- `logger.lifecycle()` - Component lifecycle events
+- `logger.render()` - Component renders
+- `logger.api()` - API requests/responses
+- `logger.state()` - State changes
+- `logger.error()` - Errors (always shown)
+- `logger.performance()` - Performance metrics
+- `logger.data()` - Data processing
+
 ## Documentation Update Triggers
 - New PHP service → Update docs/features/ + configuration/services.md
 - New API endpoint → Create docs/api/endpoint-name.md
@@ -239,6 +328,7 @@ public function renderIcon(string $name, int $size = 24, string $class = '', arr
 - Security changes → Update configuration/security.md
 - Environment changes → Update configuration/environment.md
 - UI component → Update relevant feature doc + frontend/components.md
+- Debug system changes → Update docs/development/debugging.md
 
 ## Test Credentials & Debugging
 - Login: `test` / `test`
@@ -253,6 +343,12 @@ public function renderIcon(string $name, int $size = 24, string $class = '', arr
 - Missing dark mode variants
 - New code without corresponding docs/features/ update
 - API changes without docs/api/ update
+- **Business logic mixed with UI components**
+- **Missing debug logging in new components**
+- **Components without utils separation**
+- **Console.log instead of debug logger**
+- **Heavy computation in render methods**
+- **Missing React.memo optimization**
 
 ## Quick Reference Commands
 ```bash
@@ -264,7 +360,15 @@ grep -r "TODO" docs/
 find docs/ -name "*.md" -mtime -1
 ```
 
+## Development Workflow
+1. **Create component structure** with separated utils
+2. **Add debug logging** to all functions
+3. **Implement React.memo** for optimization
+4. **Test with DEBUG_APPS=true** for proper logging
+5. **Update documentation** in docs/features/
+6. **Verify dark mode compatibility**
+
 ---
 **This context is optimized for AI decision-making efficiency.**
 **Human documentation is in docs/ directory.**
-**Last updated:** 2025-07-22 - Added Tabler Icons sprite system documentation
+**Last updated:** 2025-07-24 - Added Frontend Architecture Rules and Debug System

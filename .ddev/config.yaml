@@ -14,6 +14,9 @@ use_dns_when_possible: true
 composer_version: "2"
 web_environment:
     - SYMFONY_ENV=dev
+    - DEBUG_PHP=true
+    - DEBUG_LOG=true
+    - DEBUG_APPS=true
 nodejs_version: "18"
 corepack_enable: false
 
@@ -205,6 +208,7 @@ corepack_enable: false
 # If true, DDEV will not create CMS-specific settings files like
 # Drupal's settings.php/settings.ddev.php or TYPO3's additional.php
 # In this case the user must provide all such settings.
+# DEBUG proměnné jsou nastavené v web_environment výše
 
 # You can inject environment variables into the web container with:
 # web_environment:

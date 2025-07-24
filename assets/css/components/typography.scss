@@ -37,68 +37,6 @@ p {
   @apply dark:text-gray-300;
 }
 
-// Links
-a:not(.btn):not(.nav__link):not(.breadcrumb__link):not(.nav-link) {
-  @apply text-blue-600 hover:text-blue-800 transition-colors;
-  @apply dark:text-blue-400 dark:hover:text-blue-200;
-  
-  &:not(.btn):not(.nav__link):not(.breadcrumb__link):not(.nav-link) {
-    @apply underline;
-  }
-}
-
-// Lists
-ul, ol {
-  @apply mb-4 text-gray-700;
-  @apply dark:text-gray-300;
-  
-  li {
-    @apply mb-2;
-  }
-  
-  // Nested lists
-  ul, ol {
-    @apply mt-2 ml-4 mb-2;
-  }
-}
-
-ul {
-  @apply list-disc list-inside;
-}
-
-ol {
-  @apply list-decimal list-inside;
-}
-
-// Definition lists
-dl {
-  @apply mb-4;
-  
-  dt {
-    @apply font-semibold text-gray-900 mb-1;
-    @apply dark:text-gray-100;
-  }
-  
-  dd {
-    @apply text-gray-700 mb-3 ml-4;
-    @apply dark:text-gray-300;
-  }
-}
-
-// Emphasis elements
-strong, b {
-  @apply font-bold;
-}
-
-em, i {
-  @apply italic;
-}
-
-mark {
-  @apply bg-yellow-200 px-1 rounded;
-  @apply dark:bg-yellow-800 dark:text-yellow-100;
-}
-
 small {
   font-size: 0.8em;
 }
@@ -139,8 +77,70 @@ img {
   @apply max-w-full h-auto rounded;
 }
 
-// Content wrapper - pro markdown obsah
+// Content wrapper
 .content {
+  // Links
+  a:not(.btn):not(.nav__link):not(.breadcrumb__link):not(.nav-link) {
+    @apply text-blue-600 hover:text-blue-800 transition-colors;
+    @apply dark:text-blue-400 dark:hover:text-blue-200;
+
+    &:not(.btn):not(.nav__link):not(.breadcrumb__link):not(.nav-link) {
+      @apply underline;
+    }
+  }
+
+  // Lists
+  ul, ol {
+    @apply mb-4 text-gray-700;
+    @apply dark:text-gray-300;
+
+    li {
+      @apply mb-2;
+    }
+
+    // Nested lists
+    ul, ol {
+      @apply mt-2 ml-4 mb-2;
+    }
+  }
+
+  ul {
+    @apply list-disc list-inside;
+  }
+
+  ol {
+    @apply list-decimal list-inside;
+  }
+
+  // Definition lists
+  dl {
+    @apply mb-4;
+
+    dt {
+      @apply font-semibold text-gray-900 mb-1;
+      @apply dark:text-gray-100;
+    }
+
+    dd {
+      @apply text-gray-700 mb-3 ml-4;
+      @apply dark:text-gray-300;
+    }
+  }
+
+  // Emphasis elements
+  strong, b {
+    @apply font-bold;
+  }
+
+  em, i {
+    @apply italic;
+  }
+
+  mark {
+    @apply bg-yellow-200 px-1 rounded;
+    @apply dark:bg-yellow-800 dark:text-yellow-100;
+  }
+
   // Zajistí správné mezery mezi elementy v contentu
   > * + * {
     @apply mt-0;
@@ -159,11 +159,6 @@ img {
   // Větší mezery po nadpisech
   h1, h2, h3, h4, h5, h6 {
     @apply mt-8 first:mt-0;
-  }
-  
-  // Speciální odkazy v contentu
-  a {
-    @apply font-medium;
   }
 }
 

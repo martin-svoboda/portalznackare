@@ -95,6 +95,52 @@
     </div>
 
     <script>
+        // Debug configuration - matches debug.js ENV variables
+        window.DEBUG_CONFIG = {
+            apps: {{ app.request.server.get('DEBUG_APPS') == 'true' ? 'true' : 'false' }},
+            php: {{ app.request.server.get('DEBUG_PHP') == 'true' ? 'true' : 'false' }},
+            log: {{ app.request.server.get('DEBUG_LOG') == 'true' ? 'true' : 'false' }}
+        };
+        
+        // Pokročilé console logování pro Twig šablony
+        window.debugTwig = {
+            log: function(component, message, data) {
+                if (!window.DEBUG_CONFIG.apps) return;
+                
+                const timestamp = new Date().toLocaleTimeString('cs-CZ');
+                const style = 'color: #10b981; background: #f0fdf4; padding: 2px 6px; border-radius: 3px; font-weight: bold;';
+                
+                if (data) {
+                    console.groupCollapsed(`%c[TWIG:${component}] ${timestamp} - ${message}`, style);
+                    console.table(data);
+                    console.groupEnd();
+                } else {
+                    console.log(`%c[TWIG:${component}] ${timestamp} - ${message}`, style);
+                }
+            },
+            
+            render: function(component, templateName, data) {
+                if (!window.DEBUG_CONFIG.apps) return;
+                
+                this.log(component, `Renderování šablony: ${templateName}`, data);
+            },
+            
+            mount: function(appName, elementSelector, data) {
+                if (!window.DEBUG_CONFIG.apps) return;
+                
+                this.log('MOUNT', `React aplikace "${appName}" připojena na "${elementSelector}"`, data);
+            },
+            
+            error: function(component, message, error) {
+                // Chyby se logují vždy bez ohledu na debug nastavení
+                const timestamp = new Date().toLocaleTimeString('cs-CZ');
+                const style = 'color: #dc2626; background: #fef2f2; padding: 2px 6px; border-radius: 3px; font-weight: bold;';
+                
+                console.error(`%c[TWIG:${component}] ${timestamp} - CHYBA: ${message}`, style);
+                if (error) console.error(error);
+            }
+        };
+        
         // Theme toggle
         function toggleTheme() {
             const html = document.documentElement;

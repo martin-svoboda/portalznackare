@@ -74,6 +74,7 @@ class PortalController extends AbstractController
         if ($request->isMethod('GET')) {
             // Načíst existující hlášení
             $idZp = $request->query->get('id_zp');
+            $requestedIntAdr = $request->query->get('int_adr');
             
             if (!$idZp) {
                 return new JsonResponse([
@@ -81,9 +82,12 @@ class PortalController extends AbstractController
                 ], Response::HTTP_BAD_REQUEST);
             }
 
+            // Pokud není specifikován int_adr, použij aktuálního uživatele
+            $targetIntAdr = $requestedIntAdr ? (int)$requestedIntAdr : $intAdr;
+
             try {
                 // Načíst hlášení z databáze
-                $report = $this->reportRepository->findByOrderAndUser((int)$idZp, $intAdr);
+                $report = $this->reportRepository->findByOrderAndUser((int)$idZp, $targetIntAdr);
                 
                 if ($report) {
                     return new JsonResponse([

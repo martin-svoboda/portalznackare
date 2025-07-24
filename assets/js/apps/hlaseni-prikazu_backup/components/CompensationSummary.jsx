@@ -89,7 +89,11 @@ export const CompensationSummary = ({
         );
     }
     
-    // Debug information removed to prevent infinite loops
+    // Debug information - show in development
+    if (process.env.NODE_ENV === 'development') {
+        console.log('CompensationSummary - priceList:', priceList);
+        console.log('CompensationSummary - compensation:', compensation);
+    }
 
     if (!compensation) {
         return (
