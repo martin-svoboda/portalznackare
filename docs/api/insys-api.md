@@ -199,6 +199,7 @@ Načte aktuální ceníky pro výpočet náhrad (mock data).
 **Autentifikace:** Vyžadováno  
 **Query parametry:**
 - `date` (optional) - Datum pro konkrétní ceník (default: dnes)
+- `raw` (dev only) - Vrátí surová data bez obohacení
 
 **Request:**
 ```bash
@@ -241,6 +242,63 @@ GET /api/insys/ceniky?date=2025-01-15
 **Chyby:**
 - `401` - Nepřihlášený uživatel
 - `500` - Chyba načítání ceníků
+
+---
+
+## 🔧 Development endpointy
+
+### 📤 POST `/api/insys/export` 
+
+**Pouze DEV prostředí** - Export dat z API responses do mock souborů.
+
+**Autentifikace:** Vyžadováno  
+**Použití:** [INSYS API Tester](../development/insys-api-tester.md)
+
+**Request:**
+```json
+{
+    "endpoint": "/api/insys/user",
+    "response": "/* API response data */",
+    "params": "/* request parameters */"
+}
+```
+
+**Response:**
+```json
+{
+    "success": true,
+    "message": "Data byla úspěšně uložena na server",
+    "filename": "4133.json",
+    "path": "var/mock-data/api/insys/user/4133.json"
+}
+```
+
+---
+
+### 📦 POST `/api/insys/export/batch-prikazy`
+
+**Pouze DEV prostředí** - Hromadný export příkazů včetně jejich detailů.
+
+**Autentifikace:** Vyžadováno  
+**Použití:** [INSYS API Tester](../development/insys-api-tester.md)
+
+**Request:**
+```json
+{
+    "prikazy": "/* array of commands */",
+    "year": 2024
+}
+```
+
+**Response:**
+```json
+{
+    "success": true,
+    "message": "Exportováno 15 příkazů a 15 detailů",
+    "exported": ["Seznam příkazů 2024", "Detaily 15 příkazů"],
+    "metadata_file": "batch-export-metadata-2025-01-15-143022.json"
+}
+```
 
 ## 🔧 Backend implementace
 
@@ -374,4 +432,5 @@ curl -b cookies.txt "https://portalznackare.ddev.site/api/insys/prikaz/123"
 
 **Funkcionální dokumentace:** [../features/insys-integration.md](../features/insys-integration.md)  
 **API přehled:** [overview.md](overview.md)  
-**Aktualizováno:** 2025-07-21
+**Development nástroje:** [../development/insys-api-tester.md](../development/insys-api-tester.md)  
+**Aktualizováno:** 2025-07-30

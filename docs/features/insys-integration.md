@@ -357,4 +357,4 @@ INSYS_DB_PASS=complex_secure_password
 **Data Flow:** [../architecture/data-flow.md](../architecture/data-flow.md)  
 **API Reference:** [../api/insys-api.md](../api/insys-api.md)  
 **Configuration:** [../configuration/environment.md](../configuration/environment.md)  
-**Aktualizováno:** 2025-07-21
+**Development nástroje:** [../development/insys-api-tester.md](../development/insys-api-tester.md)  \n**Aktualizováno:** 2025-07-30
