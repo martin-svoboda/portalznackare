@@ -33,10 +33,15 @@ Kompletní dokumentace webové aplikace pro správu turistického značení.
 - [Environment](configuration/environment.md)
 - [Security](configuration/security.md)
 - [Services & DI](configuration/services.md)
+- [HTTP Basic Auth](configuration/http-basic-auth.md)
 
 ### 📚 Témata
 - [České skloňování](topics/czech-localization.md)
 - [Content Management](topics/content-management.md)
+
+### 🛠️ Development
+- [INSYS API Tester](development/insys-api-tester.md)
+- [Debugging](development/debugging.md)
 
 ### 🎨 Frontend
 - [React micro-apps architektura](frontend/architecture.md)
@@ -77,5 +82,5 @@ Kompletní dokumentace webové aplikace pro správu turistického značení.
 
 ---
 
-**Aktualizováno:** {current_date}  
+**Aktualizováno:** 2025-07-30  
 **Pro projekt:** Portál značkaře v1.0

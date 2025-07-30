@@ -97,6 +97,11 @@ jobs:
               'configuration/environment.md': 'configuration-environment',
               'configuration/security.md': 'configuration-security',
               'configuration/services.md': 'configuration-services',
+              'configuration/http-basic-auth.md': 'configuration-http-basic-auth',
+              
+              # Development
+              'development/insys-api-tester.md': 'development-insys-api-tester',
+              'development/debugging.md': 'development-debugging',
               
               # Topics
               'topics/czech-localization.md': 'topics-czech-localization',
@@ -129,8 +134,13 @@ jobs:
                   text = match.group(1)
                   path = match.group(2)
                   
-                  # Remove leading dots and slashes
-                  clean_path = path.lstrip('./')
+                  # Handle ../ links by normalizing path
+                  if path.startswith('../'):
+                      # Remove ../ and treat as root level
+                      clean_path = path.replace('../', '')
+                  else:
+                      # Remove leading dots and slashes
+                      clean_path = path.lstrip('./')
                   
                   # Look up wiki page name
                   if clean_path in file_to_wiki:
@@ -218,6 +228,11 @@ jobs:
           - [[Environment|configuration-environment]]
           - [[Security|configuration-security]]
           - [[Services & DI|configuration-services]]
+          - [[HTTP Basic Auth|configuration-http-basic-auth]]
+          
+          ### 🛠️ Development
+          - [[INSYS API Tester|development-insys-api-tester]]
+          - [[Debugging|development-debugging]]
           
           ### 📚 Témata
           - [[České skloňování|topics-czech-localization]]
