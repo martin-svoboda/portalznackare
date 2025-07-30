@@ -13,6 +13,7 @@ import {
 } from '@tabler/icons-react';
 import { PrikazHead } from '../../components/prikazy/PrikazHead';
 import { PrikazUseky } from '../../components/prikazy/PrikazUseky';
+import { ProvedeniPrikazu } from '../../components/prikazy/ProvedeniPrikazu';
 import { MapaTrasy } from '../../components/shared/MapaTrasy';
 import { Loader } from '../../components/shared/Loader';
 import { getPrikazDescription } from '../../utils/prikaz';
@@ -136,9 +137,7 @@ const App = () => {
     const [head, setHead] = useState(null);
     const [predmety, setPredmety] = useState([]);
     const [useky, setUseky] = useState([]);
-    const [reports, setReports] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [reportsLoading, setReportsLoading] = useState(false);
     const [error, setError] = useState(null);
 
     // Detect dark mode
@@ -214,67 +213,13 @@ const App = () => {
         return members;
     }, [head]);
 
-    const loadReports = useCallback(async () => {
-        if (!prikazId || !currentUser.intAdr) return;
-        
-        setReportsLoading(true);
-        const loadedReports = [];
-        
-        try {
-            // Vždy načíst vlastní hlášení
-            try {
-                const ownReport = await api.prikazy.report(prikazId, currentUser.intAdr);
-                if (ownReport && ownReport.data) {
-                    loadedReports.push({
-                        ...ownReport.data,
-                        jmeno: currentUser.name
-                    });
-                }
-            } catch (error) {
-                // Vlastní hlášení neexistuje, to je v pořádku
-                log.info('Vlastní hlášení neexistuje');
-            }
-            
-            // Pokud je vedoucí a tým má více členů, načíst ostatní
-            if (isLeader && teamMembers.length > 1) {
-                for (const member of teamMembers) {
-                    if (member.intAdr !== currentUser.intAdr) {
-                        try {
-                            const memberReport = await api.prikazy.report(prikazId, member.intAdr);
-                            if (memberReport && memberReport.data) {
-                                loadedReports.push({
-                                    ...memberReport.data,
-                                    jmeno: member.name
-                                });
-                            }
-                        } catch (error) {
-                            // Hlášení člena neexistuje, to je v pořádku
-                            log.info(`Hlášení pro ${member.name} neexistuje`);
-                        }
-                    }
-                }
-            }
-            
-            setReports(loadedReports);
-            log.info(`Načteno ${loadedReports.length} hlášení práce`);
-        } catch (error) {
-            log.error('Chyba při načítání hlášení práce', error);
-            setReports([]);
-        } finally {
-            setReportsLoading(false);
-        }
-    }, [prikazId, currentUser.intAdr, currentUser.name, isLeader, teamMembers]);
+    // LoadReports functionality moved to ProvedeniPrikazu component
 
     useEffect(() => {
         loadPrikazData();
     }, [loadPrikazData]);
     
-    // Načíst hlášení až po načtení hlavičky (potřebujeme data o týmu)
-    useEffect(() => {
-        if (head) {
-            loadReports();
-        }
-    }, [head, loadReports]);
+    // LoadReports functionality moved to ProvedeniPrikazu component
 
     // Aktualizace prvků v Twig šabloně
     useEffect(() => {
@@ -391,54 +336,7 @@ const App = () => {
         []
     );
 
-    const reportsColumns = useMemo(
-        () => [
-            {
-                accessorKey: 'cislo_zp',
-                header: 'Číslo ZP',
-                size: 100,
-            },
-            {
-                accessorKey: 'jmeno',
-                header: 'Značkař',
-                size: 150,
-            },
-            {
-                accessorKey: 'state',
-                header: 'Stav',
-                size: 100,
-                Cell: ({ cell }) => {
-                    const value = cell.getValue();
-                    return (
-                        <span className={`badge ${
-                            value === 'send' ? 'badge--success' : 'badge--warning'
-                        }`}>
-                            {value === 'send' ? 'Odesláno' : 'Koncept'}
-                        </span>
-                    );
-                },
-            },
-            {
-                accessorKey: 'date_created',
-                header: 'Vytvořeno',
-                size: 120,
-                Cell: ({ cell }) => {
-                    const date = new Date(cell.getValue());
-                    return date.toLocaleDateString('cs-CZ');
-                },
-            },
-            {
-                accessorKey: 'date_send',
-                header: 'Odesláno',
-                size: 120,
-                Cell: ({ cell }) => {
-                    const date = cell.getValue();
-                    return date ? new Date(date).toLocaleDateString('cs-CZ') : '-';
-                },
-            },
-        ],
-        []
-    );
+    // ReportsColumns functionality moved to ProvedeniPrikazu component
 
     const table = useMaterialReactTable({
         columns,
@@ -539,38 +437,7 @@ const App = () => {
         ),
     });
 
-    const reportsTable = useMaterialReactTable({
-        columns: reportsColumns,
-        data: reports,
-        enableFacetedValues: true,
-        enableColumnFilters: false,
-        enableColumnActions: false,
-        enableColumnOrdering: false,
-        enableColumnResizing: false,
-        enablePagination: false,
-        enableSorting: false,
-        enableRowActions: false,
-        enableTopToolbar: false,
-        enableBottomToolbar: false,
-        layoutMode: 'semantic',
-        state: { isLoading: reportsLoading },
-        localization: MRT_Localization_CS,
-        initialState: {
-            density: 'compact',
-        },
-        muiTablePaperProps: {
-            elevation: 0,
-            sx: {
-                backgroundColor: 'transparent',
-                backgroundImage: 'none',
-                border: 'none'
-            }
-        },
-        muiTopToolbarProps: { sx: { backgroundColor: 'transparent' } },
-        muiBottomToolbarProps: { sx: { backgroundColor: 'transparent' } },
-        muiTableHeadRowProps: { sx: { backgroundColor: 'transparent' } },
-        muiTableBodyRowProps: { sx: { backgroundColor: 'transparent' } },
-    });
+    // ReportsTable functionality moved to ProvedeniPrikazu component
 
     if (loading) {
         return (
@@ -625,27 +492,16 @@ const App = () => {
 
                 {/* Provedení příkazu */}
                 <div className="card">
-                    <div className="card__header ">
-                        <div className="flex justify-between items-center">
-                            <h3 className="card__title">Provedení příkazu</h3>
-                            {head && head.Stav_ZP_Naz && isNezpracovany(head.Stav_ZP_Naz) && (
-                                <a href={`/prikaz/${prikazId}/hlaseni`} className="btn btn--primary">
-                                    <IconPlus size={16}/> Vytvořit hlášení
-                                </a>
-                            )}
-                        </div>
-                    </div>
                     <div className="card__content">
+                        <ProvedeniPrikazu 
+                            prikazId={prikazId}
+                            head={head}
+                            currentUser={currentUser}
+                            isLeader={isLeader}
+                        />
+                        
                         {head && head.Stav_ZP_Naz && isNezpracovany(head.Stav_ZP_Naz) && (
-                            <div className="space-y-4">
-                                <div className="alert alert--info">
-                                    <div className="alert__content">
-                                        <div className="alert__body">
-                                            <div className="alert__title">Příkaz čeká na zpracování</div>
-                                            <div className="alert__message">Pro dokončení příkazu použijte hlášení práce.</div>
-                                        </div>
-                                    </div>
-                                </div>
+                            <div className="mt-4 pt-4 border-t">
                                 <div className="flex gap-2">
                                     <button className="btn btn--secondary">
                                         <IconPrinter size={16} className="mr-2"/>
@@ -657,34 +513,7 @@ const App = () => {
                     </div>
                 </div>
 
-                {/* Hlášení práce */}
-                {(reports.length > 0 || reportsLoading) && (
-                    <div className="card">
-                        <div className="card__header ">
-                            <div className="flex justify-between items-center">
-                                <h3 className="card__title">Hlášení práce</h3>
-                                {isLeader && teamMembers.length > 1 && (
-                                    <span className="text-sm text-gray-600">
-                                        Zobrazeno: {reports.length} z {teamMembers.length} členů týmu
-                                    </span>
-                                )}
-                            </div>
-                        </div>
-                        <div className="card__content">
-                            {reportsLoading ? (
-                                <div className="text-center py-4">
-                                    <div className="text-sm text-gray-600">Načítání hlášení...</div>
-                                </div>
-                            ) : reports.length > 0 ? (
-                                <MaterialReactTable table={reportsTable}/>
-                            ) : (
-                                <div className="text-center py-4">
-                                    <div className="text-sm text-gray-600">Zatím nejsou k dispozici žádná hlášení práce</div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )}
+                {/* Tabulka hlášení práce - odstranit, nahrazeno komponentou ProvedeniPrikazu */}
 
                 {/* Informační místa na trase */}
                 <div className="card">

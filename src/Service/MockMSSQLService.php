@@ -29,8 +29,15 @@ class MockMSSQLService
 
 	public function getUser(int $intAdr): array
 	{
-		$data = $this->getTestData();
-		return $data['user'] ?? [];
+		// Zkusit načíst z endpoint struktury
+		$data = $this->loadMockDataFromEndpoint('api/insys/user', []);
+		if ($data !== null) {
+			return $data;
+		}
+		
+		// Fallback na starou strukturu
+		$testData = $this->getTestData();
+		return $testData['user'] ?? [];
 	}
 
 	/**
@@ -124,20 +131,63 @@ class MockMSSQLService
 
 	public function getPrikazy(int $intAdr, int $year): array
 	{
-		$data = $this->getTestData();
-		return $data['prikazy'][$year] ?? [];
+		// Zkusit načíst z endpoint struktury
+		$data = $this->loadMockDataFromEndpoint('api/insys/prikazy/' . $year, ['year' => $year]);
+		if ($data !== null) {
+			return $data;
+		}
+		
+		// Fallback na starou strukturu
+		$testData = $this->getTestData();
+		return $testData['prikazy'][$year] ?? [];
 	}
 
 	public function getPrikaz(int $intAdr, int $id): array
 	{
-		$data = $this->getTestData();
-		$detail = $data['detaily'][$id] ?? null;
+		// Zkusit načíst z endpoint struktury
+		$data = $this->loadMockDataFromEndpoint('api/insys/prikaz/' . $id, ['id' => $id]);
+		if ($data !== null) {
+			return $data;
+		}
+		
+		// Fallback na starou strukturu
+		$testData = $this->getTestData();
+		$detail = $testData['detaily'][$id] ?? null;
 
 		if (!$detail) {
 			throw new \RuntimeException('Chybí detail pro ID ' . $id);
 		}
 
 		return $detail;
+	}
+	
+	/**
+	 * Načte mock data podle struktury endpointu
+	 */
+	private function loadMockDataFromEndpoint(string $endpoint, array $params): ?array
+	{
+		// Sestavit cestu k souboru
+		$path = $this->projectDir . '/var/mock-data/' . $endpoint;
+		
+		// Pokud endpoint končí parametrem, hledat soubor s názvem parametru
+		if (!empty($params)) {
+			$lastParam = end($params);
+			$filepath = $path . '/' . $lastParam . '.json';
+			
+			if (file_exists($filepath)) {
+				$data = json_decode(file_get_contents($filepath), true);
+				return $data ?: null;
+			}
+		}
+		
+		// Zkusit načíst data.json
+		$filepath = $path . '/data.json';
+		if (file_exists($filepath)) {
+			$data = json_decode(file_get_contents($filepath), true);
+			return $data ?: null;
+		}
+		
+		return null;
 	}
 
 	private function getTestData(): array

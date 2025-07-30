@@ -1,0 +1,47 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}INSYS API Tester - Portál značkaře{% endblock %}
+
+{% block body %}
+<div class="page page--insys-test">
+    <div class="page__header">
+        <div class="container container--fluid">
+            <div class="page__header-content">
+                <h1 class="page__title">
+                    {{ tabler_icon('bug', 32, 'icon--primary') }}
+                    INSYS API Tester
+                </h1>
+                <p class="page__subtitle">
+                    Testovací rozhraní pro INSYS API endpointy (pouze dev prostředí)
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="page__content">
+        <div class="container container--fluid">
+            {# React mount point #}
+            <div 
+                data-app="insys-tester"
+                data-endpoints="{{ endpoints }}"
+                data-debug="{{ app.debug ? 'true' : 'false' }}"
+            >
+                <div class="loading">
+                    {{ tabler_icon('loader-2', 24, 'icon--primary animate-spin') }}
+                    <span>Načítám testovací aplikaci...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    {{ encore_entry_script_tags('insys-tester') }}
+{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    {{ encore_entry_link_tags('insys-tester') }}
+{% endblock %}
