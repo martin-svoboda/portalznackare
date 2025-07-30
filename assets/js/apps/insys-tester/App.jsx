@@ -81,14 +81,32 @@ const App = ({ endpoints }) => {
 
             // Sestavit URL - nahradit path parametry hodnotami z JSON
             let url = currentEndpoint.path;
+            const usedParams = [];
+            
             const pathParams = url.match(/\{(\w+)\}/g);
             if (pathParams) {
                 pathParams.forEach(param => {
                     const key = param.slice(1, -1); // odstranit {}
                     if (bodyData[key]) {
                         url = url.replace(param, bodyData[key]);
+                        usedParams.push(key);
                     }
                 });
+            }
+
+            // Pro GET requesty přidat zbývající parametry jako query parametry
+            if (currentEndpoint.method === 'GET') {
+                const queryParams = new URLSearchParams();
+                
+                Object.keys(bodyData).forEach(key => {
+                    if (!usedParams.includes(key)) {
+                        queryParams.append(key, bodyData[key]);
+                    }
+                });
+                
+                if (queryParams.toString()) {
+                    url += url.includes('?') ? '&' + queryParams.toString() : '?' + queryParams.toString();
+                }
             }
 
             // Přidat raw=1 parametr pro získání surových dat
