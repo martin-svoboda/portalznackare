@@ -202,10 +202,10 @@ class InsysController extends AbstractController
             
             // Export seznamu příkazů
             $filesystem = new Filesystem();
-            $exportDir = $this->getParameter('kernel.project_dir') . '/var/mock-data/api/insys/prikazy/' . $year;
+            $exportDir = $this->getParameter('kernel.project_dir') . '/var/mock-data/api/insys/prikazy';
             $filesystem->mkdir($exportDir);
             
-            $prikazyFilepath = $exportDir . '/' . $year . '.json';
+            $prikazyFilepath = $exportDir . '/' . $intAdr . '-' . $year . '.json';
             file_put_contents($prikazyFilepath, json_encode($prikazy, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
             $exported[] = 'Seznam příkazů ' . $year;
             
@@ -220,7 +220,7 @@ class InsysController extends AbstractController
                         $detail = $this->insysService->getPrikaz($intAdr, $id);
                         
                         // Uložit detail
-                        $detailDir = $this->getParameter('kernel.project_dir') . '/var/mock-data/api/insys/prikaz/' . $id;
+                        $detailDir = $this->getParameter('kernel.project_dir') . '/var/mock-data/api/insys/prikaz';
                         $filesystem->mkdir($detailDir);
                         
                         $detailFilepath = $detailDir . '/' . $id . '.json';
@@ -286,28 +286,21 @@ class InsysController extends AbstractController
             $responseData = $data['response'];
             $params = $data['params'] ?? [];
             
-            // Vytvořit strukturu složek podle endpointu
+            // Vytvořit strukturu složek a název souboru
+            $pathInfo = $this->determineExportPathFromData($endpoint, $params, $responseData);
+            
             $filesystem = new Filesystem();
-            
-            // Převést endpoint na cestu (např. /api/insys/prikazy -> api/insys/prikazy)
-            $endpointPath = trim($endpoint, '/');
-            
-            // Nahradit path parametry skutečnými hodnotami
-            $endpointPath = $this->replacePathParams($endpointPath, $params);
-            
-            // Vytvořit složku
-            $exportDir = $this->getParameter('kernel.project_dir') . '/var/mock-data/' . $endpointPath;
+            $exportDir = $this->getParameter('kernel.project_dir') . '/var/mock-data/' . $pathInfo['dir'];
             $filesystem->mkdir($exportDir);
             
-            // Název souboru podle typu endpointu
-            $filename = $this->generateFilename($endpoint, $params);
-            
-            $filepath = $exportDir . '/' . $filename;
+            $filepath = $exportDir . '/' . $pathInfo['filename'];
             file_put_contents($filepath, json_encode($responseData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
             
-            return new BinaryFileResponse($filepath, 200, [
-                'Content-Type' => 'application/json',
-                'Content-Disposition' => sprintf('attachment; filename="%s"', $filename)
+            return new JsonResponse([
+                'success' => true,
+                'message' => 'Data byla úspěšně uložena na server',
+                'filename' => $pathInfo['filename'],
+                'path' => 'var/mock-data/' . $pathInfo['dir'] . '/' . $pathInfo['filename']
             ]);
             
         } catch (Exception $e) {
@@ -315,32 +308,76 @@ class InsysController extends AbstractController
         }
     }
     
-    private function replacePathParams(string $path, array $params): string
+    private function determineExportPathFromData(string $endpoint, array $params, array $responseData): array
     {
-        // Nahradit {param} skutečnými hodnotami
-        foreach ($params as $key => $value) {
-            $path = str_replace('{' . $key . '}', $value, $path);
+        // Převést endpoint na základní cestu
+        $basePath = trim($endpoint, '/');
+        
+        // Rozpoznat typ endpointu a určit správnou strukturu
+        if (str_contains($endpoint, '/user')) {
+            // Pro user endpoint - získat INT_ADR z response dat
+            $intAdr = $this->extractFromResponse($responseData, ['INT_ADR', 'int_adr', 'intAdr']);
+            return [
+                'dir' => 'api/insys/user',
+                'filename' => ($intAdr ?: 'data') . '.json'
+            ];
         }
         
-        return $path;
+        if (str_contains($endpoint, '/prikazy')) {
+            // Pro příkazy endpoint - jeden soubor na uživatele a rok
+            $intAdr = $this->getUser()?->getIntAdr() ?? 'unknown';
+            $year = $params['year'] ?? date('Y');
+            return [
+                'dir' => 'api/insys/prikazy',
+                'filename' => $intAdr . '-' . $year . '.json'
+            ];
+        }
+        
+        if (str_contains($endpoint, '/prikaz/') && !str_contains($endpoint, '/prikazy')) {
+            // Pro detail příkazu - jeden soubor na příkaz
+            $id = $params['id'] ?? $this->extractFromResponse($responseData, ['ID_Znackarske_Prikazy', 'id', 'ID']);
+            return [
+                'dir' => 'api/insys/prikaz',
+                'filename' => ($id ?: 'data') . '.json'
+            ];
+        }
+        
+        if (str_contains($endpoint, '/ceniky')) {
+            return [
+                'dir' => 'api/insys/ceniky',
+                'filename' => 'ceniky-' . date('Y-m-d') . '.json'
+            ];
+        }
+        
+        // Default pro neznámé endpointy
+        $cleanPath = preg_replace('/\{[^}]+\}/', '', $basePath); // odstranit {parametry}
+        $cleanPath = trim($cleanPath, '/');
+        
+        return [
+            'dir' => $cleanPath,
+            'filename' => 'data-' . date('Y-m-d-His') . '.json'
+        ];
     }
     
-    private function generateFilename(string $endpoint, array $params): string
+    private function extractFromResponse(array $data, array $possibleKeys): ?string
     {
-        // Pro endpointy bez parametrů použít default název
-        if (!str_contains($endpoint, '{')) {
-            return 'data.json';
+        // Pokud je response array objektů, vezmi první
+        if (isset($data[0]) && is_array($data[0])) {
+            $data = $data[0];
         }
         
-        // Pro endpointy s parametry použít poslední parametr jako název
-        if (preg_match_all('/\{(\w+)\}/', $endpoint, $matches)) {
-            $lastParam = end($matches[1]);
-            if (isset($params[$lastParam])) {
-                return $params[$lastParam] . '.json';
+        // Pokud je response objekt s head/data strukturou
+        if (isset($data['head']) && is_array($data['head'])) {
+            $data = $data['head'];
+        }
+        
+        // Hledej hodnotu podle možných klíčů
+        foreach ($possibleKeys as $key) {
+            if (isset($data[$key])) {
+                return (string)$data[$key];
             }
         }
         
-        // Fallback
-        return 'data-' . date('Y-m-d-His') . '.json';
+        return null;
     }
 }

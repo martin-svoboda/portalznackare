@@ -141,22 +141,14 @@ const App = ({ endpoints }) => {
                 body: JSON.stringify(exportData)
             });
 
+            const result = await res.json();
+
             if (!res.ok) {
-                throw new Error(`Export selhal: ${res.status}`);
+                throw new Error(result.error || `Export selhal: ${res.status}`);
             }
 
-            // Stáhnout soubor
-            const blob = await res.blob();
-            const filename = res.headers.get('content-disposition')
-                ?.split('filename=')[1]
-                ?.replace(/"/g, '') || 'export.json';
-            
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            a.click();
-            URL.revokeObjectURL(url);
+            // Zobrazit zprávu o úspěšném uložení
+            alert(`✅ ${result.message}\n\nSoubor: ${result.filename}\nCesta: ${result.path}`);
 
         } catch (err) {
             setError(`Export selhal: ${err.message}`);

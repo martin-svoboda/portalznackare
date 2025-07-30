@@ -30,7 +30,7 @@ class MockMSSQLService
 	public function getUser(int $intAdr): array
 	{
 		// Zkusit načíst z endpoint struktury
-		$data = $this->loadMockDataFromEndpoint('api/insys/user', []);
+		$data = $this->loadMockDataFromEndpoint('api/insys/user', [(string)$intAdr]);
 		if ($data !== null) {
 			return $data;
 		}
@@ -132,7 +132,7 @@ class MockMSSQLService
 	public function getPrikazy(int $intAdr, int $year): array
 	{
 		// Zkusit načíst z endpoint struktury
-		$data = $this->loadMockDataFromEndpoint('api/insys/prikazy/' . $year, ['year' => $year]);
+		$data = $this->loadMockDataFromEndpoint('api/insys/prikazy', [$intAdr . '-' . $year]);
 		if ($data !== null) {
 			return $data;
 		}
@@ -145,7 +145,7 @@ class MockMSSQLService
 	public function getPrikaz(int $intAdr, int $id): array
 	{
 		// Zkusit načíst z endpoint struktury
-		$data = $this->loadMockDataFromEndpoint('api/insys/prikaz/' . $id, ['id' => $id]);
+		$data = $this->loadMockDataFromEndpoint('api/insys/prikaz', [(string)$id]);
 		if ($data !== null) {
 			return $data;
 		}
@@ -164,23 +164,24 @@ class MockMSSQLService
 	/**
 	 * Načte mock data podle struktury endpointu
 	 */
-	private function loadMockDataFromEndpoint(string $endpoint, array $params): ?array
+	private function loadMockDataFromEndpoint(string $endpoint, array $filenames): ?array
 	{
-		// Sestavit cestu k souboru
+		// Sestavit cestu k složce
 		$path = $this->projectDir . '/var/mock-data/' . $endpoint;
 		
-		// Pokud endpoint končí parametrem, hledat soubor s názvem parametru
-		if (!empty($params)) {
-			$lastParam = end($params);
-			$filepath = $path . '/' . $lastParam . '.json';
-			
-			if (file_exists($filepath)) {
-				$data = json_decode(file_get_contents($filepath), true);
-				return $data ?: null;
+		// Pokud jsou zadané konkrétní názvy souborů, hledat je
+		if (!empty($filenames)) {
+			foreach ($filenames as $filename) {
+				$filepath = $path . '/' . $filename . '.json';
+				
+				if (file_exists($filepath)) {
+					$data = json_decode(file_get_contents($filepath), true);
+					return $data ?: null;
+				}
 			}
 		}
 		
-		// Zkusit načíst data.json
+		// Zkusit načíst data.json jako fallback
 		$filepath = $path . '/data.json';
 		if (file_exists($filepath)) {
 			$data = json_decode(file_get_contents($filepath), true);
