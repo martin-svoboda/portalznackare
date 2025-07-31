@@ -18,11 +18,13 @@ class ReportRepository extends ServiceEntityRepository
     }
 
     /**
-     * Find report by order ID and user address
+     * Find report by order ID
+     * @deprecated Use findOneBy(['idZp' => $idZp]) instead
      */
     public function findByOrderAndUser(int $idZp, int $intAdr): ?Report
     {
-        return $this->findOneBy(['idZp' => $idZp, 'intAdr' => $intAdr]);
+        // Pro zpětnou kompatibilitu, ale vrací report podle id_zp (ne podle uživatele)
+        return $this->findOneBy(['idZp' => $idZp]);
     }
 
     /**
@@ -34,16 +36,32 @@ class ReportRepository extends ServiceEntityRepository
     }
 
     /**
-     * Find reports by user with optional state filter
+     * Find reports where user is team member
+     */
+    public function findByTeamMember(int $intAdr, ?ReportStateEnum $state = null): array
+    {
+        $qb = $this->createQueryBuilder('r')
+            ->where("JSON_SEARCH(r.teamMembers, 'one', :intAdr, NULL, '$[*].int_adr') IS NOT NULL")
+            ->setParameter('intAdr', $intAdr);
+            
+        if ($state !== null) {
+            $qb->andWhere('r.state = :state')
+               ->setParameter('state', $state);
+        }
+        
+        return $qb->orderBy('r.dateUpdated', 'DESC')
+                  ->getQuery()
+                  ->getResult();
+    }
+    
+    /**
+     * Find reports by user (report creator/processor)
+     * @deprecated Use findByTeamMember instead
      */
     public function findByUser(int $intAdr, ?ReportStateEnum $state = null): array
     {
-        $criteria = ['intAdr' => $intAdr];
-        if ($state !== null) {
-            $criteria['state'] = $state;
-        }
-
-        return $this->findBy($criteria, ['dateUpdated' => 'DESC']);
+        // Pro zpětnou kompatibilitu
+        return $this->findByTeamMember($intAdr, $state);
     }
 
     /**

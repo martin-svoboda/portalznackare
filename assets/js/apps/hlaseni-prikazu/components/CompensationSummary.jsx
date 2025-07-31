@@ -162,7 +162,7 @@ export const CompensationSummary = ({
                         <span className="text-sm">{formatCurrency(singleCompensation?.transportCosts || 0)}</span>
                     </div>
                     {/* Details for transport costs */}
-                    {formData.travelSegments.map((segment, index) => {
+                    {(formData.travelGroups?.flatMap(group => group.segments || []) || []).map((segment, index) => {
                         if (!segment || !segment.transportType) return null;
 
                         let detail = "";
@@ -332,7 +332,7 @@ export const CompensationSummary = ({
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {formData.travelSegments.map((segment, index) => {
+                                        {(formData.travelGroups?.flatMap(group => group.segments || []) || []).map((segment, index) => {
                                             if (!segment || !segment.transportType) return null;
 
                                             let amount = 0;

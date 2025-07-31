@@ -71,21 +71,27 @@ const App = () => {
 
         try {
             const result = await api.prikazy.report(prikazId);
-            if (result && result.data && (result.data.dataA || result.data.dataB)) {
+            if (result && (result.dataA || result.dataB || result.team_members)) {
                 const loadedData = {};
 
                 // Load Part A (Symfony uses camelCase: dataA)
-                if (result.data.dataA) {
-                    Object.assign(loadedData, result.data.dataA);
+                if (result.dataA) {
+                    Object.assign(loadedData, result.dataA);
                     // Convert dates
                     if (loadedData.executionDate) {
                         const execDate = new Date(loadedData.executionDate);
                         loadedData.executionDate = isNaN(execDate.getTime()) ? new Date() : execDate;
                     }
-                    if (loadedData.travelSegments) {
-                        loadedData.travelSegments = loadedData.travelSegments.map(segment => ({
-                            ...segment,
-                            date: segment.date ? new Date(segment.date) : new Date()
+                    if (loadedData.travelGroups) {
+                        loadedData.travelGroups = loadedData.travelGroups.map(group => ({
+                            ...group,
+                            participants: group.participants || [], // Zajistit, že participants jsou načtené
+                            driver: group.driver || null,
+                            spz: group.spz || "",
+                            segments: group.segments?.map(segment => ({
+                                ...segment,
+                                date: segment.date ? new Date(segment.date) : new Date()
+                            })) || []
                         }));
                     }
                     if (loadedData.accommodations) {
@@ -103,13 +109,35 @@ const App = () => {
                 }
 
                 // Load Part B (Symfony uses camelCase: dataB)
-                if (result.data.dataB) {
-                    Object.assign(loadedData, result.data.dataB);
+                if (result.dataB) {
+                    Object.assign(loadedData, result.dataB);
+                }
+
+                // Load team members if available
+                if (result.team_members && Array.isArray(result.team_members)) {
+                    setTeamMembers(result.team_members);
+                    
+                    // Check if current user is leader from team members
+                    const currentUserInTeam = result.team_members.find(
+                        member => member.int_adr === currentUser?.int_adr
+                    );
+                    if (currentUserInTeam) {
+                        setIsLeader(currentUserInTeam.je_vedouci || false);
+                        setCanEditOthers(currentUserInTeam.je_vedouci || false);
+                    }
+                } else if (head && currentUser) {
+                    // Fallback: pokud report nemá team_members, použij data z head
+                    const members = extractTeamMembers(head);
+                    setTeamMembers(members);
+                    
+                    const userIsLeader = isUserLeader(currentUser, head);
+                    setIsLeader(userIsLeader);
+                    setCanEditOthers(userIsLeader);
                 }
 
                 // Set status
-                if (result.data.state) {
-                    loadedData.status = result.data.state === 'send' ? 'submitted' : 'draft';
+                if (result.state) {
+                    loadedData.status = result.state === 'send' ? 'submitted' : 'draft';
                 }
 
                 loadFormData(loadedData);
@@ -139,8 +167,9 @@ const App = () => {
     }, [loading, loadReportData]);
 
     // Initialize team members and permissions when head data loads
+    // POUZE pokud report ještě nebyl načten (aby se nepřepsaly data z reportu)
     useEffect(() => {
-        if (head && currentUser) {
+        if (head && currentUser && !reportLoaded) {
             const members = extractTeamMembers(head);
             setTeamMembers(members);
 
@@ -148,7 +177,7 @@ const App = () => {
             setIsLeader(userIsLeader);
             setCanEditOthers(userIsLeader);
         }
-    }, [head, currentUser]);
+    }, [head, currentUser, reportLoaded]);
 
     // Set higher rate based on order header
     useEffect(() => {

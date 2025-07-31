@@ -221,7 +221,7 @@ export const StepContent = ({
                                 </div>
                                 <div className="flex justify-between">
                                     <span className="text-sm text-gray-600">Počet segmentů dopravy:</span>
-                                    <span className="text-sm">{formData.travelSegments.length}</span>
+                                    <span className="text-sm">{(formData.travelGroups?.reduce((total, group) => total + (group.segments?.length || 0), 0) || 0)}</span>
                                 </div>
                                 {formData.primaryDriver && (
                                     <div className="flex justify-between">

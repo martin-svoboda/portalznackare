@@ -103,9 +103,8 @@ export const api = {
     prikazy: {
         list: (params) => api.get('/insys/prikazy', params),
         detail: (id) => api.get(`/insys/prikaz/${id}`),
-        report: (id, intAdr = null) => {
+        report: (id) => {
             const params = { id_zp: id };
-            if (intAdr) params.int_adr = intAdr;
             return api.get('/portal/report', params);
         },
         saveReport: (data) => api.post('/portal/report', data, { 

@@ -15,8 +15,8 @@ class ReportDto
     #[Assert\Length(max: 255)]
     public string $cislo_zp = '';
 
-    #[Assert\Type('boolean')]
-    public bool $je_vedouci = false;
+    #[Assert\Type('array')]
+    public array $team_members = [];
 
     #[Assert\Valid]
     public ?PartADto $data_a = null;

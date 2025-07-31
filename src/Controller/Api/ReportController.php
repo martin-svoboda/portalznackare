@@ -40,7 +40,6 @@ class ReportController extends AbstractController
         }
 
         $idZp = $request->query->getInt('id_zp');
-        $intAdr = $user->getIntAdr();
 
         // Validace vstupních parametrů
         if (empty($idZp)) {
@@ -50,7 +49,8 @@ class ReportController extends AbstractController
         }
 
         try {
-            $report = $this->reportRepository->findByOrderAndUser($idZp, $intAdr);
+            // Najít report pouze podle id_zp (už není per user)
+            $report = $this->reportRepository->findOneBy(['idZp' => $idZp]);
 
             if (!$report) {
                 return new JsonResponse(null, Response::HTTP_NO_CONTENT);
@@ -120,13 +120,29 @@ class ReportController extends AbstractController
                 ], Response::HTTP_BAD_REQUEST);
             }
 
-            // Najít existující report nebo vytvořit nový
-            $report = $this->reportRepository->findByOrderAndUser($idZp, $intAdr);
+            // Najít existující report nebo vytvořit nový (pouze podle id_zp)
+            $report = $this->reportRepository->findOneBy(['idZp' => $idZp]);
             
             if (!$report) {
                 $report = new Report();
                 $report->setIdZp($idZp);
-                $report->setIntAdr($intAdr);
+                $report->setIntAdr($intAdr); // Nastavit současného uživatele jako zpracovatele
+                
+                // Přidat do historie vytvoření
+                $report->addHistoryEntry(
+                    'created',
+                    ['int_adr' => $intAdr, 'jmeno' => $user->getJmeno()],
+                    'Hlášení vytvořeno'
+                );
+                
+                // Přidat prvního člena týmu
+                $report->addTeamMember([
+                    'int_adr' => $intAdr,
+                    'jmeno' => $user->getJmeno(),
+                    'je_vedouci' => true, // První člen je automaticky vedoucí
+                    'data_a' => [],
+                    'data_b' => []
+                ]);
             }
 
             // Kontrola, zda lze report editovat
@@ -137,10 +153,15 @@ class ReportController extends AbstractController
             }
 
             // Mapování dat z DTO na entitu
-            $this->mapDtoToEntity($data, $report);
+            $this->mapDtoToEntity($data, $report, $user);
 
-            // Automatické nastavení je_vedouci flag na základě dat z příkazu
-            $this->setLeaderFlag($report, $intAdr, $idZp);
+            // Přidat do historie změnu
+            $report->addHistoryEntry(
+                'data_updated',
+                ['int_adr' => $intAdr, 'jmeno' => $user->getJmeno()],
+                'Hlášení aktualizováno',
+                ['updated_fields' => array_keys($data)]
+            );
 
             // Uložení
             $this->reportRepository->save($report, true);
@@ -225,31 +246,19 @@ class ReportController extends AbstractController
         }
     }
 
-    /**
-     * Set leader flag based on order data
-     */
-    private function setLeaderFlag(Report $report, int $intAdr, int $idZp): void
-    {
-        // TODO: Zde by měl být call na službu pro načtení příkazu z INSYS
-        // Pro teď nastavíme je_vedouci na false, ale v produkci by mělo být:
-        // $orderHead = $this->insysService->getPrikaz($idZp);
-        // $isLeader = $this->isUserLeaderInOrder($intAdr, $orderHead);
-        // $report->setJeVedouci($isLeader);
-        
-        $report->setJeVedouci(false); // Placeholder
-    }
 
     /**
      * Map DTO data to entity
      */
-    private function mapDtoToEntity(array $data, Report $report): void
+    private function mapDtoToEntity(array $data, Report $report, User $user): void
     {
         if (isset($data['cislo_zp'])) {
             $report->setCisloZp($data['cislo_zp']);
         }
 
-        if (isset($data['je_vedouci'])) {
-            $report->setJeVedouci((bool) $data['je_vedouci']);
+        // Zpracování dat členů týmu
+        if (isset($data['team_members'])) {
+            $report->setTeamMembers($data['team_members']);
         }
 
         if (isset($data['data_a'])) {
@@ -266,8 +275,17 @@ class ReportController extends AbstractController
 
         if (isset($data['state'])) {
             $stateEnum = ReportStateEnum::tryFrom($data['state']);
-            if ($stateEnum) {
+            if ($stateEnum && $stateEnum !== $report->getState()) {
+                $oldState = $report->getState()->value;
                 $report->setState($stateEnum);
+                
+                // Přidat do historie změnu stavu
+                $report->addHistoryEntry(
+                    'state_changed',
+                    ['int_adr' => $user->getIntAdr(), 'jmeno' => $user->getJmeno()],
+                    'Stav změněn na: ' . $stateEnum->getLabel(),
+                    ['previous_state' => $oldState]
+                );
             }
         }
     }

@@ -82,12 +82,9 @@ class PortalController extends AbstractController
                 ], Response::HTTP_BAD_REQUEST);
             }
 
-            // Pokud není specifikován int_adr, použij aktuálního uživatele
-            $targetIntAdr = $requestedIntAdr ? (int)$requestedIntAdr : $intAdr;
-
             try {
-                // Načíst hlášení z databáze
-                $report = $this->reportRepository->findByOrderAndUser((int)$idZp, $targetIntAdr);
+                // Načíst hlášení z databáze pouze podle id_zp
+                $report = $this->reportRepository->findOneBy(['idZp' => (int)$idZp]);
                 
                 if ($report) {
                     return new JsonResponse([
@@ -95,7 +92,7 @@ class PortalController extends AbstractController
                         'id_zp' => $report->getIdZp(),
                         'cislo_zp' => $report->getCisloZp(),
                         'int_adr' => $report->getIntAdr(),
-                        'je_vedouci' => $report->isJeVedouci(),
+                        'team_members' => $report->getTeamMembers(),
                         'dataA' => $report->getDataA(),
                         'dataB' => $report->getDataB(),
                         'calculation' => $report->getCalculation(),
@@ -137,8 +134,8 @@ class PortalController extends AbstractController
                     }
                 }
 
-                // Zkontrolovat, zda už existuje hlášení pro tento příkaz a uživatele
-                $report = $this->reportRepository->findByOrderAndUser((int)$data['id_zp'], $intAdr);
+                // Zkontrolovat, zda už existuje hlášení pro tento příkaz
+                $report = $this->reportRepository->findOneBy(['idZp' => (int)$data['id_zp']]);
                 
                 if (!$report) {
                     // Vytvořit nové hlášení
@@ -149,7 +146,7 @@ class PortalController extends AbstractController
                 
                 // Nastavit/aktualizovat data
                 $report->setCisloZp($data['cislo_zp']);
-                $report->setJeVedouci($data['je_vedouci'] ?? false);
+                $report->setTeamMembers($data['team_members'] ?? []);
                 $report->setDataA($data['data_a'] ?? []);
                 $report->setDataB($data['data_b'] ?? []);
                 $report->setCalculation($data['calculation'] ?? []);
@@ -176,7 +173,7 @@ class PortalController extends AbstractController
                         'id_zp' => $report->getIdZp(),
                         'cislo_zp' => $report->getCisloZp(),
                         'int_adr' => $report->getIntAdr(),
-                        'je_vedouci' => $report->isJeVedouci(),
+                        'team_members' => $report->getTeamMembers(),
                         'data_a' => $report->getDataA(),
                         'data_b' => $report->getDataB(),
                         'calculation' => $report->getCalculation(),

@@ -19,12 +19,19 @@ const createEmptyTravelSegment = () => ({
     attachments: []
 });
 
+// Helper for creating empty travel group
+const createEmptyTravelGroup = (participants = []) => ({
+    id: crypto.randomUUID(),
+    participants: participants, // int_adr účastníků
+    driver: null, // int_adr řidiče
+    spz: "", // SPZ vozidla
+    segments: [createEmptyTravelSegment()]
+});
+
 // Initial form state
 const createInitialFormData = () => ({
     executionDate: new Date(),
-    travelSegments: [createEmptyTravelSegment()],
-    primaryDriver: "",
-    vehicleRegistration: "",
+    travelGroups: [createEmptyTravelGroup()],
     higherKmRate: false,
     accommodations: [],
     additionalExpenses: [],
@@ -63,3 +70,6 @@ export const useFormState = () => {
         loadFormData
     };
 };
+
+// Export helper functions for use in components
+export { createEmptyTravelSegment, createEmptyTravelGroup };

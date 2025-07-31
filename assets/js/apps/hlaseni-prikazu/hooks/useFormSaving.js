@@ -9,7 +9,8 @@ import { log } from '../../../utils/debug';
 import { showNotification } from '../../../utils/notifications';
 import {
     calculateCompensation,
-    calculateCompensationForAllMembers
+    calculateCompensationForAllMembers,
+    extractTeamMembers
 } from '../utils/compensationCalculator';
 
 export const useFormSaving = (formData, head, prikazId, priceList, isLeader, teamMembers, currentUser) => {
@@ -20,15 +21,24 @@ export const useFormSaving = (formData, head, prikazId, priceList, isLeader, tea
         setSaving(true);
 
         try {
+            // Fallback pro teamMembers - pokud jsou prázdné, vytvoř je z head dat
+            const finalTeamMembers = teamMembers.length > 0 
+                ? teamMembers 
+                : head ? extractTeamMembers(head).map(member => ({
+                    int_adr: member.intAdr,
+                    jmeno: member.name,
+                    je_vedouci: member.isLeader,
+                    data_a: {},
+                    data_b: {}
+                })) : [];
+
             const data = {
                 id_zp: prikazId,
                 cislo_zp: head?.Cislo_ZP || '',
-                je_vedouci: isLeader,
+                team_members: finalTeamMembers,
                 data_a: {
                     executionDate: formData.executionDate,
-                    travelSegments: formData.travelSegments.filter(segment => segment && segment.id),
-                    primaryDriver: formData.primaryDriver,
-                    vehicleRegistration: formData.vehicleRegistration,
+                    travelGroups: formData.travelGroups?.filter(group => group && group.id) || [],
                     higherKmRate: formData.higherKmRate,
                     accommodations: formData.accommodations,
                     additionalExpenses: formData.additionalExpenses,

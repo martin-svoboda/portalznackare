@@ -30,48 +30,17 @@ export const ProvedeniPrikazu = ({ prikazId, head, currentUser, isLeader }) => {
 
         const loadReports = async () => {
             try {
-                // Načtení reportu pro aktuálního uživatele
-                try {
-                    const userReport = await api.prikazy.report(prikazId, currentUser.intAdr);
-                    
-                    if (userReport?.data) {
-                        setReportData(userReport.data);
-                    }
-                } catch (err) {
-                    log.info('User report does not exist yet');
+                // Načtení jediného reportu pro celý příkaz
+                const report = await api.prikazy.report(prikazId);
+                
+                if (report) {
+                    setReportData(report);
+                } else {
                     setReportData(null);
                 }
-
-                // Načtení reportů pro všechny členy skupiny (pouze pro vedoucí)
-                if (isLeader) {
-                    const teamReports = [];
-                    
-                    // Získání INT_ADR všech členů týmu z hlavičky
-                    for (let i = 1; i <= 3; i++) {
-                        const memberIntAdr = head[`INT_ADR_${i}`];
-                        const memberName = head[`Jmeno_${i}`];
-                        
-                        // Důležité: přeskočit aktuálního uživatele (vedoucího), jeho hlášení už máme
-                        if (memberIntAdr && memberIntAdr !== currentUser.intAdr) {
-                            try {
-                                log.info(`Loading report for team member ${memberName}`, { intAdr: memberIntAdr });
-                                const memberReport = await api.prikazy.report(prikazId, memberIntAdr);
-                                if (memberReport?.data) {
-                                    teamReports.push({
-                                        ...memberReport.data,
-                                        jmeno: memberName || `Člen ${i}`,
-                                        int_adr: memberIntAdr
-                                    });
-                                }
-                            } catch (err) {
-                                log.info(`Member ${memberName} (${memberIntAdr}) report does not exist`);
-                            }
-                        }
-                    }
-                    
-                    setAllReports(teamReports);
-                    log.info('Loaded team reports', teamReports);
-                }
+                
+                // Už nepotřebujeme - je jen jeden report
+                setAllReports([]);
             } catch (err) {
                 log.error('Failed to load reports', err);
                 setError('Nepodařilo se načíst hlášení');

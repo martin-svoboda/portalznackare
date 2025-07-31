@@ -9,13 +9,20 @@ import { validateAllTimItemsCompleted } from '../components/PartBForm';
 export const useCompletionStatus = (formData, head, predmety, setFormData) => {
     // Automatic completion status for Part A
     const canCompletePartA = useMemo(() => {
-        const needsDriver = formData.travelSegments.some(segment =>
+        // Extraktovat všechny segmenty ze všech travel groups
+        const allSegments = formData.travelGroups?.flatMap(group => group.segments || []) || [];
+        
+        const needsDriver = allSegments.some(segment =>
             segment && segment.transportType && (segment.transportType === "AUV" || segment.transportType === "AUV-Z")
         );
 
-        const hasDriverForCar = needsDriver && (!formData.primaryDriver || !formData.vehicleRegistration);
+        // Pro travelGroups kontrolujeme driver a spz v každé skupině
+        const hasDriverForCar = needsDriver && formData.travelGroups?.some(group => 
+            group.segments?.some(s => s.transportType === "AUV" || s.transportType === "AUV-Z") &&
+            (!group.driver || !group.spz)
+        );
 
-        const hasTicketsForPublicTransport = formData.travelSegments.some(segment =>
+        const hasTicketsForPublicTransport = allSegments.some(segment =>
             segment && segment.transportType === "veřejná doprava" && (!segment.attachments || segment.attachments.length === 0)
         );
 

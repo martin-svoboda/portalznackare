@@ -34,10 +34,15 @@ export function parsePriceListFromAPI(apiData) {
  * Od nejdřívějšího začátku do nejpozdějšího konce cesty v každém dni
  */
 export function calculateWorkHours(formData) {
-    if (!formData.travelSegments || formData.travelSegments.length === 0) return 0;
+    // Extraktovat všechny segmenty ze všech travel groups
+    const allSegments = formData.travelGroups?.flatMap(group => 
+        group.segments || []
+    ) || [];
+    
+    if (allSegments.length === 0) return 0;
 
     // Seskupit segmenty podle dne - přesně jako v původní aplikaci
-    const segmentsByDate = formData.travelSegments.reduce((acc, segment) => {
+    const segmentsByDate = allSegments.reduce((acc, segment) => {
         if (!segment) return acc;
         
         // Použít segment.date pokud existuje, jinak executionDate jako fallback
@@ -88,7 +93,12 @@ export function calculateTransportCosts(formData, priceList, isDriver = true, ha
     
     let totalCosts = 0;
     
-    formData.travelSegments.forEach(segment => {
+    // Extraktovat všechny segmenty ze všech travel groups
+    const allSegments = formData.travelGroups?.flatMap(group => 
+        group.segments || []
+    ) || [];
+    
+    allSegments.forEach(segment => {
         if (!segment || !segment.transportType) return;
         
         if (segment.transportType === "AUV" || segment.transportType === "AUV-Z") {

@@ -10,7 +10,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
 
 #[ORM\Entity(repositoryClass: ReportRepository::class)]
 #[ORM\Table(name: 'reports')]
-#[ORM\UniqueConstraint(name: 'unique_report_per_user_order', columns: ['id_zp', 'int_adr'])]
+#[ORM\UniqueConstraint(name: 'unique_report_per_order', columns: ['id_zp'])]
 #[ORM\HasLifecycleCallbacks]
 class Report
 {
@@ -32,9 +32,13 @@ class Report
     #[Groups(['report:read', 'report:write'])]
     private int $intAdr;
 
-    #[ORM\Column(name: 'je_vedouci', type: Types::BOOLEAN, options: ['default' => false])]
+    #[ORM\Column(name: 'team_members', type: Types::JSON)]
     #[Groups(['report:read', 'report:write'])]
-    private bool $jeVedouci = false;
+    private array $teamMembers = [];
+
+    #[ORM\Column(name: 'history', type: Types::JSON)]
+    #[Groups(['report:read'])]
+    private array $history = [];
 
     #[ORM\Column(name: 'data_a', type: Types::JSON)]
     #[Groups(['report:read', 'report:write'])]
@@ -102,14 +106,47 @@ class Report
         return $this;
     }
 
-    public function isJeVedouci(): bool
+    public function getTeamMembers(): array
     {
-        return $this->jeVedouci;
+        return $this->teamMembers;
     }
 
-    public function setJeVedouci(bool $jeVedouci): static
+    public function setTeamMembers(array $teamMembers): static
     {
-        $this->jeVedouci = $jeVedouci;
+        $this->teamMembers = $teamMembers;
+        return $this;
+    }
+
+    public function addTeamMember(array $member): static
+    {
+        $this->teamMembers[] = $member;
+        return $this;
+    }
+
+    public function removeTeamMember(int $intAdr): static
+    {
+        $this->teamMembers = array_values(array_filter(
+            $this->teamMembers,
+            fn($member) => $member['int_adr'] !== $intAdr
+        ));
+        return $this;
+    }
+
+    public function getHistory(): array
+    {
+        return $this->history;
+    }
+
+    public function addHistoryEntry(string $action, array $user, string $details, array $data = []): static
+    {
+        $this->history[] = [
+            'timestamp' => (new \DateTimeImmutable())->format('c'),
+            'action' => $action,
+            'user' => $user,
+            'state' => $this->state->value,
+            'details' => $details,
+            'data' => $data
+        ];
         return $this;
     }
 
