@@ -22,325 +22,53 @@ Private Files  → /uploads/path/token/filename.jpg (s hash tokenem)
 - **Thumbnail generation:** Automatické náhledy pro obrázky
 - **Usage tracking:** Sledování využití souborů v různých kontextech
 
+## 📋 API Endpointy
+
+### POST `/api/portal/files/upload`
+Upload jednoho nebo více souborů s automatickou deduplikací.
+
+**Form parametry:**
+- `files` - Soubor(y) k uploadu
+- `path` - Storage path (např. `reports/2025/praha/1/123`)
+- `is_public` - Boolean pro public/private (default: false)
+
+**Response:**
+```json
+{
+    "success": true,
+    "files": [{
+        "id": 123,
+        "fileName": "hlaseni.pdf",
+        "url": "/uploads/path/to/file.pdf",
+        "fileSize": 1048576,
+        "isPublic": false
+    }]
+}
+```
+
+### GET `/api/portal/files/{id}`
+Načte metadata souboru.
+
+### DELETE `/api/portal/files/{id}`
+Smaže soubor (soft delete s 30denní expirací).
+
+### GET `/api/portal/files/{id}/download`
+Stažení souboru s kontrolou oprávnění.
+
+### GET `/api/portal/files/usage/{id}`
+Zjistí, kde všude je soubor použitý.
+
 ## 🛠️ Backend Services
 
-### 1. **FileUploadService** - Hlavní upload služba
+### FileUploadService
+Hlavní služba pro upload souborů s hash-based deduplikací a automatickým generováním storage paths.
 
-```php
-// src/Service/FileUploadService.php
-class FileUploadService {
-    
-    /**
-     * Upload souboru s deduplikací a zpracováním
-     */
-    public function uploadFile(
-        UploadedFile $file,
-        ?User $user = null,
-        ?string $storagePath = null,
-        array $options = []
-    ): FileAttachment {
-        // 1. Hash pro deduplikaci
-        $hash = sha1_file($file->getPathname());
-        
-        // 2. Kontrola duplicitních souborů
-        $existingFile = $this->repository->findByHash($hash);
-        if ($existingFile && !($options['force_new'] ?? false)) {
-            return $existingFile;  // Vrať existující soubor
-        }
-        
-        // 3. Generování storage path a unique filename
-        $relativePath = $storagePath ? $this->validateStoragePath($storagePath) 
-                                    : $this->generateTempPath();
-        
-        // 4. Image processing (pokud je obrázek)
-        if ($this->isImage($file->getMimeType())) {
-            $metadata = $this->processImage($fullPath, $options);
-        }
-        
-        // 5. Database záznam
-        $attachment = new FileAttachment();
-        $attachment->setHash($hash);
-        $attachment->setPath($fullRelativePath);
-        
-        // 6. Public/Private URL generation
-        $isPublic = $options['is_public'] ?? $this->isPathPublic($relativePath);
-        if ($isPublic) {
-            $publicUrl = "/uploads/{$relativePath}/{$storedName}";
-        } else {
-            $securityToken = substr(sha1($hash . $relativePath), 0, 16);
-            $publicUrl = "/uploads/{$relativePath}/{$securityToken}/{$storedName}";
-        }
-        
-        return $attachment;
-    }
-    
-    /**
-     * Helper metody pro path generation
-     */
-    public function generateReportPath(int $year, string $kkz, string $obvod, int $reportId): string {
-        return "reports/{$year}/{$kkz}/{$obvod}/{$reportId}";  // Chráněné
-    }
-    
-    public function generateMethodologyPath(string $category = 'general'): string {
-        return "methodologies/{$category}";  // Veřejné
-    }
-    
-    public function generateDownloadPath(string $category = 'general'): string {
-        return "downloads/{$category}";  // Veřejné
-    }
-    
-    public function generateGalleryPath(string $album = 'general'): string {
-        return "gallery/{$album}";  // Veřejné
-    }
-}
-```
+### FileAttachment Entity
+Database model pro ukládání metadat souborů včetně usage tracking a soft delete funkcí.
 
-### 2. **FileAttachment Entity** - Database model
+### FileServeController
+Controller pro serving souborů s podporou public/private přístupu a security tokenů.
 
-```php
-// src/Entity/FileAttachment.php
-#[ORM\Entity]
-class FileAttachment {
-    
-    #[ORM\Column(type: 'string', unique: true)]
-    private string $hash;                    // SHA1 hash pro deduplikaci
-    
-    #[ORM\Column(type: 'string')]
-    private string $originalName;            // Původní název souboru
-    
-    #[ORM\Column(type: 'string')]
-    private string $storedName;              // Uložený název (s uniqid)
-    
-    #[ORM\Column(type: 'string')]
-    private string $path;                    // Relativní cesta k souboru
-    
-    #[ORM\Column(type: 'string')]
-    private string $publicUrl;               // URL pro přístup (s/bez tokenu)
-    
-    #[ORM\Column(type: 'string')]
-    private string $storagePath;             // Storage path kategorie
-    
-    #[ORM\Column(type: 'json')]
-    private ?array $usageInfo = [];          // Tracking využití souborů
-    
-    #[ORM\Column(type: 'json')]
-    private ?array $metadata = null;         // Image metadata, thumbnails
-    
-    #[ORM\Column(type: 'boolean')]
-    private bool $isPublic = false;          // Public vs private file
-    
-    #[ORM\Column(type: 'boolean')]
-    private bool $isTemporary = true;        // Temporary vs permanent
-    
-    #[ORM\Column(type: 'datetime_immutable')]
-    private ?DateTimeImmutable $deletedAt = null;  // Soft delete
-    
-    /**
-     * Usage tracking metody
-     */
-    public function addUsage(string $type, int $id, ?array $additionalData = null): self {
-        $usageKey = "{$type}_{$id}";
-        $this->usageInfo[$usageKey] = [
-            'type' => $type,
-            'id' => $id,
-            'added_at' => (new DateTimeImmutable())->format('c'),
-            'data' => $additionalData
-        ];
-        return $this;
-    }
-    
-    public function removeUsage(string $type, int $id): self {
-        $usageKey = "{$type}_{$id}";
-        unset($this->usageInfo[$usageKey]);
-        return $this;
-    }
-    
-    public function isUsedIn(string $type, int $id): bool {
-        $usageKey = "{$type}_{$id}";
-        return isset($this->usageInfo[$usageKey]);
-    }
-    
-    /**
-     * Helper metody pro file typy
-     */
-    public function isImage(): bool {
-        return str_starts_with($this->mimeType, 'image/');
-    }
-    
-    public function isPdf(): bool {
-        return $this->mimeType === 'application/pdf';
-    }
-    
-    /**
-     * Soft delete s grace period
-     */
-    public function shouldBePhysicallyDeleted(int $gracePeriodHours = 24): bool {
-        if (!$this->deletedAt) return false;
-        
-        $gracePeriodEnd = $this->deletedAt->modify("+{$gracePeriodHours} hours");
-        return new DateTimeImmutable() > $gracePeriodEnd;
-    }
-}
-```
-
-### 3. **FileServeController** - Chráněné soubory
-
-```php
-// src/Controller/FileServeController.php
-class FileServeController extends AbstractController {
-    
-    /**
-     * Chráněné soubory s hash tokenem
-     */
-    #[Route('/uploads/{path}/{token}/{filename}', 
-        requirements: ['token' => '[a-f0-9]{16}'])]
-    public function serveProtected(string $path, string $token, string $filename): Response {
-        $relativePath = $path . '/' . $filename;
-        
-        // Najdi soubor v databázi
-        $file = $this->repository->findOneBy(['path' => $relativePath]);
-        if (!$file || $file->isPublic()) {
-            throw new NotFoundHttpException('Soubor nenalezen');
-        }
-        
-        // Ověř security token
-        $expectedToken = substr(sha1($file->getHash() . $path), 0, 16);
-        if ($token !== $expectedToken) {
-            throw new NotFoundHttpException('Neplatný token');
-        }
-        
-        return $this->createFileResponse($file, $relativePath, true);
-    }
-    
-    /**
-     * Veřejné soubory bez tokenu
-     */
-    #[Route('/uploads/{path}/{filename}', priority: -1)]
-    public function servePublic(string $path, string $filename): Response {
-        $relativePath = $path . '/' . $filename;
-        
-        $file = $this->repository->findOneBy(['path' => $relativePath]);
-        if (!$file || !$file->isPublic()) {
-            throw new NotFoundHttpException('Soubor nenalezen');
-        }
-        
-        return $this->createFileResponse($file, $relativePath, false);
-    }
-    
-    /**
-     * Response s cache headers a security
-     */
-    private function createFileResponse($file, string $relativePath, bool $isProtected): Response {
-        $response = new BinaryFileResponse($this->projectDir . '/public/uploads/' . $relativePath);
-        
-        // Cache headers (1 rok)
-        $response->setMaxAge(31536000);
-        
-        if ($isProtected) {
-            $response->setPrivate();
-            $response->headers->set('X-Robots-Tag', 'noindex, nofollow, noarchive');
-        } else {
-            $response->setPublic();
-        }
-        
-        return $response;
-    }
-}
-```
-
-## 🌐 API Endpointy
-
-### File Upload API
-
-```php
-// src/Controller/Api/PortalController.php
-#[Route('/api/portal/files')]
-class PortalController extends AbstractController {
-    
-    #[Route('/upload', methods: ['POST'])]
-    public function uploadFiles(Request $request): JsonResponse {
-        $files = $request->files->get('files', []);
-        $storagePath = $request->request->get('path');
-        $isPublic = $request->request->getBoolean('is_public', false);
-        $options = json_decode($request->request->get('options', '{}'), true);
-        
-        $uploadedFiles = [];
-        $errors = [];
-        
-        foreach ($files as $file) {
-            try {
-                $attachment = $this->fileUploadService->uploadFile(
-                    $file, 
-                    $this->getUser(), 
-                    $storagePath, 
-                    array_merge($options, ['is_public' => $isPublic])
-                );
-                
-                $uploadedFiles[] = [
-                    'id' => $attachment->getId(),
-                    'fileName' => $attachment->getOriginalName(),
-                    'fileSize' => $attachment->getSize(),
-                    'fileType' => $attachment->getMimeType(),
-                    'url' => $attachment->getPublicUrl(),
-                    'uploadedAt' => $attachment->getCreatedAt()->format('c'),
-                    'isPublic' => $attachment->isPublic()
-                ];
-            } catch (\Exception $e) {
-                $errors[] = [
-                    'file' => $file->getClientOriginalName(),
-                    'error' => $e->getMessage()
-                ];
-            }
-        }
-        
-        return new JsonResponse([
-            'files' => $uploadedFiles,
-            'errors' => $errors
-        ]);
-    }
-    
-    #[Route('/{id}', methods: ['GET'])]
-    public function getFile(int $id): JsonResponse {
-        $file = $this->fileUploadService->getFile($id, $this->getUser());
-        if (!$file) {
-            return new JsonResponse(['error' => 'File not found'], 404);
-        }
-        
-        return new JsonResponse([
-            'id' => $file->getId(),
-            'fileName' => $file->getOriginalName(),
-            'url' => $file->getPublicUrl(),
-            // ... další file data
-        ]);
-    }
-    
-    #[Route('/{id}', methods: ['DELETE'])]
-    public function deleteFile(int $id): JsonResponse {
-        $file = $this->fileUploadService->getFile($id, $this->getUser());
-        if (!$file) {
-            return new JsonResponse(['error' => 'File not found'], 404);
-        }
-        
-        $this->fileUploadService->softDeleteFile($file);
-        
-        return new JsonResponse(['success' => true]);
-    }
-    
-    #[Route('/usage', methods: ['POST'])]
-    public function addFileUsage(Request $request): JsonResponse {
-        $data = json_decode($request->getContent(), true);
-        
-        $file = $this->fileUploadService->addFileUsage(
-            $data['file_id'],
-            $data['type'],      // 'report', 'methodology', atd.
-            $data['id'],        // ID záznamu
-            $data['data'] ?? null
-        );
-        
-        return new JsonResponse(['success' => !!$file]);
-    }
-}
-```
 
 ## ⚛️ React Frontend - AdvancedFileUpload
 
@@ -862,60 +590,11 @@ CREATE INDEX idx_file_storage_path ON file_attachments(storage_path);
 CREATE INDEX idx_file_created ON file_attachments(created_at);
 ```
 
-## 🛠️ Troubleshooting
-
-### Časté problémy
-
-#### 1. **Permission denied na upload**
-```bash
-# Zkontroluj permissions
-ls -la public/uploads/
-# Mělo by být 755 nebo 775
-
-# Oprav permissions
-chmod -R 755 public/uploads/
-chown -R www-data:www-data public/uploads/  # Na serveru
-```
-
-#### 2. **Image processing selhává**
-```php
-// Debug GD extension
-if (!extension_loaded('gd')) {
-    throw new Exception('GD extension not available');
-}
-
-// Debug Imagine library  
-$imagine = new Imagine();
-$image = $imagine->open('/path/to/test.jpg');  // Test image processing
-```
-
-#### 3. **Security token neplatný**
-```php
-// Debug token generation
-$hash = sha1_file($filepath);
-$storagePath = 'reports/2025/test/1/123';
-$expectedToken = substr(sha1($hash . $storagePath), 0, 16);
-
-error_log("File hash: " . $hash);
-error_log("Storage path: " . $storagePath);
-error_log("Expected token: " . $expectedToken);
-```
-
-#### 4. **Uploads se neukládají**
-```php
-// Zkontroluj PHP limits
-ini_get('upload_max_filesize');   // 10M+
-ini_get('post_max_size');         // 50M+
-ini_get('max_execution_time');    // 120s+
-
-// Debug disk space
-disk_free_space('./public/uploads/');
-```
 
 ---
 
 **Related Documentation:**  
-**API Reference:** [../api/file-api.md](../api/file-api.md)  
-**Frontend:** [../frontend/architecture.md](../frontend/architecture.md)  
-**Configuration:** [../configuration/services.md](../configuration/services.md)  
+**API Reference:** [../api/portal-api.md](../api/portal-api.md)  
+**Frontend:** [../architecture.md](../architecture.md)  
+**Configuration:** [../configuration.md](../configuration.md)  
 **Aktualizováno:** 2025-07-22

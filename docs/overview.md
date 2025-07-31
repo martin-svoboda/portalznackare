@@ -1,86 +1,65 @@
 # Dokumentace - Portál značkaře
 
-Kompletní dokumentace webové aplikace pro správu turistického značení.
+Kompletní dokumentace webové aplikace pro správu turistického značení KČT.
 
 ## 📋 Obsah dokumentace
 
 ### 🚀 Začínáme
-- [Instalace a setup](getting-started/installation.md)
-
-### 🏗️ Architektura  
-- [Principy a konvence](architecture/principles.md)
-- [Hybridní architektura](architecture/hybrid-architecture.md)
-- [Tok dat](architecture/data-flow.md)
-- [CMS architektura](architecture/cms.md)
+- [Instalace a setup](development/getting-started.md)
+- [Architektura aplikace](architecture.md)
+- [Konfigurace](configuration.md)
 
 ### ⭐ Funkcionalita
-- [INSYS integrace](features/insys-integration.md)
-- [Autentifikace](features/authentication.md)
-- [Správa souborů](features/file-management.md)
-- [Hlášení příkazů](features/hlaseni-prikazu.md)
-- [Správa příkazů](features/prikazy-management.md)
-- [Vizuální komponenty](features/visual-components.md)
+- [INSYS integrace](features/insys-integration.md) - Napojení na KČT databázi
+- [Autentifikace](features/authentication.md) - Přihlašování a zabezpečení
+- [Správa příkazů](features/prikazy-management.md) - Zobrazení a správa příkazů
+- [Hlášení příkazů](features/hlaseni-prikazu.md) - Workflow hlášení práce
+- [Správa souborů](features/file-management.md) - Upload a správa příloh
+- [Lokalizace](features/localization.md) - České skloňování
+- [Content Management](features/content-management.md) - CMS funkcionalita
 
 ### 🔌 API Reference
-- [API přehled](api/overview.md)
-- [INSYS API](api/insys-api.md)
-- [Portal API](api/portal-api.md)
-- [File API](api/file-api.md)
-- [Authentication API](api/authentication-api.md)
-- [Test API](api/test-api.md)
-
-### ⚙️ Konfigurace
-- [Environment](configuration/environment.md)
-- [Security](configuration/security.md)
-- [Services & DI](configuration/services.md)
-- [HTTP Basic Auth](configuration/http-basic-auth.md)
-
-### 📚 Témata
-- [České skloňování](topics/czech-localization.md)
-- [Content Management](topics/content-management.md)
+- [INSYS API](api/insys-api.md) - Endpointy pro KČT data
+- [Portal API](api/portal-api.md) - Lokální funkcionalita
 
 ### 🛠️ Development
-- [INSYS API Tester](development/insys-api-tester.md)
-- [Debugging](development/debugging.md)
+- [Development guide](development/development.md) - Debug nástroje a workflow
+- [INSYS API Tester](development/insys-api-tester.md) - Testing nástroj
+- [Vizuální komponenty](development/visual-components.md) - Značky a TIM pro vývojáře
 
-### 🎨 Frontend
-- [React micro-apps architektura](frontend/architecture.md)
-- [Build systém (Webpack Encore)](frontend/build-system.md)
-- [Styling (BEM + Tailwind)](frontend/styling.md)
-- [Komponenty](frontend/components.md)
-
-### 🔄 Migrace & Deployment
-- [Z WordPress pluginu](migration/wordpress.md)
-- [Deployment přehled](deployment/overview.md)
-
-### 👥 Uživatelská dokumentace
-- [Uživatelská nápověda](../user-docs/overview.md)
-- [První přihlášení](../user-docs/getting-started/first-login.md)
-
-### 📖 Meta dokumentace
-- [Dokumentační pravidla](CLAUDE.md)
+### 🚀 Deployment & Migrace
+- [Deployment](deployment.md) - Nasazení aplikace
+- [Migrace](migration.md) - WordPress migrace a React refactoring
 
 ---
 
 ## 🔗 Rychlé odkazy
 
-- **API dokumentace:** [api/overview.md](api/overview.md)
-- **INSYS integrace:** [features/insys-integration.md](features/insys-integration.md)
-- **File management:** [features/file-management.md](features/file-management.md)
-- **Značky a TIM náhledy:** [features/visual-components.md](features/visual-components.md)
-- **Services & DI:** [configuration/services.md](configuration/services.md)
-- **Deployment:** [deployment/overview.md](deployment/overview.md)
-- **Uživatelská nápověda:** [../user-docs/overview.md](../user-docs/overview.md)
+### Pro nové vývojáře
+1. [Setup prostředí](development/getting-started.md)
+2. [Architektura](architecture.md)
+3. [INSYS integrace](features/insys-integration.md)
 
-## 📖 Jak číst dokumentaci
+### Pro existující tým
+- [API dokumentace](api/insys-api.md)
+- [File management](features/file-management.md)
+- [Debug nástroje](development/development.md)
 
-1. **Nový vývojář:** Začni s [getting-started/installation.md](getting-started/installation.md)
-2. **Architektura:** Prostuduj [architecture/principles.md](architecture/principles.md) a [architecture/hybrid-architecture.md](architecture/hybrid-architecture.md)
-3. **Funkcionalita:** Prozkumej [features/](features/) podle potřeby
-4. **API:** Zkontroluj [api/overview.md](api/overview.md)
-5. **Migrace z WordPress:** Zkontroluj [migration/wordpress.md](migration/wordpress.md)
+### Pro deployment
+- [Konfigurace](configuration.md)
+- [Deployment guide](deployment.md)
 
 ---
 
-**Aktualizováno:** 2025-07-30  
-**Pro projekt:** Portál značkaře v1.0
+## 📖 Struktura projektu
+
+**Hybridní architektura:** Symfony backend + Twig templating + React micro-apps  
+**Databáze:** PostgreSQL (app data) + MSSQL (INSYS data)  
+**Frontend:** Tailwind CSS + BEM + Material React Table  
+**Development:** DDEV + Mock INSYS data
+
+---
+
+**Aktualizováno:** 2025-07-31  
+**Verze dokumentace:** 2.0  
+**Pro projekt:** Portál značkaře

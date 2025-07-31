@@ -250,5 +250,5 @@ curl "https://portalznackare.ddev.site/api/test/insys-prikaz/123"
 
 **Propojené funkcionality:** [Hlášení příkazů](hlaseni-prikazu.md) | [INSYS Integration](insys-integration.md)  
 **API Reference:** [../api/insys-api.md](../api/insys-api.md)  
-**Frontend:** [../frontend/architecture.md](../frontend/architecture.md)  
+**Frontend:** [../architecture.md](../architecture.md)  
 **Aktualizováno:** 2025-07-22

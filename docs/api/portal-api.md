@@ -662,4 +662,4 @@ curl -H "Cookie: PHPSESSID=..." "https://portalznackare.ddev.site/api/portal/rep
 
 **Funkcionální dokumentace:** [../features/hlaseni-prikazu.md](../features/hlaseni-prikazu.md)  
 **API přehled:** [overview.md](overview.md)  
-**Aktualizováno:** 2025-07-21
+**Aktualizováno:** 2025-07-31

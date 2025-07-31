@@ -596,6 +596,6 @@ class ContentAnalyticsService
 ---
 
 **File Management:** [../features/file-management.md](../features/file-management.md)  
-**Services Configuration:** [../configuration/services.md](../configuration/services.md)  
+**Services Configuration:** [../configuration.md](../configuration.md)  
 **Help System Live:** [/napoveda](/napoveda) (když aplikace běží)  
 **Aktualizováno:** 2025-07-22

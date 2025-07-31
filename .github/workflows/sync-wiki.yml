@@ -67,15 +67,14 @@ jobs:
           import re
           import glob
           
-          # Mapping of file paths to wiki page names (flattened structure)
+          # Mapping of file paths to wiki page names (simplified structure after consolidation)
           file_to_wiki = {
+              # Main files
               'overview.md': 'overview',
-              
-              # Architecture
-              'architecture/principles.md': 'architecture-principles',
-              'architecture/hybrid-architecture.md': 'architecture-hybrid-architecture',
-              'architecture/data-flow.md': 'architecture-data-flow',
-              'architecture/cms.md': 'architecture-cms',
+              'architecture.md': 'architecture',
+              'configuration.md': 'configuration',
+              'deployment.md': 'deployment',
+              'migration.md': 'migration',
               
               # Features
               'features/insys-integration.md': 'features-insys-integration',
@@ -83,49 +82,30 @@ jobs:
               'features/file-management.md': 'features-file-management',
               'features/hlaseni-prikazu.md': 'features-hlaseni-prikazu',
               'features/prikazy-management.md': 'features-prikazy-management',
-              'features/visual-components.md': 'features-visual-components',
+              'features/content-management.md': 'features-content-management',
+              'features/localization.md': 'features-localization',
               
               # API
-              'api/overview.md': 'api-overview',
               'api/insys-api.md': 'api-insys-api',
               'api/portal-api.md': 'api-portal-api',
-              'api/file-api.md': 'api-file-api',
-              'api/authentication-api.md': 'api-authentication-api',
-              'api/test-api.md': 'api-test-api',
-              
-              # Configuration
-              'configuration/environment.md': 'configuration-environment',
-              'configuration/security.md': 'configuration-security',
-              'configuration/services.md': 'configuration-services',
-              'configuration/http-basic-auth.md': 'configuration-http-basic-auth',
               
               # Development
+              'development/development.md': 'development-development',
+              'development/getting-started.md': 'development-getting-started',
               'development/insys-api-tester.md': 'development-insys-api-tester',
-              'development/debugging.md': 'development-debugging',
-              
-              # Topics
-              'topics/czech-localization.md': 'topics-czech-localization',
-              'topics/content-management.md': 'topics-content-management',
-              
-              # Legacy frontend/backend (if still exists)
-              'frontend/architecture.md': 'frontend-architecture',
-              'frontend/build-system.md': 'frontend-build-system',
-              'frontend/styling.md': 'frontend-styling',
-              'frontend/components.md': 'frontend-components',
-              'backend/overview.md': 'backend-overview',
-              'backend/services.md': 'backend-services',
-              'backend/znacky-a-tim-nahledy.md': 'backend-znacky-a-tim-nahledy',
-              
-              # Getting started & deployment
-              'getting-started/installation.md': 'getting-started-installation',
-              'deployment/overview.md': 'deployment-overview',
-              'migration/wordpress.md': 'migration-wordpress',
+              'development/visual-components.md': 'development-visual-components',
               
               # User docs
-              '../user-docs/overview.md': 'user-docs-overview',
-              'user-docs/overview.md': 'user-docs-overview',
-              '../user-docs/getting-started/first-login.md': 'user-docs-getting-started-first-login',
-              'user-docs/getting-started/first-login.md': 'user-docs-getting-started-first-login'
+              '../user-docs/README.md': 'user-docs-overview',
+              'user-docs/README.md': 'user-docs-overview',
+              '../user-docs/first-login.md': 'user-docs-first-login',
+              'user-docs/first-login.md': 'user-docs-first-login',
+              '../user-docs/hlaseni.md': 'user-docs-hlaseni',
+              'user-docs/hlaseni.md': 'user-docs-hlaseni',
+              '../user-docs/prikazy.md': 'user-docs-prikazy',
+              'user-docs/prikazy.md': 'user-docs-prikazy',
+              '../user-docs/metodika.md': 'user-docs-metodika',
+              'user-docs/metodika.md': 'user-docs-metodika'
           }
           
           def convert_links(content):
@@ -193,20 +173,17 @@ jobs:
           python3 convert-links.py
           rm convert-links.py
           
-          # Create wiki sidebar navigation
+          # Create wiki sidebar navigation (updated for simplified structure)
           cat > wiki/_Sidebar.md << 'EOF'
           ## 📖 Dokumentace
           
           ### 📋 Základní informace
           - [[Úvod|Home]]
           - [[Přehled projektu|overview]]
-          - [[Instalace a setup|getting-started-installation]]
-          
-          ### 🏗️ Architektura
-          - [[Principy a konvence|architecture-principles]]
-          - [[Hybridní architektura|architecture-hybrid-architecture]]
-          - [[Tok dat|architecture-data-flow]]
-          - [[CMS architektura|architecture-cms]]
+          - [[Architektura|architecture]]
+          - [[Konfigurace|configuration]]
+          - [[Deployment|deployment]]
+          - [[Migrace|migration]]
           
           ### ⭐ Funkcionalita
           - [[INSYS integrace|features-insys-integration]]
@@ -214,43 +191,25 @@ jobs:
           - [[Správa souborů|features-file-management]]
           - [[Hlášení příkazů|features-hlaseni-prikazu]]
           - [[Správa příkazů|features-prikazy-management]]
-          - [[Vizuální komponenty|features-visual-components]]
+          - [[Content Management|features-content-management]]
+          - [[Lokalizace|features-localization]]
           
           ### 🔌 API
-          - [[API přehled|api-overview]]
           - [[INSYS API|api-insys-api]]
           - [[Portal API|api-portal-api]]
-          - [[File API|api-file-api]]
-          - [[Authentication API|api-authentication-api]]
-          - [[Test API|api-test-api]]
-          
-          ### ⚙️ Konfigurace
-          - [[Environment|configuration-environment]]
-          - [[Security|configuration-security]]
-          - [[Services & DI|configuration-services]]
-          - [[HTTP Basic Auth|configuration-http-basic-auth]]
           
           ### 🛠️ Development
+          - [[Development Guide|development-development]]
+          - [[Instalace & Setup|development-getting-started]]
           - [[INSYS API Tester|development-insys-api-tester]]
-          - [[Debugging|development-debugging]]
-          
-          ### 📚 Témata
-          - [[České skloňování|topics-czech-localization]]
-          - [[Content Management|topics-content-management]]
-          
-          ### 🎨 Frontend
-          - [[Architektura|frontend-architecture]]
-          - [[Build systém|frontend-build-system]]
-          - [[Styling|frontend-styling]]
-          - [[Komponenty|frontend-components]]
-          
-          ### 🔄 Migrace & Deployment
-          - [[Z WordPress|migration-wordpress]]
-          - [[Deployment přehled|deployment-overview]]
+          - [[Vizuální komponenty|development-visual-components]]
           
           ### 👥 Uživatelská nápověda
           - [[Nápověda|user-docs-overview]]
-          - [[První přihlášení|user-docs-getting-started-first-login]]
+          - [[První přihlášení|user-docs-first-login]]
+          - [[Hlášení|user-docs-hlaseni]]
+          - [[Příkazy|user-docs-prikazy]]
+          - [[Metodika|user-docs-metodika]]
           EOF
           
       - name: Commit and push to wiki

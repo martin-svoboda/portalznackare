@@ -327,5 +327,5 @@ curl "https://portalznackare.ddev.site/api/test/insys-prikaz/123" | jq '.predmet
 
 **Propojené funkcionality:** [Správa příkazů](prikazy-management.md) | [INSYS Integration](insys-integration.md)  
 **API Reference:** [../api/insys-api.md](../api/insys-api.md)  
-**Styling:** [../frontend/styling.md](../frontend/styling.md)  
+**Styling:** [../architecture.md](../architecture.md)  
 **Aktualizováno:** 2025-07-22

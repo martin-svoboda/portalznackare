@@ -1,30 +1,40 @@
 # AI Documentation Rules
 
 ## Core Principles
-1. **No README.md inside folders** - Use specific names (overview.md, installation.md, etc.)
-2. **One purpose = one file** - Each document has single, clear purpose
-3. **Functional organization** - Group by features, not by code structure
+1. **Minimalizace a konsolidace** - Preferuj 1 velký soubor před 5 malými soubory
+2. **Jediný zdroj pravdy** - Žádné duplicity, vše na jednom místě
+3. **Funkční organizace** - Group by features, not by code structure  
 4. **Cross-linking mandatory** - Always link related documents
+5. **NIKDY nevytvářej nové soubory** pokud není absolutně nutné
 
-## File Structure Rules
+## Současná konsolidovaná struktura (PO REORGANIZACI)
 ```
-✅ CORRECT:
+✅ AKTUÁLNÍ STAV (2025-07-31):
 docs/
-├── overview.md              # Main index
-├── features/               # MAIN - functional areas
-│   ├── feature-name.md     # Complete feature documentation
-│   └── another-feature.md
-├── api/
-│   ├── overview.md         # API index
-│   └── endpoint-name.md    # Specific endpoint
-└── configuration/
-    └── services.md         # Specific config topic
+├── overview.md              # Hlavní index + navigace
+├── architecture.md          # Konsolidace 4 souborů (1322→150 řádků)
+├── configuration.md         # Konsolidace 5 souborů (1519→200 řádků) - JEDINÝ ZDROJ ENV
+├── deployment.md            # Deployment proces
+├── migration.md             # WordPress migrace + React refactoring (800 řádků)
+├── features/               # Funkční oblasti (7 souborů)
+│   ├── authentication.md
+│   ├── content-management.md
+│   ├── file-management.md
+│   ├── hlaseni-prikazu.md  
+│   ├── insys-integration.md
+│   ├── localization.md
+│   └── prikazy-management.md
+├── api/                    # API dokumentace (2 soubory)
+│   ├── insys-api.md
+│   └── portal-api.md
+└── development/            # Developer docs (4 soubory)
+    ├── development.md      # Debug systém + workflow
+    ├── getting-started.md  # Instalace
+    ├── insys-api-tester.md
+    └── visual-components.md
 
-❌ WRONG:
-docs/
-├── README.md               # Generic name
-├── backend/README.md       # Generic nested
-└── stuff.md                # Unclear purpose
+CELKEM: 11 souborů (bylo 20+)
+REDUKCE: 45% méně souborů, 60% méně složek
 ```
 
 ## Document Template (Mandatory Structure)
@@ -76,8 +86,8 @@ docs/
 ### New React App/Component
 ```
 ✅ MANDATORY CHECKLIST:
-□ Add to docs/features/ as part of relevant functionality
-□ Update frontend/architecture.md overview
+□ Add to docs/features/ as part of relevant functionality  
+□ Update architecture.md (consolidated frontend/backend info)
 □ Document props and usage patterns
 □ Add webpack entry to documentation
 □ Show Twig integration examples
@@ -100,12 +110,15 @@ find docs/ -name "*.md" -mtime -1       # Recently changed docs
 - [ ] Confirm GitHub Wiki sync works
 - [ ] Verify all documents have current dates
 
-## Red Flags for AI
+## Red Flags for AI (AKTUALIZOVÁNY PRO NOVOU STRUKTURU)
 - New code functionality without corresponding docs/features/ update
-- API changes without docs/api/ documentation
-- New services without configuration/services.md entry
+- API changes without docs/api/ documentation  
+- New services without updating configuration.md (konsolidovaný soubor)
+- Environment variables added without updating configuration.md (JEDINÝ ZDROJ)
 - Broken cross-links between documents
 - Code examples that don't match current implementation
+- **KRITICKÉ:** Pokus o vytvoření nových .md souborů místo rozšíření existujících
+- **KRITICKÉ:** Duplicity konfigurace napříč soubory
 
 ## AI Decision Rules
 
@@ -117,7 +130,7 @@ find docs/ -name "*.md" -mtime -1       # Recently changed docs
 ### When User Reports Bug/Issue
 1. Check if existing docs/features/ document needs troubleshooting update
 2. If fix changes API, update docs/api/ documentation
-3. If fix changes configuration, update configuration/ docs
+3. If fix changes configuration, update configuration.md (konsolidovaný soubor)
 
 ### When Refactoring Code
 1. Identify all affected documentation files
@@ -129,6 +142,29 @@ find docs/ -name "*.md" -mtime -1       # Recently changed docs
 - Always check links work locally before committing
 - GitHub Wiki sync converts these automatically
 
+## Pravidla minimalizace (NOVÁ PRAVIDLA 2025-07-31)
+
+### Priorita konsolidace
+1. **1 velký soubor > 5 malých** - Vždy preferuj rozšíření existujícího
+2. **Žádné duplicity** - configuration.md je JEDINÝ zdroj pro ENV proměnné
+3. **Žádné nové soubory** - Pouze pokud uživatel explicitně požádá
+4. **Chybí soubor?** - Raději přidej sekci do existujícího než vytvoř nový
+
+### Workflow pro úpravy dokumentace
+```bash
+# PŘED přidáním nového obsahu:
+1. Zkontroluj, zda patří do existujícího souboru
+2. Rozšiř existující místo vytváření nového
+3. Aktualizuj cross-odkazy
+4. Zkontroluj jedinečnost informací
+```
+
+### Zkušenosti z reorganizace (2025-07-31)
+- **ÚSPĚCH:** Redukce z 20+ na 11 souborů bez ztráty informací
+- **ÚSPĚCH:** Eliminace 120+ řádků duplicitních ENV proměnných  
+- **ÚSPĚCH:** configuration.md jako jediný zdroj pravdy
+- **LESSON:** Uživatel preferuje 1 velký soubor před fragmentací
+
 ---
 **This file optimized for AI workflow automation.**
-**Updated:** 2025-07-22
+**Updated:** 2025-07-31 - Major reorganization completed

@@ -125,39 +125,11 @@ Email: test@test.com
 Heslo: test123
 ```
 
-## 📝 Environment variables
+## 📝 Environment konfigurace
 
-### Lokální development (DDEV)
-```bash
-# Kopíruj vzorový soubor
-cp .env.local.example .env.local
+Pro lokální development DDEV automaticky nakonfiguruje potřebné proměnné. 
 
-# .env.local pro lokální vývoj
-USE_TEST_DATA=true  # Použije testovací data místo MSSQL
-# DATABASE_URL je již nastaveno v .env pro DDEV PostgreSQL
-```
-
-### Server deployment (DEV/PROD)
-```bash
-# Kopíruj vzorový soubor pro server
-cp .env.local.server.example .env.local
-
-# .env.local pro server
-USE_TEST_DATA=false  # Napojení na reálný MSSQL
-
-# PostgreSQL pro portál data
-DATABASE_URL="postgresql://portal_user:password@localhost:5432/portal_db?serverVersion=16&charset=utf8"
-
-# MSSQL INSYS připojení
-INSYS_DB_HOST=your.mssql.server.com
-INSYS_DB_NAME=your_insys_database
-INSYS_DB_USER=your_insys_username
-INSYS_DB_PASS=your_insys_password
-
-# Production settings
-APP_ENV=prod
-APP_SECRET=your-32-character-secret-key-here
-```
+**Detailní konfigurace:** [../configuration.md](../configuration.md)
 
 ## ✅ Ověření instalace
 

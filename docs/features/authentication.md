@@ -17,6 +17,64 @@ User Input → InsysAuthenticator → InsysUserProvider → Symfony Security →
 - **INSYS integrace:** Ověření credentials přes INSYS/MSSQL
 - **Role-based access:** ROLE_USER, ROLE_VEDOUCI podle INSYS dat
 
+## 📋 API Endpointy
+
+### GET `/api/auth/status`
+Zkontroluje stav přihlášení aktuálního uživatele.
+
+**Response (přihlášený):**
+```json
+{
+    "authenticated": true,
+    "user": {
+        "INT_ADR": 1234,
+        "Jmeno": "Test",
+        "Prijmeni": "Značkář",
+        "Email": "test@test.com",
+        "roles": ["ROLE_USER"]
+    }
+}
+```
+
+**Response (nepřihlášený):**
+```json
+{
+    "authenticated": false,
+    "user": null
+}
+```
+
+### POST `/api/auth/login`
+Přihlášení uživatele (zpracovává Symfony Security).
+
+**Request:**
+```json
+{
+    "username": "test",
+    "password": "test"
+}
+```
+
+**Response (úspěch):**
+```json
+{
+    "success": true,
+    "user": {...},
+    "message": "Přihlášení bylo úspěšné"
+}
+```
+
+### POST `/api/auth/logout`
+Odhlášení uživatele a zrušení session.
+
+**Response:**
+```json
+{
+    "success": true,
+    "message": "Odhlášení bylo úspěšné"
+}
+```
+
 ## 🛠️ Backend Security komponenty
 
 ### 1. **InsysAuthenticator** - Custom authenticator
@@ -174,54 +232,6 @@ security:
         - { path: ^/api, roles: ROLE_USER }
 ```
 
-## 🌐 API Endpointy
-
-### AuthController - Authentication API
-
-```php
-// src/Controller/Api/AuthController.php
-#[Route('/api/auth')]
-class AuthController extends AbstractController {
-    
-    #[Route('/login', methods: ['POST'])]
-    public function login(): JsonResponse {
-        // InsysAuthenticator automaticky zpracuje přihlášení
-        // Tento endpoint vrací user data po úspěšném přihlášení
-        $user = $this->getUser();
-        
-        return new JsonResponse([
-            'success' => true,
-            'user' => [
-                'INT_ADR' => $user->getIntAdr(),
-                'Jmeno' => $user->getJmeno(),
-                'Prijmeni' => $user->getPrijmeni(),
-                'roles' => $user->getRoles()
-            ]
-        ]);
-    }
-    
-    #[Route('/status', methods: ['GET'])]
-    public function status(): JsonResponse {
-        // Zkontroluj jestli je uživatel přihlášený
-        $user = $this->getUser();
-        
-        if (!$user instanceof User) {
-            return new JsonResponse(['authenticated' => false]);
-        }
-        
-        return new JsonResponse([
-            'authenticated' => true,
-            'user' => [/* user data */]
-        ]);
-    }
-    
-    #[Route('/logout')]
-    public function logout(): void {
-        // Symfony firewall automaticky zpracuje odhlášení
-        throw new \Exception('Handled by Symfony Security');
-    }
-}
-```
 
 ## 🔄 Authentication flow
 
@@ -364,97 +374,7 @@ if (!$this->isGranted('ROLE_VEDOUCI')) {
 }
 ```
 
-## 🧪 Testing authentication
 
-### Test credentials
-```bash
-# Development test credentials
-Email: test@test.com
-Password: test123
-# Vrací: INT_ADR, ROLE_USER + ROLE_VEDOUCI
-```
-
-### Test API calls
-```bash
-# Test login
-curl -X POST https://portalznackare.ddev.site/api/test/login-test \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@test.com","hash":"test123"}'
-
-# Test auth status
-curl https://portalznackare.ddev.site/api/auth/status \
-  -H "Cookie: PHPSESSID=your_session_id"
-
-# Test protected endpoint  
-curl https://portalznackare.ddev.site/api/test/insys-user \
-  -H "Cookie: PHPSESSID=your_session_id"
-```
-
-### Debug authentication
-```php
-// Debug log v InsysAuthenticator
-error_log("Authentication attempt for: " . $username);
-error_log("INSYS returned INT_ADR: " . $intAdr);
-
-// Session debug
-$session = $request->getSession();
-error_log("Session ID: " . $session->getId());
-error_log("User in session: " . ($this->getUser() ? 'yes' : 'no'));
-```
-
-## 🛠️ Troubleshooting
-
-### Časté problémy
-
-#### 1. **Session not persisting**
-```javascript
-// ❌ ŠPATNĚ - chybí credentials
-fetch('/api/auth/login', {
-    method: 'POST',
-    body: JSON.stringify({...})
-});
-
-// ✅ SPRÁVNĚ - s credentials pro session cookies
-fetch('/api/auth/login', {
-    method: 'POST',
-    credentials: 'same-origin',  // Klíčové pro session!
-    body: JSON.stringify({...})
-});
-```
-
-#### 2. **CORS issues s credentials**
-```yaml
-# config/packages/nelmio_cors.yaml
-nelmio_cors:
-    defaults:
-        allow_credentials: true
-        origin_regex: true
-        allow_origin: ['%env(CORS_ALLOW_ORIGIN)%']
-        allow_methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
-        allow_headers: ['Content-Type', 'Authorization']
-```
-
-#### 3. **Role assignment not working**
-```php
-// Debug role assignment
-$userData = $this->insysService->getUser($intAdr);
-dump($userData['Vedouci_dvojice']);  // Mělo by být "1" pro leaders
-
-// Debug final user roles
-$user = $this->userProvider->loadUserByIdentifier($intAdr);
-dump($user->getRoles());  // Mělo by obsahovat ROLE_VEDOUCI
-```
-
-#### 4. **API 401 errors**
-```php
-// Zkontroluj firewall konfiguraci
-// API firewall MUSÍ být před main firewall!
-api:
-    pattern: ^/api
-    # ... config
-main:
-    pattern: ^/     # Toto musí být DRUHÉ
-```
 
 ## 🔐 Production security checklist
 
@@ -491,6 +411,6 @@ INSYS_DB_PASS=complex_secure_password
 ---
 
 **INSYS Integration:** [insys-integration.md](insys-integration.md)  
-**API Reference:** [../api/authentication-api.md](../api/authentication-api.md)  
-**Configuration:** [../configuration/security.md](../configuration/security.md)  
+**API Reference:** [../api/insys-api.md](../api/insys-api.md)  
+**Configuration:** [../configuration.md](../configuration.md)  
 **Aktualizováno:** 2025-07-21

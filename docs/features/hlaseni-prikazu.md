@@ -655,5 +655,5 @@ class SyncReportStatusCommand extends Command {
 
 **Propojené funkcionality:** [File Management](file-management.md) | [INSYS Integration](insys-integration.md)  
 **API Reference:** [../api/portal-api.md](../api/portal-api.md)  
-**Frontend:** [../frontend/architecture.md](../frontend/architecture.md)  
+**Frontend:** [../architecture.md](../architecture.md)  
 **Aktualizováno:** 2025-07-22

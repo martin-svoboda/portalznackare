@@ -265,4 +265,5 @@ private function determineExportPathFromData(string $endpoint, array $params, ar
 
 - [INSYS API Reference](../api/insys-api.md)
 - [INSYS Integration](../features/insys-integration.md)
-- [API Overview](../api/overview.md)
+- [INSYS API](../api/insys-api.md)
+- [Portal API](../api/portal-api.md)

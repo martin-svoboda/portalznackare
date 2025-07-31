@@ -37,42 +37,10 @@ PROD: https://portalznackare.cz      (37.235.105.56:/www/hosting/portalznackare.
 
 ## 🔑 Požadavky na serveru
 
-### Environment soubor
-Na serveru musí existovat `.env.local` s konfigurací:
+### Environment konfigurace
+Na serveru musí existovat `.env.local` s příslušnou konfigurací.
 
-**DEV server:**
-```bash
-APP_ENV=dev
-USE_TEST_DATA=false  # nebo true pro testovací data
-
-# PostgreSQL pro portál data
-DATABASE_URL="postgresql://portal_user:password@localhost:5432/portal_db"
-
-# MSSQL INSYS připojení
-INSYS_DB_HOST=insys_server
-INSYS_DB_NAME=insys_database
-INSYS_DB_USER=insys_user
-INSYS_DB_PASS=insys_password
-
-APP_SECRET=your-dev-secret
-```
-
-**PROD server:**
-```bash
-APP_ENV=prod
-USE_TEST_DATA=false
-
-# PostgreSQL pro portál data
-DATABASE_URL="postgresql://portal_user:password@localhost:5432/portal_db"
-
-# MSSQL INSYS připojení
-INSYS_DB_HOST=insys_server
-INSYS_DB_NAME=insys_database
-INSYS_DB_USER=insys_user
-INSYS_DB_PASS=insys_password
-
-APP_SECRET=your-production-secret
-```
+**Detailní konfigurace:** [configuration.md](configuration.md)
 
 ### Server requirements
 - **PHP 8.3** s extensions: pdo, pdo_pgsql, pdo_sqlsrv
@@ -121,5 +89,5 @@ Požadované secrets v repository:
 ---
 
 **Deployment workflow:** [.github/workflows/deploy.yml](../../.github/workflows/deploy.yml)  
-**Hlavní dokumentace:** [../overview.md](../overview.md)  
+**Hlavní dokumentace:** [overview.md](overview.md)  
 **Aktualizováno:** 2025-07-21

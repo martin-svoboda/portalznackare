@@ -403,7 +403,7 @@ $vocativeService->toVocativeWithGender('Nikola', 'male');   // "Nikolo"
 
 ---
 
-**Related Services:** [../configuration/services.md](../configuration/services.md)  
+**Related Services:** [../configuration.md](../configuration.md)  
 **Controller Usage:** [../features/authentication.md](../features/authentication.md)  
 **Granam Library:** [https://github.com/jaroslavtyc/granam-czech-vocative](https://github.com/jaroslavtyc/granam-czech-vocative)  
 **Aktualizováno:** 2025-07-22
