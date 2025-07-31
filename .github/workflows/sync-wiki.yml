@@ -30,13 +30,13 @@ jobs:
           
           # Copy docs to wiki with flattened structure (GitHub Wiki requirement)
           if [ -d "docs" ]; then
-            # Copy main README as Home
-            if [ -f "docs/README.md" ]; then
-              cp "docs/README.md" "wiki/Home.md"
+            # Copy main overview.md as Home (no README.md exists after consolidation)
+            if [ -f "docs/overview.md" ]; then
+              cp "docs/overview.md" "wiki/Home.md"
             fi
             
-            # Copy all other files with folder prefixes (exclude CLAUDE.md)
-            find docs/ -name "*.md" -not -name "README.md" -not -name "CLAUDE.md" | while read file; do
+            # Copy all other files with folder prefixes (exclude CLAUDE.md and overview.md since it's already Home)
+            find docs/ -name "*.md" -not -name "overview.md" -not -name "CLAUDE.md" | while read file; do
               # Convert path to flat name: docs/backend/znacky-a-tim-nahledy.md -> backend-znacky-a-tim-nahledy.md
               wiki_name=$(echo "$file" | sed 's|docs/||' | sed 's|/|-|g')
               cp "$file" "wiki/$wiki_name"
