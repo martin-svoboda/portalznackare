@@ -164,13 +164,16 @@ export function calculateTransportCosts(formData, priceList, userIntAdr = null) 
             
             if (segment.Druh_Dopravy === "AUV" || segment.Druh_Dopravy === "AUV-Z") {
                 // Auto jízdné - pouze řidiči skupiny
-                if (isUserDriverOfGroup) {
+                if (isUserDriverOfGroup && segment.Kilometry > 0) {
                     const rate = hasGroupHigherRate ? priceList.jizdneZvysene : priceList.jizdne;
-                    totalCosts += (segment.Kilometry || 0) * rate;
+                    totalCosts += segment.Kilometry * rate;
                 }
             } else if (segment.Druh_Dopravy === "V") {
-                // Veřejná doprava - všem cestujícím skupiny
-                totalCosts += segment.Naklady || 0;
+                // Veřejná doprava - pouze pokud má uživatel zadanou částku
+                if (typeof segment.Naklady === 'object' && segment.Naklady !== null) {
+                    totalCosts += segment.Naklady[userIntAdr] || 0;
+                }
+                // Pokud Naklady není objekt, ignorovat (nezadáno)
             }
             // Pěšky ("P") a kolo ("K") = 0 Kč pro všechny
         });

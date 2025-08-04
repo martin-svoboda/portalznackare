@@ -53,9 +53,24 @@ const serializeTravelSegment = (segment) => {
 
     // Add transport-specific fields based on current transport type
     if (segment.Druh_Dopravy === "AUV" || segment.Druh_Dopravy === "AUV-Z") {
-        cleanSegment.Kilometry = segment.Kilometry || 0;
+        // Uložit pouze pokud má hodnotu
+        if (segment.Kilometry !== undefined && segment.Kilometry > 0) {
+            cleanSegment.Kilometry = segment.Kilometry;
+        }
     } else if (segment.Druh_Dopravy === "V") {
-        cleanSegment.Naklady = segment.Naklady || 0;
+        // Uložit pouze pokud je objekt s hodnotami
+        if (typeof segment.Naklady === 'object' && segment.Naklady !== null) {
+            // Vyfiltrovat prázdné hodnoty
+            const filteredNaklady = {};
+            Object.entries(segment.Naklady).forEach(([intAdr, value]) => {
+                if (value > 0) {
+                    filteredNaklady[intAdr] = value;
+                }
+            });
+            if (Object.keys(filteredNaklady).length > 0) {
+                cleanSegment.Naklady = filteredNaklady;
+            }
+        }
         cleanSegment.Prilohy = segment.Prilohy || [];
     }
     // For "P" (walking) and "K" (bike) - no additional fields needed

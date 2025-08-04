@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, {useMemo} from 'react';
 import {
     IconPlus,
     IconTrash,
@@ -14,14 +14,14 @@ import {
     IconUserCheck,
     IconCurrencyDollar
 } from '@tabler/icons-react';
-import { AdvancedFileUpload } from './AdvancedFileUpload';
+import {AdvancedFileUpload} from './AdvancedFileUpload';
 
 const druhDopravyOptions = [
-    { value: "AUV", label: "AUV (Auto vlastní)", icon: IconCar },
+    {value: "AUV", label: "AUV (Auto vlastní)", icon: IconCar},
     //{ value: "AUV-Z", label: "AUV-Z (Auto zaměstnavatele)", icon: IconCar }, // vypnuto - nepoužívá se
-    { value: "V", label: "Veřejná doprava", icon: IconBus },
-    { value: "P", label: "Pěšky", icon: IconWalk },
-    { value: "K", label: "Kolo", icon: IconBike },
+    {value: "V", label: "Veřejná doprava", icon: IconBus},
+    {value: "P", label: "Pěšky", icon: IconWalk},
+    {value: "K", label: "Kolo", icon: IconBike},
 ];
 
 const getTransportIcon = (Druh_Dopravy) => {
@@ -37,50 +37,50 @@ const createEmptyTravelSegment = () => ({
     Misto_Odjezdu: "",
     Misto_Prijezdu: "",
     Druh_Dopravy: "AUV",
-    Kilometry: 0,
-    Naklady: 0,
+    Kilometry: undefined, // Undefined místo 0 pro prázdné pole
+    Naklady: undefined,
     Prilohy: []
 });
 
-export const TravelGroupsForm = ({ 
-    formData, 
-    setFormData, 
-    priceList, 
-    head, 
-    teamMembers,
-    prikazId, 
-    fileUploadService,
-    currentUser
-}) => {
+export const TravelGroupsForm = ({
+                                     formData,
+                                     setFormData,
+                                     priceList,
+                                     head,
+                                     teamMembers,
+                                     prikazId,
+                                     fileUploadService,
+                                     currentUser
+                                 }) => {
     // Generate storage path for this report
     const storagePath = useMemo(() => {
         if (!prikazId) return null;
-        
+
         const year = formData.Datum_Provedeni ? formData.Datum_Provedeni.getFullYear() : new Date().getFullYear();
         const kkz = head?.KKZ?.toString().trim() || 'unknown';
         const obvod = head?.ZO?.toString().trim() || 'unknown';
         const sanitizedPrikazId = prikazId?.toString().trim() || 'unknown';
-        
+
         const validYear = (year >= 2020 && year <= 2030) ? year : new Date().getFullYear();
-        
+
         return `reports/${validYear}/${kkz}/${obvod}/${sanitizedPrikazId}`;
     }, [prikazId, formData.Datum_Provedeni, head]);
 
     // Helper functions for date formatting (from original)
     const formatDate = (date) => {
         if (!date) return '';
-        
+
         // Ensure date is a Date object
         let dateObj = date;
         if (!(date instanceof Date)) {
             dateObj = new Date(date);
         }
-        
+
         // Check if date is valid
         if (isNaN(dateObj.getTime())) {
             return '';
         }
-        
+
         return dateObj.toISOString().split('T')[0];
     };
 
@@ -92,7 +92,7 @@ export const TravelGroupsForm = ({
     // Travel group functions
     const addTravelGroup = () => {
         const defaultDriver = (teamMembers || []).length === 1 ? teamMembers[0]?.INT_ADR : null;
-        
+
         const newGroup = {
             id: crypto.randomUUID(),
             Cestujci: (teamMembers || []).map(m => m.INT_ADR), // defaultně všichni
@@ -101,7 +101,7 @@ export const TravelGroupsForm = ({
             Ma_Zvysenou_Sazbu: false, // Příznak pro zvýšenou sazbu
             Cesty: [createEmptyTravelSegment()]
         };
-        
+
         setFormData(prev => ({
             ...prev,
             Skupiny_Cest: [...(prev.Skupiny_Cest || []), newGroup]
@@ -119,7 +119,7 @@ export const TravelGroupsForm = ({
         setFormData(prev => ({
             ...prev,
             Skupiny_Cest: prev.Skupiny_Cest?.map(group =>
-                group.id === groupId ? { ...group, ...updates } : group
+                group.id === groupId ? {...group, ...updates} : group
             ) || []
         }));
     };
@@ -128,14 +128,14 @@ export const TravelGroupsForm = ({
     const addTravelSegment = (groupId) => {
         const group = formData.Skupiny_Cest?.find(g => g.id === groupId);
         if (!group) return;
-        
+
         const lastSegment = group.Cesty[group.Cesty.length - 1];
         const newSegment = {
             ...createEmptyTravelSegment(),
             datum: formData.Datum_Provedeni,
             Misto_Odjezdu: lastSegment?.Misto_Prijezdu || "",
         };
-        
+
         updateGroupField(groupId, {
             Cesty: [...group.Cesty, newSegment]
         });
@@ -146,10 +146,10 @@ export const TravelGroupsForm = ({
         if (!group) return;
 
         const updatedSegments = group.Cesty.map(segment =>
-            segment.id === segmentId ? { ...segment, ...updates } : segment
+            segment.id === segmentId ? {...segment, ...updates} : segment
         );
 
-        updateGroupField(groupId, { Cesty: updatedSegments });
+        updateGroupField(groupId, {Cesty: updatedSegments});
     };
 
     const removeSegment = (groupId, segmentId) => {
@@ -194,7 +194,7 @@ export const TravelGroupsForm = ({
 
         if (currentIndex > 0) {
             [segments[currentIndex - 1], segments[currentIndex]] = [segments[currentIndex], segments[currentIndex - 1]];
-            updateGroupField(groupId, { Cesty: segments });
+            updateGroupField(groupId, {Cesty: segments});
         }
     };
 
@@ -207,7 +207,7 @@ export const TravelGroupsForm = ({
 
         if (currentIndex < segments.length - 1) {
             [segments[currentIndex], segments[currentIndex + 1]] = [segments[currentIndex + 1], segments[currentIndex]];
-            updateGroupField(groupId, { Cesty: segments });
+            updateGroupField(groupId, {Cesty: segments});
         }
     };
 
@@ -216,7 +216,7 @@ export const TravelGroupsForm = ({
         const member = (teamMembers || []).find(m => m.INT_ADR === intAdr);
         return member?.name || `Člen ${intAdr}`;
     };
-    
+
     // Handle higher rate change for radio buttons
     const handleHigherRateChange = (selectedGroupId) => {
         setFormData(prev => ({
@@ -227,7 +227,7 @@ export const TravelGroupsForm = ({
             }))
         }));
     };
-    
+
     // Calculate total kilometers for a group
     const calculateGroupKilometers = (group) => {
         return group.Cesty?.reduce((total, segment) => {
@@ -240,12 +240,12 @@ export const TravelGroupsForm = ({
 
     // Fix groups with null or empty participants on mount
     React.useEffect(() => {
-        const needsFix = formData.Skupiny_Cest?.some(group => 
-            !group.Cestujci || 
-            group.Cestujci.length === 0 || 
+        const needsFix = formData.Skupiny_Cest?.some(group =>
+            !group.Cestujci ||
+            group.Cestujci.length === 0 ||
             group.Cestujci.some(p => p === null)
         );
-        
+
         if (needsFix && (teamMembers || []).length > 0) {
             setFormData(prev => ({
                 ...prev,
@@ -256,22 +256,22 @@ export const TravelGroupsForm = ({
             }));
         }
     }, []); // Run only once on mount
-    
+
     // Auto-set first driver to have higher rate when Zvysena_Sazba is true or when drivers change
     React.useEffect(() => {
         if (formData.Zvysena_Sazba) {
             const groupsWithDrivers = formData.Skupiny_Cest?.filter(g => g.Ridic) || [];
             const hasAnyWithHigherRate = groupsWithDrivers.some(g => g.Ma_Zvysenou_Sazbu);
-            
+
             // If no one has higher rate and there's at least one driver, set the first one
             if (!hasAnyWithHigherRate && groupsWithDrivers.length > 0) {
                 handleHigherRateChange(groupsWithDrivers[0].id);
             }
         }
     }, [formData.Zvysena_Sazba, JSON.stringify(formData.Skupiny_Cest?.map(g => g.Ridic) || [])]); // Re-run when Zvysena_Sazba changes or drivers change
-    
+
     const travelGroups = formData.Skupiny_Cest || [];
-    
+
     const isFormDisabled = formData.status === 'submitted';
 
     return (
@@ -284,7 +284,7 @@ export const TravelGroupsForm = ({
                             <>
                                 <div className="flex justify-between items-center mb-4">
                                     <h4 className="text-lg font-semibold">
-                                        <IconUsers size={20} className="inline mr-2" />
+                                        <IconUsers size={20} className="inline mr-2"/>
                                         Skupina cest {groupIndex + 1}
                                     </h4>
                                     <button
@@ -293,7 +293,7 @@ export const TravelGroupsForm = ({
                                         className="btn btn--icon btn--danger--light btn--sm"
                                         title="Odstranit skupinu"
                                     >
-                                        <IconTrash size={16} />
+                                        <IconTrash size={16}/>
                                     </button>
                                 </div>
 
@@ -315,7 +315,7 @@ export const TravelGroupsForm = ({
                                                             const newCestujci = e.target.checked
                                                                 ? [...(group.Cestujci || []), memberIntAdr]
                                                                 : (group.Cestujci || []).filter(p => p !== memberIntAdr);
-                                                            updateGroupField(group.id, { Cestujci: newCestujci });
+                                                            updateGroupField(group.id, {Cestujci: newCestujci});
                                                         }}
                                                         disabled={isFormDisabled}
                                                     />
@@ -341,7 +341,7 @@ export const TravelGroupsForm = ({
 
                                 return (
                                     <div key={segment.id}>
-                                        {index > 0 && <hr className="my-4" />}
+                                        {index > 0 && <hr className="my-4"/>}
                                         <div className="ml-4 pl-6 border-l-2 border-blue-400 relative">
                                             <div className="absolute top-0 right-0 flex gap-1 z-10">
                                                 {/* Move up - only if not first */}
@@ -353,7 +353,7 @@ export const TravelGroupsForm = ({
                                                         title="Přesunout nahoru"
                                                         disabled={isFormDisabled}
                                                     >
-                                                        <IconArrowUp size={14} />
+                                                        <IconArrowUp size={14}/>
                                                     </button>
                                                 )}
 
@@ -366,7 +366,7 @@ export const TravelGroupsForm = ({
                                                         title="Přesunout dolů"
                                                         disabled={isFormDisabled}
                                                     >
-                                                        <IconArrowDown size={14} />
+                                                        <IconArrowDown size={14}/>
                                                     </button>
                                                 )}
 
@@ -378,9 +378,9 @@ export const TravelGroupsForm = ({
                                                     title="Duplikovat cestu"
                                                     disabled={isFormDisabled}
                                                 >
-                                                    <IconCopy size={14} />
+                                                    <IconCopy size={14}/>
                                                 </button>
-                                                
+
                                                 {/* Remove segment - only if more than 1 */}
                                                 {group.Cesty.length > 1 && (
                                                     <button
@@ -390,7 +390,7 @@ export const TravelGroupsForm = ({
                                                         title="Smazat cestu"
                                                         disabled={isFormDisabled}
                                                     >
-                                                        <IconTrash size={16} />
+                                                        <IconTrash size={16}/>
                                                     </button>
                                                 )}
                                             </div>
@@ -398,22 +398,25 @@ export const TravelGroupsForm = ({
                                             {/* PŮVODNÍ: Segment header - přesně stejný */}
                                             <div className="mb-4">
                                                 <div className="flex items-start gap-3 mb-4 flex-wrap">
-                                                    <div className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center absolute -left-5 -top-1">
-                                                        <TransportIcon size={18} />
+                                                    <div
+                                                        className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center absolute -left-5 -top-1">
+                                                        <TransportIcon size={18}/>
                                                     </div>
                                                     <div className="w-24 pl-2">
                                                         <span className="font-medium">Cesta {index + 1}</span>
                                                     </div>
                                                     <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
                                                         <div className="md:col-span-2">
-                                                            <label htmlFor={`segment-date-${segment.id}`} className="form__label sr-only">Datum segmentu</label>
+                                                            <label htmlFor={`segment-date-${segment.id}`}
+                                                                   className="form__label sr-only">Datum
+                                                                segmentu</label>
                                                             <input
                                                                 id={`segment-date-${segment.id}`}
                                                                 name={`segment-date-${segment.id}`}
                                                                 type="date"
                                                                 className="form__input"
                                                                 value={formatDate(segment.Datum || formData.Datum_Provedeni)}
-                                                                onChange={(e) => updateSegmentField(group.id, segment.id, { Datum: parseDate(e.target.value) })}
+                                                                onChange={(e) => updateSegmentField(group.id, segment.id, {Datum: parseDate(e.target.value)})}
                                                                 disabled={isFormDisabled}
                                                             />
                                                         </div>
@@ -422,15 +425,17 @@ export const TravelGroupsForm = ({
 
                                                 {/* PŮVODNÍ: Start location - přesně stejný */}
                                                 <div className="flex items-start gap-3 mb-4 flex-wrap">
-                                                    <div className="w-6 h-6 rounded-full bg-gray-400 text-white flex items-center justify-center absolute -left-3 text-xs">
-                                                        <IconMapPin size={16} />
+                                                    <div
+                                                        className="w-6 h-6 rounded-full bg-gray-400 text-white flex items-center justify-center absolute -left-3 text-xs">
+                                                        <IconMapPin size={16}/>
                                                     </div>
                                                     <div className="w-24">
                                                         <span>Odjezd z</span>
                                                     </div>
                                                     <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
                                                         <div className="md:col-span-2">
-                                                            <label htmlFor={`start-place-${segment.id}`} className="form__label sr-only">Místo odjezdu</label>
+                                                            <label htmlFor={`start-place-${segment.id}`}
+                                                                   className="form__label sr-only">Místo odjezdu</label>
                                                             <input
                                                                 id={`start-place-${segment.id}`}
                                                                 name={`start-place-${segment.id}`}
@@ -438,20 +443,21 @@ export const TravelGroupsForm = ({
                                                                 className="form__input"
                                                                 placeholder="Místo"
                                                                 value={segment.Misto_Odjezdu || ""}
-                                                                onChange={(e) => updateSegmentField(group.id, segment.id, { Misto_Odjezdu: e.target.value })}
+                                                                onChange={(e) => updateSegmentField(group.id, segment.id, {Misto_Odjezdu: e.target.value})}
                                                                 disabled={isFormDisabled}
                                                             />
                                                         </div>
                                                         <div className="flex items-center gap-2">
                                                             <span>V</span>
-                                                            <label htmlFor={`start-time-${segment.id}`} className="form__label sr-only">Čas odjezdu</label>
+                                                            <label htmlFor={`start-time-${segment.id}`}
+                                                                   className="form__label sr-only">Čas odjezdu</label>
                                                             <input
                                                                 id={`start-time-${segment.id}`}
                                                                 name={`start-time-${segment.id}`}
                                                                 type="time"
                                                                 className="form__input flex-1"
                                                                 value={segment.Cas_Odjezdu || ""}
-                                                                onChange={(e) => updateSegmentField(group.id, segment.id, { Cas_Odjezdu: e.target.value })}
+                                                                onChange={(e) => updateSegmentField(group.id, segment.id, {Cas_Odjezdu: e.target.value})}
                                                                 disabled={isFormDisabled}
                                                             />
                                                         </div>
@@ -460,15 +466,18 @@ export const TravelGroupsForm = ({
 
                                                 {/* PŮVODNÍ: End location - přesně stejný */}
                                                 <div className="flex items-start gap-3 mb-4 flex-wrap">
-                                                    <div className="w-6 h-6 rounded-full bg-gray-400 text-white flex items-center justify-center absolute -left-3 text-xs">
-                                                        <IconMapPin size={16} />
+                                                    <div
+                                                        className="w-6 h-6 rounded-full bg-gray-400 text-white flex items-center justify-center absolute -left-3 text-xs">
+                                                        <IconMapPin size={16}/>
                                                     </div>
                                                     <div className="w-24">
                                                         <span>Příjezd do</span>
                                                     </div>
                                                     <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
                                                         <div className="md:col-span-2">
-                                                            <label htmlFor={`end-place-${segment.id}`} className="form__label sr-only">Místo příjezdu</label>
+                                                            <label htmlFor={`end-place-${segment.id}`}
+                                                                   className="form__label sr-only">Místo
+                                                                příjezdu</label>
                                                             <input
                                                                 id={`end-place-${segment.id}`}
                                                                 name={`end-place-${segment.id}`}
@@ -476,20 +485,21 @@ export const TravelGroupsForm = ({
                                                                 className="form__input"
                                                                 placeholder="Místo"
                                                                 value={segment.Misto_Prijezdu || ""}
-                                                                onChange={(e) => updateSegmentField(group.id, segment.id, { Misto_Prijezdu: e.target.value })}
+                                                                onChange={(e) => updateSegmentField(group.id, segment.id, {Misto_Prijezdu: e.target.value})}
                                                                 disabled={isFormDisabled}
                                                             />
                                                         </div>
                                                         <div className="flex items-center gap-2">
                                                             <span>V</span>
-                                                            <label htmlFor={`end-time-${segment.id}`} className="form__label sr-only">Čas příjezdu</label>
+                                                            <label htmlFor={`end-time-${segment.id}`}
+                                                                   className="form__label sr-only">Čas příjezdu</label>
                                                             <input
                                                                 id={`end-time-${segment.id}`}
                                                                 name={`end-time-${segment.id}`}
                                                                 type="time"
                                                                 className="form__input flex-1"
                                                                 value={segment.Cas_Prijezdu || ""}
-                                                                onChange={(e) => updateSegmentField(group.id, segment.id, { Cas_Prijezdu: e.target.value })}
+                                                                onChange={(e) => updateSegmentField(group.id, segment.id, {Cas_Prijezdu: e.target.value})}
                                                                 disabled={isFormDisabled}
                                                             />
                                                         </div>
@@ -499,13 +509,14 @@ export const TravelGroupsForm = ({
                                                 {/* PŮVODNÍ: Transport type and distance/costs - přesně stejný */}
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-4">
                                                     <div>
-                                                        <label htmlFor={`transport-type-${segment.id}`} className="form__label">Typ dopravy</label>
+                                                        <label htmlFor={`transport-type-${segment.id}`}
+                                                               className="form__label">Typ dopravy</label>
                                                         <select
                                                             id={`transport-type-${segment.id}`}
                                                             name={`transport-type-${segment.id}`}
                                                             className="form__select"
                                                             value={segment.Druh_Dopravy || "AUV"}
-                                                            onChange={(e) => updateSegmentField(group.id, segment.id, { Druh_Dopravy: e.target.value })}
+                                                            onChange={(e) => updateSegmentField(group.id, segment.id, {Druh_Dopravy: e.target.value})}
                                                             disabled={isFormDisabled}
                                                         >
                                                             {druhDopravyOptions.map(opt => (
@@ -518,14 +529,19 @@ export const TravelGroupsForm = ({
                                                     <div>
                                                         {segment.Druh_Dopravy === "AUV" && (
                                                             <>
-                                                                <label htmlFor={`kilometry-${segment.id}`} className="form__label">Kilometry</label>
+                                                                <label htmlFor={`kilometry-${segment.id}`}
+                                                                       className="form__label">Kilometry</label>
                                                                 <input
                                                                     id={`kilometry-${segment.id}`}
                                                                     name={`kilometry-${segment.id}`}
                                                                     type="number"
                                                                     className="form__input"
-                                                                    value={segment.Kilometry || 0}
-                                                                    onChange={(e) => updateSegmentField(group.id, segment.id, { Kilometry: Number(e.target.value) || 0 })}
+                                                                    value={segment.Kilometry || ''}
+                                                                    onChange={(e) => {
+                                                                        const value = e.target.value === '' ? undefined : parseFloat(e.target.value) || 0;
+                                                                        updateSegmentField(group.id, segment.id, {Kilometry: value});
+                                                                    }}
+                                                                    placeholder="0"
                                                                     min="0"
                                                                     step="0.1"
                                                                     disabled={isFormDisabled}
@@ -533,20 +549,58 @@ export const TravelGroupsForm = ({
                                                             </>
                                                         )}
                                                         {segment.Druh_Dopravy === "V" && (
-                                                            <>
-                                                                <label htmlFor={`ticket-costs-${segment.id}`} className="form__label">Náklady na jízdenky (Kč)</label>
-                                                                <input
-                                                                    id={`ticket-costs-${segment.id}`}
-                                                                    name={`ticket-costs-${segment.id}`}
-                                                                    type="number"
-                                                                    className="form__input"
-                                                                    value={segment.Naklady || 0}
-                                                                    onChange={(e) => updateSegmentField(group.id, segment.id, { Naklady: Number(e.target.value) || 0 })}
-                                                                    min="0"
-                                                                    step="0.01"
-                                                                    disabled={isFormDisabled}
-                                                                />
-                                                            </>
+                                                            <div className="space-y-2">
+                                                                <label className="form__label">Náklady na jízdenky
+                                                                    (Kč)</label>
+                                                                {/* Zobrazit input pro každého cestujícího */}
+                                                                {group.Cestujci && group.Cestujci.length > 0 ? (
+                                                                    <div className="space-y-2">
+                                                                        {group.Cestujci.map(intAdr => {
+                                                                            const member = teamMembers?.find(m => m.INT_ADR === intAdr);
+                                                                            const currentValue = typeof segment.Naklady === 'object' ? (segment.Naklady[intAdr] || '') : '';
+
+                                                                            return (
+                                                                                <div key={intAdr}
+                                                                                     className="flex gap-1">
+                                                                                    <span
+                                                                                        className="text-xs min-w-min w-20">
+                                                                                        {member?.name || `Člen ${intAdr}`}:
+                                                                                    </span>
+                                                                                        <input
+                                                                                            type="number"
+                                                                                            className="form__input flex-1"
+                                                                                            value={currentValue}
+                                                                                            onChange={(e) => {
+                                                                                                const value = parseFloat(e.target.value) || 0;
+                                                                                                const newNaklady = typeof segment.Naklady === 'object'
+                                                                                                    ? {...segment.Naklady}
+                                                                                                    : {};
+
+                                                                                                if (value > 0) {
+                                                                                                    newNaklady[intAdr] = value;
+                                                                                                } else {
+                                                                                                    delete newNaklady[intAdr];
+                                                                                                }
+
+                                                                                                updateSegmentField(group.id, segment.id, {
+                                                                                                    Naklady: Object.keys(newNaklady).length > 0 ? newNaklady : undefined
+                                                                                                });
+                                                                                            }}
+                                                                                            placeholder="0"
+                                                                                            min="0"
+                                                                                            step="0.01"
+                                                                                            disabled={isFormDisabled}
+                                                                                        />
+                                                                                </div>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                ) : (
+                                                                    <p className="text-sm text-gray-500 italic">
+                                                                        Nejprve vyberte cestující pro tuto skupinu
+                                                                    </p>
+                                                                )}
+                                                            </div>
                                                         )}
                                                         {/* Pro P (Pěšky) a K (Kolo) se nic nezobrazuje */}
                                                     </div>
@@ -555,11 +609,12 @@ export const TravelGroupsForm = ({
                                                 {/* PŮVODNÍ: File uploads for public transport - přesně stejný */}
                                                 {segment.Druh_Dopravy === "V" && (
                                                     <div className="mt-4">
-                                                        <label className="form__label mb-2 block">Jízdenky a doklady</label>
+                                                        <label className="form__label mb-2 block">Jízdenky a
+                                                            doklady</label>
                                                         <AdvancedFileUpload
                                                             id={`segment-${segment.id}`}
                                                             files={segment.Prilohy ?? []}
-                                                            onFilesChange={(files) => updateSegmentField(group.id, segment.id, { Prilohy: files })}
+                                                            onFilesChange={(files) => updateSegmentField(group.id, segment.id, {Prilohy: files})}
                                                             maxFiles={10}
                                                             accept="image/jpeg,image/png,image/heic,application/pdf"
                                                             maxSize={10}
@@ -581,7 +636,7 @@ export const TravelGroupsForm = ({
                                     onClick={() => addTravelSegment(group.id)}
                                     disabled={isFormDisabled}
                                 >
-                                    <IconPlus size={16} className="mr-2" />
+                                    <IconPlus size={16} className="mr-2"/>
                                     Přidat segment
                                 </button>
                             </div>
@@ -592,7 +647,8 @@ export const TravelGroupsForm = ({
                                     <h5 className="text-md font-semibold mb-4">Nastavení řidiče</h5>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
-                                            <label htmlFor={`driver-${group.id}`} className="form__label flex items-center">
+                                            <label htmlFor={`driver-${group.id}`}
+                                                   className="form__label flex items-center">
                                                 Primární řidič *
                                             </label>
                                             <select
@@ -600,7 +656,7 @@ export const TravelGroupsForm = ({
                                                 name={`driver-${group.id}`}
                                                 className="form__select"
                                                 value={group.Ridic || ""}
-                                                onChange={(e) => updateGroupField(group.id, { Ridic: e.target.value })}
+                                                onChange={(e) => updateGroupField(group.id, {Ridic: e.target.value})}
                                                 required
                                                 disabled={isFormDisabled}
                                             >
@@ -628,7 +684,7 @@ export const TravelGroupsForm = ({
                                                 placeholder="např. 1AB 2345"
                                                 value={group.spz || ""}
                                                 maxLength={10}
-                                                onChange={(e) => updateGroupField(group.id, { spz: e.target.value })}
+                                                onChange={(e) => updateGroupField(group.id, {spz: e.target.value})}
                                                 required
                                                 disabled={isFormDisabled}
                                             />
@@ -647,7 +703,7 @@ export const TravelGroupsForm = ({
                     <h5 className="font-medium text-sm mb-3">
                         Přiřazení zvýšené sazby cestovného ({priceList?.jizdneZvysene || 8} Kč/km)
                     </h5>
-                    
+
                     <div className="space-y-2">
                         {/* Radio pro každou skupinu s řidičem */}
                         {travelGroups
@@ -677,7 +733,7 @@ export const TravelGroupsForm = ({
                                 );
                             })}
                     </div>
-                    
+
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
                         Standardní sazba: {priceList?.jizdne || 6} Kč/km
                     </p>
@@ -691,7 +747,7 @@ export const TravelGroupsForm = ({
                     onClick={addTravelGroup}
                     className={`btn ${travelGroups.length === 0 ? 'btn--primary' : 'btn--secondary'}`}
                 >
-                    <IconPlus size={16} className="mr-2" />
+                    <IconPlus size={16} className="mr-2"/>
                     {travelGroups.length === 0 ? 'Přidat skupinu cest' : 'Přidat další skupinu cest'}
                 </button>
             </div>

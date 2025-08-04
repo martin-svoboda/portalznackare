@@ -72,9 +72,30 @@ export const useCompletionStatus = (formData, head, predmety, setFormData) => {
             (!group.Ridic || !group.spz)
         );
 
-        const hasTicketsForPublicTransport = allSegments.some(segment =>
-            segment && segment.Druh_Dopravy === "V" && (!segment.Prilohy || segment.Prilohy.length === 0)
-        );
+        // Kontrola jízdenek - pro každý V segment musí mít každý cestující částku
+        const hasTicketsForPublicTransport = formData.Skupiny_Cest?.some(group => {
+            return group.Cesty?.some(segment => {
+                if (segment.Druh_Dopravy !== "V") return false;
+                
+                // Pokud nejsou cestující, není co kontrolovat
+                if (!group.Cestujci || group.Cestujci.length === 0) return false;
+                
+                // Kontrola že má každý cestující vyplněnou částku
+                if (typeof segment.Naklady !== 'object' || !segment.Naklady) {
+                    return true; // Chybí objekt s náklady
+                }
+                
+                // Kontrola že každý cestující má částku > 0
+                const missingTicket = group.Cestujci.some(intAdr => 
+                    !(segment.Naklady[intAdr] > 0)
+                );
+                
+                // Také kontrolovat přílohy
+                const missingAttachments = !segment.Prilohy || segment.Prilohy.length === 0;
+                
+                return missingTicket || missingAttachments;
+            });
+        }) || false;
 
         const hasDocumentsForExpenses = [
             ...(formData.Noclezne || []),
@@ -149,7 +170,7 @@ export const useCompletionStatus = (formData, head, predmety, setFormData) => {
                 messages.push("Chybí řidič nebo SPZ u cesty autem");
             }
             if (hasTicketsForPublicTransport) {
-                messages.push("Chybí přílohy k jízdenkám u veřejné dopravy");
+                messages.push("Chybí ceny jízdenek pro všechny cestující nebo přílohy u veřejné dopravy");
             }
             if (hasDocumentsForExpenses) {
                 messages.push("Chybí přílohy k výdajům nebo ubytování");
