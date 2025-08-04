@@ -37,10 +37,10 @@
 
 // Mobile menu burger
 .burger {
-  @apply flex flex-col w-6 h-6 bg-transparent border-none cursor-pointer p-0 md:hidden;
+  @apply flex flex-col justify-around w-6 h-6 bg-transparent border-none cursor-pointer p-0 md:hidden;
   
   span {
-    @apply block h-0.5 my-0.5 transition-all duration-300;
+    @apply block h-0.5 my-0.5 transition-all duration-300 bg-gray-900 dark:bg-white;
   }
 }
 
