@@ -4,10 +4,10 @@ import { AdvancedFileUpload } from './AdvancedFileUpload';
 
 const createEmptyExpense = () => ({
     id: crypto.randomUUID(),
-    date: new Date(),
-    description: "",
-    amount: 0,
-    attachments: []
+    Datum: new Date(),
+    Polozka: "",
+    Castka: 0,
+    Prilohy: []
 });
 
 export const ExpensesForm = ({
@@ -83,8 +83,8 @@ export const ExpensesForm = ({
                                         <input
                                             type="date"
                                             className="form__input"
-                                            value={expense.date ? expense.date.toISOString().split('T')[0] : ''}
-                                            onChange={(e) => handleUpdateExpense(expense.id, { date: new Date(e.target.value) })}
+                                            value={expense.Datum ? expense.Datum.toISOString().split('T')[0] : ''}
+                                            onChange={(e) => handleUpdateExpense(expense.id, { Datum: new Date(e.target.value) }))
                                             disabled={disabled}
                                             required
                                         />
@@ -95,8 +95,8 @@ export const ExpensesForm = ({
                                         <input
                                             type="text"
                                             className="form__input"
-                                            value={expense.description || ''}
-                                            onChange={(e) => handleUpdateExpense(expense.id, { description: e.target.value })}
+                                            value={expense.Polozka || ''}
+                                            onChange={(e) => handleUpdateExpense(expense.id, { Polozka: e.target.value }))
                                             placeholder="např. Nákup materiálu, Občerstvení"
                                             disabled={disabled}
                                             required
@@ -108,8 +108,8 @@ export const ExpensesForm = ({
                                         <input
                                             type="number"
                                             className="form__input"
-                                            value={expense.amount || ''}
-                                            onChange={(e) => handleNumberChange(expense.id, 'amount', e.target.value)}
+                                            value={expense.Castka || ''}
+                                            onChange={(e) => handleNumberChange(expense.id, 'Castka', e.target.value)}
                                             placeholder="0"
                                             min="0"
                                             step="0.01"
@@ -123,8 +123,8 @@ export const ExpensesForm = ({
                                     <label className="form__label">Doklady</label>
                                     <AdvancedFileUpload
                                         id={`expense-${expense.id}-attachments`}
-                                        files={expense.attachments || []}
-                                        onFilesChange={(files) => handleUpdateExpense(expense.id, { attachments: files })}
+                                        files={expense.Prilohy || []}
+                                        onFilesChange={(files) => handleUpdateExpense(expense.id, { Prilohy: files }))
                                         maxFiles={5}
                                         accept="image/jpeg,image/png,image/heic,application/pdf"
                                         disabled={disabled}

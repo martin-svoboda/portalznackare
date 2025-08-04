@@ -2,15 +2,15 @@ import React from 'react';
 import { IconUsers, IconInfoCircle } from '@tabler/icons-react';
 
 export const PaymentRedirectsForm = ({
-    paymentRedirects,
-    onPaymentRedirectsChange,
+    Presmerovani_Vyplat,
+    onPresmerovanivyplatChange,
     teamMembers = [],
     currentUser,
     isLeader,
     disabled = false
 }) => {
     const handleRedirectChange = (memberIntAdr, redirectToIntAdr) => {
-        const updated = { ...paymentRedirects };
+        const updated = { ...Presmerovani_Vyplat };
         
         if (redirectToIntAdr && redirectToIntAdr !== memberIntAdr) {
             updated[memberIntAdr] = redirectToIntAdr;
@@ -18,7 +18,7 @@ export const PaymentRedirectsForm = ({
             delete updated[memberIntAdr];
         }
         
-        onPaymentRedirectsChange(updated);
+        onPresmerovanivyplatChange(updated);
     };
 
     // Show payment redirects only for leaders with team members
@@ -48,29 +48,29 @@ export const PaymentRedirectsForm = ({
                 <div className="space-y-3">
                     {teamMembers.map((member) => {
                         // Skip current user - they can't redirect to themselves
-                        if (currentUser && member.int_adr === currentUser.INT_ADR) {
+                        if (currentUser && member.INT_ADR === currentUser.INT_ADR) {
                             return null;
                         }
 
                         return (
-                            <div key={member.int_adr} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
+                            <div key={member.INT_ADR} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
                                 <div>
                                     <span className="font-medium">{member.name}</span>
-                                    <span className="text-sm text-gray-600 ml-2">({member.int_adr})</span>
+                                    <span className="text-sm text-gray-600 ml-2">({member.INT_ADR})</span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <span className="text-sm text-gray-600">Přesměrovat na:</span>
                                     <select
                                         className="form__select w-48"
-                                        value={paymentRedirects[member.int_adr] || ''}
-                                        onChange={(e) => handleRedirectChange(member.int_adr, e.target.value)}
+                                        value={(Presmerovani_Vyplat || {})[member.INT_ADR] || ''}
+                                        onChange={(e) => handleRedirectChange(member.INT_ADR, e.target.value)}
                                         disabled={disabled}
                                     >
                                         <option value="">-- Bez přesměrování --</option>
                                         {teamMembers
-                                            .filter(m => m.int_adr !== member.int_adr) // Can't redirect to self
+                                            .filter(m => m.INT_ADR !== member.INT_ADR) // Can't redirect to self
                                             .map((targetMember) => (
-                                                <option key={targetMember.int_adr} value={targetMember.int_adr}>
+                                                <option key={targetMember.INT_ADR} value={targetMember.INT_ADR}>
                                                     {targetMember.name}
                                                 </option>
                                             ))}
@@ -81,13 +81,13 @@ export const PaymentRedirectsForm = ({
                     })}
                 </div>
 
-                {Object.keys(paymentRedirects).length > 0 && (
+                {Object.keys(Presmerovani_Vyplat || {}).length > 0 && (
                     <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                         <h4 className="font-medium text-blue-800 mb-2">Aktivní přesměrování:</h4>
                         <div className="space-y-1">
-                            {Object.entries(paymentRedirects).map(([fromIntAdr, toIntAdr]) => {
-                                const fromMember = teamMembers.find(m => m.int_adr === fromIntAdr);
-                                const toMember = teamMembers.find(m => m.int_adr === toIntAdr);
+                            {Object.entries(Presmerovani_Vyplat || {}).map(([fromIntAdr, toIntAdr]) => {
+                                const fromMember = teamMembers.find(m => m.INT_ADR === fromIntAdr);
+                                const toMember = teamMembers.find(m => m.INT_ADR === toIntAdr);
                                 
                                 if (!fromMember || !toMember) return null;
                                 

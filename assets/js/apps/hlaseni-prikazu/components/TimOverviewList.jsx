@@ -40,7 +40,7 @@ const getLegacyItemIdentifier = (item) => {
 
 export const TimOverviewList = ({
     predmety,
-    timReports,
+    Stavy_Tim,
     onTimSelect,
     selectedTimId
 }) => {
@@ -60,16 +60,16 @@ export const TimOverviewList = ({
 
     // Get completion status for a TIM
     const getTimCompletionStatus = (timGroup) => {
-        const timReport = timReports[timGroup.EvCi_TIM];
-        if (!timReport || !timReport.itemStatuses) return { completed: 0, total: timGroup.items.length };
+        const timReport = Stavy_Tim[timGroup.EvCi_TIM];
+        if (!timReport || !timReport.Predmety) return { completed: 0, total: timGroup.items.length };
 
         const completedItems = timGroup.items.filter(item => {
             const primaryId = getItemIdentifier(item);
             const legacyId = getLegacyItemIdentifier(item);
             
-            return timReport.itemStatuses.some(status => 
-                (status.itemId === primaryId || status.itemId === legacyId || status.legacyItemId === legacyId) &&
-                status.status
+            return timReport.Predmety.some(status => 
+                status.ID_PREDMETY === primaryId &&
+                status.Zachovalost
             );
         });
 
@@ -171,15 +171,13 @@ export const TimOverviewList = ({
                                         {timGroup.items.map((item, index) => {
                                             const primaryId = getItemIdentifier(item);
                                             const legacyId = getLegacyItemIdentifier(item);
-                                            const timReport = timReports[timGroup.EvCi_TIM];
+                                            const timReport = Stavy_Tim[timGroup.EvCi_TIM];
                                             
-                                            const itemStatus = timReport?.itemStatuses?.find(status => 
-                                                status.itemId === primaryId || 
-                                                status.itemId === legacyId || 
-                                                status.legacyItemId === legacyId
+                                            const itemStatus = timReport?.Predmety?.find(status => 
+                                                status.ID_PREDMETY === primaryId
                                             );
 
-                                            const hasStatus = itemStatus && itemStatus.status;
+                                            const hasStatus = itemStatus && itemStatus.Zachovalost;
 
                                             return (
                                                 <div
@@ -197,7 +195,7 @@ export const TimOverviewList = ({
                                                             ? 'bg-green-100 text-green-800' 
                                                             : 'bg-red-100 text-red-800'
                                                     }`}>
-                                                        {hasStatus ? `Stav: ${itemStatus.status}` : 'Bez stavu'}
+                                                        {hasStatus ? `Stav: ${itemStatus.Zachovalost}` : 'Bez stavu'}
                                                     </div>
                                                 </div>
                                             );

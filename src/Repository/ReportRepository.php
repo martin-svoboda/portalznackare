@@ -41,7 +41,7 @@ class ReportRepository extends ServiceEntityRepository
     public function findByTeamMember(int $intAdr, ?ReportStateEnum $state = null): array
     {
         $qb = $this->createQueryBuilder('r')
-            ->where("JSON_SEARCH(r.teamMembers, 'one', :intAdr, NULL, '$[*].int_adr') IS NOT NULL")
+            ->where("JSON_SEARCH(r.znackari, 'one', :intAdr, NULL, '$[*].INT_ADR') IS NOT NULL")
             ->setParameter('intAdr', $intAdr);
             
         if ($state !== null) {
@@ -154,7 +154,7 @@ class ReportRepository extends ServiceEntityRepository
     public function searchByComment(string $searchTerm): array
     {
         return $this->createQueryBuilder('r')
-            ->where("JSON_UNQUOTE(JSON_EXTRACT(r.dataB, '$.routeComment')) LIKE :searchTerm")
+            ->where("JSON_UNQUOTE(JSON_EXTRACT(r.dataB, '$.Trasa_Poznamka')) LIKE :searchTerm")
             ->setParameter('searchTerm', '%' . $searchTerm . '%')
             ->getQuery()
             ->getResult();

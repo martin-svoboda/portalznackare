@@ -7,6 +7,7 @@ import {
     IconInfoCircle
 } from '@tabler/icons-react';
 import { Loader } from '../../../components/shared/Loader';
+import ErrorBoundary from '../../../components/shared/ErrorBoundary';
 import { PartAForm } from './PartAForm';
 import { PartBForm } from './PartBForm';
 import { CompensationSummary } from './CompensationSummary';
@@ -90,17 +91,19 @@ export const StepContent = ({
                                 </div>
                             </div>
                             <div className="card__content">
-                                <CompensationSummary
-                                    formData={formData}
-                                    priceList={priceList}
-                                    priceListLoading={priceListLoading}
-                                    priceListError={priceListError}
-                                    compact={true}
-                                    isLeader={isLeader}
-                                    teamMembers={teamMembers}
-                                    currentUser={currentUser}
-                                    head={head}
-                                />
+                                <ErrorBoundary sectionName="Výpočet náhrad">
+                                    <CompensationSummary
+                                        formData={formData}
+                                        priceList={priceList}
+                                        priceListLoading={priceListLoading}
+                                        priceListError={priceListError}
+                                        compact={true}
+                                        isLeader={isLeader}
+                                        teamMembers={teamMembers}
+                                        currentUser={currentUser}
+                                        head={head}
+                                    />
+                                </ErrorBoundary>
                             </div>
                         </div>
                     </div>
@@ -137,10 +140,10 @@ export const StepContent = ({
                             <textarea
                                 className="form__textarea"
                                 placeholder="Popište provedenou značkařskou činnost..."
-                                value={formData.routeComment || ""}
+                                value={formData.Koment_Usek || ""}
                                 onChange={(e) => setFormData(prev => ({
                                     ...prev,
-                                    routeComment: e.target.value
+                                    Koment_Usek: e.target.value
                                 }))}
                                 rows={6}
                                 disabled={formData.status === 'submitted'}
@@ -157,10 +160,10 @@ export const StepContent = ({
                             </p>
                             <SimpleFileUpload
                                 id="hlaseni-route-attachments"
-                                files={formData.routeAttachments || []}
+                                files={formData.Prilohy_Usek || []}
                                 onFilesChange={(files) => setFormData(prev => ({
                                     ...prev,
-                                    routeAttachments: files
+                                    Prilohy_Usek: files
                                 }))}
                                 maxFiles={20}
                                 accept="image/jpeg,image/png,image/heic,application/pdf"
@@ -217,38 +220,38 @@ export const StepContent = ({
                             <div className="space-y-2">
                                 <div className="flex justify-between">
                                     <span className="text-sm text-gray-600">Datum provedení:</span>
-                                    <span className="text-sm">{formData.executionDate.toLocaleDateString('cs-CZ')}</span>
+                                    <span className="text-sm">{formData.Datum_Provedeni.toLocaleDateString('cs-CZ')}</span>
                                 </div>
                                 <div className="flex justify-between">
                                     <span className="text-sm text-gray-600">Počet segmentů dopravy:</span>
-                                    <span className="text-sm">{(formData.travelGroups?.reduce((total, group) => total + (group.segments?.length || 0), 0) || 0)}</span>
+                                    <span className="text-sm">{(formData.Skupiny_Cest?.reduce((total, group) => total + (group.Cesty?.length || 0), 0) || 0)}</span>
                                 </div>
-                                {formData.primaryDriver && (
+                                {formData.Hlavni_Ridic && (
                                     <div className="flex justify-between">
                                         <span className="text-sm text-gray-600">Řidič:</span>
-                                        <span className="text-sm">{formData.primaryDriver}</span>
+                                        <span className="text-sm">{formData.Hlavni_Ridic}</span>
                                     </div>
                                 )}
-                                {formData.vehicleRegistration && (
+                                {formData.SPZ && (
                                     <div className="flex justify-between">
                                         <span className="text-sm text-gray-600">SPZ vozidla:</span>
-                                        <span className="text-sm">{formData.vehicleRegistration}</span>
+                                        <span className="text-sm">{formData.SPZ}</span>
                                     </div>
                                 )}
                             </div>
                             <div className="space-y-2">
                                 <div className="flex justify-between">
                                     <span className="text-sm text-gray-600">Ubytování:</span>
-                                    <span className="text-sm">{formData.accommodations.length} nocí</span>
+                                    <span className="text-sm">{formData.Noclezne.length} nocí</span>
                                 </div>
                                 <div className="flex justify-between">
                                     <span className="text-sm text-gray-600">Dodatečné výdaje:</span>
-                                    <span className="text-sm">{formData.additionalExpenses.length} položek</span>
+                                    <span className="text-sm">{formData.Vedlejsi_Vydaje.length} položek</span>
                                 </div>
                                 <div className="flex justify-between">
                                     <span className="text-sm text-gray-600">Stav části A:</span>
-                                    <span className={`inline-block px-2 py-1 text-xs rounded ${formData.partACompleted ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                        {formData.partACompleted ? "Dokončeno" : "Nedokončeno"}
+                                    <span className={`inline-block px-2 py-1 text-xs rounded ${formData.Cast_A_Dokoncena ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                        {formData.Cast_A_Dokoncena ? "Dokončeno" : "Nedokončeno"}
                                     </span>
                                 </div>
                             </div>
@@ -272,34 +275,34 @@ export const StepContent = ({
                                 {head?.Druh_ZP === "O" ? (
                                     <div className="flex justify-between">
                                         <span className="text-sm text-gray-600">Počet TIM:</span>
-                                        <span className="text-sm">{Object.keys(formData.timReports).length}</span>
+                                        <span className="text-sm">{Object.keys(formData.Stavy_Tim).length}</span>
                                     </div>
                                 ) : (
                                     <div className="flex justify-between">
                                         <span className="text-sm text-gray-600">Hlášení vyplněno:</span>
-                                        <span className="text-sm">{formData.routeComment?.trim().length > 0 ? "Ano" : "Ne"}</span>
+                                        <span className="text-sm">{formData.Koment_Usek?.trim().length > 0 ? "Ano" : "Ne"}</span>
                                     </div>
                                 )}
                                 <div className="flex justify-between">
                                     <span className="text-sm text-gray-600">Stav části B:</span>
-                                    <span className={`inline-block px-2 py-1 text-xs rounded ${formData.partBCompleted ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                        {formData.partBCompleted ? "Dokončeno" : "Nedokončeno"}
+                                    <span className={`inline-block px-2 py-1 text-xs rounded ${formData.Cast_B_Dokoncena ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                        {formData.Cast_B_Dokoncena ? "Dokončeno" : "Nedokončeno"}
                                     </span>
                                 </div>
                             </div>
                             <div>
-                                {formData.routeComment && (
+                                {formData.Koment_Usek && (
                                     <div>
                                         <p className="text-sm text-gray-600 mb-1">
                                             {head?.Druh_ZP === "O" ? "Poznámka k trase:" : "Hlášení o činnosti:"}
                                         </p>
-                                        <p className="text-sm">{formData.routeComment}</p>
+                                        <p className="text-sm">{formData.Koment_Usek}</p>
                                     </div>
                                 )}
-                                {formData.routeAttachments && formData.routeAttachments.length > 0 && (
+                                {formData.Prilohy_Usek && formData.Prilohy_Usek.length > 0 && (
                                     <div className="mt-2">
                                         <p className="text-sm text-gray-600 mb-1">Počet příloh:</p>
-                                        <p className="text-sm">{formData.routeAttachments.length}</p>
+                                        <p className="text-sm">{formData.Prilohy_Usek.length}</p>
                                     </div>
                                 )}
                             </div>
@@ -316,17 +319,19 @@ export const StepContent = ({
                         </div>
                     </div>
                     <div className="card__content">
-                        <CompensationSummary
-                            formData={formData}
-                            priceList={priceList}
-                            priceListLoading={priceListLoading}
-                            priceListError={priceListError}
-                            compact={false}
-                            isLeader={isLeader}
-                            teamMembers={teamMembers}
-                            currentUser={currentUser}
-                            head={head}
-                        />
+                        <ErrorBoundary sectionName="Celkový výpočet náhrad">
+                            <CompensationSummary
+                                formData={formData}
+                                priceList={priceList}
+                                priceListLoading={priceListLoading}
+                                priceListError={priceListError}
+                                compact={false}
+                                isLeader={isLeader}
+                                teamMembers={teamMembers}
+                                currentUser={currentUser}
+                                head={head}
+                            />
+                        </ErrorBoundary>
                     </div>
                 </div>
 

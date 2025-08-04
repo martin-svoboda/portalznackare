@@ -30,50 +30,101 @@ export function parsePriceListFromAPI(apiData) {
 }
 
 /**
- * Výpočet celkových pracovních hodin - 1:1 s původní aplikací
- * Od nejdřívějšího začátku do nejpozdějšího konce cesty v každém dni
+ * Výpočet pracovních dnů pro konkrétního uživatele
+ * Vrací array dnů s detailními časy Od/Do/Hodin pro uživatele podle jeho účasti ve skupinách
  */
-export function calculateWorkHours(formData) {
-    // Extraktovat všechny segmenty ze všech travel groups
-    const allSegments = formData.travelGroups?.flatMap(group => 
-        group.segments || []
-    ) || [];
+export function calculateWorkDays(formData, userIntAdr) {
+    if (!userIntAdr || !formData.Skupiny_Cest) return [];
     
-    if (allSegments.length === 0) return 0;
-
-    // Seskupit segmenty podle dne - přesně jako v původní aplikaci
-    const segmentsByDate = allSegments.reduce((acc, segment) => {
-        if (!segment) return acc;
+    // Najít všechny skupiny kde je uživatel cestujícím
+    const userGroups = formData.Skupiny_Cest.filter(group => 
+        group.Cestujci && group.Cestujci.includes(userIntAdr)
+    );
+    
+    if (userGroups.length === 0) return [];
+    
+    // Extraktovat segmenty pouze ze skupin kde uživatel cestuje
+    const userSegments = userGroups.flatMap(group => group.Cesty || []);
+    
+    if (userSegments.length === 0) return [];
+    
+    // Seskupit segmenty podle dne
+    const segmentsByDate = userSegments.reduce((acc, segment) => {
+        if (!segment || !segment.Cas_Odjezdu || !segment.Cas_Prijezdu) return acc;
         
-        // Použít segment.date pokud existuje, jinak executionDate jako fallback
-        const segmentDate = segment.date || formData.executionDate || new Date();
+        // Použít segment.Datum pokud existuje, jinak Datum_Provedeni jako fallback
+        let segmentDate = segment.Datum || formData.Datum_Provedeni || new Date();
+        
+        // Zajistit, že segmentDate je Date objekt
+        if (!(segmentDate instanceof Date)) {
+            segmentDate = new Date(segmentDate);
+        }
+        
+        // Pokud je datum neplatné, použít aktuální datum
+        if (isNaN(segmentDate.getTime())) {
+            segmentDate = new Date();
+        }
+        
         const dateKey = segmentDate.toDateString();
         
         if (!acc[dateKey]) {
-            acc[dateKey] = [];
+            acc[dateKey] = {
+                date: segmentDate,
+                segments: []
+            };
         }
-        acc[dateKey].push(segment);
+        acc[dateKey].segments.push(segment);
         return acc;
     }, {});
     
-    // Spočítat hodiny pro každý den
-    return Object.entries(segmentsByDate).reduce((totalHours, [dateStr, segments]) => {
-        const validSegments = segments.filter(s => s.startTime && s.endTime);
-        if (validSegments.length === 0) return totalHours;
+    // Spočítat hodiny pro každý den a vytvořit Dny_Prace array
+    return Object.entries(segmentsByDate).map(([dateStr, dayData]) => {
+        const { date, segments } = dayData;
         
         // Najít nejdřívější čas začátku a nejpozdější čas konce
-        const startTimes = validSegments.map(s => new Date(`${dateStr} ${s.startTime}`));
-        const endTimes = validSegments.map(s => new Date(`${dateStr} ${s.endTime}`));
+        // Použít správný formát data bez časové zóny - yyyy-mm-dd HH:mm
+        let earliestTime = null;
+        let latestTime = null;
         
-        const earliestStart = new Date(Math.min(...startTimes.map(d => d.getTime())));
-        const latestEnd = new Date(Math.max(...endTimes.map(d => d.getTime())));
+        segments.forEach(s => {
+            if (s.Cas_Odjezdu) {
+                const startTime = s.Cas_Odjezdu;
+                if (!earliestTime || startTime < earliestTime) {
+                    earliestTime = startTime;
+                }
+            }
+            if (s.Cas_Prijezdu) {
+                const endTime = s.Cas_Prijezdu;
+                if (!latestTime || endTime > latestTime) {
+                    latestTime = endTime;
+                }
+            }
+        });
         
-        if (latestEnd > earliestStart) {
-            totalHours += (latestEnd.getTime() - earliestStart.getTime()) / (1000 * 60 * 60);
-        }
+        // Vytvořit ISO datetime string s lokálním časem (bez UTC konverze)
+        const dateFormatted = date.toISOString().split('T')[0]; // yyyy-mm-dd
+        const startDateTime = `${dateFormatted}T${earliestTime}:00`; // přidat sekundy
+        const endDateTime = `${dateFormatted}T${latestTime}:00`;
         
-        return totalHours;
-    }, 0);
+        // Spočítat hodiny - parsovat časy správně
+        const [startHour, startMin] = earliestTime.split(':').map(Number);
+        const [endHour, endMin] = latestTime.split(':').map(Number);
+        const hoursWorked = (endHour + endMin/60) - (startHour + startMin/60);
+        
+        return {
+            Od: startDateTime,
+            Do: endDateTime,
+            Hodin: Math.max(0, hoursWorked)
+        };
+    }).filter(day => day.Hodin > 0);
+}
+
+/**
+ * Výpočet celkových pracovních hodin pro konkrétního uživatele
+ */
+export function calculateWorkHours(formData, userIntAdr) {
+    const workDays = calculateWorkDays(formData, userIntAdr);
+    return workDays.reduce((total, day) => total + day.Hodin, 0);
 }
 
 /**
@@ -86,68 +137,101 @@ export function findApplicableTariff(workHours, tariffs) {
 }
 
 /**
- * Výpočet dopravních nákladů (pouze pro řidiče u aut) - přesně podle původní aplikace
+ * Výpočet dopravních nákladů pro konkrétního uživatele
+ * Auto jízdné: pouze řidiči skupiny
+ * Veřejná doprava: všem cestujícím skupiny
+ * Respektuje Ma_Zvysenou_Sazbu per skupina
  */
-export function calculateTransportCosts(formData, priceList, isDriver = true, hasHigherRate = false) {
-    if (!isDriver) return 0; // Jízdné se počítá pouze řidiči
+export function calculateTransportCosts(formData, priceList, userIntAdr = null) {
+    if (!userIntAdr || !formData.Skupiny_Cest) return 0;
     
     let totalCosts = 0;
     
-    // Extraktovat všechny segmenty ze všech travel groups
-    const allSegments = formData.travelGroups?.flatMap(group => 
-        group.segments || []
-    ) || [];
-    
-    allSegments.forEach(segment => {
-        if (!segment || !segment.transportType) return;
+    // Projít všechny skupiny kde uživatel cestuje
+    formData.Skupiny_Cest.forEach(group => {
+        // Zkontrolovat zda je uživatel cestujícím v této skupině
+        const isUserParticipant = group.Cestujci && group.Cestujci.includes(userIntAdr);
+        if (!isUserParticipant) return;
         
-        if (segment.transportType === "AUV" || segment.transportType === "AUV-Z") {
-            const rate = hasHigherRate ? priceList.jizdneZvysene : priceList.jizdne;
-            totalCosts += (segment.kilometers || 0) * rate;
-        } else if (segment.transportType === "veřejná doprava") {
-            totalCosts += segment.ticketCosts || 0;
-        }
-        // Pěšky a kolo = 0 Kč
+        // Zkontrolovat zda je uživatel řidičem této skupiny
+        const isUserDriverOfGroup = group.Ridic === userIntAdr;
+        
+        // Zkontrolovat zda má skupina zvýšenou sazbu
+        const hasGroupHigherRate = group.Ma_Zvysenou_Sazbu || false;
+        
+        group.Cesty?.forEach(segment => {
+            if (!segment || !segment.Druh_Dopravy) return;
+            
+            if (segment.Druh_Dopravy === "AUV" || segment.Druh_Dopravy === "AUV-Z") {
+                // Auto jízdné - pouze řidiči skupiny
+                if (isUserDriverOfGroup) {
+                    const rate = hasGroupHigherRate ? priceList.jizdneZvysene : priceList.jizdne;
+                    totalCosts += (segment.Kilometry || 0) * rate;
+                }
+            } else if (segment.Druh_Dopravy === "V") {
+                // Veřejná doprava - všem cestujícím skupiny
+                totalCosts += segment.Naklady || 0;
+            }
+            // Pěšky ("P") a kolo ("K") = 0 Kč pro všechny
+        });
     });
     
     return totalCosts;
 }
 
 /**
- * Calculate total compensation based on form data and price list - 1:1 s původní aplikací
+ * Výpočet kompenzace pro konkrétního uživatele
+ * Vrací data v Czech Snake_Case formátu s detailními dny práce
  */
-export function calculateCompensation(formData, priceList, isDriver = true, hasHigherRate = false, userIntAdr = null) {
-    if (!priceList || !priceList.tariffs) return null;
+export function calculateCompensation(formData, priceList, userIntAdr = null) {
+    if (!priceList || !priceList.tariffs || !userIntAdr) return null;
     
-    const workHours = calculateWorkHours(formData);
-    const appliedTariff = findApplicableTariff(workHours, priceList.tariffs);
+    // Spočítat pracovní dny a celkové hodiny pro uživatele
+    const workDays = calculateWorkDays(formData, userIntAdr);
+    const totalWorkHours = workDays.reduce((total, day) => total + day.Hodin, 0);
     
-    const transportCosts = calculateTransportCosts(formData, priceList, isDriver, hasHigherRate);
+    // Najít příslušný tarif
+    const appliedTariff = findApplicableTariff(totalWorkHours, priceList.tariffs);
+    
+    // Spočítat dopravní náklady pro uživatele
+    const transportCosts = calculateTransportCosts(formData, priceList, userIntAdr);
+    
+    // Stravné a náhrada za práci podle tarifu
     const mealAllowance = appliedTariff?.stravne || 0;
     const workAllowance = appliedTariff?.nahrada || 0;
     
-    // Accommodation - pouze pro toho kdo platil (přesně jako v původní aplikaci)
-    const accommodationCosts = formData.accommodations
-        .filter(acc => !userIntAdr || acc.paidByMember === userIntAdr)
-        .reduce((sum, acc) => sum + (acc.amount || 0), 0);
+    // Ubytování - pouze pro toho kdo platil
+    const accommodationCosts = (formData.Noclezne || [])
+        .filter(acc => acc.Zaplatil === userIntAdr)
+        .reduce((sum, acc) => sum + (acc.Castka || 0), 0);
     
-    // Additional expenses - pouze pro toho kdo platil (přesně jako v původní aplikaci)   
-    const additionalExpenses = formData.additionalExpenses
-        .filter(exp => !userIntAdr || exp.paidByMember === userIntAdr)
-        .reduce((sum, exp) => sum + (exp.amount || 0), 0);
+    // Vedlejší výdaje - pouze pro toho kdo platil   
+    const additionalExpenses = (formData.Vedlejsi_Vydaje || [])
+        .filter(exp => exp.Zaplatil === userIntAdr)
+        .reduce((sum, exp) => sum + (exp.Castka || 0), 0);
+    
+    // Zkontrolovat zda má uživatel zvýšenou sazbu v nějaké skupině
+    const hasHigherRate = formData.Skupiny_Cest?.some(group => 
+        group.Cestujci?.includes(userIntAdr) && 
+        group.Ridic === userIntAdr && 
+        group.Ma_Zvysenou_Sazbu
+    ) || false;
     
     const total = transportCosts + mealAllowance + workAllowance + accommodationCosts + additionalExpenses;
     
     return {
-        transportCosts,
-        mealAllowance, 
-        workAllowance,
-        accommodationCosts,
-        additionalExpenses,
-        total,
-        workHours,
-        appliedTariff,
-        isDriver
+        INT_ADR: userIntAdr,
+        Jizdne: transportCosts,
+        Zvysena_Sazba: hasHigherRate,
+        Stravne: mealAllowance,
+        Nahrada_Prace: workAllowance,
+        Naklady_Ubytovani: accommodationCosts,
+        Vedlejsi_Vydaje: additionalExpenses,
+        Hodin_Celkem: totalWorkHours,
+        Dny_Prace: workDays,
+        celkem: total, // Zachováno pro backwards compatibility s UI
+        // Dodatečné info pro UI
+        appliedTariff: appliedTariff
     };
 }
 
@@ -155,35 +239,37 @@ export function calculateCompensation(formData, priceList, isDriver = true, hasH
  * Extract team members from order head data - stejně jako v původní aplikaci
  */
 export function extractTeamMembers(head) {
-    if (!head) return [];
+    if (!head || typeof head !== 'object') return [];
     
-    return [1, 2, 3]
-        .map(i => ({
-            index: i,
-            name: head[`Znackar${i}`],
-            int_adr: head[`INT_ADR_${i}`],
-            isLeader: head[`Je_Vedouci${i}`] === "1"
-        }))
-        .filter(member => member.name?.trim());
+    try {
+        return [1, 2, 3]
+            .map(i => ({
+                index: i,
+                name: head[`Znackar${i}`],
+                INT_ADR: head[`INT_ADR_${i}`],
+                isLeader: head[`Je_Vedouci${i}`] === "1"
+            }))
+            .filter(member => member.name?.trim && member.name.trim());
+    } catch (error) {
+        console.error('Error in extractTeamMembers:', error);
+        return [];
+    }
 }
 
 /**
- * Calculate compensations for all team members - 1:1 s původní aplikací
+ * Výpočet kompenzací pro všechny členy týmu
+ * Vrací data indexovaná podle INT_ADR v novém formátu
  */
-export function calculateCompensationForAllMembers(formData, priceList, teamMembers, primaryDriverIntAdr, hasHigherRate) {
+export function calculateCompensationForAllMembers(formData, priceList, teamMembers) {
     if (!priceList || !teamMembers) return {};
     
     const result = {};
     
     teamMembers.forEach(member => {
-        const isDriver = member.int_adr === primaryDriverIntAdr;
-        result[member.int_adr] = calculateCompensation(
-            formData,
-            priceList,
-            isDriver,
-            hasHigherRate,
-            member.int_adr
-        );
+        const compensation = calculateCompensation(formData, priceList, member.INT_ADR);
+        if (compensation) {
+            result[member.INT_ADR] = compensation;
+        }
     });
     
     return result;
@@ -201,13 +287,13 @@ export function isUserLeader(user, head) {
 }
 
 /**
- * Check if user can edit specific expense (based on paidByMember)
+ * Check if user can edit specific expense (based on Zaplatil)
  */
 export function canUserEditExpense(user, expense, isLeader) {
     if (isLeader) return true; // Vedoucí může editovat vše
     if (!user) return false;
     
     // Člen může editovat jen svoje výdaje
-    return expense.paidByMember === user.INT_ADR;
+    return expense.Zaplatil === user.INT_ADR;
 }
 

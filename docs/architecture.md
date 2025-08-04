@@ -19,6 +19,12 @@
 - **INSYS data** (MSSQL) - příkazy, uživatelé, ceníky (read-only)
 - **Portal data** (PostgreSQL) - hlášení, soubory, CMS obsah (read-write)
 
+### 4. **Konvence názvů parametrů (POVINNÉ)**
+- **Všechna uživatelská data, formulářová pole, výpočty** používají český Snake_Case formát
+- **Hierarchie:** část → oblast → vlastnost  
+- **Příklady:** `Datum_Provedeni`, `Hlavni_Ridic`, `SPZ`, `Cast_A_Dokoncena`
+- **INSYS konzistence:** Všechny parametry odpovídají vzorům pojmenování INSYS dat
+
 ## 🎯 Hybrid Twig + React architektura
 
 ### Základní koncept

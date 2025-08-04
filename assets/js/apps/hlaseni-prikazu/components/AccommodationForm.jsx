@@ -4,11 +4,11 @@ import { AdvancedFileUpload } from './AdvancedFileUpload';
 
 const createEmptyAccommodation = () => ({
     id: crypto.randomUUID(),
-    date: new Date(),
-    facility: "",
-    place: "",
-    amount: 0,
-    attachments: []
+    Datum: new Date(),
+    Zarizeni: "",
+    Misto: "",
+    Castka: 0,
+    Prilohy: []
 });
 
 export const AccommodationForm = ({
@@ -84,8 +84,8 @@ export const AccommodationForm = ({
                                         <input
                                             type="date"
                                             className="form__input"
-                                            value={accommodation.date ? accommodation.date.toISOString().split('T')[0] : ''}
-                                            onChange={(e) => handleUpdateAccommodation(accommodation.id, { date: new Date(e.target.value) })}
+                                            value={accommodation.Datum ? accommodation.Datum.toISOString().split('T')[0] : ''}
+                                            onChange={(e) => handleUpdateAccommodation(accommodation.id, { Datum: new Date(e.target.value) }))
                                             disabled={disabled}
                                             required
                                         />
@@ -96,8 +96,8 @@ export const AccommodationForm = ({
                                         <input
                                             type="text"
                                             className="form__input"
-                                            value={accommodation.facility || ''}
-                                            onChange={(e) => handleUpdateAccommodation(accommodation.id, { facility: e.target.value })}
+                                            value={accommodation.Zarizeni || ''}
+                                            onChange={(e) => handleUpdateAccommodation(accommodation.id, { Zarizeni: e.target.value })}
                                             placeholder="např. Hotel Moravka"
                                             disabled={disabled}
                                             required
@@ -109,8 +109,8 @@ export const AccommodationForm = ({
                                         <input
                                             type="text"
                                             className="form__input"
-                                            value={accommodation.place || ''}
-                                            onChange={(e) => handleUpdateAccommodation(accommodation.id, { place: e.target.value })}
+                                            value={accommodation.Misto || ''}
+                                            onChange={(e) => handleUpdateAccommodation(accommodation.id, { Misto: e.target.value })}
                                             placeholder="např. Brno"
                                             disabled={disabled}
                                             required
@@ -122,8 +122,8 @@ export const AccommodationForm = ({
                                         <input
                                             type="number"
                                             className="form__input"
-                                            value={accommodation.amount || ''}
-                                            onChange={(e) => handleNumberChange(accommodation.id, 'amount', e.target.value)}
+                                            value={accommodation.Castka || ''}
+                                            onChange={(e) => handleNumberChange(accommodation.id, 'Castka', e.target.value)}
                                             placeholder="0"
                                             min="0"
                                             step="0.01"
@@ -137,8 +137,8 @@ export const AccommodationForm = ({
                                     <label className="form__label">Doklady</label>
                                     <AdvancedFileUpload
                                         id={`accommodation-${accommodation.id}-attachments`}
-                                        files={accommodation.attachments || []}
-                                        onFilesChange={(files) => handleUpdateAccommodation(accommodation.id, { attachments: files })}
+                                        files={accommodation.Prilohy || []}
+                                        onFilesChange={(files) => handleUpdateAccommodation(accommodation.id, { Prilohy: files }))
                                         maxFiles={5}
                                         accept="image/jpeg,image/png,image/heic,application/pdf"
                                         disabled={disabled}

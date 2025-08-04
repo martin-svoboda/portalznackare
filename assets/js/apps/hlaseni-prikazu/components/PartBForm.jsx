@@ -40,7 +40,7 @@ const getLegacyItemIdentifier = (item) => {
 // HTML utility functions now imported from shared utils
 
 // Export function to validate if all TIM items have status filled
-export const validateAllTimItemsCompleted = (predmety, timReports) => {
+export const validateAllTimItemsCompleted = (predmety, Stavy_Tim) => {
     if (!predmety || predmety.length === 0) return true;
     
     // Get all items that need status
@@ -52,11 +52,10 @@ export const validateAllTimItemsCompleted = (predmety, timReports) => {
         const legacyId = getLegacyItemIdentifier(item);
         
         // Look for this item in any TIM report
-        return Object.values(timReports).some(timReport => 
-            timReport.itemStatuses?.some(status => 
-                status.itemId === primaryId || 
-                status.itemId === legacyId || 
-                status.legacyItemId === legacyId
+        return Object.values(Stavy_Tim).some(timReport => 
+            timReport.Predmety?.some(status => 
+                status.ID_PREDMETY === primaryId || 
+                status.ID_PREDMETY === legacyId
             )
         );
     });
@@ -87,7 +86,7 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
         if (!prikazId) return null;
         
         // Validate and sanitize path components
-        const year = formData.executionDate ? formData.executionDate.getFullYear() : new Date().getFullYear();
+        const year = formData.Datum_Provedeni ? formData.Datum_Provedeni.getFullYear() : new Date().getFullYear();
         const kkz = head?.KKZ?.toString().trim() || 'unknown';
         const obvod = head?.ZO?.toString().trim() || 'unknown';
         const sanitizedPrikazId = prikazId?.toString().trim() || 'unknown';
@@ -110,38 +109,37 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
 
     const updateTimReport = (timId, updates) => {
         const newTimReports = {
-            ...formData.timReports,
+            ...formData.Stavy_Tim,
             [timId]: {
-                ...formData.timReports[timId],
+                ...formData.Stavy_Tim[timId],
                 ...updates
             }
         };
-        setFormData(prev => ({ ...prev, timReports: newTimReports }));
+        setFormData(prev => ({ ...prev, Stavy_Tim: newTimReports }));
     };
 
     const updateItemStatus = (timId, item, status) => {
-        const timReport = formData.timReports[timId] || {
-            timId,
-            structuralComment: "",
-            structuralAttachments: [],
-            itemStatuses: [],
-            photos: []
+        const timReport = formData.Stavy_Tim[timId] || {
+            EvCi_TIM: timId,
+            Koment_NP: "",
+            Prilohy_NP: [],
+            Predmety: [],
+            Prilohy_TIM: []
         };
 
         const primaryId = getItemIdentifier(item);
         const legacyId = getLegacyItemIdentifier(item);
 
-        const existingStatusIndex = timReport.itemStatuses.findIndex(s => 
-            s.itemId === primaryId || s.itemId === legacyId || s.legacyItemId === legacyId
+        const existingStatusIndex = (timReport.Predmety || []).findIndex(s => 
+            s.ID_PREDMETY === primaryId
         );
-        const newItemStatuses = [...timReport.itemStatuses];
+        const newPredmety = [...(timReport.Predmety || [])];
 
         if (existingStatusIndex >= 0) {
-            newItemStatuses[existingStatusIndex] = {
-                ...newItemStatuses[existingStatusIndex],
+            newPredmety[existingStatusIndex] = {
+                ...newPredmety[existingStatusIndex],
                 ...status,
-                itemId: primaryId, // Update to new identifier
-                legacyItemId: legacyId,
+                ID_PREDMETY: primaryId,
                 // Complete metadata for full traceability
                 metadata: {
                     ID_PREDMETY: item.ID_PREDMETY,
@@ -157,10 +155,9 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                 }
             };
         } else {
-            newItemStatuses.push({
-                itemId: primaryId,
-                legacyItemId: legacyId,
-                status: 1,
+            newPredmety.push({
+                ID_PREDMETY: primaryId,
+                Zachovalost: 1,
                 ...status,
                 // Complete metadata for full traceability
                 metadata: {
@@ -180,36 +177,36 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
 
         updateTimReport(timId, {
             ...timReport,
-            itemStatuses: newItemStatuses
+            Predmety: newPredmety
         });
     };
 
     const getItemStatus = (timId, item) => {
-        const timReport = formData.timReports[timId];
+        const timReport = formData.Stavy_Tim[timId];
         if (!timReport) return undefined;
 
         const primaryId = getItemIdentifier(item);
         const legacyId = getLegacyItemIdentifier(item);
 
-        return timReport.itemStatuses.find(s => 
-            s.itemId === primaryId || s.itemId === legacyId || s.legacyItemId === legacyId
+        return (timReport.Predmety || []).find(s => 
+            s.ID_PREDMETY === primaryId
         );
     };
 
     const getTimCompletionStatus = (timId) => {
         const timData = timGroups.find(g => g.EvCi_TIM === timId);
-        const timReport = formData.timReports[timId];
+        const timReport = formData.Stavy_Tim[timId];
 
         if (!timData || !timReport) return { completed: false, total: 0, filled: 0 };
 
         const requiredFields = timData.items.length;
-        const filledFields = timReport.itemStatuses.filter(status => {
-            if (!status.status) return false;
-            if (status.status === 3 || status.status === 4) return true; // Nevyhovující/chybí don't require additional data
+        const filledFields = (timReport.Predmety || []).filter(status => {
+            if (!status.Zachovalost) return false;
+            if (status.Zachovalost === 3 || status.Zachovalost === 4) return true; // Nevyhovující/chybí don't require additional data
 
             // For states 1-2, additional data is needed
-            const hasYear = status.yearOfProduction && status.yearOfProduction instanceof Date;
-            const hasOrientation = !status.itemId.includes('směrovka') || status.arrowOrientation;
+            const hasYear = status.Rok_Vyroby !== null && status.Rok_Vyroby !== undefined;
+            const hasOrientation = !status.ID_PREDMETY.includes('směrovka') || status.Smerovani;
 
             return hasYear && hasOrientation;
         }).length;
@@ -248,16 +245,16 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
             return completion.completed;
         });
         
-        return allTimsCompleted && formData.routeComment?.trim();
+        return allTimsCompleted && formData.Koment_Usek?.trim();
     };
 
-    // Update partBCompleted status
+    // Update Cast_B_Dokoncena status
     React.useEffect(() => {
         const isComplete = isPartBComplete();
-        if (formData.partBCompleted !== isComplete) {
-            setFormData(prev => ({ ...prev, partBCompleted: isComplete }));
+        if (formData.Cast_B_Dokoncena !== isComplete) {
+            setFormData(prev => ({ ...prev, Cast_B_Dokoncena: isComplete }));
         }
-    }, [formData.timReports, formData.routeComment]);
+    }, [formData.Stavy_Tim, formData.Koment_Usek]);
 
     return (
         <div className="space-y-6">
@@ -275,7 +272,7 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                             {timGroups.map((timGroup) => {
                                 const isExpanded = expandedTims.has(timGroup.EvCi_TIM);
                                 const completion = getTimCompletionStatus(timGroup.EvCi_TIM);
-                                const timReport = formData.timReports[timGroup.EvCi_TIM];
+                                const timReport = formData.Stavy_Tim[timGroup.EvCi_TIM];
 
                                 return (
                                     <div key={timGroup.EvCi_TIM} className="card border">
@@ -333,13 +330,13 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                             name={`structural-comment-${timGroup.EvCi_TIM}`}
                                                             className="form__textarea"
                                                             placeholder="Popište stav nosného prvku..."
-                                                            value={timReport?.structuralComment || ""}
+                                                            value={timReport?.Koment_NP || ""}
                                                             onChange={(e) => updateTimReport(timGroup.EvCi_TIM, {
-                                                                timId: timGroup.EvCi_TIM,
-                                                                structuralComment: e.target.value,
-                                                                structuralAttachments: timReport?.structuralAttachments || [],
-                                                                itemStatuses: timReport?.itemStatuses || [],
-                                                                photos: timReport?.photos || []
+                                                                EvCi_TIM: timGroup.EvCi_TIM,
+                                                                Koment_NP: e.target.value,
+                                                                Prilohy_NP: timReport?.Prilohy_NP || [],
+                                                                Predmety: timReport?.Predmety || [],
+                                                                Prilohy_TIM: timReport?.Prilohy_TIM || []
                                                             })}
                                                             rows={3}
                                                         />
@@ -347,11 +344,11 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                             <label className="form__label mb-2 block">Fotografické přílohy k nosnému prvku</label>
                                                             <AdvancedFileUpload
                                                                 id={`structural-${timGroup.EvCi_TIM}`}
-                                                                files={timReport?.structuralAttachments || []}
+                                                                files={timReport?.Prilohy_NP || []}
                                                                 onFilesChange={(files) => updateTimReport(timGroup.EvCi_TIM, {
                                                                     ...(timReport || {}),
-                                                                    timId: timGroup.EvCi_TIM,
-                                                                    structuralAttachments: files
+                                                                    EvCi_TIM: timGroup.EvCi_TIM,
+                                                                    Prilohy_NP: files
                                                                 })}
                                                                 maxFiles={5}
                                                                 accept="image/jpeg,image/png,image/heic"
@@ -376,11 +373,11 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                                     type="radio"
                                                                     name={`centerRule-${timGroup.EvCi_TIM}`}
                                                                     value="true"
-                                                                    checked={timReport?.centerRuleCompliant === true}
+                                                                    checked={timReport?.Souhlasi_STP === true}
                                                                     onChange={() => updateTimReport(timGroup.EvCi_TIM, {
                                                                         ...(timReport || {}),
-                                                                        timId: timGroup.EvCi_TIM,
-                                                                        centerRuleCompliant: true
+                                                                        EvCi_TIM: timGroup.EvCi_TIM,
+                                                                        Souhlasi_STP: true
                                                                     })}
                                                                     className="form__radio mr-2"
                                                                 />
@@ -392,11 +389,11 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                                     type="radio"
                                                                     name={`centerRule-${timGroup.EvCi_TIM}`}
                                                                     value="false"
-                                                                    checked={timReport?.centerRuleCompliant === false}
+                                                                    checked={timReport?.Souhlasi_STP === false}
                                                                     onChange={() => updateTimReport(timGroup.EvCi_TIM, {
                                                                         ...(timReport || {}),
-                                                                        timId: timGroup.EvCi_TIM,
-                                                                        centerRuleCompliant: false
+                                                                        EvCi_TIM: timGroup.EvCi_TIM,
+                                                                        Souhlasi_STP: false
                                                                     })}
                                                                     className="form__radio mr-2"
                                                                 />
@@ -404,7 +401,7 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                             </label>
                                                         </div>
 
-                                                        {timReport?.centerRuleCompliant === false && (
+                                                        {timReport?.Souhlasi_STP === false && (
                                                             <>
                                                                 <label htmlFor={`centerRule-comment-${timGroup.EvCi_TIM}`} className="form__label sr-only">
                                                                     Komentář k nesplnění středového pravidla
@@ -414,11 +411,11 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                                     name={`centerRule-comment-${timGroup.EvCi_TIM}`}
                                                                     className="form__textarea mt-3"
                                                                     placeholder="Komentář k nesplnění středového pravidla..."
-                                                                    value={timReport?.centerRuleComment || ""}
+                                                                    value={timReport?.Koment_STP || ""}
                                                                     onChange={(e) => updateTimReport(timGroup.EvCi_TIM, {
                                                                         ...(timReport || {}),
-                                                                        timId: timGroup.EvCi_TIM,
-                                                                        centerRuleComment: e.target.value
+                                                                        EvCi_TIM: timGroup.EvCi_TIM,
+                                                                        Koment_STP: e.target.value
                                                                     })}
                                                                     rows={2}
                                                                 />
@@ -453,7 +450,7 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                             {timGroup.items.map((item, index) => {
                                                                 const itemStatus = getItemStatus(timGroup.EvCi_TIM, item);
                                                                 const isArrow = item.Druh_Predmetu_Naz?.toLowerCase().includes('směrovka');
-                                                                const needsAdditionalData = itemStatus?.status === 1 || itemStatus?.status === 2;
+                                                                const needsAdditionalData = itemStatus?.Zachovalost === 1 || itemStatus?.Zachovalost === 2;
 
                                                                 return (
                                                                     <div key={getItemIdentifier(item)} className="border-b border-gray-200 pb-3">
@@ -504,11 +501,11 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                                                     id={`item-status-${getItemIdentifier(item)}`}
                                                                                     name={`item-status-${getItemIdentifier(item)}`}
                                                                                     className="form__select"
-                                                                                    value={itemStatus?.status?.toString() || ""}
+                                                                                    value={itemStatus?.Zachovalost?.toString() || ""}
                                                                                     onChange={(e) => e.target.value && updateItemStatus(
                                                                                         timGroup.EvCi_TIM,
                                                                                         item,
-                                                                                        { status: parseInt(e.target.value) }
+                                                                                        { Zachovalost: parseInt(e.target.value) }
                                                                                     )}
                                                                                 >
                                                                                     <option value="">Vyberte stav</option>
@@ -538,13 +535,13 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                                                             placeholder="Rok"
                                                                                             min="1990"
                                                                                             max={new Date().getFullYear()}
-                                                                                            value={itemStatus?.yearOfProduction ? new Date(itemStatus.yearOfProduction).getFullYear() : ""}
+                                                                                            value={itemStatus?.Rok_Vyroby || ""}
                                                                                             onChange={(e) => {
-                                                                                                const year = parseInt(e.target.value);
+                                                                                                const year = e.target.value ? parseInt(e.target.value) : null;
                                                                                                 updateItemStatus(
                                                                                                     timGroup.EvCi_TIM,
                                                                                                     item,
-                                                                                                    { yearOfProduction: year ? new Date(year, 0, 1) : undefined }
+                                                                                                    { Rok_Vyroby: year }
                                                                                                 );
                                                                                             }}
                                                                                         />
@@ -568,11 +565,11 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                                                             id={`item-orientation-${getItemIdentifier(item)}`}
                                                                                             name={`item-orientation-${getItemIdentifier(item)}`}
                                                                                             className="form__select"
-                                                                                            value={itemStatus?.arrowOrientation || ""}
+                                                                                            value={itemStatus?.Smerovani || ""}
                                                                                             onChange={(e) => updateItemStatus(
                                                                                                 timGroup.EvCi_TIM,
                                                                                                 item,
-                                                                                                { arrowOrientation: e.target.value }
+                                                                                                { Smerovani: e.target.value }
                                                                                             )}
                                                                                         >
                                                                                             <option value="">L/P</option>
@@ -608,11 +605,11 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                         <textarea
                                                             className="form__textarea"
                                                             placeholder="Dodatečné poznámky k tomuto TIMu..."
-                                                            value={timReport?.generalComment || ""}
+                                                            value={timReport?.Koment_TIM || ""}
                                                             onChange={(e) => updateTimReport(timGroup.EvCi_TIM, {
                                                                 ...(timReport || {}),
-                                                                timId: timGroup.EvCi_TIM,
-                                                                generalComment: e.target.value
+                                                                EvCi_TIM: timGroup.EvCi_TIM,
+                                                                Koment_TIM: e.target.value
                                                             })}
                                                             rows={2}
                                                         />
@@ -625,11 +622,11 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                         </label>
                                                         <AdvancedFileUpload
                                                             id={`photos-${timGroup.EvCi_TIM}`}
-                                                            files={timReport?.photos || []}
+                                                            files={timReport?.Prilohy_TIM || []}
                                                             onFilesChange={(files) => updateTimReport(timGroup.EvCi_TIM, {
                                                                 ...(timReport || {}),
-                                                                timId: timGroup.EvCi_TIM,
-                                                                photos: files
+                                                                EvCi_TIM: timGroup.EvCi_TIM,
+                                                                Prilohy_TIM: files
                                                             })}
                                                             maxFiles={10}
                                                             accept="image/jpeg,image/png,image/heic"
@@ -668,8 +665,8 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                         name="route-comment"
                         className="form__textarea mb-4"
                         placeholder="Popište stav značkařského úseku a případné návrhy na zlepšení..."
-                        value={formData.routeComment || ""}
-                        onChange={(e) => setFormData(prev => ({ ...prev, routeComment: e.target.value }))}
+                        value={formData.Koment_Usek || ""}
+                        onChange={(e) => setFormData(prev => ({ ...prev, Koment_Usek: e.target.value }))}
                         rows={4}
                     />
 
@@ -679,8 +676,8 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                         </label>
                         <AdvancedFileUpload
                             id="route-attachments"
-                            files={formData.routeAttachments || []}
-                            onFilesChange={(files) => setFormData(prev => ({ ...prev, routeAttachments: files }))}
+                            files={formData.Prilohy_Usek || []}
+                            onFilesChange={(files) => setFormData(prev => ({ ...prev, Prilohy_Usek: files }))}
                             maxFiles={10}
                             accept="image/jpeg,image/png,image/heic"
                             maxSize={15}
@@ -697,31 +694,65 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                             na mapy.cz?
                         </p>
                         <div className="flex gap-4">
-                            <label htmlFor="routeAgreement-yes" className="flex items-center">
+                            <label htmlFor="Souhlasi_Mapa-yes" className="flex items-center">
                                 <input
-                                    id="routeAgreement-yes"
+                                    id="Souhlasi_Mapa-yes"
                                     type="radio"
-                                    name="routeAgreement"
+                                    name="Souhlasi_Mapa"
                                     value="ano"
-                                    checked={formData.routeAgreement === "ano"}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, routeAgreement: e.target.value }))}
+                                    checked={formData.Souhlasi_Mapa === "ano"}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, Souhlasi_Mapa: e.target.value }))}
                                     className="form__radio mr-2"
                                 />
                                 ANO
                             </label>
-                            <label htmlFor="routeAgreement-no" className="flex items-center">
+                            <label htmlFor="Souhlasi_Mapa-no" className="flex items-center">
                                 <input
-                                    id="routeAgreement-no"
+                                    id="Souhlasi_Mapa-no"
                                     type="radio"
-                                    name="routeAgreement"
+                                    name="Souhlasi_Mapa"
                                     value="ne"
-                                    checked={formData.routeAgreement === "ne"}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, routeAgreement: e.target.value }))}
+                                    checked={formData.Souhlasi_Mapa === "ne"}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, Souhlasi_Mapa: e.target.value }))}
                                     className="form__radio mr-2"
                                 />
                                 NE
                             </label>
                         </div>
+                        
+                        {formData.Souhlasi_Mapa === "ne" && (
+                            <div className="mt-4 space-y-4">
+                                <div>
+                                    <label htmlFor="Souhlasi_Mapa-comment" className="form__label mb-1 block">
+                                        Komentář k nesouladu
+                                    </label>
+                                    <textarea
+                                        id="Souhlasi_Mapa-comment"
+                                        name="Souhlasi_Mapa-comment"
+                                        className="form__textarea"
+                                        placeholder="Popište nesoulad trasy s mapou..."
+                                        value={formData.Koment_Mapa || ""}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, Koment_Mapa: e.target.value }))}
+                                        rows={3}
+                                    />
+                                </div>
+                                
+                                <div>
+                                    <label className="form__label mb-2 block">
+                                        Přílohy k nesouladu
+                                    </label>
+                                    <AdvancedFileUpload
+                                        id="Souhlasi_Mapa-attachments"
+                                        files={formData.Prilohy_Mapa || []}
+                                        onFilesChange={(files) => setFormData(prev => ({ ...prev, Prilohy_Mapa: files }))}
+                                        maxFiles={5}
+                                        accept="image/jpeg,image/png,image/heic"
+                                        maxSize={15}
+                                        storagePath={storagePath ? `${storagePath}/mapa-nesoulad` : null}
+                                    />
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

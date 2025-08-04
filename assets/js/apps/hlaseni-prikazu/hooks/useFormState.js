@@ -8,40 +8,41 @@ import { useState, useCallback } from 'react';
 // Helper for creating empty travel segment
 const createEmptyTravelSegment = () => ({
     id: crypto.randomUUID(),
-    date: new Date(),
-    startTime: "",
-    endTime: "",
-    startPlace: "",
-    endPlace: "",
-    transportType: "AUV",
-    kilometers: 0,
-    ticketCosts: 0,
-    attachments: []
+    Datum: new Date(),
+    Cas_Odjezdu: "",
+    Cas_Prijezdu: "",
+    Misto_Odjezdu: "",
+    Misto_Prijezdu: "",
+    Druh_Dopravy: "AUV",
+    Kilometry: 0,
+    Naklady: 0,
+    Prilohy: []
 });
 
 // Helper for creating empty travel group
-const createEmptyTravelGroup = (participants = []) => ({
+const createEmptyTravelGroup = (Cestujci = []) => ({
     id: crypto.randomUUID(),
-    participants: participants, // int_adr účastníků
-    driver: null, // int_adr řidiče
+    Cestujci: Cestujci, // int_adr účastníků
+    Ridic: null, // int_adr řidiče
     spz: "", // SPZ vozidla
-    segments: [createEmptyTravelSegment()]
+    Ma_Zvysenou_Sazbu: false, // Příznak pro zvýšenou sazbu cestovného
+    Cesty: [createEmptyTravelSegment()]
 });
 
 // Initial form state
 const createInitialFormData = () => ({
-    executionDate: new Date(),
-    travelGroups: [createEmptyTravelGroup()],
-    higherKmRate: false,
-    accommodations: [],
-    additionalExpenses: [],
-    partACompleted: false,
-    partBCompleted: false,
-    timReports: {},
-    routeComment: "",
-    routeAttachments: [],
-    paymentRedirects: {},
-    status: 'draft'
+    Datum_Provedeni: new Date(),
+    Skupiny_Cest: [createEmptyTravelGroup()],
+    Zvysena_Sazba: false,
+    Noclezne: [],
+    Vedlejsi_Vydaje: [],
+    Cast_A_Dokoncena: false,
+    Cast_B_Dokoncena: false,
+    Stavy_Tim: {},
+    Koment_Usek: "",
+    Prilohy_Usek: [],
+    Presmerovani_Vyplat: {},
+    Status: 'draft'
 });
 
 export const useFormState = () => {

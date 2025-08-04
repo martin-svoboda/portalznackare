@@ -8,16 +8,16 @@ import { api } from '../../../utils/api';
 import { log } from '../../../utils/debug';
 import { parsePriceListFromAPI } from '../utils/compensationCalculator';
 
-export const usePriceList = (executionDate, reportLoaded) => {
+export const usePriceList = (Datum_Provedeni, reportLoaded) => {
     const [priceList, setPriceList] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
     // Načtení ceníku
     const loadPriceList = useCallback(async () => {
-        if (!executionDate || !reportLoaded) return;
+        if (!Datum_Provedeni || !reportLoaded) return;
 
-        const dateParam = executionDate.toISOString().split('T')[0];
+        const dateParam = Datum_Provedeni.toISOString().split('T')[0];
         setLoading(true);
         setError(null);
 
@@ -42,7 +42,7 @@ export const usePriceList = (executionDate, reportLoaded) => {
         } finally {
             setLoading(false);
         }
-    }, [executionDate, reportLoaded]);
+    }, [Datum_Provedeni, reportLoaded]);
 
     useEffect(() => {
         loadPriceList();

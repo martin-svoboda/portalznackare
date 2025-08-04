@@ -8,39 +8,37 @@ class PartADto
 {
     #[Assert\NotBlank]
     #[Assert\DateTime]
-    public string $executionDate;
+    public string $Datum_Provedeni;
 
     #[Assert\Valid]
     #[Assert\Count(min: 1)]
     /**
      * @var TravelSegmentDto[]
      */
-    public array $travelSegments = [];
+    public array $Skupiny_Cest = [];
 
     #[Assert\Length(max: 255)]
-    public string $primaryDriver = '';
+    public string $Hlavni_Ridic = '';
 
     #[Assert\Length(max: 20)]
-    public string $vehicleRegistration = '';
+    public string $SPZ = '';
 
-    #[Assert\Type('boolean')]
-    public bool $higherKmRate = false;
 
     #[Assert\Valid]
     /**
      * @var AccommodationDto[]
      */
-    public array $accommodations = [];
+    public array $Noclezne = [];
 
     #[Assert\Valid]
     /**
      * @var AdditionalExpenseDto[]
      */
-    public array $additionalExpenses = [];
+    public array $Vedlejsi_Vydaje = [];
 
     #[Assert\Type('boolean')]
-    public bool $partACompleted = false;
+    public bool $Cast_A_Dokoncena = false;
 
     #[Assert\Type('array')]
-    public array $paymentRedirects = [];
+    public array $Presmerovani_Vyplat = [];
 }

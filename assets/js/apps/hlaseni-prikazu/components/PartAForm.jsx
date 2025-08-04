@@ -7,6 +7,7 @@ import { BasicInfoForm } from './BasicInfoForm';
 import { PaymentRedirectsForm } from './PaymentRedirectsForm';
 import { AdvancedFileUpload } from './AdvancedFileUpload';
 import { TravelGroupsForm } from './TravelGroupsForm';
+import ErrorBoundary from '../../../components/shared/ErrorBoundary';
 
 
 export const PartAForm = ({ 
@@ -25,13 +26,13 @@ export const PartAForm = ({
 }) => {
     // Team members - use prop if provided, otherwise calculate from head data (original logic)
     const computedTeamMembers = useMemo(() => {
-        if (teamMembers.length > 0) return teamMembers;
+        if (teamMembers && teamMembers.length > 0) return teamMembers;
         if (!head) return [];
         return [1, 2, 3]
             .map(i => ({
                 index: i,
                 name: head[`Znackar${i}`],
-                int_adr: head[`INT_ADR_${i}`],
+                INT_ADR: head[`INT_ADR_${i}`],
                 isLeader: head[`Je_Vedouci${i}`] === "1"
             }))
             .filter(member => member.name?.trim());
@@ -41,7 +42,7 @@ export const PartAForm = ({
     const storagePath = useMemo(() => {
         if (!prikazId) return null;
         
-        const year = formData.executionDate ? formData.executionDate.getFullYear() : new Date().getFullYear();
+        const year = formData.Datum_Provedeni ? formData.Datum_Provedeni.getFullYear() : new Date().getFullYear();
         const kkz = head?.KKZ?.toString().trim() || 'unknown';
         const obvod = head?.ZO?.toString().trim() || 'unknown';
         const sanitizedPrikazId = prikazId?.toString().trim() || 'unknown';
@@ -49,7 +50,7 @@ export const PartAForm = ({
         const validYear = (year >= 2020 && year <= 2030) ? year : new Date().getFullYear();
         
         return `reports/${validYear}/${kkz}/${obvod}/${sanitizedPrikazId}`;
-    }, [prikazId, formData.executionDate, head]);
+    }, [prikazId, formData.Datum_Provedeni, head]);
 
     // Helper functions for date formatting (from original)
     const formatDate = (date) => {
@@ -67,24 +68,24 @@ export const PartAForm = ({
     const addAccommodation = () => {
         const newAccommodation = {
             id: crypto.randomUUID(),
-            place: "",
-            facility: "",
-            date: formData.executionDate,
-            amount: 0,
-            paidByMember: computedTeamMembers[0]?.int_adr || "",
-            attachments: []
+            Misto: "",
+            Zarizeni: "",
+            Datum: formData.Datum_Provedeni,
+            Castka: 0,
+            Zaplatil: computedTeamMembers[0]?.INT_ADR || "",
+            Prilohy: []
         };
 
         setFormData(prev => ({
             ...prev,
-            accommodations: [...prev.accommodations, newAccommodation]
+            Noclezne: [...(prev.Noclezne || []), newAccommodation]
         }));
     };
 
     const updateAccommodation = (accommodationId, updates) => {
         setFormData(prev => ({
             ...prev,
-            accommodations: prev.accommodations.map(acc =>
+            Noclezne: (prev.Noclezne || []).map(acc =>
                 acc.id === accommodationId ? { ...acc, ...updates } : acc
             )
         }));
@@ -93,7 +94,7 @@ export const PartAForm = ({
     const removeAccommodation = (accommodationId) => {
         setFormData(prev => ({
             ...prev,
-            accommodations: prev.accommodations.filter(acc => acc.id !== accommodationId)
+            Noclezne: (prev.Noclezne || []).filter(acc => acc.id !== accommodationId)
         }));
     };
 
@@ -101,22 +102,22 @@ export const PartAForm = ({
     const addExpense = () => {
         const newExpense = {
             id: crypto.randomUUID(),
-            description: "",
-            amount: 0,
-            paidByMember: computedTeamMembers[0]?.int_adr || "",
-            attachments: []
+            Polozka: "",
+            Castka: 0,
+            Zaplatil: computedTeamMembers[0]?.INT_ADR || "",
+            Prilohy: []
         };
 
         setFormData(prev => ({
             ...prev,
-            additionalExpenses: [...prev.additionalExpenses, newExpense]
+            Vedlejsi_Vydaje: [...(prev.Vedlejsi_Vydaje || []), newExpense]
         }));
     };
 
     const updateExpense = (expenseId, updates) => {
         setFormData(prev => ({
             ...prev,
-            additionalExpenses: prev.additionalExpenses.map(exp =>
+            Vedlejsi_Vydaje: (prev.Vedlejsi_Vydaje || []).map(exp =>
                 exp.id === expenseId ? { ...exp, ...updates } : exp
             )
         }));
@@ -125,19 +126,30 @@ export const PartAForm = ({
     const removeExpense = (expenseId) => {
         setFormData(prev => ({
             ...prev,
-            additionalExpenses: prev.additionalExpenses.filter(exp => exp.id !== expenseId)
+            Vedlejsi_Vydaje: (prev.Vedlejsi_Vydaje || []).filter(exp => exp.id !== expenseId)
         }));
     };
 
     // Handler functions for basic info
     const handleExecutionDateChange = (date) => {
-        setFormData(prev => ({ ...prev, executionDate: date }));
+        setFormData(prev => ({
+            ...prev,
+            Datum_Provedeni: date,
+            // Aktualizovat datum ve všech segmentech cest
+            Skupiny_Cest: prev.Skupiny_Cest?.map(group => ({
+                ...group,
+                Cesty: group.Cesty?.map(segment => ({
+                    ...segment,
+                    Datum: date
+                })) || []
+            })) || []
+        }));
     };
 
 
     // Handler functions for payment redirects
-    const handlePaymentRedirectsChange = (paymentRedirects) => {
-        setFormData(prev => ({ ...prev, paymentRedirects }));
+    const handlePresmerovanivyplatChange = (Presmerovani_Vyplat) => {
+        setFormData(prev => ({ ...prev, Presmerovani_Vyplat }));
     };
 
     const isFormDisabled = !canEdit || disabled || formData.status === 'submitted';
@@ -145,11 +157,12 @@ export const PartAForm = ({
     return (
         <div className="space-y-6">
             {/* Basic Information */}
-            <BasicInfoForm
-                executionDate={formData.executionDate}
+            <ErrorBoundary sectionName="Základní údaje">
+                <BasicInfoForm
+                Datum_Provedeni={formData.Datum_Provedeni}
                 primaryDriver={formData.primaryDriver}
                 vehicleRegistration={formData.vehicleRegistration}
-                higherKmRate={formData.higherKmRate}
+                Zvysena_Sazba={formData.Zvysena_Sazba}
                 onExecutionDateChange={handleExecutionDateChange}
                 teamMembers={computedTeamMembers}
                 currentUser={currentUser}
@@ -157,9 +170,11 @@ export const PartAForm = ({
                 canEditOthers={canEditOthers}
                 disabled={isFormDisabled}
             />
+            </ErrorBoundary>
 
             {/* Travel Groups */}
-            <TravelGroupsForm
+            <ErrorBoundary sectionName="Segmenty cest">
+                <TravelGroupsForm
                 formData={formData}
                 setFormData={setFormData}
                 priceList={priceList}
@@ -169,14 +184,16 @@ export const PartAForm = ({
                 fileUploadService={fileUploadService}
                 currentUser={currentUser}
             />
+            </ErrorBoundary>
 
             {/* Accommodation */}
-            <div className="card">
+            <ErrorBoundary sectionName="Nocležné">
+                <div className="card">
                 <div className="card__content">
                     <h4 className="text-lg font-semibold mb-4">Nocležné</h4>
 
                     <div className="space-y-4">
-                        {formData.accommodations.filter(acc => acc && acc.id).map((accommodation, index) => (
+                        {(formData.Noclezne || []).filter(acc => acc && acc.id).map((accommodation, index) => (
                             <div key={accommodation.id}>
                                 {index > 0 && <hr className="my-4" />}
                                 <div className="relative">
@@ -201,8 +218,8 @@ export const PartAForm = ({
                                                     name={`accommodation-place-${accommodation.id}`}
                                                     type="text"
                                                     className="form__input"
-                                                    value={accommodation.place || ""}
-                                                    onChange={(e) => updateAccommodation(accommodation.id, { place: e.target.value })}
+                                                    value={accommodation.Misto || ""}
+                                                    onChange={(e) => updateAccommodation(accommodation.id, { Misto: e.target.value })}
                                                     disabled={isFormDisabled}
                                                 />
                                             </div>
@@ -213,8 +230,8 @@ export const PartAForm = ({
                                                     name={`accommodation-facility-${accommodation.id}`}
                                                     type="text"
                                                     className="form__input"
-                                                    value={accommodation.facility || ""}
-                                                    onChange={(e) => updateAccommodation(accommodation.id, { facility: e.target.value })}
+                                                    value={accommodation.Zarizeni || ""}
+                                                    onChange={(e) => updateAccommodation(accommodation.id, { Zarizeni: e.target.value })}
                                                     disabled={isFormDisabled}
                                                 />
                                             </div>
@@ -228,8 +245,8 @@ export const PartAForm = ({
                                                     name={`accommodation-amount-${accommodation.id}`}
                                                     type="number"
                                                     className="form__input"
-                                                    value={accommodation.amount || 0}
-                                                    onChange={(e) => updateAccommodation(accommodation.id, { amount: Number(e.target.value) || 0 })}
+                                                    value={accommodation.Castka || 0}
+                                                    onChange={(e) => updateAccommodation(accommodation.id, { Castka: Number(e.target.value) || 0 })}
                                                     min="0"
                                                     step="0.01"
                                                     disabled={isFormDisabled}
@@ -241,12 +258,12 @@ export const PartAForm = ({
                                                     id={`accommodation-paidby-${accommodation.id}`}
                                                     name={`accommodation-paidby-${accommodation.id}`}
                                                     className="form__select"
-                                                    value={accommodation.paidByMember || ""}
-                                                    onChange={(e) => updateAccommodation(accommodation.id, { paidByMember: e.target.value })}
+                                                    value={accommodation.Zaplatil || ""}
+                                                    onChange={(e) => updateAccommodation(accommodation.id, { Zaplatil: e.target.value })}
                                                     disabled={isFormDisabled}
                                                 >
                                                     {computedTeamMembers.map(member => (
-                                                        <option key={member.int_adr} value={member.int_adr}>
+                                                        <option key={member.INT_ADR} value={member.INT_ADR}>
                                                             {member.name}
                                                         </option>
                                                     ))}
@@ -259,8 +276,8 @@ export const PartAForm = ({
                                                     name={`accommodation-date-${accommodation.id}`}
                                                     type="date"
                                                     className="form__input"
-                                                    value={formatDate(accommodation.date)}
-                                                    onChange={(e) => updateAccommodation(accommodation.id, { date: parseDate(e.target.value) })}
+                                                    value={formatDate(accommodation.Datum)}
+                                                    onChange={(e) => updateAccommodation(accommodation.id, { Datum: parseDate(e.target.value) })}
                                                     disabled={isFormDisabled}
                                                 />
                                             </div>
@@ -270,8 +287,8 @@ export const PartAForm = ({
                                             <label className="form__label mb-2 block">Doklady</label>
                                             <AdvancedFileUpload
                                                 id={`accommodation-${accommodation.id}`}
-                                                files={accommodation.attachments ?? []}
-                                                onFilesChange={(files) => updateAccommodation(accommodation.id, { attachments: files })}
+                                                files={accommodation.Prilohy ?? []}
+                                                onFilesChange={(files) => updateAccommodation(accommodation.id, { Prilohy: files })}
                                                 maxFiles={5}
                                                 accept="image/jpeg,image/png,image/heic,application/pdf"
                                                 maxSize={10}
@@ -298,14 +315,16 @@ export const PartAForm = ({
                     </div>
                 </div>
             </div>
+            </ErrorBoundary>
 
             {/* Additional expenses */}
-            <div className="card">
+            <ErrorBoundary sectionName="Vedlejší výdaje">
+                <div className="card">
                 <div className="card__content">
                     <h4 className="text-lg font-semibold mb-4">Vedlejší výdaje</h4>
 
                     <div className="space-y-4">
-                        {formData.additionalExpenses.filter(exp => exp && exp.id).map((expense, index) => (
+                        {(formData.Vedlejsi_Vydaje || []).filter(exp => exp && exp.id).map((expense, index) => (
                             <div key={expense.id}>
                                 {index > 0 && <hr className="my-4" />}
                                 <div className="relative">
@@ -329,8 +348,8 @@ export const PartAForm = ({
                                                 name={`expense-description-${expense.id}`}
                                                 type="text"
                                                 className="form__input"
-                                                value={expense.description || ""}
-                                                onChange={(e) => updateExpense(expense.id, { description: e.target.value })}
+                                                value={expense.Polozka || ""}
+                                                onChange={(e) => updateExpense(expense.id, { Polozka: e.target.value })}
                                                 disabled={isFormDisabled}
                                             />
                                         </div>
@@ -343,8 +362,8 @@ export const PartAForm = ({
                                                     name={`expense-amount-${expense.id}`}
                                                     type="number"
                                                     className="form__input"
-                                                    value={expense.amount || 0}
-                                                    onChange={(e) => updateExpense(expense.id, { amount: Number(e.target.value) || 0 })}
+                                                    value={expense.Castka || 0}
+                                                    onChange={(e) => updateExpense(expense.id, { Castka: Number(e.target.value) || 0 })}
                                                     min="0"
                                                     step="0.01"
                                                     disabled={isFormDisabled}
@@ -356,12 +375,12 @@ export const PartAForm = ({
                                                     id={`expense-paidby-${expense.id}`}
                                                     name={`expense-paidby-${expense.id}`}
                                                     className="form__select"
-                                                    value={expense.paidByMember || ""}
-                                                    onChange={(e) => updateExpense(expense.id, { paidByMember: e.target.value })}
+                                                    value={expense.Zaplatil || ""}
+                                                    onChange={(e) => updateExpense(expense.id, { Zaplatil: e.target.value })}
                                                     disabled={isFormDisabled}
                                                 >
                                                     {computedTeamMembers.map(member => (
-                                                        <option key={member.int_adr} value={member.int_adr}>
+                                                        <option key={member.INT_ADR} value={member.INT_ADR}>
                                                             {member.name}
                                                         </option>
                                                     ))}
@@ -374,8 +393,8 @@ export const PartAForm = ({
                                                     name={`expense-date-${expense.id}`}
                                                     type="date"
                                                     className="form__input"
-                                                    value={formatDate(expense.date)}
-                                                    onChange={(e) => updateExpense(expense.id, { date: parseDate(e.target.value) })}
+                                                    value={formatDate(expense.Datum)}
+                                                    onChange={(e) => updateExpense(expense.id, { Datum: parseDate(e.target.value) })}
                                                     disabled={isFormDisabled}
                                                 />
                                             </div>
@@ -385,8 +404,8 @@ export const PartAForm = ({
                                             <label className="form__label mb-2 block">Doklady</label>
                                             <AdvancedFileUpload
                                                 id={`expense-${expense.id}`}
-                                                files={expense.attachments ?? []}
-                                                onFilesChange={(files) => updateExpense(expense.id, { attachments: files })}
+                                                files={expense.Prilohy ?? []}
+                                                onFilesChange={(files) => updateExpense(expense.id, { Prilohy: files })}
                                                 maxFiles={5}
                                                 accept="image/jpeg,image/png,image/heic,application/pdf"
                                                 maxSize={10}
@@ -413,16 +432,19 @@ export const PartAForm = ({
                     </div>
                 </div>
             </div>
+            </ErrorBoundary>
 
             {/* Payment Redirects */}
-            <PaymentRedirectsForm
-                paymentRedirects={formData.paymentRedirects}
-                onPaymentRedirectsChange={handlePaymentRedirectsChange}
+            <ErrorBoundary sectionName="Přesměrování výplat">
+                <PaymentRedirectsForm
+                Presmerovani_Vyplat={formData.Presmerovani_Vyplat || {}}
+                onPresmerovanivyplatChange={handlePresmerovanivyplatChange}
                 teamMembers={computedTeamMembers}
                 currentUser={currentUser}
                 isLeader={isLeader}
                 disabled={isFormDisabled}
             />
+            </ErrorBoundary>
         </div>
     );
 };

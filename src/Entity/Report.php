@@ -32,9 +32,9 @@ class Report
     #[Groups(['report:read', 'report:write'])]
     private int $intAdr;
 
-    #[ORM\Column(name: 'team_members', type: Types::JSON)]
+    #[ORM\Column(name: 'znackari', type: Types::JSON)]
     #[Groups(['report:read', 'report:write'])]
-    private array $teamMembers = [];
+    private array $teamMembers = []; // Maps to 'znackari' column
 
     #[ORM\Column(name: 'history', type: Types::JSON)]
     #[Groups(['report:read'])]
@@ -127,7 +127,7 @@ class Report
     {
         $this->teamMembers = array_values(array_filter(
             $this->teamMembers,
-            fn($member) => $member['int_adr'] !== $intAdr
+            fn($member) => $member['INT_ADR'] !== $intAdr
         ));
         return $this;
     }

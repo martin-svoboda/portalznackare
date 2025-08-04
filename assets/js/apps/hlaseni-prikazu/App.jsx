@@ -39,9 +39,9 @@ const App = () => {
     const [isLeader, setIsLeader] = useState(false);
     const [canEditOthers, setCanEditOthers] = useState(false);
     
-    // Price list loading (depends on formData.executionDate)
+    // Price list loading (depends on formData.datumProvedeni)
     const { priceList, loading: priceListLoading, error: priceListError } = usePriceList(
-        formData.executionDate,
+        formData.Datum_Provedeni,
         reportLoaded
     );
 
@@ -71,62 +71,155 @@ const App = () => {
 
         try {
             const result = await api.prikazy.report(prikazId);
-            if (result && (result.dataA || result.dataB || result.team_members)) {
+            if (result && (result.dataA || result.dataB || result.znackari)) {
                 const loadedData = {};
 
-                // Load Part A (Symfony uses camelCase: dataA)
-                if (result.dataA) {
-                    Object.assign(loadedData, result.dataA);
+                // Load Part A (using czech keys)
+                if (result.data_a) {
+                    Object.assign(loadedData, result.data_a);
                     // Convert dates
-                    if (loadedData.executionDate) {
-                        const execDate = new Date(loadedData.executionDate);
-                        loadedData.executionDate = isNaN(execDate.getTime()) ? new Date() : execDate;
+                    if (loadedData.Datum_Provedeni) {
+                        const execDate = new Date(loadedData.Datum_Provedeni);
+                        loadedData.Datum_Provedeni = isNaN(execDate.getTime()) ? new Date() : execDate;
                     }
-                    if (loadedData.travelGroups) {
-                        loadedData.travelGroups = loadedData.travelGroups.map(group => ({
+                    if (loadedData.Skupiny_Cest && Array.isArray(loadedData.Skupiny_Cest)) {
+                        loadedData.Skupiny_Cest = loadedData.Skupiny_Cest.map((group, index) => ({
                             ...group,
-                            participants: group.participants || [], // Zajistit, že participants jsou načtené
-                            driver: group.driver || null,
+                            Cestujci: group.Cestujci || group.participants || [], // Migrace: participants → Cestujci
+                            Ridic: group.Ridic || group.driver || null, // Migrace: driver → Ridic
                             spz: group.spz || "",
-                            segments: group.segments?.map(segment => ({
+                            // Migrace: přidat Ma_Zvysenou_Sazbu pokud chybí
+                            // První řidič dostane true pokud je příkaz se zvýšenou sazbou
+                            Ma_Zvysenou_Sazbu: group.Ma_Zvysenou_Sazbu ?? (index === 0 && (group.Ridic || group.driver) && loadedData.Zvysena_Sazba),
+                            Cesty: (group.Cesty || group.segments)?.map(segment => ({
                                 ...segment,
-                                date: segment.date ? new Date(segment.date) : new Date()
+                                Datum: segment.Datum || segment.datum || segment.date ? new Date(segment.Datum || segment.datum || segment.date) : new Date()
                             })) || []
                         }));
                     }
-                    if (loadedData.accommodations) {
-                        loadedData.accommodations = loadedData.accommodations.map(acc => ({
+                    if (loadedData.Noclezne && Array.isArray(loadedData.Noclezne)) {
+                        loadedData.Noclezne = loadedData.Noclezne.map(acc => ({
                             ...acc,
-                            date: new Date(acc.date)
+                            Datum: acc.Datum || acc.date ? new Date(acc.Datum || acc.date) : new Date(),
+                            Prilohy: acc.Prilohy || acc.attachments || []
                         }));
                     }
-                    if (loadedData.additionalExpenses) {
-                        loadedData.additionalExpenses = loadedData.additionalExpenses.map(exp => ({
+                    if (loadedData.Vedlejsi_Vydaje && Array.isArray(loadedData.Vedlejsi_Vydaje)) {
+                        loadedData.Vedlejsi_Vydaje = loadedData.Vedlejsi_Vydaje.map(exp => ({
                             ...exp,
-                            date: new Date(exp.date)
+                            Datum: exp.Datum || exp.date ? new Date(exp.Datum || exp.date) : new Date(),
+                            Polozka: exp.Polozka || exp.description || "",
+                            Prilohy: exp.Prilohy || exp.attachments || []
                         }));
                     }
                 }
 
-                // Load Part B (Symfony uses camelCase: dataB)
-                if (result.dataB) {
-                    Object.assign(loadedData, result.dataB);
+                // Load Part B (using czech keys with data migration)
+                if (result.data_b) {
+                    Object.assign(loadedData, result.data_b);
+                    
+                    // Migrate old data structure to new Czech names
+                    if (loadedData.Stavy_Tim) {
+                        const migratedStavyTim = {};
+                        
+                        for (const [timId, timReport] of Object.entries(loadedData.Stavy_Tim)) {
+                            const migratedReport = {
+                                EvCi_TIM: timReport.EvCi_TIM || timReport.timId || timId,
+                                Koment_NP: timReport.Koment_NP || timReport.structuralComment || "",
+                                Prilohy_NP: timReport.Prilohy_NP || timReport.structuralAttachments || [],
+                                Predmety: [],
+                                Prilohy_TIM: timReport.Prilohy_TIM || timReport.photos || [],
+                                Koment_TIM: timReport.Koment_TIM || timReport.generalComment || "",
+                                Souhlasi_STP: timReport.Souhlasi_STP ?? timReport.centerRuleCompliant ?? null,
+                                Koment_STP: timReport.Koment_STP || timReport.centerRuleComment || ""
+                            };
+                            
+                            // Migrate item statuses
+                            const itemStatuses = timReport.Predmety || timReport.itemStatuses || [];
+                            migratedReport.Predmety = itemStatuses.map(status => ({
+                                ID_PREDMETY: status.ID_PREDMETY || status.itemId || "",
+                                Zachovalost: status.Zachovalost || status.status || null,
+                                Rok_Vyroby: status.Rok_Vyroby || status.yearOfProduction || null,
+                                Smerovani: status.Smerovani || status.arrowOrientation || "",
+                                Koment: status.Koment || status.comment || "",
+                                Prilohy: status.Prilohy || status.photos || [],
+                                metadata: status.metadata || {}
+                            }));
+                            
+                            migratedStavyTim[timId] = migratedReport;
+                        }
+                        
+                        loadedData.Stavy_Tim = migratedStavyTim;
+                    }
+                    
+                    // Migrate route agreement
+                    if (loadedData.routeAgreement !== undefined && loadedData.Souhlasi_Mapa === undefined) {
+                        loadedData.Souhlasi_Mapa = loadedData.routeAgreement;
+                        delete loadedData.routeAgreement;
+                    }
+                    
+                    // Migrate old route comment and attachments names
+                    if (loadedData.Trasa_Poznamka !== undefined && loadedData.Koment_Usek === undefined) {
+                        loadedData.Koment_Usek = loadedData.Trasa_Poznamka;
+                        delete loadedData.Trasa_Poznamka;
+                    }
+                    if (loadedData.Trasa_Prilohy !== undefined && loadedData.Prilohy_Usek === undefined) {
+                        loadedData.Prilohy_Usek = loadedData.Trasa_Prilohy;
+                        delete loadedData.Trasa_Prilohy;
+                    }
+                }
+
+                // Migrate calculation data if available
+                if (result.calculation) {
+                    // Old calculation format migration to new Czech Snake_Case format
+                    // Check if calculation is in old format (has properties like Naklady_Doprava, stravne, etc.)
+                    const needsCalculationMigration = typeof result.calculation === 'object' && 
+                        Object.values(result.calculation).some(comp => 
+                            comp && (comp.Naklady_Doprava !== undefined || comp.stravne !== undefined || comp.nahradaPrace !== undefined)
+                        );
+                    
+                    if (needsCalculationMigration) {
+                        const migratedCalculation = {};
+                        
+                        for (const [intAdr, oldComp] of Object.entries(result.calculation)) {
+                            if (!oldComp || typeof oldComp !== 'object') continue;
+                            
+                            migratedCalculation[intAdr] = {
+                                INT_ADR: parseInt(intAdr),
+                                Jizdne: oldComp.Jizdne || oldComp.Naklady_Doprava || 0,
+                                Zvysena_Sazba: oldComp.Zvysena_Sazba || false,
+                                Stravne: oldComp.Stravne || oldComp.stravne || 0,
+                                Nahrada_Prace: oldComp.Nahrada_Prace || oldComp.nahradaPrace || 0,
+                                Naklady_Ubytovani: oldComp.Naklady_Ubytovani || 0,
+                                Vedlejsi_Vydaje: oldComp.Vedlejsi_Vydaje || 0,
+                                Hodin_Celkem: oldComp.Hodin_Celkem || oldComp.odpracovaneHodiny || 0,
+                                Dny_Prace: oldComp.Dny_Prace || [], // Prázdné pole pro stará data
+                                celkem: oldComp.celkem || 0, // Backwards compatibility
+                                appliedTariff: oldComp.appliedTariff || oldComp.pouzityTarif || null
+                            };
+                        }
+                        
+                        loadedData.calculation = migratedCalculation;
+                    } else {
+                        // Calculation is already in new format or doesn't need migration
+                        loadedData.calculation = result.calculation;
+                    }
                 }
 
                 // Load team members if available
-                if (result.team_members && Array.isArray(result.team_members)) {
-                    setTeamMembers(result.team_members);
+                if (result.znackari && Array.isArray(result.znackari)) {
+                    setTeamMembers(result.znackari);
                     
                     // Check if current user is leader from team members
-                    const currentUserInTeam = result.team_members.find(
-                        member => member.int_adr === currentUser?.int_adr
+                    const currentUserInTeam = result.znackari.find(
+                        member => member.INT_ADR === currentUser?.INT_ADR
                     );
                     if (currentUserInTeam) {
                         setIsLeader(currentUserInTeam.je_vedouci || false);
                         setCanEditOthers(currentUserInTeam.je_vedouci || false);
                     }
                 } else if (head && currentUser) {
-                    // Fallback: pokud report nemá team_members, použij data z head
+                    // Fallback: pokud report nemá znackari, použij data z head
                     const members = extractTeamMembers(head);
                     setTeamMembers(members);
                     
@@ -183,14 +276,14 @@ const App = () => {
     useEffect(() => {
         if (head?.ZvysenaSazba) {
             const shouldUseHigherRate = head.ZvysenaSazba === "1";
-            if (shouldUseHigherRate !== formData.higherKmRate) {
-                setFormData(prev => ({...prev, higherKmRate: shouldUseHigherRate}));
+            if (shouldUseHigherRate !== formData.Zvysena_Sazba) {
+                setFormData(prev => ({...prev, Zvysena_Sazba: shouldUseHigherRate}));
             }
         }
-    }, [head?.ZvysenaSazba, formData.higherKmRate, setFormData]);
+    }, [head?.ZvysenaSazba, formData.Zvysena_Sazba, setFormData]);
 
     // Loading state
-    if (loading) {
+    if (loading || !reportLoaded) {
         return (
             <div className="card">
                 <Loader/>
@@ -211,8 +304,8 @@ const App = () => {
             <StepNavigation
                 activeStep={activeStep}
                 onStepChange={changeStep}
-                partACompleted={formData.partACompleted}
-                partBCompleted={formData.partBCompleted}
+                partACompleted={formData.Cast_A_Dokoncena}
+                castBDokoncena={formData.Cast_B_Dokoncena}
                 head={head}
                 saving={saving}
                 status={formData.status}

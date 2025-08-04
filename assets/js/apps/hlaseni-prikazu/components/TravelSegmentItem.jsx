@@ -7,16 +7,17 @@ import {
     IconWalk,
     IconBike,
     IconArrowUp,
-    IconArrowDown
+    IconArrowDown,
+    IconMapPin
 } from '@tabler/icons-react';
 import { AdvancedFileUpload } from './AdvancedFileUpload';
 
 const transportTypeOptions = [
     { value: "AUV", label: "AUV (Auto vlastní)", icon: IconCar },
     { value: "AUV-Z", label: "AUV-Z (Auto zaměstnavatele)", icon: IconCar },
-    { value: "veřejná doprava", label: "Veřejná doprava", icon: IconBus },
-    { value: "pěšky", label: "Pěšky", icon: IconWalk },
-    { value: "kolo", label: "Kolo", icon: IconBike },
+    { value: "V", label: "Veřejná doprava", icon: IconBus },
+    { value: "P", label: "Pěšky", icon: IconWalk },
+    { value: "K", label: "Kolo", icon: IconBike },
 ];
 
 export const TravelSegmentItem = ({
@@ -48,7 +49,7 @@ export const TravelSegmentItem = ({
         handleUpdate(field, numValue);
     };
 
-    const selectedTransportType = transportTypeOptions.find(opt => opt.value === segment.transportType);
+    const selectedTransportType = transportTypeOptions.find(opt => opt.value === segment.Druh_Dopravy);
     const IconComponent = selectedTransportType?.icon || IconCar;
 
     return (
@@ -125,8 +126,8 @@ export const TravelSegmentItem = ({
                                         name={`segment-date-${segment.id}`}
                                         type="date"
                                         className="form__input"
-                                        value={segment.date ? segment.date.toISOString().split('T')[0] : ''}
-                                        onChange={(e) => handleUpdate('date', new Date(e.target.value))}
+                                        value={segment.Datum ? segment.Datum.toISOString().split('T')[0] : ''}
+                                        onChange={(e) => handleUpdate('Datum', new Date(e.target.value)))
                                         disabled={disabled}
                                     />
                                 </div>
@@ -150,8 +151,8 @@ export const TravelSegmentItem = ({
                                         type="text"
                                         className="form__input"
                                         placeholder="Místo"
-                                        value={segment.startPlace || ""}
-                                        onChange={(e) => handleUpdate('startPlace', e.target.value)}
+                                        value={segment.Misto_Odjezdu || ""}
+                                        onChange={(e) => handleUpdate('Misto_Odjezdu', e.target.value))
                                         disabled={disabled}
                                     />
                                 </div>
@@ -163,8 +164,8 @@ export const TravelSegmentItem = ({
                                         name={`start-time-${segment.id}`}
                                         type="time"
                                         className="form__input flex-1"
-                                        value={segment.startTime || ""}
-                                        onChange={(e) => handleTimeChange('startTime', e.target.value)}
+                                        value={segment.Cas_Odjezdu || ""}
+                                        onChange={(e) => handleTimeChange('Cas_Odjezdu', e.target.value))
                                         disabled={disabled}
                                     />
                                 </div>
@@ -189,8 +190,8 @@ export const TravelSegmentItem = ({
                                     type="text"
                                     className="form__input"
                                     placeholder="Místo"
-                                    value={segment.endPlace || ""}
-                                onChange={(e) => handleUpdate('endPlace', e.target.value)}
+                                    value={segment.Misto_Prijezdu || ""}
+                                onChange={(e) => handleUpdate('Misto_Prijezdu', e.target.value)}
                                 disabled={disabled}
                             />
                         </div>
@@ -202,23 +203,8 @@ export const TravelSegmentItem = ({
                                 name={`end-time-${segment.id}`}
                                 type="time"
                                 className="form__input flex-1"
-                                value={segment.endTime || ""}
-                                onChange={(e) => handleTimeChange('endTime', e.target.value)}
-                                disabled={disabled}
-                            />
-                        </div>
-                    </div>
-                </div>
-                        </div>
-
-                        <div>
-                            <label className="form__label">Místo příjezdu</label>
-                            <input
-                                type="text"
-                                className="form__input"
-                                value={segment.endPlace || ''}
-                                onChange={(e) => handleUpdate('endPlace', e.target.value)}
-                                placeholder="Zadejte místo příjezdu"
+                                value={segment.Cas_Prijezdu || "")
+                                onChange={(e) => handleTimeChange('Cas_Prijezdu', e.target.value)}
                                 disabled={disabled}
                             />
                         </div>
@@ -235,8 +221,8 @@ export const TravelSegmentItem = ({
                                 <button
                                     key={option.value}
                                     type="button"
-                                    className={`btn ${segment.transportType === option.value ? 'btn--primary' : 'btn--secondary'}`}
-                                    onClick={() => handleUpdate('transportType', option.value)}
+                                    className={`btn ${segment.Druh_Dopravy === option.value ? 'btn--primary' : 'btn--secondary'}`}
+                                    onClick={() => handleUpdate('Druh_Dopravy', option.value))
                                     disabled={disabled}
                                 >
                                     <OptionIcon size={16} />
@@ -248,14 +234,14 @@ export const TravelSegmentItem = ({
                 </div>
 
                 {/* Transport-specific fields */}
-                {(segment.transportType === "AUV" || segment.transportType === "AUV-Z") && (
+                {(segment.Druh_Dopravy === "AUV" || segment.Druh_Dopravy === "AUV-Z") && (
                     <div className="mt-4">
                         <label className="form__label">Počet kilometrů</label>
                         <input
                             type="number"
                             className="form__input"
-                            value={segment.kilometers || ''}
-                            onChange={(e) => handleNumberChange('kilometers', e.target.value)}
+                            value={segment.Kilometry || ''}
+                            onChange={(e) => handleNumberChange('Kilometry', e.target.value))
                             placeholder="0"
                             min="0"
                             step="0.1"
@@ -264,7 +250,7 @@ export const TravelSegmentItem = ({
                     </div>
                 )}
 
-                {segment.transportType === "veřejná doprava" && (
+                {segment.Druh_Dopravy === "V" && (
                     <div className="mt-4">
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                             <div>
@@ -272,8 +258,8 @@ export const TravelSegmentItem = ({
                                 <input
                                     type="number"
                                     className="form__input"
-                                    value={segment.ticketCosts || ''}
-                                    onChange={(e) => handleNumberChange('ticketCosts', e.target.value)}
+                                    value={segment.Naklady || ''}
+                                    onChange={(e) => handleNumberChange('Naklady', e.target.value))
                                     placeholder="0"
                                     min="0"
                                     step="0.01"
@@ -284,8 +270,8 @@ export const TravelSegmentItem = ({
                                 <label className="form__label">Přílohy jízdenek</label>
                                 <AdvancedFileUpload
                                     id={`segment-${segment.id}-attachments`}
-                                    files={segment.attachments || []}
-                                    onFilesChange={(files) => handleUpdate('attachments', files)}
+                                    files={segment.Prilohy || []}
+                                    onFilesChange={(files) => handleUpdate('Prilohy', files))
                                     maxFiles={10}
                                     accept="image/jpeg,image/png,image/heic,application/pdf"
                                     disabled={disabled}

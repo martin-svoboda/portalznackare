@@ -18,44 +18,43 @@ const getLegacyItemIdentifier = (item) => {
     return `${item.EvCi_TIM}_${item.Predmet_Index}`;
 };
 
-export const useTimReports = (timReports, setFormData) => {
+export const useTimReports = (Stavy_Tim, setFormData) => {
     // Update TIM report
     const updateTimReport = useCallback((timId, updates) => {
         const newTimReports = {
-            ...timReports,
+            ...Stavy_Tim,
             [timId]: {
-                ...timReports[timId],
+                ...Stavy_Tim[timId],
                 ...updates
             }
         };
-        setFormData(prev => ({ ...prev, timReports: newTimReports }));
-    }, [timReports, setFormData]);
+        setFormData(prev => ({ ...prev, Stavy_Tim: newTimReports }));
+    }, [Stavy_Tim, setFormData]);
 
     // Update item status within a TIM report
     const updateItemStatus = useCallback((timId, item, status) => {
-        const timReport = timReports[timId] || {
-            timId,
-            structuralComment: "",
-            structuralAttachments: [],
-            itemStatuses: [],
-            photos: []
+        const timReport = Stavy_Tim[timId] || {
+            EvCi_TIM: timId,
+            Koment_NP: "",
+            Prilohy_NP: [],
+            Predmety: [],
+            Prilohy_TIM: []
         };
 
         const primaryId = getItemIdentifier(item);
         const legacyId = getLegacyItemIdentifier(item);
 
-        const existingStatusIndex = timReport.itemStatuses.findIndex(s => 
-            s.itemId === primaryId || s.itemId === legacyId || s.legacyItemId === legacyId
+        const existingStatusIndex = timReport.Predmety.findIndex(s => 
+            s.ID_PREDMETY === primaryId
         );
-        const newItemStatuses = [...timReport.itemStatuses];
+        const newPredmety = [...timReport.Predmety];
 
         if (existingStatusIndex >= 0) {
             // Update existing status
-            newItemStatuses[existingStatusIndex] = {
-                ...newItemStatuses[existingStatusIndex],
+            newPredmety[existingStatusIndex] = {
+                ...newPredmety[existingStatusIndex],
                 ...status,
-                itemId: primaryId, // Update to new identifier
-                legacyItemId: legacyId,
+                ID_PREDMETY: primaryId,
                 // Complete metadata for full traceability
                 metadata: {
                     ID_PREDMETY: item.ID_PREDMETY,
@@ -66,9 +65,8 @@ export const useTimReports = (timReports, setFormData) => {
             };
         } else {
             // Create new status
-            newItemStatuses.push({
-                itemId: primaryId,
-                legacyItemId: legacyId,
+            newPredmety.push({
+                ID_PREDMETY: primaryId,
                 ...status,
                 metadata: {
                     ID_PREDMETY: item.ID_PREDMETY,
@@ -79,38 +77,38 @@ export const useTimReports = (timReports, setFormData) => {
             });
         }
 
-        updateTimReport(timId, { itemStatuses: newItemStatuses });
-    }, [timReports, updateTimReport]);
+        updateTimReport(timId, { Predmety: newPredmety });
+    }, [Stavy_Tim, updateTimReport]);
 
     // Remove item status
     const removeItemStatus = useCallback((timId, itemId) => {
-        const timReport = timReports[timId];
+        const timReport = Stavy_Tim[timId];
         if (!timReport) return;
 
-        const newItemStatuses = timReport.itemStatuses.filter(status =>
-            status.itemId !== itemId && status.legacyItemId !== itemId
+        const newPredmety = timReport.Predmety.filter(status =>
+            status.ID_PREDMETY !== itemId
         );
 
-        updateTimReport(timId, { itemStatuses: newItemStatuses });
-    }, [timReports, updateTimReport]);
+        updateTimReport(timId, { Predmety: newPredmety });
+    }, [Stavy_Tim, updateTimReport]);
 
     // Remove entire TIM report
     const removeTimReport = useCallback((timId) => {
-        const newTimReports = { ...timReports };
+        const newTimReports = { ...Stavy_Tim };
         delete newTimReports[timId];
-        setFormData(prev => ({ ...prev, timReports: newTimReports }));
-    }, [timReports, setFormData]);
+        setFormData(prev => ({ ...prev, Stavy_Tim: newTimReports }));
+    }, [Stavy_Tim, setFormData]);
 
     // Get TIM report by ID
     const getTimReport = useCallback((timId) => {
-        return timReports[timId] || {
-            timId,
-            structuralComment: "",
-            structuralAttachments: [],
-            itemStatuses: [],
-            photos: []
+        return Stavy_Tim[timId] || {
+            EvCi_TIM: timId,
+            Koment_NP: "",
+            Prilohy_NP: [],
+            Predmety: [],
+            Prilohy_TIM: []
         };
-    }, [timReports]);
+    }, [Stavy_Tim]);
 
     // Get item status within a TIM report
     const getItemStatus = useCallback((timId, item) => {
@@ -118,10 +116,8 @@ export const useTimReports = (timReports, setFormData) => {
         const primaryId = getItemIdentifier(item);
         const legacyId = getLegacyItemIdentifier(item);
         
-        return timReport.itemStatuses.find(status => 
-            status.itemId === primaryId || 
-            status.itemId === legacyId || 
-            status.legacyItemId === legacyId
+        return timReport.Predmety.find(status => 
+            status.ID_PREDMETY === primaryId
         ) || {};
     }, [getTimReport]);
 
@@ -133,9 +129,9 @@ export const useTimReports = (timReports, setFormData) => {
             const primaryId = getItemIdentifier(item);
             const legacyId = getLegacyItemIdentifier(item);
             
-            return timReport.itemStatuses.some(status => 
-                (status.itemId === primaryId || status.itemId === legacyId || status.legacyItemId === legacyId) &&
-                status.status
+            return timReport.Predmety.some(status => 
+                status.ID_PREDMETY === primaryId &&
+                status.Zachovalost
             );
         });
     }, [getTimReport]);
@@ -148,9 +144,9 @@ export const useTimReports = (timReports, setFormData) => {
             const primaryId = getItemIdentifier(item);
             const legacyId = getLegacyItemIdentifier(item);
             
-            return timReport.itemStatuses.some(status => 
-                (status.itemId === primaryId || status.itemId === legacyId || status.legacyItemId === legacyId) &&
-                status.status
+            return timReport.Predmety.some(status => 
+                status.ID_PREDMETY === primaryId &&
+                status.Zachovalost
             );
         });
 

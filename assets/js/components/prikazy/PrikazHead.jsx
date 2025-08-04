@@ -79,7 +79,7 @@ export const PrikazHead = ({ head, simple = false }) => {
                         pro <span className="font-bold">{head.Pocet_clenu}</span> člennou skupinu
                     </div>
                     {head.ZvysenaSazba === "1" && (
-                        <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded dark:bg-yellow-900 dark:text-yellow-200 mt-1">
+                        <span className="badge badge--warning badge--light mt-1">
                             Zvýšená sazba
                         </span>
                     )}

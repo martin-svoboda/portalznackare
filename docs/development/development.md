@@ -1,6 +1,15 @@
-# Debug Systém
+# Development Guide
 
-Kompletní debug systém pro vývoj a ladění aplikací v Portál značkaře.
+Vývojové nástroje, debug systém a programátorská pravidla pro Portál značkaře.
+
+## Programátorská pravidla
+
+### Konvence názvů parametrů
+Všechna uživatelská data používají český Snake_Case formát podle hierarchie **část → oblast → vlastnost**.
+
+**Detailní pravidla:** [../architecture.md](../architecture.md#konvence-názvů-parametrů-povinné)
+
+## Debug Systém
 
 ## Konfigurace
 

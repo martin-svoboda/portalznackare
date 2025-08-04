@@ -92,9 +92,9 @@ class PortalController extends AbstractController
                         'id_zp' => $report->getIdZp(),
                         'cislo_zp' => $report->getCisloZp(),
                         'int_adr' => $report->getIntAdr(),
-                        'team_members' => $report->getTeamMembers(),
-                        'dataA' => $report->getDataA(),
-                        'dataB' => $report->getDataB(),
+                        'znackari' => $report->getTeamMembers(),
+                        'data_a' => $report->getDataA(),
+                        'data_b' => $report->getDataB(),
                         'calculation' => $report->getCalculation(),
                         'state' => $report->getState()->value,
                         'date_send' => $report->getDateSend()?->format('Y-m-d H:i:s'),
@@ -146,7 +146,7 @@ class PortalController extends AbstractController
                 
                 // Nastavit/aktualizovat data
                 $report->setCisloZp($data['cislo_zp']);
-                $report->setTeamMembers($data['team_members'] ?? []);
+                $report->setTeamMembers($data['znackari'] ?? []);
                 $report->setDataA($data['data_a'] ?? []);
                 $report->setDataB($data['data_b'] ?? []);
                 $report->setCalculation($data['calculation'] ?? []);
@@ -173,7 +173,7 @@ class PortalController extends AbstractController
                         'id_zp' => $report->getIdZp(),
                         'cislo_zp' => $report->getCisloZp(),
                         'int_adr' => $report->getIntAdr(),
-                        'team_members' => $report->getTeamMembers(),
+                        'znackari' => $report->getTeamMembers(),
                         'data_a' => $report->getDataA(),
                         'data_b' => $report->getDataB(),
                         'calculation' => $report->getCalculation(),

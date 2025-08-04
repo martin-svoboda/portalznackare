@@ -4,15 +4,15 @@ import { TravelSegmentItem } from './TravelSegmentItem';
 
 const createEmptyTravelSegment = () => ({
     id: crypto.randomUUID(),
-    date: new Date(),
-    startTime: "",
-    endTime: "",
-    startPlace: "",
-    endPlace: "",
-    transportType: "AUV",
-    kilometers: 0,
-    ticketCosts: 0,
-    attachments: []
+    Datum: new Date(),
+    Cas_Odjezdu: "",
+    Cas_Prijezdu: "",
+    Misto_Odjezdu: "",
+    Misto_Prijezdu: "",
+    Druh_Dopravy: "AUV",
+    Kilometry: 0,
+    Naklady: 0,
+    Prilohy: []
 });
 
 export const TravelSegmentsForm = ({
@@ -42,7 +42,7 @@ export const TravelSegmentsForm = ({
         const duplicatedSegment = {
             ...originalSegment,
             id: crypto.randomUUID(),
-            attachments: [] // Don't duplicate attachments
+            Prilohy: [] // Don't duplicate attachments
         };
         onSegmentsChange([...segments, duplicatedSegment]);
     };

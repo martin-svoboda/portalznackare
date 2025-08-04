@@ -257,8 +257,8 @@ class ReportController extends AbstractController
         }
 
         // Zpracování dat členů týmu
-        if (isset($data['team_members'])) {
-            $report->setTeamMembers($data['team_members']);
+        if (isset($data['znackari'])) {
+            $report->setTeamMembers($data['znackari']);
         }
 
         if (isset($data['data_a'])) {

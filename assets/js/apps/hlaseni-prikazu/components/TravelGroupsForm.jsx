@@ -11,11 +11,12 @@ import {
     IconArrowUp,
     IconArrowDown,
     IconUsers,
-    IconUserCheck
+    IconUserCheck,
+    IconCurrencyDollar
 } from '@tabler/icons-react';
 import { AdvancedFileUpload } from './AdvancedFileUpload';
 
-const transportTypeOptions = [
+const druhDopravyOptions = [
     { value: "AUV", label: "AUV (Auto vlastní)", icon: IconCar },
     //{ value: "AUV-Z", label: "AUV-Z (Auto zaměstnavatele)", icon: IconCar }, // vypnuto - nepoužívá se
     { value: "V", label: "Veřejná doprava", icon: IconBus },
@@ -23,22 +24,22 @@ const transportTypeOptions = [
     { value: "K", label: "Kolo", icon: IconBike },
 ];
 
-const getTransportIcon = (transportType) => {
-    const option = transportTypeOptions.find(opt => opt.value === transportType);
+const getTransportIcon = (Druh_Dopravy) => {
+    const option = druhDopravyOptions.find(opt => opt.value === Druh_Dopravy);
     return option?.icon || IconCar;
 };
 
 const createEmptyTravelSegment = () => ({
     id: crypto.randomUUID(),
-    date: new Date(),
-    startTime: "",
-    endTime: "",
-    startPlace: "",
-    endPlace: "",
-    transportType: "AUV",
-    kilometers: 0,
-    ticketCosts: 0,
-    attachments: []
+    Datum: new Date(),
+    Cas_Odjezdu: "",
+    Cas_Prijezdu: "",
+    Misto_Odjezdu: "",
+    Misto_Prijezdu: "",
+    Druh_Dopravy: "AUV",
+    Kilometry: 0,
+    Naklady: 0,
+    Prilohy: []
 });
 
 export const TravelGroupsForm = ({ 
@@ -55,7 +56,7 @@ export const TravelGroupsForm = ({
     const storagePath = useMemo(() => {
         if (!prikazId) return null;
         
-        const year = formData.executionDate ? formData.executionDate.getFullYear() : new Date().getFullYear();
+        const year = formData.Datum_Provedeni ? formData.Datum_Provedeni.getFullYear() : new Date().getFullYear();
         const kkz = head?.KKZ?.toString().trim() || 'unknown';
         const obvod = head?.ZO?.toString().trim() || 'unknown';
         const sanitizedPrikazId = prikazId?.toString().trim() || 'unknown';
@@ -63,12 +64,24 @@ export const TravelGroupsForm = ({
         const validYear = (year >= 2020 && year <= 2030) ? year : new Date().getFullYear();
         
         return `reports/${validYear}/${kkz}/${obvod}/${sanitizedPrikazId}`;
-    }, [prikazId, formData.executionDate, head]);
+    }, [prikazId, formData.Datum_Provedeni, head]);
 
     // Helper functions for date formatting (from original)
     const formatDate = (date) => {
         if (!date) return '';
-        return date.toISOString().split('T')[0];
+        
+        // Ensure date is a Date object
+        let dateObj = date;
+        if (!(date instanceof Date)) {
+            dateObj = new Date(date);
+        }
+        
+        // Check if date is valid
+        if (isNaN(dateObj.getTime())) {
+            return '';
+        }
+        
+        return dateObj.toISOString().split('T')[0];
     };
 
     const parseDate = (dateString) => {
@@ -78,33 +91,34 @@ export const TravelGroupsForm = ({
 
     // Travel group functions
     const addTravelGroup = () => {
-        const defaultDriver = teamMembers.length === 1 ? (teamMembers[0].int_adr || teamMembers[0].intAdr) : null;
+        const defaultDriver = (teamMembers || []).length === 1 ? teamMembers[0]?.INT_ADR : null;
         
         const newGroup = {
             id: crypto.randomUUID(),
-            participants: teamMembers.map(m => m.int_adr || m.intAdr), // defaultně všichni - podpora obou variant
-            driver: defaultDriver,
+            Cestujci: (teamMembers || []).map(m => m.INT_ADR), // defaultně všichni
+            Ridic: defaultDriver,
             spz: "",
-            segments: [createEmptyTravelSegment()]
+            Ma_Zvysenou_Sazbu: false, // Příznak pro zvýšenou sazbu
+            Cesty: [createEmptyTravelSegment()]
         };
         
         setFormData(prev => ({
             ...prev,
-            travelGroups: [...(prev.travelGroups || []), newGroup]
+            Skupiny_Cest: [...(prev.Skupiny_Cest || []), newGroup]
         }));
     };
 
     const removeTravelGroup = (groupId) => {
         setFormData(prev => ({
             ...prev,
-            travelGroups: prev.travelGroups?.filter(group => group.id !== groupId) || []
+            Skupiny_Cest: prev.Skupiny_Cest?.filter(group => group.id !== groupId) || []
         }));
     };
 
     const updateGroupField = (groupId, updates) => {
         setFormData(prev => ({
             ...prev,
-            travelGroups: prev.travelGroups?.map(group =>
+            Skupiny_Cest: prev.Skupiny_Cest?.map(group =>
                 group.id === groupId ? { ...group, ...updates } : group
             ) || []
         }));
@@ -112,112 +126,151 @@ export const TravelGroupsForm = ({
 
     // Travel segment functions (same as original) - scoped to group
     const addTravelSegment = (groupId) => {
-        const group = formData.travelGroups?.find(g => g.id === groupId);
+        const group = formData.Skupiny_Cest?.find(g => g.id === groupId);
         if (!group) return;
         
-        const lastSegment = group.segments[group.segments.length - 1];
+        const lastSegment = group.Cesty[group.Cesty.length - 1];
         const newSegment = {
             ...createEmptyTravelSegment(),
-            date: formData.executionDate,
-            startTime: "08:00",
-            startPlace: lastSegment?.endPlace || "",
+            datum: formData.Datum_Provedeni,
+            Misto_Odjezdu: lastSegment?.Misto_Prijezdu || "",
         };
         
         updateGroupField(groupId, {
-            segments: [...group.segments, newSegment]
+            Cesty: [...group.Cesty, newSegment]
         });
     };
 
     const updateSegmentField = (groupId, segmentId, updates) => {
-        const group = formData.travelGroups?.find(g => g.id === groupId);
+        const group = formData.Skupiny_Cest?.find(g => g.id === groupId);
         if (!group) return;
 
-        const updatedSegments = group.segments.map(segment =>
+        const updatedSegments = group.Cesty.map(segment =>
             segment.id === segmentId ? { ...segment, ...updates } : segment
         );
 
-        updateGroupField(groupId, { segments: updatedSegments });
+        updateGroupField(groupId, { Cesty: updatedSegments });
     };
 
     const removeSegment = (groupId, segmentId) => {
-        const group = formData.travelGroups?.find(g => g.id === groupId);
+        const group = formData.Skupiny_Cest?.find(g => g.id === groupId);
         if (!group) return;
 
         updateGroupField(groupId, {
-            segments: group.segments.filter(segment => segment.id !== segmentId)
+            Cesty: group.Cesty.filter(segment => segment.id !== segmentId)
         });
     };
 
     const duplicateSegment = (groupId, segmentId) => {
-        const group = formData.travelGroups?.find(g => g.id === groupId);
+        const group = formData.Skupiny_Cest?.find(g => g.id === groupId);
         if (!group) return;
 
-        const segmentToDuplicate = group.segments.find(s => s.id === segmentId);
+        const segmentToDuplicate = group.Cesty.find(s => s.id === segmentId);
         if (!segmentToDuplicate) return;
 
         const newSegment = {
             ...segmentToDuplicate,
             id: crypto.randomUUID(),
-            attachments: [] // Don't duplicate attachments
+            // Prohodit místa pro zpáteční cestu
+            Misto_Odjezdu: segmentToDuplicate.Misto_Prijezdu,
+            Misto_Prijezdu: segmentToDuplicate.Misto_Odjezdu,
+            // Vymazat časy
+            Cas_Odjezdu: "",
+            Cas_Prijezdu: "",
+            Prilohy: [] // Don't duplicate Prilohy
         };
 
         updateGroupField(groupId, {
-            segments: [...group.segments, newSegment]
+            Cesty: [...group.Cesty, newSegment]
         });
     };
 
     const moveSegmentUp = (groupId, segmentId) => {
-        const group = formData.travelGroups?.find(g => g.id === groupId);
+        const group = formData.Skupiny_Cest?.find(g => g.id === groupId);
         if (!group) return;
 
-        const segments = [...group.segments];
+        const segments = [...group.Cesty];
         const currentIndex = segments.findIndex(s => s.id === segmentId);
 
         if (currentIndex > 0) {
             [segments[currentIndex - 1], segments[currentIndex]] = [segments[currentIndex], segments[currentIndex - 1]];
-            updateGroupField(groupId, { segments });
+            updateGroupField(groupId, { Cesty: segments });
         }
     };
 
     const moveSegmentDown = (groupId, segmentId) => {
-        const group = formData.travelGroups?.find(g => g.id === groupId);
+        const group = formData.Skupiny_Cest?.find(g => g.id === groupId);
         if (!group) return;
 
-        const segments = [...group.segments];
+        const segments = [...group.Cesty];
         const currentIndex = segments.findIndex(s => s.id === segmentId);
 
         if (currentIndex < segments.length - 1) {
             [segments[currentIndex], segments[currentIndex + 1]] = [segments[currentIndex + 1], segments[currentIndex]];
-            updateGroupField(groupId, { segments });
+            updateGroupField(groupId, { Cesty: segments });
         }
     };
 
-    // Get team member name by int_adr
+    // Get team member name by INT_ADR
     const getTeamMemberName = (intAdr) => {
-        const member = teamMembers.find(m => (m.int_adr || m.intAdr) === intAdr);
+        const member = (teamMembers || []).find(m => m.INT_ADR === intAdr);
         return member?.name || `Člen ${intAdr}`;
+    };
+    
+    // Handle higher rate change for radio buttons
+    const handleHigherRateChange = (selectedGroupId) => {
+        setFormData(prev => ({
+            ...prev,
+            Skupiny_Cest: prev.Skupiny_Cest.map(group => ({
+                ...group,
+                Ma_Zvysenou_Sazbu: group.id === selectedGroupId
+            }))
+        }));
+    };
+    
+    // Calculate total kilometers for a group
+    const calculateGroupKilometers = (group) => {
+        return group.Cesty?.reduce((total, segment) => {
+            if (segment?.Druh_Dopravy === "AUV") {
+                return total + (segment.Kilometry || 0);
+            }
+            return total;
+        }, 0) || 0;
     };
 
     // Fix groups with null or empty participants on mount
     React.useEffect(() => {
-        const needsFix = formData.travelGroups?.some(group => 
-            !group.participants || 
-            group.participants.length === 0 || 
-            group.participants.some(p => p === null)
+        const needsFix = formData.Skupiny_Cest?.some(group => 
+            !group.Cestujci || 
+            group.Cestujci.length === 0 || 
+            group.Cestujci.some(p => p === null)
         );
         
-        if (needsFix && teamMembers.length > 0) {
+        if (needsFix && (teamMembers || []).length > 0) {
             setFormData(prev => ({
                 ...prev,
-                travelGroups: prev.travelGroups.map(group => ({
+                Skupiny_Cest: (prev.Skupiny_Cest || []).map(group => ({
                     ...group,
-                    participants: teamMembers.map(m => m.int_adr || m.intAdr)
+                    Cestujci: (teamMembers || []).map(m => m.INT_ADR)
                 }))
             }));
         }
     }, []); // Run only once on mount
     
-    const travelGroups = formData.travelGroups || [];
+    // Auto-set first driver to have higher rate when Zvysena_Sazba is true or when drivers change
+    React.useEffect(() => {
+        if (formData.Zvysena_Sazba) {
+            const groupsWithDrivers = formData.Skupiny_Cest?.filter(g => g.Ridic) || [];
+            const hasAnyWithHigherRate = groupsWithDrivers.some(g => g.Ma_Zvysenou_Sazbu);
+            
+            // If no one has higher rate and there's at least one driver, set the first one
+            if (!hasAnyWithHigherRate && groupsWithDrivers.length > 0) {
+                handleHigherRateChange(groupsWithDrivers[0].id);
+            }
+        }
+    }, [formData.Zvysena_Sazba, JSON.stringify(formData.Skupiny_Cest?.map(g => g.Ridic) || [])]); // Re-run when Zvysena_Sazba changes or drivers change
+    
+    const travelGroups = formData.Skupiny_Cest || [];
     
     const isFormDisabled = formData.status === 'submitted';
 
@@ -247,23 +300,22 @@ export const TravelGroupsForm = ({
                                 {/* NOVÉ: Participant selector */}
                                 <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
                                     <label className="form__label mb-3">
-                                        <IconUsers size={16} className="mr-1" />
                                         Účastníci této skupiny cest
                                     </label>
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                                        {teamMembers.map(member => {
-                                            const memberIntAdr = member.int_adr || member.intAdr;
+                                        {(teamMembers || []).map(member => {
+                                            const memberIntAdr = member.INT_ADR;
                                             return (
                                                 <label key={memberIntAdr} className="flex items-center space-x-2">
                                                     <input
                                                         type="checkbox"
                                                         className="form__checkbox"
-                                                        checked={group.participants?.includes(memberIntAdr) || false}
+                                                        checked={group.Cestujci?.includes(memberIntAdr) || false}
                                                         onChange={(e) => {
-                                                            const newParticipants = e.target.checked
-                                                                ? [...(group.participants || []), memberIntAdr]
-                                                                : (group.participants || []).filter(p => p !== memberIntAdr);
-                                                            updateGroupField(group.id, { participants: newParticipants });
+                                                            const newCestujci = e.target.checked
+                                                                ? [...(group.Cestujci || []), memberIntAdr]
+                                                                : (group.Cestujci || []).filter(p => p !== memberIntAdr);
+                                                            updateGroupField(group.id, { Cestujci: newCestujci });
                                                         }}
                                                         disabled={isFormDisabled}
                                                     />
@@ -283,9 +335,9 @@ export const TravelGroupsForm = ({
 
                         <div className="space-y-6">
                             {/* PŮVODNÍ: Přesně stejné UI pro segmenty jako v původním */}
-                            {group.segments?.filter(seg => seg && seg.id).map((segment, index) => {
+                            {group.Cesty?.filter(seg => seg && seg.id).map((segment, index) => {
                                 if (!segment) return null;
-                                const TransportIcon = getTransportIcon(segment.transportType || "AUV");
+                                const TransportIcon = getTransportIcon(segment.Druh_Dopravy || "AUV");
 
                                 return (
                                     <div key={segment.id}>
@@ -306,7 +358,7 @@ export const TravelGroupsForm = ({
                                                 )}
 
                                                 {/* Move down - only if not last */}
-                                                {index < group.segments.length - 1 && (
+                                                {index < group.Cesty.length - 1 && (
                                                     <button
                                                         type="button"
                                                         className="btn btn--icon btn--gray--light"
@@ -330,7 +382,7 @@ export const TravelGroupsForm = ({
                                                 </button>
                                                 
                                                 {/* Remove segment - only if more than 1 */}
-                                                {group.segments.length > 1 && (
+                                                {group.Cesty.length > 1 && (
                                                     <button
                                                         type="button"
                                                         className="btn btn--icon btn--danger--light"
@@ -360,8 +412,8 @@ export const TravelGroupsForm = ({
                                                                 name={`segment-date-${segment.id}`}
                                                                 type="date"
                                                                 className="form__input"
-                                                                value={formatDate(segment.date || formData.executionDate)}
-                                                                onChange={(e) => updateSegmentField(group.id, segment.id, { date: parseDate(e.target.value) })}
+                                                                value={formatDate(segment.Datum || formData.Datum_Provedeni)}
+                                                                onChange={(e) => updateSegmentField(group.id, segment.id, { Datum: parseDate(e.target.value) })}
                                                                 disabled={isFormDisabled}
                                                             />
                                                         </div>
@@ -385,8 +437,8 @@ export const TravelGroupsForm = ({
                                                                 type="text"
                                                                 className="form__input"
                                                                 placeholder="Místo"
-                                                                value={segment.startPlace || ""}
-                                                                onChange={(e) => updateSegmentField(group.id, segment.id, { startPlace: e.target.value })}
+                                                                value={segment.Misto_Odjezdu || ""}
+                                                                onChange={(e) => updateSegmentField(group.id, segment.id, { Misto_Odjezdu: e.target.value })}
                                                                 disabled={isFormDisabled}
                                                             />
                                                         </div>
@@ -398,8 +450,8 @@ export const TravelGroupsForm = ({
                                                                 name={`start-time-${segment.id}`}
                                                                 type="time"
                                                                 className="form__input flex-1"
-                                                                value={segment.startTime || ""}
-                                                                onChange={(e) => updateSegmentField(group.id, segment.id, { startTime: e.target.value })}
+                                                                value={segment.Cas_Odjezdu || ""}
+                                                                onChange={(e) => updateSegmentField(group.id, segment.id, { Cas_Odjezdu: e.target.value })}
                                                                 disabled={isFormDisabled}
                                                             />
                                                         </div>
@@ -423,8 +475,8 @@ export const TravelGroupsForm = ({
                                                                 type="text"
                                                                 className="form__input"
                                                                 placeholder="Místo"
-                                                                value={segment.endPlace || ""}
-                                                                onChange={(e) => updateSegmentField(group.id, segment.id, { endPlace: e.target.value })}
+                                                                value={segment.Misto_Prijezdu || ""}
+                                                                onChange={(e) => updateSegmentField(group.id, segment.id, { Misto_Prijezdu: e.target.value })}
                                                                 disabled={isFormDisabled}
                                                             />
                                                         </div>
@@ -436,8 +488,8 @@ export const TravelGroupsForm = ({
                                                                 name={`end-time-${segment.id}`}
                                                                 type="time"
                                                                 className="form__input flex-1"
-                                                                value={segment.endTime || ""}
-                                                                onChange={(e) => updateSegmentField(group.id, segment.id, { endTime: e.target.value })}
+                                                                value={segment.Cas_Prijezdu || ""}
+                                                                onChange={(e) => updateSegmentField(group.id, segment.id, { Cas_Prijezdu: e.target.value })}
                                                                 disabled={isFormDisabled}
                                                             />
                                                         </div>
@@ -452,11 +504,11 @@ export const TravelGroupsForm = ({
                                                             id={`transport-type-${segment.id}`}
                                                             name={`transport-type-${segment.id}`}
                                                             className="form__select"
-                                                            value={segment.transportType || "AUV"}
-                                                            onChange={(e) => updateSegmentField(group.id, segment.id, { transportType: e.target.value })}
+                                                            value={segment.Druh_Dopravy || "AUV"}
+                                                            onChange={(e) => updateSegmentField(group.id, segment.id, { Druh_Dopravy: e.target.value })}
                                                             disabled={isFormDisabled}
                                                         >
-                                                            {transportTypeOptions.map(opt => (
+                                                            {druhDopravyOptions.map(opt => (
                                                                 <option key={opt.value} value={opt.value}>
                                                                     {opt.label}
                                                                 </option>
@@ -464,23 +516,23 @@ export const TravelGroupsForm = ({
                                                         </select>
                                                     </div>
                                                     <div>
-                                                        {segment.transportType === "AUV" && (
+                                                        {segment.Druh_Dopravy === "AUV" && (
                                                             <>
-                                                                <label htmlFor={`kilometers-${segment.id}`} className="form__label">Kilometry</label>
+                                                                <label htmlFor={`kilometry-${segment.id}`} className="form__label">Kilometry</label>
                                                                 <input
-                                                                    id={`kilometers-${segment.id}`}
-                                                                    name={`kilometers-${segment.id}`}
+                                                                    id={`kilometry-${segment.id}`}
+                                                                    name={`kilometry-${segment.id}`}
                                                                     type="number"
                                                                     className="form__input"
-                                                                    value={segment.kilometers || 0}
-                                                                    onChange={(e) => updateSegmentField(group.id, segment.id, { kilometers: Number(e.target.value) || 0 })}
+                                                                    value={segment.Kilometry || 0}
+                                                                    onChange={(e) => updateSegmentField(group.id, segment.id, { Kilometry: Number(e.target.value) || 0 })}
                                                                     min="0"
                                                                     step="0.1"
                                                                     disabled={isFormDisabled}
                                                                 />
                                                             </>
                                                         )}
-                                                        {segment.transportType === "V" && (
+                                                        {segment.Druh_Dopravy === "V" && (
                                                             <>
                                                                 <label htmlFor={`ticket-costs-${segment.id}`} className="form__label">Náklady na jízdenky (Kč)</label>
                                                                 <input
@@ -488,8 +540,8 @@ export const TravelGroupsForm = ({
                                                                     name={`ticket-costs-${segment.id}`}
                                                                     type="number"
                                                                     className="form__input"
-                                                                    value={segment.ticketCosts || 0}
-                                                                    onChange={(e) => updateSegmentField(group.id, segment.id, { ticketCosts: Number(e.target.value) || 0 })}
+                                                                    value={segment.Naklady || 0}
+                                                                    onChange={(e) => updateSegmentField(group.id, segment.id, { Naklady: Number(e.target.value) || 0 })}
                                                                     min="0"
                                                                     step="0.01"
                                                                     disabled={isFormDisabled}
@@ -501,13 +553,13 @@ export const TravelGroupsForm = ({
                                                 </div>
 
                                                 {/* PŮVODNÍ: File uploads for public transport - přesně stejný */}
-                                                {segment.transportType === "V" && (
+                                                {segment.Druh_Dopravy === "V" && (
                                                     <div className="mt-4">
                                                         <label className="form__label mb-2 block">Jízdenky a doklady</label>
                                                         <AdvancedFileUpload
                                                             id={`segment-${segment.id}`}
-                                                            files={segment.attachments ?? []}
-                                                            onFilesChange={(files) => updateSegmentField(group.id, segment.id, { attachments: files })}
+                                                            files={segment.Prilohy ?? []}
+                                                            onFilesChange={(files) => updateSegmentField(group.id, segment.id, { Prilohy: files })}
                                                             maxFiles={10}
                                                             accept="image/jpeg,image/png,image/heic,application/pdf"
                                                             maxSize={10}
@@ -535,26 +587,26 @@ export const TravelGroupsForm = ({
                             </div>
 
                             {/* NOVÉ: Driver settings per group - jen pokud má auto segmenty */}
-                            {group.segments?.some(s => s.transportType === "AUV") && (
+                            {group.Cesty?.some(s => s.Druh_Dopravy === "AUV") && (
                                 <div className="mt-6 pt-6 border-t border-gray-200">
                                     <h5 className="text-md font-semibold mb-4">Nastavení řidiče</h5>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
-                                            <label htmlFor={`driver-${group.id}`} className="form__label">
+                                            <label htmlFor={`driver-${group.id}`} className="form__label flex items-center">
                                                 Primární řidič *
                                             </label>
                                             <select
                                                 id={`driver-${group.id}`}
                                                 name={`driver-${group.id}`}
                                                 className="form__select"
-                                                value={group.driver || ""}
-                                                onChange={(e) => updateGroupField(group.id, { driver: e.target.value })}
+                                                value={group.Ridic || ""}
+                                                onChange={(e) => updateGroupField(group.id, { Ridic: e.target.value })}
                                                 required
                                                 disabled={isFormDisabled}
                                             >
                                                 <option value="">Vyberte řidiče</option>
-                                                {(group.participants || []).map(intAdr => {
-                                                    const member = teamMembers.find(m => (m.int_adr || m.intAdr) === intAdr);
+                                                {(group.Cestujci || []).map(intAdr => {
+                                                    const member = teamMembers.find(m => m.INT_ADR === intAdr);
                                                     return member ? (
                                                         <option key={intAdr} value={intAdr}>
                                                             {member.name}{member.isLeader ? " (vedoucí)" : ""}
@@ -588,6 +640,49 @@ export const TravelGroupsForm = ({
                     </div>
                 </div>
             ))}
+
+            {/* Radio button group pro zvýšenou sazbu - zobrazit pouze když je příkaz se zvýšenou sazbou */}
+            {formData.Zvysena_Sazba && travelGroups.some(g => g.Ridic) && (
+                <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                    <h5 className="font-medium text-sm mb-3">
+                        Přiřazení zvýšené sazby cestovného ({priceList?.jizdneZvysene || 8} Kč/km)
+                    </h5>
+                    
+                    <div className="space-y-2">
+                        {/* Radio pro každou skupinu s řidičem */}
+                        {travelGroups
+                            .filter(g => g.Ridic)
+                            .map((group, groupIndex) => {
+                                const totalKm = calculateGroupKilometers(group);
+                                return (
+                                    <label key={group.id} className="flex items-center space-x-2">
+                                        <input
+                                            type="radio"
+                                            name="zvysena_sazba_group"
+                                            className="form__radio"
+                                            checked={group.Ma_Zvysenou_Sazbu || false}
+                                            onChange={() => handleHigherRateChange(group.id)}
+                                            disabled={isFormDisabled}
+                                        />
+                                        <span className="text-sm">
+                                            {getTeamMemberName(group.Ridic)}
+                                            {travelGroups.length > 1 && ` - Skupina ${travelGroups.findIndex(g => g.id === group.id) + 1}`}
+                                            {totalKm > 0 && (
+                                                <span className="text-xs text-gray-500 ml-2">
+                                                    ({totalKm} km)
+                                                </span>
+                                            )}
+                                        </span>
+                                    </label>
+                                );
+                            })}
+                    </div>
+                    
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
+                        Standardní sazba: {priceList?.jizdne || 6} Kč/km
+                    </p>
+                </div>
+            )}
 
             {/* NOVÉ: Tlačítko pro přidání skupiny - vždy dole */}
             <div className="text-center">

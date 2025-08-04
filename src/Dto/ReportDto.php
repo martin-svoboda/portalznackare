@@ -16,7 +16,7 @@ class ReportDto
     public string $cislo_zp = '';
 
     #[Assert\Type('array')]
-    public array $team_members = [];
+    public array $znackari = [];
 
     #[Assert\Valid]
     public ?PartADto $data_a = null;

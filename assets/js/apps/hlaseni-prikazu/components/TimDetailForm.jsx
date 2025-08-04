@@ -50,11 +50,11 @@ export const TimDetailForm = ({
     }
 
     const handleStructuralCommentChange = (comment) => {
-        onTimReportUpdate(timGroup.EvCi_TIM, { structuralComment: comment });
+        onTimReportUpdate(timGroup.EvCi_TIM, { Koment_NP: comment });
     };
 
     const handleStructuralAttachmentsChange = (attachments) => {
-        onTimReportUpdate(timGroup.EvCi_TIM, { structuralAttachments: attachments });
+        onTimReportUpdate(timGroup.EvCi_TIM, { Prilohy_NP: attachments });
     };
 
     const handleItemStatusChange = (item, field, value) => {
@@ -65,10 +65,8 @@ export const TimDetailForm = ({
         const primaryId = getItemIdentifier(item);
         const legacyId = getLegacyItemIdentifier(item);
         
-        return timReport?.itemStatuses?.find(status => 
-            status.itemId === primaryId || 
-            status.itemId === legacyId || 
-            status.legacyItemId === legacyId
+        return timReport?.Predmety?.find(status => 
+            status.ID_PREDMETY === primaryId
         ) || {};
     };
 
@@ -111,7 +109,7 @@ export const TimDetailForm = ({
                             </label>
                             <textarea
                                 className="form__textarea"
-                                value={timReport?.structuralComment || ''}
+                                value={timReport?.Koment_NP || ''}
                                 onChange={(e) => handleStructuralCommentChange(e.target.value)}
                                 placeholder="Popište stav konstrukce, případné poškození..."
                                 rows={3}
@@ -125,7 +123,7 @@ export const TimDetailForm = ({
                             </label>
                             <AdvancedFileUpload
                                 id={`tim-${timGroup.EvCi_TIM}-structural`}
-                                files={timReport?.structuralAttachments || []}
+                                files={timReport?.Prilohy_NP || []}
                                 onFilesChange={handleStructuralAttachmentsChange}
                                 maxFiles={10}
                                 accept="image/jpeg,image/png,image/heic"
@@ -165,7 +163,7 @@ export const TimDetailForm = ({
                                             )}
                                         </div>
                                         
-                                        {!itemStatus.status && (
+                                        {!itemStatus.Zachovalost && (
                                             <div className="flex items-center gap-1 text-red-600 text-sm">
                                                 <IconAlertTriangle size={16} />
                                                 Vyžaduje stav
@@ -184,8 +182,8 @@ export const TimDetailForm = ({
                                                             type="radio"
                                                             name={`status-${primaryId}`}
                                                             value={option.value}
-                                                            checked={itemStatus.status === option.value}
-                                                            onChange={(e) => handleItemStatusChange(item, 'status', e.target.value)}
+                                                            checked={itemStatus.Zachovalost === option.value}
+                                                            onChange={(e) => handleItemStatusChange(item, 'Zachovalost', e.target.value)}
                                                             disabled={disabled}
                                                         />
                                                         <span className={`text-${option.color}-600`}>
@@ -207,8 +205,8 @@ export const TimDetailForm = ({
                                                                 type="radio"
                                                                 name={`orientation-${primaryId}`}
                                                                 value={option.value}
-                                                                checked={itemStatus.arrowOrientation === option.value}
-                                                                onChange={(e) => handleItemStatusChange(item, 'arrowOrientation', e.target.value)}
+                                                                checked={itemStatus.Smerovani === option.value}
+                                                                onChange={(e) => handleItemStatusChange(item, 'Smerovani', e.target.value)}
                                                                 disabled={disabled}
                                                             />
                                                             {option.label}
@@ -224,8 +222,8 @@ export const TimDetailForm = ({
                                         <label className="form__label">Poznámka k položce</label>
                                         <textarea
                                             className="form__textarea"
-                                            value={itemStatus.comment || ''}
-                                            onChange={(e) => handleItemStatusChange(item, 'comment', e.target.value)}
+                                            value={itemStatus.Koment || ''}
+                                            onChange={(e) => handleItemStatusChange(item, 'Koment', e.target.value)}
                                             placeholder="Případné poznámky k této položce..."
                                             rows={2}
                                             disabled={disabled}
@@ -240,8 +238,8 @@ export const TimDetailForm = ({
                                         </label>
                                         <AdvancedFileUpload
                                             id={`item-${primaryId}-photos`}
-                                            files={itemStatus.photos || []}
-                                            onFilesChange={(photos) => handleItemStatusChange(item, 'photos', photos)}
+                                            files={itemStatus.Prilohy || []}
+                                            onFilesChange={(photos) => handleItemStatusChange(item, 'Prilohy', photos)}
                                             maxFiles={5}
                                             accept="image/jpeg,image/png,image/heic"
                                             disabled={disabled}

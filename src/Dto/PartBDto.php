@@ -7,14 +7,14 @@ use Symfony\Component\Validator\Constraints as Assert;
 class PartBDto
 {
     #[Assert\Type('array')]
-    public array $timReports = [];
+    public array $Stavy_Tim = [];
 
     #[Assert\Length(max: 5000)]
-    public string $routeComment = '';
+    public string $Trasa_Poznamka = '';
 
     #[Assert\Type('array')]
-    public array $routeAttachments = [];
+    public array $Trasa_Prilohy = [];
 
     #[Assert\Type('boolean')]
-    public bool $partBCompleted = false;
+    public bool $Cast_B_Dokoncena = false;
 }

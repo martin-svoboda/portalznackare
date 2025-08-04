@@ -2,6 +2,8 @@
 
 > **Funkcionální oblast** - Kompletní systém pro hlášení, vyúčtování a kalkulaci kompenzací za práci značkařů
 
+> **Programátorská poznámka:** Aplikace používá české Snake_Case parametry podle [konvence názvů](../development/development.md#konvence-názvů-parametrů).
+
 ## 💡 Důležité upozornění
 
 **Lokální databáze vs. INSYS submission:**
@@ -656,4 +658,4 @@ class SyncReportStatusCommand extends Command {
 **Propojené funkcionality:** [File Management](file-management.md) | [INSYS Integration](insys-integration.md)  
 **API Reference:** [../api/portal-api.md](../api/portal-api.md)  
 **Frontend:** [../architecture.md](../architecture.md)  
-**Aktualizováno:** 2025-07-22
+**Aktualizováno:** 2025-08-03 - Přidána konvence Czech Snake_Case parametrů

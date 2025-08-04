@@ -2,10 +2,10 @@ import React from 'react';
 import {IconCalendar, IconUser, IconCar} from '@tabler/icons-react';
 
 export const BasicInfoForm = ({
-                                  executionDate,
+                                  Datum_Provedeni,
                                   primaryDriver,
                                   vehicleRegistration,
-                                  higherKmRate,
+                                  Zvysena_Sazba,
                                   onExecutionDateChange,
                                   onPrimaryDriverChange,
                                   onVehicleRegistrationChange,
@@ -18,7 +18,7 @@ export const BasicInfoForm = ({
     // Get available drivers (team members or current user)
     const availableDrivers = isLeader && teamMembers.length > 0
         ? teamMembers
-        : currentUser ? [{name: currentUser.jmeno, int_adr: currentUser.INT_ADR}] : [];
+        : currentUser ? [{name: currentUser.jmeno, INT_ADR: currentUser.INT_ADR}] : [];
 
     return (
         <div className="card">
@@ -36,7 +36,7 @@ export const BasicInfoForm = ({
                         <input
                             type="date"
                             className="form__input"
-                            value={executionDate ? executionDate.toISOString().split('T')[0] : ''}
+                            value={Datum_Provedeni ? Datum_Provedeni.toISOString().split('T')[0] : ''}
                             onChange={(e) => onExecutionDateChange(new Date(e.target.value))}
                             disabled={disabled}
                             required
@@ -46,7 +46,7 @@ export const BasicInfoForm = ({
 
                 </div>
                 {/* Higher km rate - READ ONLY display */}
-                {higherKmRate && (
+                {Zvysena_Sazba && (
                     <div className="alert alert--info mt-4">
                         <p>Pro tento příkaz je nastavena vyšší sazba za km</p>
                     </div>

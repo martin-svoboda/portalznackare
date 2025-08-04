@@ -7,6 +7,7 @@
 4. **Dark mode mandatory** - Every component must support light/dark
 5. **Czech project** - UI text, comments, and user-facing content in Czech
 6. **Communication language** - Always respond to user in Czech, internal AI context can be any language
+7. **Snake_Case Czech parameters ONLY** - All data fields, form properties, and calculations in Czech Snake_Case format for INSYS consistency
 
 ## Architecture Pattern
 ```
@@ -321,6 +322,68 @@ utils/
 - `logger.performance()` - Performance metrics
 - `logger.data()` - Data processing
 
+## Parameter Naming Convention (MANDATORY)
+
+### **Snake_Case Czech Parameters ONLY**
+All data fields, form properties, calculations, and user data MUST use Czech Snake_Case format for INSYS consistency.
+
+**Hierarchy:** část → oblast → vlastnost
+
+```javascript
+// ✅ CORRECT - Czech Snake_Case
+const formData = {
+    Datum_Provedeni: new Date(),
+    Skupiny_Cest: [...],
+    Hlavni_Ridic: "...",
+    SPZ: "...",
+    Cast_A_Dokoncena: false,
+    Trasa_Poznamka: "...",
+    Zaplatil: "..."
+};
+
+// ❌ WRONG - English or camelCase
+const formData = {
+    executionDate: new Date(),
+    travelGroups: [...],
+    primaryDriver: "...",
+    vehicleRegistration: "...",
+    partACompleted: false,
+    routeNotes: "...",
+    paidByMember: "..."
+};
+```
+
+**Segment Properties (Travel Data):**
+```javascript
+const segment = {
+    Cas_Odjezdu: "",
+    Cas_Prijezdu: "",
+    Misto_Odjezdu: "",
+    Misto_Prijezdu: "",
+    Druh_Dopravy: "AUV",
+    Kilometry: 0,
+    Naklady: 0,
+    Prilohy: []
+};
+```
+
+**Accommodation/Expenses:**
+```javascript
+const accommodation = {
+    Zarizeni: "",
+    Misto: "",
+    Castka: 0,
+    Zaplatil: ""
+};
+```
+
+### Parameter Audit Checklist
+- [ ] All form fields in Czech Snake_Case
+- [ ] All calculation properties in Czech
+- [ ] All DTO properties match frontend
+- [ ] All database JSON paths use Czech names
+- [ ] No English parameter names in user data
+
 ## Documentation Update Triggers
 - New PHP service → Update docs/features/ + configuration/services.md
 - New API endpoint → Create docs/api/endpoint-name.md
@@ -349,6 +412,9 @@ utils/
 - **Console.log instead of debug logger**
 - **Heavy computation in render methods**
 - **Missing React.memo optimization**
+- **English parameter names in user data** (must be Czech Snake_Case)
+- **camelCase parameters** (must be Snake_Case)
+- **Mixed naming conventions** (frontend vs backend inconsistency)
 
 ## Quick Reference Commands
 ```bash
@@ -367,8 +433,9 @@ find docs/ -name "*.md" -mtime -1
 4. **Test with DEBUG_APPS=true** for proper logging
 5. **Update documentation** in docs/features/
 6. **Verify dark mode compatibility**
+7. **Audit parameter names** for Czech Snake_Case consistency
 
 ---
 **This context is optimized for AI decision-making efficiency.**
 **Human documentation is in docs/ directory.**
-**Last updated:** 2025-07-24 - Added Frontend Architecture Rules and Debug System
+**Last updated:** 2025-08-03 - Added Parameter Naming Convention (Czech Snake_Case MANDATORY)
