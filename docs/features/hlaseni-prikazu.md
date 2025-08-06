@@ -10,7 +10,7 @@ Hlášení příkazů umožňuje značkařům vykazovat provedenou práci a auto
 
 ### Workflow hlášení
 ```
-INSYS Příkaz → React Formulář → Kalkulace → PostgreSQL → INSYZ Submission
+INSYZ Příkaz → React Formulář → Kalkulace → PostgreSQL → INSYZ Submission
      ↓              ↓             ↓           ↓            ↓
    Detail       Část A + B    Ceníky KČT   Draft/Send   Async Worker
 ```
@@ -89,7 +89,7 @@ const App = () => {
     useEffect(() => {
         loadReportData();  // Existující hlášení z DB
         loadPriceList();   // Aktuální ceníky KČT
-        loadTeamMembers(); // Tým z INSYS
+        loadTeamMembers(); // Tým z INSYZ
     }, [prikazId]);
 };
 ```
@@ -166,7 +166,7 @@ export function calculateCompensation(formData, priceList, userIntAdr) {
 ### 1. **Inicializace hlášení**
 ```javascript
 // Automatické načítání při startu
-1. GET /api/insys/prikaz/{id} - Detail příkazu z INSYS
+1. GET /api/insyz/prikaz/{id} - Detail příkazu z INSYZ
 2. GET /api/portal/report?id_zp={id} - Existující hlášení (draft)
 3. GET /api/insys/ceniky?date=... - Aktuální ceníky KČT
 4. Inicializace formuláře (prázdný nebo draft)
@@ -350,7 +350,7 @@ Frontend zobrazí: "Odesílání trvá déle než obvykle"
 
 ---
 
-**Propojené funkcionality:** [File Management](file-management.md) | [INSYS Integration](insys-integration.md)  
+**Propojené funkcionality:** [File Management](file-management.md) | [INSYZ Integration](insyz-integration.md)  
 **API Reference:** [../api/portal-api.md](../api/portal-api.md)  
 **Technical details:** [../development/development.md#background-jobs-symfony-messenger](../development/development.md#background-jobs-symfony-messenger)  
 **Aktualizováno:** 2025-08-06 - On-demand worker, Hlavni_Ridic, timeout protection

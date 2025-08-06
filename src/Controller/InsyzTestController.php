@@ -8,13 +8,13 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Routing\RouterInterface;
 
-class InsysTestController extends AbstractController
+class InsyzTestController extends AbstractController
 {
     public function __construct(
         private RouterInterface $router
     ) {
     }
-    #[Route('/test-insys-api', name: 'insys_test')]
+    #[Route('/test-insyz-api', name: 'insyz_test')]
     public function index(): Response
     {
         // Povolit pouze v dev prostředí

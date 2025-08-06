@@ -22,7 +22,7 @@ export const usePriceList = (Datum_Provedeni, reportLoaded) => {
         setError(null);
 
         try {
-            const result = await api.insys.ceniky(dateParam);
+            const result = await api.insyz.ceniky(dateParam);
             log.info('Načtena surová data ceníku', result);
             
             const parsedPriceList = parsePriceListFromAPI(result);

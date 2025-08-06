@@ -2,7 +2,7 @@
 
 namespace App\Security;
 
-use App\Service\InsysService;
+use App\Service\InsyzService;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -16,11 +16,11 @@ use Symfony\Component\Security\Http\Authenticator\Passport\Badge\RememberMeBadge
 use Symfony\Component\Security\Http\Authenticator\Passport\Passport;
 use Symfony\Component\Security\Http\Authenticator\Passport\SelfValidatingPassport;
 
-class InsysAuthenticator extends AbstractAuthenticator
+class InsyzAuthenticator extends AbstractAuthenticator
 {
     public function __construct(
-        private InsysService $insysService,
-        private InsysUserProvider $userProvider
+        private InsyzService $insyzService,
+        private InsyzUserProvider $userProvider
     ) {}
 
     public function supports(Request $request): ?bool
@@ -55,7 +55,7 @@ class InsysAuthenticator extends AbstractAuthenticator
 
         try {
             // Ověř přes INSYS
-            $intAdr = $this->insysService->loginUser($username, $password);
+            $intAdr = $this->insyzService->loginUser($username, $password);
             
             if (!$intAdr) {
                 throw new CustomUserMessageAuthenticationException('Invalid credentials');

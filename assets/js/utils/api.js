@@ -114,8 +114,8 @@ export const api = {
 
     // Specifické endpointy pro snadné použití
     prikazy: {
-        list: (params) => api.get('/insys/prikazy', params),
-        detail: (id) => api.get(`/insys/prikaz/${id}`),
+        list: (params) => api.get('/insyz/prikazy', params),
+        detail: (id) => api.get(`/insyz/prikaz/${id}`),
         report: (id) => {
             const params = { id_zp: id };
             return api.get('/portal/report', params);
@@ -126,10 +126,10 @@ export const api = {
         })
     },
 
-    insys: {
-        user: () => api.get('/insys/user'),
-        ceniky: (date) => api.get('/insys/ceniky', { date }),
-        submitReport: (xmlData) => api.post('/insys/submit-report', { xml_data: xmlData }, {
+    insyz: {
+        user: () => api.get('/insyz/user'),
+        ceniky: (date) => api.get('/insyz/ceniky', { date }),
+        submitReport: (xmlData) => api.post('/insyz/submit-report', { xml_data: xmlData }, {
             showSuccess: true,
             successMessage: 'Hlášení bylo úspěšně odesláno do INSYS'
         })

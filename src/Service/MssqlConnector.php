@@ -13,10 +13,10 @@ class MssqlConnector
 
     public function __construct()
     {
-        $server = $_ENV['INSYS_DB_HOST'] ?? 'localhost';
-        $database = $_ENV['INSYS_DB_NAME'] ?? '';
-        $username = $_ENV['INSYS_DB_USER'] ?? '';
-        $password = $_ENV['INSYS_DB_PASS'] ?? '';
+        $server = $_ENV['INSYZ_DB_HOST'] ?? 'localhost';
+        $database = $_ENV['INSYZ_DB_NAME'] ?? '';
+        $username = $_ENV['INSYZ_DB_USER'] ?? '';
+        $password = $_ENV['INSYZ_DB_PASS'] ?? '';
 
         try {
             $dsn = "sqlsrv:server=$server;Database=$database";

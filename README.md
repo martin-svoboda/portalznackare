@@ -50,7 +50,7 @@ open https://portalznackare.ddev.site
 - [⚙️ Backend development](docs/backend/)
 
 **🔌 API Reference:**
-- [INSYS API](docs/api/insys.md) - Integrace s databází KČT
+- [INSYS API](docs/api/insyz.md) - Integrace s databází KČT
 - [Portal API](docs/api/portal.md) - Lokální funkcionalita
 
 **📋 Pracovní dokumenty:**

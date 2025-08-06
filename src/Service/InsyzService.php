@@ -5,7 +5,7 @@ namespace App\Service;
 use Exception;
 use Symfony\Component\HttpKernel\KernelInterface;
 
-class InsysService
+class InsyzService
 {
     private ?array $testData = null;
 
@@ -117,7 +117,7 @@ class InsysService
         ];
     }
 
-    public function submitReportToInsys(string $xmlData, string $uzivatel): array
+    public function submitReportToInsyz(string $xmlData, string $uzivatel): array
     {
 
 	    // Uložit XML pro kontrolu při testování

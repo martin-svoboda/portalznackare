@@ -3,15 +3,15 @@
 namespace App\Security;
 
 use App\Entity\User;
-use App\Service\InsysService;
+use App\Service\InsyzService;
 use Symfony\Component\Security\Core\Exception\UserNotFoundException;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Core\User\UserProviderInterface;
 
-class InsysUserProvider implements UserProviderInterface
+class InsyzUserProvider implements UserProviderInterface
 {
     public function __construct(
-        private InsysService $insysService
+        private InsyzService $insyzService
     ) {}
 
     /**
@@ -28,7 +28,7 @@ class InsysUserProvider implements UserProviderInterface
         
         // Předpokládáme že identifier je INT_ADR
         try {
-            $userData = $this->insysService->getUser((int)$identifier);
+            $userData = $this->insyzService->getUser((int)$identifier);
             
             if (!$userData || (is_array($userData) && empty($userData))) {
                 throw new UserNotFoundException(sprintf('User with INT_ADR "%s" not found.', $identifier));

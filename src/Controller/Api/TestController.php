@@ -2,7 +2,7 @@
 
 namespace App\Controller\Api;
 
-use App\Service\InsysService;
+use App\Service\InsyzService;
 use Exception;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -13,25 +13,25 @@ use Symfony\Component\Routing\Attribute\Route;
 class TestController extends AbstractController
 {
 	public function __construct(
-		private InsysService $insysService
+		private InsyzService $insyzService
 	) {}
 
-	#[Route('/insys-user', methods: ['GET'])]
-	public function getInsysUser(): JsonResponse
+	#[Route('/insyz-user', methods: ['GET'])]
+	public function getInsyzUser(): JsonResponse
 	{
 		try {
-			$user = $this->insysService->getUser(4133);
+			$user = $this->insyzService->getUser(4133);
 			return new JsonResponse($user);
 		} catch (Exception $e) {
 			return new JsonResponse(['error' => $e->getMessage()], 500);
 		}
 	}
 
-	#[Route('/insys-prikazy', methods: ['GET'])]
-	public function getInsysPrikazy(): JsonResponse
+	#[Route('/insyz-prikazy', methods: ['GET'])]
+	public function getInsyzPrikazy(): JsonResponse
 	{
 		try {
-			$prikazy = $this->insysService->getPrikazy(4133, 2025);
+			$prikazy = $this->insyzService->getPrikazy(4133, 2025);
 			return new JsonResponse($prikazy);
 		} catch (Exception $e) {
 			return new JsonResponse(['error' => $e->getMessage()], 500);
@@ -119,7 +119,7 @@ class TestController extends AbstractController
 			];
 
 			// Test login through InsysService
-			$intAdr = $this->insysService->loginUser($email, $hash);
+			$intAdr = $this->insyzService->loginUser($email, $hash);
 			
 			$result['login_result'] = [
 				'success' => true,

@@ -1,23 +1,23 @@
-# INSYS Integration - Napojení na KČT databázi
+# INSYZ Integration - Napojení na KČT databázi
 
-> **Funkcionální oblast** - Kompletní systém pro komunikaci s INSYS/MSSQL databází KČT
+> **Funkcionální oblast** - Kompletní systém pro komunikaci s INSYZ/MSSQL databází KČT
 
 ## 🎯 Přehled funkcionality
 
-INSYS integrace poskytuje přístup k datům KČT systému (příkazy, uživatelé, ceníky) prostřednictvím MSSQL databáze. Systém má dva režimy: **development** s mock daty a **production** s reálným MSSQL připojením.
+INSYZ integrace poskytuje přístup k datům KČT systému (příkazy, uživatelé, ceníky) prostřednictvím MSSQL databáze. Systém má dva režimy: **development** s mock daty a **production** s reálným MSSQL připojením.
 
 ### Workflow integrace
 ```
-Development: Mock Data → InsysService → API → React
-Production:  MSSQL/INSYS → MssqlConnector → InsysService → API → React
+Development: Mock Data → InsyzService → API → React
+Production:  MSSQL/INSYZ → MssqlConnector → InsyzService → API → React
 ```
 
 ## 🔧 Backend komponenty
 
-### 1. **InsysService** - Hlavní integrace
+### 1. **InsyzService** - Hlavní integrace
 ```php
-// src/Service/InsysService.php
-class InsysService {
+// src/Service/InsyzService.php
+class InsyzService {
     public function __construct(
         private MssqlConnector $connector,
         private KernelInterface $kernel
@@ -92,25 +92,25 @@ class DataEnricherService {
 ### INSYS API Controller
 ```php
 // src/Controller/Api/InsysController.php
-#[Route('/api/insys')]
+#[Route('/api/insyz')]
 class InsysController extends AbstractController {
     
     #[Route('/login', methods: ['POST'])]
     public function login(Request $request): JsonResponse;
-    // POST /api/insys/login
+    // POST /api/insyz/login
     // Body: {"email": "test@test.com", "hash": "test123"}
     
     #[Route('/user', methods: ['GET'])]  
     public function getInsysUser(Request $request): JsonResponse;
-    // GET /api/insys/user (vyžaduje přihlášení)
+    // GET /api/insyz/user (vyžaduje přihlášení)
     
     #[Route('/prikazy', methods: ['GET'])]
     public function getPrikazy(Request $request): JsonResponse;
-    // GET /api/insys/prikazy?year=2025
+    // GET /api/insyz/prikazy?year=2025
     
     #[Route('/prikaz/{id}', methods: ['GET'])]
     public function getPrikaz(Request $request, int $id): JsonResponse;
-    // GET /api/insys/prikaz/12345
+    // GET /api/insyz/prikaz/12345
 }
 ```
 
@@ -184,7 +184,7 @@ USE_TEST_DATA=true
 
 # .env.local (production)  
 USE_TEST_DATA=false
-INSYS_DB_HOST=insys.server.com
+INSYZ_DB_HOST=insyz.server.com
 INSYS_DB_NAME=INSYS_DATABASE
 INSYS_DB_USER=portal_user
 INSYS_DB_PASS=secure_password
@@ -272,7 +272,7 @@ echo $USE_TEST_DATA
 ls -la var/testdata.json
 
 # Test API call (použij testovací endpoint)
-curl "https://portalznackare.ddev.site/api/test/insys-prikazy"
+curl "https://portalznackare.ddev.site/api/test/insyz-prikazy"
 ```
 
 #### 2. **MSSQL připojení selhává**
@@ -292,7 +292,7 @@ try {
 #### 3. **API vrací prázdná data**
 ```javascript
 // Debug API response (použij testovací endpoint)
-fetch('/api/test/insys-prikazy')
+fetch('/api/test/insyz-prikazy')
 .then(response => {
     console.log('Status:', response.status);
     return response.json();
@@ -309,7 +309,7 @@ fetch('/api/test/insys-prikazy')
 ```php
 // Zkontroluj že DataEnricherService je volán
 public function getPrikazy(Request $request): JsonResponse {
-    $prikazy = $this->insysService->getPrikazy($user->getIntAdr(), $year);
+    $prikazy = $this->insyzService->getPrikazy($user->getIntAdr(), $year);
     
     // DŮLEŽITÉ: Enrichment pro HTML komponenty
     $enrichedPrikazy = $this->dataEnricher->enrichPrikazyList($prikazy);
@@ -337,7 +337,7 @@ public function getPrikazy(Request $request): JsonResponse {
     }
     
     // Uživatel vidí pouze své příkazy
-    $prikazy = $this->insysService->getPrikazy($user->getIntAdr(), $year);
+    $prikazy = $this->insyzService->getPrikazy($user->getIntAdr(), $year);
 }
 ```
 
@@ -355,6 +355,6 @@ INSYS_DB_PASS=complex_secure_password
 ---
 
 **Data Flow:** [../architecture.md](../architecture.md)  
-**API Reference:** [../api/insys-api.md](../api/insys-api.md)  
+**API Reference:** [../api/insyz-api.md](../api/insyz-api.md)  
 **Configuration:** [../configuration.md](../configuration.md)  
-**Development nástroje:** [../development/insys-api-tester.md](../development/insys-api-tester.md)  \n**Aktualizováno:** 2025-07-30
+**Development nástroje:** [../development/insyz-api-tester.md](../development/insyz-api-tester.md)  \n**Aktualizováno:** 2025-07-30

@@ -3,7 +3,7 @@
 namespace App\Service;
 
 use Psr\Log\LoggerInterface;
-use App\Service\InsysService;
+use App\Service\InsyzService;
 
 class MockMSSQLService
 {
@@ -12,7 +12,7 @@ class MockMSSQLService
 	public function __construct(
 		private LoggerInterface $logger,
 		private string $projectDir,
-		private InsysService $insysService
+		private InsyzService $insyzService
 	) {}
 
 	public function loginUser(string $email, string $hash): int

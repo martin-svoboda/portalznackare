@@ -24,6 +24,10 @@ services:
         arguments:
             $projectDir: '%kernel.project_dir%'
 
+    App\Service\WorkerManagerService:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+
     App\Controller\FileServeController:
         arguments:
             $projectDir: '%kernel.project_dir%'

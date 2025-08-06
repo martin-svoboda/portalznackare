@@ -4,8 +4,8 @@ security:
         Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface: 'auto'
     # https://symfony.com/doc/current/security.html#loading-the-user-the-user-provider
     providers:
-        insys_provider:
-            id: App\Security\InsysUserProvider
+        insyz_provider:
+            id: App\Security\InsyzUserProvider
             
     firewalls:
         dev:
@@ -16,10 +16,10 @@ security:
         api:
             pattern: ^/api
             stateless: false
-            provider: insys_provider
+            provider: insyz_provider
             context: shared_context
             entry_point: App\Security\ApiAuthenticationEntryPoint
-            custom_authenticator: App\Security\InsysAuthenticator
+            custom_authenticator: App\Security\InsyzAuthenticator
             remember_me:
                 secret: '%kernel.secret%'
                 lifetime: 604800 # 1 week
@@ -32,7 +32,7 @@ security:
         main:
             pattern: ^/
             lazy: true
-            provider: insys_provider
+            provider: insyz_provider
             context: shared_context
 
     # Easy way to control access for large sections of your site

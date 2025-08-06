@@ -2,7 +2,7 @@
 
 namespace App\Controller\Api;
 
-use App\Service\InsysService;
+use App\Service\InsyzService;
 use App\Service\DataEnricherService;
 use App\Entity\User;
 use Exception;
@@ -14,11 +14,11 @@ use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
-#[Route('/api/insys')]
-class InsysController extends AbstractController
+#[Route('/api/insyz')]
+class InsyzController extends AbstractController
 {
     public function __construct(
-        private InsysService $insysService,
+        private InsyzService $insyzService,
         private DataEnricherService $dataEnricher
     ) {
     }
@@ -33,7 +33,7 @@ class InsysController extends AbstractController
         }
 
         try {
-            $intAdr = $this->insysService->loginUser($data['email'], $data['hash']);
+            $intAdr = $this->insyzService->loginUser($data['email'], $data['hash']);
             
             return new JsonResponse([
                 'success' => true,
@@ -45,7 +45,7 @@ class InsysController extends AbstractController
     }
 
     #[Route('/user', methods: ['GET'])]
-    public function getInsysUser(Request $request): JsonResponse
+    public function getInsyzUser(Request $request): JsonResponse
     {
         // Použít Symfony Security
         $user = $this->getUser();
@@ -58,7 +58,7 @@ class InsysController extends AbstractController
         $intAdr = $user->getIntAdr();
 
         try {
-            $userData = $this->insysService->getUser((int) $intAdr);
+            $userData = $this->insyzService->getUser((int) $intAdr);
             
             return new JsonResponse($userData);
         } catch (Exception $e) {
@@ -81,7 +81,7 @@ class InsysController extends AbstractController
         $intAdr = $user->getIntAdr();
 
         try {
-            $prikazy = $this->insysService->getPrikazy((int) $intAdr, $year ? (int) $year : null);
+            $prikazy = $this->insyzService->getPrikazy((int) $intAdr, $year ? (int) $year : null);
             
             // Obohatí data pouze pokud není raw parameter
             $raw = $request->query->get('raw');
@@ -109,7 +109,7 @@ class InsysController extends AbstractController
         $intAdr = $user->getIntAdr();
 
         try {
-            $prikaz = $this->insysService->getPrikaz((int) $intAdr, $id);
+            $prikaz = $this->insyzService->getPrikaz((int) $intAdr, $id);
             
             // Obohatí detail pouze pokud není raw parameter
             $raw = $request->query->get('raw');
@@ -137,7 +137,7 @@ class InsysController extends AbstractController
         $date = $request->query->get('date');
         
         try {
-            // Mock data pro ceníky - v produkci by se načítalo z INSYS
+            // Mock data pro ceníky - v produkci by se načítalo z INSYZ
             $ceniky = [
                 'jizdne' => 6,
                 'jizdneZvysene' => 8,
@@ -198,17 +198,17 @@ class InsysController extends AbstractController
             $xmlData = $data['xml_data'];
             
             // Volání stored procedure trasy.ZP_Zapis_XML
-            $result = $this->insysService->submitReportToInsys($xmlData, (string)$intAdr);
+            $result = $this->insyzService->submitReportToInsyz($xmlData, (string)$intAdr);
             
             return new JsonResponse([
                 'success' => true,
-                'message' => 'Hlášení bylo úspěšně odesláno do INSYS',
+                'message' => 'Hlášení bylo úspěšně odesláno do INSYZ',
                 'result' => $result
             ]);
             
         } catch (Exception $e) {
             return new JsonResponse([
-                'error' => 'Chyba při odesílání hlášení do INSYS: ' . $e->getMessage()
+                'error' => 'Chyba při odesílání hlášení do INSYZ: ' . $e->getMessage()
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -241,7 +241,7 @@ class InsysController extends AbstractController
             
             // Export seznamu příkazů
             $filesystem = new Filesystem();
-            $exportDir = $this->getParameter('kernel.project_dir') . '/var/mock-data/api/insys/prikazy';
+            $exportDir = $this->getParameter('kernel.project_dir') . '/var/mock-data/api/insyz/prikazy';
             $filesystem->mkdir($exportDir);
             
             $prikazyFilepath = $exportDir . '/' . $intAdr . '-' . $year . '.json';
@@ -256,10 +256,10 @@ class InsysController extends AbstractController
                     
                     try {
                         // Načíst detail příkazu (surová data)
-                        $detail = $this->insysService->getPrikaz($intAdr, $id);
+                        $detail = $this->insyzService->getPrikaz($intAdr, $id);
                         
                         // Uložit detail
-                        $detailDir = $this->getParameter('kernel.project_dir') . '/var/mock-data/api/insys/prikaz';
+                        $detailDir = $this->getParameter('kernel.project_dir') . '/var/mock-data/api/insyz/prikaz';
                         $filesystem->mkdir($detailDir);
                         
                         $detailFilepath = $detailDir . '/' . $id . '.json';
@@ -357,7 +357,7 @@ class InsysController extends AbstractController
             // Pro user endpoint - získat INT_ADR z response dat
             $intAdr = $this->extractFromResponse($responseData, ['INT_ADR', 'int_adr', 'intAdr']);
             return [
-                'dir' => 'api/insys/user',
+                'dir' => 'api/insyz/user',
                 'filename' => ($intAdr ?: 'data') . '.json'
             ];
         }
@@ -367,7 +367,7 @@ class InsysController extends AbstractController
             $intAdr = $this->getUser()?->getIntAdr() ?? 'unknown';
             $year = $params['year'] ?? date('Y');
             return [
-                'dir' => 'api/insys/prikazy',
+                'dir' => 'api/insyz/prikazy',
                 'filename' => $intAdr . '-' . $year . '.json'
             ];
         }
@@ -376,14 +376,14 @@ class InsysController extends AbstractController
             // Pro detail příkazu - jeden soubor na příkaz
             $id = $params['id'] ?? $this->extractFromResponse($responseData, ['ID_Znackarske_Prikazy', 'id', 'ID']);
             return [
-                'dir' => 'api/insys/prikaz',
+                'dir' => 'api/insyz/prikaz',
                 'filename' => ($id ?: 'data') . '.json'
             ];
         }
         
         if (str_contains($endpoint, '/ceniky')) {
             return [
-                'dir' => 'api/insys/ceniky',
+                'dir' => 'api/insyz/ceniky',
                 'filename' => 'ceniky-' . date('Y-m-d') . '.json'
             ];
         }

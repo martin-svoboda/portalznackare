@@ -5,7 +5,7 @@ namespace App\MessageHandler;
 use App\Message\SendToInsyzMessage;
 use App\Repository\ReportRepository;
 use App\Enum\ReportStateEnum;
-use App\Service\InsysService;
+use App\Service\InsyzService;
 use App\Service\XmlGenerationService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -21,7 +21,7 @@ class SendToInsyzHandler
         private ReportRepository $reportRepository,
         private EntityManagerInterface $entityManager,
         private LoggerInterface $logger,
-        private InsysService $insysService,
+        private InsyzService $insyzService,
         private XmlGenerationService $xmlGenerator
     ) {}
 
@@ -53,7 +53,7 @@ class SendToInsyzHandler
             ]);
             
             // Volání INSYZ API přes InsysService (stejný pattern jako login)
-            $result = $this->insysService->submitReportToInsys($xmlData, (string)$report->getIntAdr());
+            $result = $this->insyzService->submitReportToInsyz($xmlData, (string)$report->getIntAdr());
             
             // Vyhodnotit odpověď - InsysService vrací buď success response nebo vyhazuje Exception
             $report->setState(ReportStateEnum::SUBMITTED);
