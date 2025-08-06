@@ -37,7 +37,7 @@ class XmlGenerationService
         // Konvertovat celé pole na XML
         $this->arrayToXml($xml, $root, $restructuredData);
         
-        return $xml->saveXML();
+        return $xml->saveXML($xml->documentElement);
     }
     
     /**
