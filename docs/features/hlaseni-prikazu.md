@@ -26,10 +26,10 @@ Ceníky KČT    Část A + B    Symfony API    Local Storage    Final Send
 - **Lokální databáze:** PostgreSQL pro ukládání a načítání rozepsaných hlášení
 - **Draft system:** Možnost ukládat nedokončená hlášení a pokračovat později
 - **JSON storage:** Strukturovaná data v PostgreSQL JSON sloupcích
-- **State management:** Draft → Send → (TODO: INSYS submission)
+- **State management:** Draft → Send → Submitted → Approved/Rejected (INSYZ submission)
 - **Auto-calculation:** Automatické výpočty podle ceníků KČT
 - **File attachments:** Doklady a fotografie s chráněným přístupem
-- **Final submission:** TODO - odeslání finálních hlášení do INSYS systému
+- **Asynchronous submission:** Symfony Messenger pro odesílání do INSYZ systému
 
 ## 🛠️ Backend Components
 
@@ -64,10 +64,10 @@ class Report {
 ```php
 enum ReportStateEnum: string {
     case DRAFT = 'draft';           // Rozpracováno (lokálně, editovatelné)
-    case SEND = 'send';             // Odesláno ke zpracování (lokálně, uzamčené)
-    case SUBMITTED = 'submitted';   // TODO: Odesláno do INSYS
-    case APPROVED = 'approved';     // TODO: Schváleno v INSYS
-    case REJECTED = 'rejected';     // TODO: Zamítnuto v INSYS (opět editovatelné)
+    case SEND = 'send';             // Odesláno ke zpracování (asynchronní)
+    case SUBMITTED = 'submitted';   // Přijato systémem INSYZ
+    case APPROVED = 'approved';     // Schváleno v INSYZ
+    case REJECTED = 'rejected';     // Zamítnuto v INSYZ (opět editovatelné)
 }
 ```
 
@@ -120,7 +120,7 @@ class ReportController extends AbstractController {
         
         if ($reportDto->state === 'send') {
             $report->setDateSend(new \DateTimeImmutable());
-            // TODO: Spustit INSYS submission
+            // Dispatch asynchronní zpracování pomocí Symfony Messenger
         }
         
         $this->entityManager->persist($report);
@@ -471,7 +471,7 @@ await fetch('/api/portal/report', {
     body: JSON.stringify(reportData)
 });
 
-// TODO: Implementovat finální odeslání do INSYS
+// Dispatch do Symfony Messenger pro asynchronní zpracování
 ```
 
 ## 🔒 Validace a kontroly
@@ -556,73 +556,76 @@ curl -X POST "https://portalznackare.ddev.site/api/portal/report" \
   -d '{"id_zp": 123, "state": "draft", "data_a": {...}, "data_b": {...}}'
 ```
 
-## 📤 INSYS Submission (TODO)
+## 📤 INSYZ Submission - Asynchronní zpracování
 
-### Navržený workflow pro budoucí implementaci
+### Implementace pomocí Symfony Messenger
 
-**Aktuální stav:** Hlášení se ukládají pouze lokálně v PostgreSQL
+**Aktuální stav:** Hlášení se odesílají asynchronně do INSYZ pomocí background jobs
 
-**Plánovaná implementace:**
-
-#### 1. **INSYS Submission Service**
+#### 1. **Message Bus Pattern**
 ```php
-// TODO: src/Service/InsysSubmissionService.php
-class InsysSubmissionService {
-    public function submitReportToInsys(Report $report): bool {
-        // 1. Validace reportu proti INSYS schématu
-        $this->validateForInsys($report);
+// Dispatch z controlleru při state = 'send'
+$message = new SendToInsyzMessage(
+    $report->getId(),
+    [
+        'id_zp' => $report->getIdZp(),
+        'cislo_zp' => $report->getCisloZp(),
+        'znackari' => $report->getTeamMembers(),
+        'data_a' => $report->getDataA(),
+        'data_b' => $report->getDataB(),
+        'calculation' => $report->getCalculation()
+    ],
+    $this->getParameter('kernel.environment')
+);
+
+$this->messageBus->dispatch($message);
+```
+
+#### 2. **Background Handler**
+```php
+#[AsMessageHandler]
+class SendToInsyzHandler
+{
+    public function __invoke(SendToInsyzMessage $message): void
+    {
+        $report = $this->reportRepository->find($message->getReportId());
         
-        // 2. Konverze dat do INSYS formátu
-        $insysData = $this->convertToInsysFormat($report);
+        // Test mode: 70% úspěch, 30% chyba
+        if ($message->getEnvironment() === 'test') {
+            $result = $this->simulateInsyzCall($message->getReportData());
+        } else {
+            $result = $this->callInsyzApi($message->getReportData());
+        }
         
-        // 3. API volání na INSYS endpoint
-        $response = $this->insysApiClient->submitReport($insysData);
-        
-        // 4. Aktualizace stavu reportu
-        if ($response['success']) {
+        // Aktualizace stavu podle výsledku
+        if ($result['success']) {
             $report->setState(ReportStateEnum::SUBMITTED);
-            $report->setInsysId($response['insys_id']);
+        } else {
+            $report->setErrorMessage($result['error']);
         }
         
-        return $response['success'];
+        $this->entityManager->flush();
     }
 }
 ```
 
-#### 2. **Automatické submission**
-```php
-#[AsEventListener(event: ReportStateChanged::class)]
-class ReportSubmissionListener {
-    public function onReportStateChanged(ReportStateChanged $event): void {
-        $report = $event->getReport();
-        
-        if ($report->getState() === ReportStateEnum::SEND) {
-            $this->messageBus->dispatch(new SubmitReportToInsys($report->getId()));
-        }
-    }
-}
+#### 3. **Real-time Status Polling**
+Frontend používá **useStatusPolling** hook pro sledování zpracování:
+
+```javascript
+const { isPolling, pollCount } = useStatusPolling(
+    prikazId, 
+    formData, 
+    setFormData, 
+    formData.status === 'send'
+);
+
+// Automaticky kontroluje stav každých 5 sekund
+// Zobrazuje notifikace při změně stavu
+// Zastavuje polling při finálních stavech
 ```
 
-#### 3. **Status synchronization**
-```php
-class SyncReportStatusCommand extends Command {
-    protected function execute(InputInterface $input, OutputInterface $output): int {
-        $submittedReports = $this->reportRepository->findBy(['state' => [ReportStateEnum::SUBMITTED]]);
-        
-        foreach ($submittedReports as $report) {
-            $insysStatus = $this->insysService->getReportStatus($report->getInsysId());
-            
-            if ($insysStatus['status'] === 'approved') {
-                $report->setState(ReportStateEnum::APPROVED);
-            } elseif ($insysStatus['status'] === 'rejected') {
-                $report->setState(ReportStateEnum::REJECTED);
-            }
-        }
-        
-        return Command::SUCCESS;
-    }
-}
-```
+**Dokumentace background jobs:** [../development/development.md#background-jobs-symfony-messenger](../development/development.md#background-jobs-symfony-messenger)
 
 ## 🛠️ Troubleshooting
 

@@ -131,7 +131,7 @@ class ReportController extends AbstractController
                 // Přidat do historie vytvoření
                 $report->addHistoryEntry(
                     'created',
-                    ['int_adr' => $intAdr, 'jmeno' => $user->getJmeno()],
+                    $intAdr,
                     'Hlášení vytvořeno'
                 );
                 
@@ -158,7 +158,7 @@ class ReportController extends AbstractController
             // Přidat do historie změnu
             $report->addHistoryEntry(
                 'data_updated',
-                ['int_adr' => $intAdr, 'jmeno' => $user->getJmeno()],
+                $intAdr,
                 'Hlášení aktualizováno',
                 ['updated_fields' => array_keys($data)]
             );
@@ -282,7 +282,7 @@ class ReportController extends AbstractController
                 // Přidat do historie změnu stavu
                 $report->addHistoryEntry(
                     'state_changed',
-                    ['int_adr' => $user->getIntAdr(), 'jmeno' => $user->getJmeno()],
+                    $user->getIntAdr(),
                     'Stav změněn na: ' . $stateEnum->getLabel(),
                     ['previous_state' => $oldState]
                 );

@@ -8,6 +8,10 @@ import { PaymentRedirectsForm } from './PaymentRedirectsForm';
 import { AdvancedFileUpload } from './AdvancedFileUpload';
 import { TravelGroupsForm } from './TravelGroupsForm';
 import ErrorBoundary from '../../../components/shared/ErrorBoundary';
+import { 
+    getAttachmentsAsArray, 
+    setAttachmentsFromArray 
+} from '../utils/attachmentUtils';
 
 
 export const PartAForm = ({ 
@@ -26,9 +30,13 @@ export const PartAForm = ({
 }) => {
     // Team members - use prop if provided, otherwise calculate from head data (original logic)
     const computedTeamMembers = useMemo(() => {
-        if (teamMembers && teamMembers.length > 0) return teamMembers;
-        if (!head) return [];
-        return [1, 2, 3]
+        if (teamMembers && teamMembers.length > 0) {
+            return teamMembers;
+        }
+        if (!head) {
+            return [];
+        }
+        const computed = [1, 2, 3]
             .map(i => ({
                 index: i,
                 name: head[`Znackar${i}`],
@@ -36,6 +44,8 @@ export const PartAForm = ({
                 isLeader: head[`Je_Vedouci${i}`] === "1"
             }))
             .filter(member => member.name?.trim());
+            
+        return computed;
     }, [teamMembers, head]);
 
     // Generate storage path for this report
@@ -73,7 +83,7 @@ export const PartAForm = ({
             Datum: formData.Datum_Provedeni,
             Castka: 0,
             Zaplatil: computedTeamMembers[0]?.INT_ADR || "",
-            Prilohy: []
+            Prilohy: {}
         };
 
         setFormData(prev => ({
@@ -105,7 +115,7 @@ export const PartAForm = ({
             Polozka: "",
             Castka: 0,
             Zaplatil: computedTeamMembers[0]?.INT_ADR || "",
-            Prilohy: []
+            Prilohy: {}
         };
 
         setFormData(prev => ({
@@ -152,7 +162,7 @@ export const PartAForm = ({
         setFormData(prev => ({ ...prev, Presmerovani_Vyplat }));
     };
 
-    const isFormDisabled = !canEdit || disabled || formData.status === 'submitted';
+    const isFormDisabled = !canEdit || disabled || formData.status === 'submitted' || formData.status === 'send';
 
     return (
         <div className="space-y-6">
@@ -264,7 +274,7 @@ export const PartAForm = ({
                                                 >
                                                     {computedTeamMembers.map(member => (
                                                         <option key={member.INT_ADR} value={member.INT_ADR}>
-                                                            {member.name}
+                                                            {member.name || member.Znackar}
                                                         </option>
                                                     ))}
                                                 </select>
@@ -287,8 +297,8 @@ export const PartAForm = ({
                                             <label className="form__label mb-2 block">Doklady</label>
                                             <AdvancedFileUpload
                                                 id={`accommodation-${accommodation.id}`}
-                                                files={accommodation.Prilohy ?? []}
-                                                onFilesChange={(files) => updateAccommodation(accommodation.id, { Prilohy: files })}
+                                                files={getAttachmentsAsArray(accommodation.Prilohy || {})}
+                                                onFilesChange={(files) => updateAccommodation(accommodation.id, { Prilohy: setAttachmentsFromArray(files) })}
                                                 maxFiles={5}
                                                 accept="image/jpeg,image/png,image/heic,application/pdf"
                                                 maxSize={10}
@@ -381,7 +391,7 @@ export const PartAForm = ({
                                                 >
                                                     {computedTeamMembers.map(member => (
                                                         <option key={member.INT_ADR} value={member.INT_ADR}>
-                                                            {member.name}
+                                                            {member.name || member.Znackar}
                                                         </option>
                                                     ))}
                                                 </select>
@@ -404,8 +414,8 @@ export const PartAForm = ({
                                             <label className="form__label mb-2 block">Doklady</label>
                                             <AdvancedFileUpload
                                                 id={`expense-${expense.id}`}
-                                                files={expense.Prilohy ?? []}
-                                                onFilesChange={(files) => updateExpense(expense.id, { Prilohy: files })}
+                                                files={getAttachmentsAsArray(expense.Prilohy || {})}
+                                                onFilesChange={(files) => updateExpense(expense.id, { Prilohy: setAttachmentsFromArray(files) })}
                                                 maxFiles={5}
                                                 accept="image/jpeg,image/png,image/heic,application/pdf"
                                                 maxSize={10}

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { Loader } from '../../components/shared/Loader';
 import { PrikazHead } from '../../components/prikazy/PrikazHead';
 import { StepNavigation } from './components/StepNavigation';
@@ -15,6 +15,8 @@ import { useFormState } from './hooks/useFormState';
 import { useStepNavigation } from './hooks/useStepNavigation';
 import { useCompletionStatus } from './hooks/useCompletionStatus';
 import { useFormSaving } from './hooks/useFormSaving';
+import { useStatusPolling } from './hooks/useStatusPolling';
+import { migrateAttachmentsToObjectStructure } from './utils/attachmentUtils';
 
 const App = () => {
     // Get prikaz ID from data attribute
@@ -26,6 +28,12 @@ const App = () => {
 
     // Order data loading
     const { head, predmety, useky, loading } = useOrderData(prikazId);
+    
+    // Memoizované členy týmu z hlavičky
+    const membersFromHead = useMemo(() => {
+        if (!head) return [];
+        return extractTeamMembers(head);
+    }, [head?.Znackar1, head?.Znackar2, head?.Znackar3, head?.INT_ADR_1, head?.INT_ADR_2, head?.INT_ADR_3]);
     
     // Form state management
     const { formData, setFormData, loadFormData } = useFormState();
@@ -52,14 +60,30 @@ const App = () => {
     } = useCompletionStatus(formData, head, predmety, setFormData);
 
     // Form saving
-    const { saving, saveDraft, submitReport } = useFormSaving(
+    const { saving, saveDraft, submitReport, submitForApproval } = useFormSaving(
         formData, 
         head, 
         prikazId, 
         priceList, 
         isLeader, 
         teamMembers, 
-        currentUser
+        currentUser,
+        reportLoaded
+    );
+
+    // Status polling pro sledování zpracování
+    const { 
+        isPolling, 
+        pollCount, 
+        startPolling, 
+        stopPolling, 
+        maxAttempts, 
+        interval 
+    } = useStatusPolling(
+        prikazId, 
+        formData, 
+        setFormData, 
+        reportLoaded && formData.status === 'send'
     );
 
     // Load existing report data
@@ -101,7 +125,7 @@ const App = () => {
                         loadedData.Noclezne = loadedData.Noclezne.map(acc => ({
                             ...acc,
                             Datum: acc.Datum || acc.date ? new Date(acc.Datum || acc.date) : new Date(),
-                            Prilohy: acc.Prilohy || acc.attachments || []
+                            Prilohy: acc.Prilohy || acc.attachments || {}
                         }));
                     }
                     if (loadedData.Vedlejsi_Vydaje && Array.isArray(loadedData.Vedlejsi_Vydaje)) {
@@ -109,7 +133,7 @@ const App = () => {
                             ...exp,
                             Datum: exp.Datum || exp.date ? new Date(exp.Datum || exp.date) : new Date(),
                             Polozka: exp.Polozka || exp.description || "",
-                            Prilohy: exp.Prilohy || exp.attachments || []
+                            Prilohy: exp.Prilohy || exp.attachments || {}
                         }));
                     }
                 }
@@ -126,25 +150,50 @@ const App = () => {
                             const migratedReport = {
                                 EvCi_TIM: timReport.EvCi_TIM || timReport.timId || timId,
                                 Koment_NP: timReport.Koment_NP || timReport.structuralComment || "",
-                                Prilohy_NP: timReport.Prilohy_NP || timReport.structuralAttachments || [],
-                                Predmety: [],
-                                Prilohy_TIM: timReport.Prilohy_TIM || timReport.photos || [],
+                                Prilohy_NP: timReport.Prilohy_NP || timReport.structuralAttachments || {},
+                                Predmety: {},
+                                Prilohy_TIM: timReport.Prilohy_TIM || timReport.photos || {},
                                 Koment_TIM: timReport.Koment_TIM || timReport.generalComment || "",
                                 Souhlasi_STP: timReport.Souhlasi_STP ?? timReport.centerRuleCompliant ?? null,
                                 Koment_STP: timReport.Koment_STP || timReport.centerRuleComment || ""
                             };
                             
-                            // Migrate item statuses
+                            // Migrate item statuses to new object structure
                             const itemStatuses = timReport.Predmety || timReport.itemStatuses || [];
-                            migratedReport.Predmety = itemStatuses.map(status => ({
-                                ID_PREDMETY: status.ID_PREDMETY || status.itemId || "",
-                                Zachovalost: status.Zachovalost || status.status || null,
-                                Rok_Vyroby: status.Rok_Vyroby || status.yearOfProduction || null,
-                                Smerovani: status.Smerovani || status.arrowOrientation || "",
-                                Koment: status.Koment || status.comment || "",
-                                Prilohy: status.Prilohy || status.photos || [],
-                                metadata: status.metadata || {}
-                            }));
+                            const migratedPredmety = {};
+                            
+                            // Convert array to object with ID_PREDMETY as key
+                            if (Array.isArray(itemStatuses)) {
+                                itemStatuses.forEach(status => {
+                                    const predmetId = status.ID_PREDMETY || status.itemId || "";
+                                    if (predmetId) {
+                                        migratedPredmety[predmetId] = {
+                                            ID_PREDMETY: predmetId,
+                                            Zachovalost: status.Zachovalost || status.status || null,
+                                            Rok_Vyroby: status.Rok_Vyroby || status.yearOfProduction || null,
+                                            Smerovani: status.Smerovani || status.arrowOrientation || "",
+                                            Koment: status.Koment || status.comment || "",
+                                            Prilohy: status.Prilohy || status.photos || {},
+                                            metadata: status.metadata || {}
+                                        };
+                                    }
+                                });
+                            } else if (typeof itemStatuses === 'object' && itemStatuses !== null) {
+                                // Already in object format, just ensure proper structure
+                                Object.entries(itemStatuses).forEach(([key, status]) => {
+                                    migratedPredmety[key] = {
+                                        ID_PREDMETY: key,
+                                        Zachovalost: status.Zachovalost || status.status || null,
+                                        Rok_Vyroby: status.Rok_Vyroby || status.yearOfProduction || null,
+                                        Smerovani: status.Smerovani || status.arrowOrientation || "",
+                                        Koment: status.Koment || status.comment || "",
+                                        Prilohy: status.Prilohy || status.photos || {},
+                                        metadata: status.metadata || {}
+                                    };
+                                });
+                            }
+                            
+                            migratedReport.Predmety = migratedPredmety;
                             
                             migratedStavyTim[timId] = migratedReport;
                         }
@@ -166,6 +215,19 @@ const App = () => {
                     if (loadedData.Trasa_Prilohy !== undefined && loadedData.Prilohy_Usek === undefined) {
                         loadedData.Prilohy_Usek = loadedData.Trasa_Prilohy;
                         delete loadedData.Trasa_Prilohy;
+                    }
+                    
+                    // Ensure Obnovene_Useky exists
+                    if (loadedData.Obnovene_Useky === undefined) {
+                        loadedData.Obnovene_Useky = {};
+                    }
+                    
+                    // Ensure attachment fields are objects
+                    if (loadedData.Prilohy_Usek === undefined) {
+                        loadedData.Prilohy_Usek = {};
+                    }
+                    if (loadedData.Prilohy_Mapa === undefined) {
+                        loadedData.Prilohy_Mapa = {};
                     }
                 }
 
@@ -214,26 +276,46 @@ const App = () => {
                     const currentUserInTeam = result.znackari.find(
                         member => member.INT_ADR === currentUser?.INT_ADR
                     );
+                    
                     if (currentUserInTeam) {
-                        setIsLeader(currentUserInTeam.je_vedouci || false);
-                        setCanEditOthers(currentUserInTeam.je_vedouci || false);
+                        const isLeaderFromReport = currentUserInTeam.je_vedouci || 
+                                                 currentUserInTeam.Je_Vedouci || 
+                                                 currentUserInTeam.isLeader || 
+                                                 false;
+                        setIsLeader(isLeaderFromReport);
+                        setCanEditOthers(isLeaderFromReport);
+                        
+                        log.info('Tým načten z uloženého hlášení', { 
+                            clenove: result.znackari.map(m => ({
+                                jmeno: m.name || m.Znackar,
+                                INT_ADR: m.INT_ADR,
+                                jeVedouci: m.je_vedouci || m.Je_Vedouci || m.isLeader || false
+                            })),
+                            aktualni: {
+                                jmeno: currentUserInTeam.Znackar,
+                                INT_ADR: currentUserInTeam.INT_ADR,
+                                jeVedouci: isLeaderFromReport
+                            }
+                        });
                     }
-                } else if (head && currentUser) {
+                } else if (membersFromHead.length > 0 && currentUser) {
                     // Fallback: pokud report nemá znackari, použij data z head
-                    const members = extractTeamMembers(head);
-                    setTeamMembers(members);
+                    setTeamMembers(membersFromHead);
                     
                     const userIsLeader = isUserLeader(currentUser, head);
                     setIsLeader(userIsLeader);
                     setCanEditOthers(userIsLeader);
                 }
 
-                // Set status
+                // Set status - keep original state from database
                 if (result.state) {
-                    loadedData.status = result.state === 'send' ? 'submitted' : 'draft';
+                    loadedData.status = result.state;
                 }
 
-                loadFormData(loadedData);
+                // Migrate all attachment structures from arrays to objects
+                const migratedData = migrateAttachmentsToObjectStructure(loadedData);
+                
+                loadFormData(migratedData);
                 log.info('Načteno existující hlášení');
             }
         } catch (error) {
@@ -242,7 +324,7 @@ const App = () => {
         } finally {
             setReportLoaded(true);
         }
-    }, [prikazId, loadFormData]);
+    }, [prikazId, loadFormData, currentUser?.INT_ADR, membersFromHead, head, setTeamMembers, setIsLeader, setCanEditOthers]);
 
     // Update order number in page header
     useEffect(() => {
@@ -262,15 +344,28 @@ const App = () => {
     // Initialize team members and permissions when head data loads
     // POUZE pokud report ještě nebyl načten (aby se nepřepsaly data z reportu)
     useEffect(() => {
-        if (head && currentUser && !reportLoaded) {
-            const members = extractTeamMembers(head);
-            setTeamMembers(members);
-
+        // Přidat kontrolu, že effect běží pouze jednou při prvním načtení dat
+        if (membersFromHead.length > 0 && currentUser && !reportLoaded && teamMembers.length === 0) {
             const userIsLeader = isUserLeader(currentUser, head);
+            
+            log.info('Tým načten z hlavičky příkazu', { 
+                clenove: membersFromHead.map(m => ({
+                    jmeno: m.name || m.Znackar,
+                    INT_ADR: m.INT_ADR,
+                    jeVedouci: m.isLeader || m.Je_Vedouci || false
+                })),
+                aktualni: currentUser ? {
+                    jmeno: currentUser.name,
+                    INT_ADR: currentUser.INT_ADR,
+                    jeVedouci: userIsLeader
+                } : null
+            });
+            
+            setTeamMembers(membersFromHead);
             setIsLeader(userIsLeader);
             setCanEditOthers(userIsLeader);
         }
-    }, [head, currentUser, reportLoaded]);
+    }, [membersFromHead, currentUser?.INT_ADR, reportLoaded, teamMembers.length]); // Stabilní dependencies
 
     // Set higher rate based on order header
     useEffect(() => {
@@ -305,7 +400,7 @@ const App = () => {
                 activeStep={activeStep}
                 onStepChange={changeStep}
                 partACompleted={formData.Cast_A_Dokoncena}
-                castBDokoncena={formData.Cast_B_Dokoncena}
+                partBCompleted={formData.Cast_B_Dokoncena}
                 head={head}
                 saving={saving}
                 status={formData.status}
@@ -331,8 +426,16 @@ const App = () => {
                 canCompletePartB={canCompletePartB}
                 onStepChange={changeStep}
                 onSave={saveDraft}
-                onSubmit={submitReport}
+                onSubmit={() => submitForApproval(setFormData)}
                 saving={saving}
+                polling={{
+                    isPolling,
+                    pollCount,
+                    maxAttempts,
+                    interval,
+                    startPolling,
+                    stopPolling
+                }}
             />
         </div>
     );

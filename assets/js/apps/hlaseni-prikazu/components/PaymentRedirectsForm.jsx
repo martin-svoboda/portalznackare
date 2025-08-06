@@ -55,7 +55,7 @@ export const PaymentRedirectsForm = ({
                         return (
                             <div key={member.INT_ADR} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
                                 <div>
-                                    <span className="font-medium">{member.name}</span>
+                                    <span className="font-medium">{member.name || member.Znackar}</span>
                                     <span className="text-sm text-gray-600 ml-2">({member.INT_ADR})</span>
                                 </div>
                                 <div className="flex items-center gap-2">
@@ -71,7 +71,7 @@ export const PaymentRedirectsForm = ({
                                             .filter(m => m.INT_ADR !== member.INT_ADR) // Can't redirect to self
                                             .map((targetMember) => (
                                                 <option key={targetMember.INT_ADR} value={targetMember.INT_ADR}>
-                                                    {targetMember.name}
+                                                    {targetMember.name || targetMember.Znackar}
                                                 </option>
                                             ))}
                                     </select>
@@ -93,7 +93,7 @@ export const PaymentRedirectsForm = ({
                                 
                                 return (
                                     <div key={fromIntAdr} className="text-sm text-blue-700">
-                                        {fromMember.name} → {toMember.name}
+                                        {fromMember.name || fromMember.Znackar} → {toMember.name || toMember.Znackar}
                                     </div>
                                 );
                             })}

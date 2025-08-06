@@ -14,6 +14,12 @@ import { CompensationSummary } from './CompensationSummary';
 import { AdvancedFileUpload } from './AdvancedFileUpload';
 import { SimpleFileUpload } from './SimpleFileUpload';
 
+// Import debug funkcí
+const isDebugMode = () => {
+    const element = document.querySelector('[data-debug]');
+    return element?.dataset?.debug === 'true' || false;
+};
+
 export const StepContent = ({
     activeStep,
     formData,
@@ -35,6 +41,7 @@ export const StepContent = ({
     onSave,
     onSubmit,
     saving,
+    polling,
     fileUploadService
 }) => {
     // Step 0 - Part A
@@ -146,7 +153,7 @@ export const StepContent = ({
                                     Koment_Usek: e.target.value
                                 }))}
                                 rows={6}
-                                disabled={formData.status === 'submitted'}
+                                disabled={formData.status === 'submitted' || formData.status === 'send'}
                             />
                         </div>
 
@@ -167,7 +174,7 @@ export const StepContent = ({
                                 }))}
                                 maxFiles={20}
                                 accept="image/jpeg,image/png,image/heic,application/pdf"
-                                disabled={formData.status === 'submitted'}
+                                disabled={formData.status === 'submitted' || formData.status === 'send'}
                                 maxSize={15}
                             />
                         </div>
@@ -273,10 +280,34 @@ export const StepContent = ({
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 {head?.Druh_ZP === "O" ? (
-                                    <div className="flex justify-between">
-                                        <span className="text-sm text-gray-600">Počet TIM:</span>
-                                        <span className="text-sm">{Object.keys(formData.Stavy_Tim).length}</span>
-                                    </div>
+                                    <>
+                                        <div className="flex justify-between">
+                                            <span className="text-sm text-gray-600">Počet TIM:</span>
+                                            <span className="text-sm">{Object.keys(formData.Stavy_Tim).length}</span>
+                                        </div>
+                                        {formData.Obnovene_Useky && (() => {
+                                            const renewedSections = Object.values(formData.Obnovene_Useky || {})
+                                                .filter(usek => usek.Usek_Obnoven);
+                                            const totalRenewedKm = renewedSections
+                                                .reduce((sum, usek) => sum + (usek.Usek_Obnoven_Km || 0), 0);
+                                            
+                                            if (renewedSections.length > 0) {
+                                                return (
+                                                    <>
+                                                        <div className="flex justify-between">
+                                                            <span className="text-sm text-gray-600">Obnovené úseky:</span>
+                                                            <span className="text-sm">{renewedSections.length}</span>
+                                                        </div>
+                                                        <div className="flex justify-between">
+                                                            <span className="text-sm text-gray-600">Obnoveno celkem:</span>
+                                                            <span className="text-sm font-medium">{totalRenewedKm.toFixed(1)} km</span>
+                                                        </div>
+                                                    </>
+                                                );
+                                            }
+                                            return null;
+                                        })()}
+                                    </>
                                 ) : (
                                     <div className="flex justify-between">
                                         <span className="text-sm text-gray-600">Hlášení vyplněno:</span>
@@ -344,26 +375,132 @@ export const StepContent = ({
                                 <h4 className="text-lg font-semibold">Potvrzení odeslání</h4>
                             </div>
 
-                            <div className="alert alert--info">
-                                Zkontrolujte prosím všechny údaje před odesláním. Po odeslání již nebude možné
-                                hlášení upravovat.
-                            </div>
+                            {/* Status dependent alerts */}
+                            {formData.status === 'draft' && (
+                                <div className="alert alert--info">
+                                    Zkontrolujte prosím všechny údaje před odesláním. Po odeslání již nebude možné
+                                    hlášení upravovat.
+                                </div>
+                            )}
+                            
+                            {formData.status === 'send' && (
+                                <div className="alert alert--warning">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <Loader size="small" center={false} color="orange-600" />
+                                            <strong>Odesílání do INSYZ probíhá...</strong>
+                                        </div>
+                                        {polling?.isPolling && (
+                                            <div className="text-xs text-orange-700 dark:text-orange-300">
+                                                Kontrola {polling.pollCount}/{polling.maxAttempts}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="mt-2 space-y-1">
+                                        <p className="text-sm">
+                                            Hlášení bylo uloženo a odesílá se do systému INSYZ. 
+                                            Proces může trvat několik minut. Formulář je dočasně uzamčen.
+                                        </p>
+                                        {formData.date_send && (
+                                            <p className="text-xs text-orange-700 dark:text-orange-300">
+                                                Odesláno: {new Date(formData.date_send).toLocaleString('cs-CZ')}
+                                            </p>
+                                        )}
+                                    </div>
+                                    {polling?.isPolling && (
+                                        <div className="mt-3">
+                                            <div className="flex items-center justify-between text-xs text-orange-600 dark:text-orange-400">
+                                                <span>Automatická kontrola každých {polling.interval}s</span>
+                                                <button 
+                                                    className="btn btn--sm btn--secondary"
+                                                    onClick={polling.stopPolling}
+                                                >
+                                                    Zastavit kontrolu
+                                                </button>
+                                            </div>
+                                            <div className="w-full bg-orange-200 dark:bg-orange-800 rounded-full h-1.5 mt-2">
+                                                <div 
+                                                    className="bg-orange-600 h-1.5 rounded-full transition-all duration-300" 
+                                                    style={{ width: `${(polling.pollCount / polling.maxAttempts) * 100}%` }}
+                                                ></div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                            
+                            {formData.status === 'submitted' && (
+                                <div className="alert alert--success">
+                                    <strong>Hlášení bylo úspěšně přijato</strong>
+                                    <p className="mt-2 text-sm">
+                                        Hlášení bylo úspěšně přijato systémem INSYZ a nyní čeká na schválení.
+                                    </p>
+                                </div>
+                            )}
+                            
+                            {formData.status === 'approved' && (
+                                <div className="alert alert--success">
+                                    <strong>Hlášení bylo schváleno</strong>
+                                    <p className="mt-2 text-sm">
+                                        Hlášení bylo úspěšně schváleno v systému INSYZ.
+                                    </p>
+                                </div>
+                            )}
+                            
+                            {formData.status === 'rejected' && (
+                                <div className="alert alert--danger">
+                                    <strong>Hlášení bylo zamítnuto</strong>
+                                    <p className="mt-2 text-sm">
+                                        Došlo k chybě při odesílání do INSYZ nebo bylo hlášení zamítnuto. Můžete hlášení opravit a odeslat znovu.
+                                    </p>
+                                    {formData.error_message && (
+                                        <div className="mt-3">
+                                            <p className="text-sm font-medium text-red-800 mb-1">Detaily chyby:</p>
+                                            <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded border border-red-200 dark:border-red-800">
+                                                <p className="text-sm font-mono text-red-700 dark:text-red-300">
+                                                    {formData.error_message}
+                                                </p>
+                                                {formData.error_code && (
+                                                    <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                                                        Kód chyby: {formData.error_code}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                    <div className="mt-3">
+                                        <p className="text-sm text-red-700 dark:text-red-300">
+                                            <strong>Co můžete udělat:</strong>
+                                        </p>
+                                        <ul className="text-sm text-red-600 dark:text-red-400 mt-1 ml-4 list-disc">
+                                            <li>Zkontrolujte všechny vyplněné údaje</li>
+                                            <li>Ověřte připojení k internetu</li>
+                                            <li>Zkuste odeslat znovu za chvíli</li>
+                                            <li>V případě opakovaných problémů kontaktujte administrátora</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            )}
 
                             <div className="flex justify-between">
                                 <button
                                     className="btn btn--secondary"
                                     onClick={() => onStepChange(1)}
+                                    disabled={!isDebugMode() && (formData.status === 'send' || formData.status === 'submitted')}
                                 >
-                                    Zpět na úpravy
+                                    {formData.status === 'rejected' ? 'Upravit a odeslat znovu' : 'Zpět na úpravy'}
                                 </button>
 
                                 <button
                                     className="btn btn--primary btn--large"
-                                    disabled={!canCompletePartA || !canCompletePartB || saving}
+                                    disabled={saving || (!isDebugMode() && (formData.status === 'send' || formData.status === 'submitted'))}
                                     onClick={onSubmit}
                                 >
                                     <IconSend size={20} className="mr-2"/>
-                                    {saving ? 'Odesílání...' : 'Odeslat ke schválení'}
+                                    {saving ? 'Odesílání...' : 
+                                     formData.status === 'send' ? 'Odesílá se do INSYZ...' :
+                                     formData.status === 'submitted' ? 'Odesláno' :
+                                     'Odeslat ke schválení'}
                                 </button>
                             </div>
                         </div>

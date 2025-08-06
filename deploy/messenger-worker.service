@@ -1,0 +1,30 @@
+[Unit]
+Description=Portal Znackar Messenger Worker
+After=network.target mysql.service postgresql.service
+Requires=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=PLACEHOLDER_PATH
+Environment=APP_ENV=prod
+Environment=DATABASE_URL=postgresql://user:password@localhost:5432/portal_db
+ExecStart=/usr/bin/php8.3 PLACEHOLDER_PATH/bin/console messenger:consume async --time-limit=3600 --memory-limit=256M
+Restart=always
+RestartSec=10
+StartLimitInterval=5min
+StartLimitBurst=3
+
+# Logování
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=portal-messenger
+
+# Zabezpečení
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/var/www/portalznackare/var
+
+[Install]
+WantedBy=multi-user.target

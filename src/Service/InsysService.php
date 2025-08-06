@@ -117,6 +117,42 @@ class InsysService
         ];
     }
 
+    public function submitReportToInsys(string $xmlData, string $uzivatel): array
+    {
+        if ($this->useTestData()) {
+            // V testovacím režimu pouze simulujeme úspěšné odeslání
+            // Uložit XML pro kontrolu při testování
+            $xmlDir = $this->kernel->getProjectDir() . '/var/xml-exports';
+            if (!is_dir($xmlDir)) {
+                mkdir($xmlDir, 0755, true);
+            }
+            
+            $filename = sprintf('report-%s-%s.xml', 
+                $uzivatel, 
+                date('Ymd-His')
+            );
+            $filepath = $xmlDir . '/' . $filename;
+            file_put_contents($filepath, $xmlData);
+            
+            return [
+                'success' => true,
+                'message' => 'Test mode: Hlášení bylo simulovaně odesláno do INSYS',
+                'xml_length' => strlen($xmlData),
+                'xml_file' => $filename,
+                'user' => $uzivatel,
+                'timestamp' => date('Y-m-d H:i:s')
+            ];
+        }
+
+        // Volání stored procedure trasy.ZP_Zapis_XML s pojmenovanými parametry
+        $result = $this->connect("trasy.ZP_Zapis_XML", [
+            '@Data_XML' => $xmlData,
+            '@Uzivatel' => $uzivatel
+        ]);
+
+        return $result;
+    }
+
     private function getTestData(): array
     {
         if ($this->testData === null) {

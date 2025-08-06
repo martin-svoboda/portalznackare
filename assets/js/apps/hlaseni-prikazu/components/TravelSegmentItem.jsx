@@ -11,6 +11,10 @@ import {
     IconMapPin
 } from '@tabler/icons-react';
 import { AdvancedFileUpload } from './AdvancedFileUpload';
+import { 
+    getAttachmentsAsArray, 
+    setAttachmentsFromArray 
+} from '../utils/attachmentUtils';
 
 const transportTypeOptions = [
     { value: "AUV", label: "AUV (Auto vlastní)", icon: IconCar },
@@ -270,8 +274,8 @@ export const TravelSegmentItem = ({
                                 <label className="form__label">Přílohy jízdenek</label>
                                 <AdvancedFileUpload
                                     id={`segment-${segment.id}-attachments`}
-                                    files={segment.Prilohy || []}
-                                    onFilesChange={(files) => handleUpdate('Prilohy', files))
+                                    files={getAttachmentsAsArray(segment.Prilohy || {})}
+                                    onFilesChange={(files) => handleUpdate('Prilohy', setAttachmentsFromArray(files))}
                                     maxFiles={10}
                                     accept="image/jpeg,image/png,image/heic,application/pdf"
                                     disabled={disabled}

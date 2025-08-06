@@ -174,6 +174,45 @@ class InsysController extends AbstractController
         }
     }
 
+    #[Route('/submit-report', methods: ['POST'])]
+    public function submitReport(Request $request): JsonResponse
+    {
+        // Použít Symfony Security
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            return new JsonResponse([
+                'error' => 'Nepřihlášený uživatel'
+            ], Response::HTTP_UNAUTHORIZED);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        
+        if (!isset($data['xml_data'])) {
+            return new JsonResponse([
+                'error' => 'Chybí parametr xml_data'
+            ], Response::HTTP_BAD_REQUEST);
+        }
+
+        try {
+            $intAdr = $user->getIntAdr();
+            $xmlData = $data['xml_data'];
+            
+            // Volání stored procedure trasy.ZP_Zapis_XML
+            $result = $this->insysService->submitReportToInsys($xmlData, (string)$intAdr);
+            
+            return new JsonResponse([
+                'success' => true,
+                'message' => 'Hlášení bylo úspěšně odesláno do INSYS',
+                'result' => $result
+            ]);
+            
+        } catch (Exception $e) {
+            return new JsonResponse([
+                'error' => 'Chyba při odesílání hlášení do INSYS: ' . $e->getMessage()
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
     #[Route('/export/batch-prikazy', methods: ['POST'])]
     public function exportBatchPrikazy(Request $request): JsonResponse
     {

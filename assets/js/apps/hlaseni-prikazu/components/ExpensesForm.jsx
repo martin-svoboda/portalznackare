@@ -1,13 +1,17 @@
 import React from 'react';
 import { IconPlus, IconTrash, IconReceipt } from '@tabler/icons-react';
 import { AdvancedFileUpload } from './AdvancedFileUpload';
+import { 
+    getAttachmentsAsArray, 
+    setAttachmentsFromArray 
+} from '../utils/attachmentUtils';
 
 const createEmptyExpense = () => ({
     id: crypto.randomUUID(),
     Datum: new Date(),
     Polozka: "",
     Castka: 0,
-    Prilohy: []
+    Prilohy: {}
 });
 
 export const ExpensesForm = ({
@@ -123,8 +127,8 @@ export const ExpensesForm = ({
                                     <label className="form__label">Doklady</label>
                                     <AdvancedFileUpload
                                         id={`expense-${expense.id}-attachments`}
-                                        files={expense.Prilohy || []}
-                                        onFilesChange={(files) => handleUpdateExpense(expense.id, { Prilohy: files }))
+                                        files={getAttachmentsAsArray(expense.Prilohy || {})}
+                                        onFilesChange={(files) => handleUpdateExpense(expense.id, { Prilohy: setAttachmentsFromArray(files) })}
                                         maxFiles={5}
                                         accept="image/jpeg,image/png,image/heic,application/pdf"
                                         disabled={disabled}

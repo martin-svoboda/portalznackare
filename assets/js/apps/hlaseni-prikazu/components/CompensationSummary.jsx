@@ -13,6 +13,7 @@ import {
     extractTeamMembers,
     isUserLeader
 } from '../utils/compensationCalculator';
+import { log } from '../../../utils/debug';
 
 // Member compensation detail component for compact mode
 const MemberCompensationDetail = ({
@@ -180,19 +181,6 @@ export const CompensationSummary = ({
                                     }) => {
     // ALL HOOKS MUST BE AT THE TOP - React Error #310 fix
 
-    // Debug logging for Error #310 identification
-    useEffect(() => {
-        console.log('CompensationSummary debug:', {
-            hasFormData: !!formData,
-            hasPriceList: !!priceList,
-            hasCurrentUser: !!currentUser,
-            isLeader,
-            teamMembersCount: teamMembers?.length || 0,
-            compact,
-            formDataKeys: formData ? Object.keys(formData) : [],
-            priceListKeys: priceList ? Object.keys(priceList) : []
-        });
-    }, [formData, priceList, currentUser, isLeader, teamMembers, compact]);
 
     // Create stable calculator functions
     const calculateForAllMembers = useCallback((formData, priceList, teamMembers) => {
@@ -206,26 +194,16 @@ export const CompensationSummary = ({
     // Calculate compensation using proper calculator functions
     const compensation = useMemo(() => {
         try {
-            console.log('Calculating compensation...', {
-                hasPriceList: !!priceList,
-                isLeader,
-                teamMembersLength: teamMembers?.length || 0,
-                hasCurrentUser: !!currentUser
-            });
 
             if (!priceList) {
-                console.log('No price list, returning null');
                 return null;
             }
 
             if (isLeader && teamMembers && teamMembers.length > 0) {
-                console.log('Calculating for team members...');
                 // Leader view - show all team members
                 const result = calculateForAllMembers(formData, priceList, teamMembers);
-                console.log('Team calculation result:', result);
                 return result;
             } else if (currentUser) {
-                console.log('Calculating for single user...', currentUser.INT_ADR);
                 // Member view - show only own compensation
                 const singleCompensation = calculateForSingleUser(
                     formData,
@@ -233,18 +211,14 @@ export const CompensationSummary = ({
                     currentUser.INT_ADR
                 );
 
-                console.log('Single compensation result:', singleCompensation);
-
                 // Vrátit ve formátu {INT_ADR: compensation} pro konzistenci
                 const result = singleCompensation ? {[currentUser.INT_ADR]: singleCompensation} : null;
-                console.log('Formatted result:', result);
                 return result;
             }
 
-            console.log('No conditions met, returning null');
             return null;
         } catch (error) {
-            console.error('Error in compensation calculation:', error);
+            log.error('Error in compensation calculation', error);
             return null;
         }
     }, [formData, priceList, isLeader, teamMembers, currentUser, calculateForAllMembers, calculateForSingleUser]);

@@ -18,6 +18,14 @@
             }
         }
         
+        &--error {
+            @apply opacity-100;
+            
+            .stepper__icon {
+                @apply bg-red-500 text-white;
+            }
+        }
+        
         &:hover {
             @apply opacity-80;
         }

@@ -20,7 +20,7 @@ export const StepNavigation = ({
     const steps = [
         {
             label: 'Část A - Vyúčtování',
-            description: partACompleted ? 'Doprava a výdaje' : 'Doprava a výdaje',
+            description: 'Doprava a výdaje',
             icon: <IconCashBanknote size={18}/>,
             completed: partACompleted
         },
@@ -34,7 +34,7 @@ export const StepNavigation = ({
             label: 'Odeslání',
             description: 'Kontrola a odeslání',
             icon: <IconSend size={18}/>,
-            completed: false
+            completed: status === 'send'
         }
     ];
 
@@ -69,7 +69,17 @@ export const StepNavigation = ({
                 className={`!flex-none stepper__step ${'send' === status ? 'stepper__step--active' : ''} ${'submitted' === status ? 'stepper__step--completed' : ''}`}
             >
                 <div className="stepper__icon">
-                    {saving ? <Loader size={'small'} color={'white'} center={false}/> : <IconCheck size={18}/>}
+                    {
+                        status === 'send' || saving ? (
+                            <Loader size={'small'} color={'white'} center={false}/>
+                        ) : status === 'submitted' ? (
+                            <IconCheck size={18}/>
+                        ) : status === 'rejected' ? (
+                            <IconSend size={18} className="text-red-600"/>
+                        ) : (
+                            <IconCheck size={18}/>
+                        )
+                    }
                 </div>
             </div>
         </div>

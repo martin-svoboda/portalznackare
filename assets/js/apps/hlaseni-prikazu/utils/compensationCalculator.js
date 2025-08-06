@@ -232,9 +232,9 @@ export function calculateCompensation(formData, priceList, userIntAdr = null) {
         Vedlejsi_Vydaje: additionalExpenses,
         Hodin_Celkem: totalWorkHours,
         Dny_Prace: workDays,
-        celkem: total, // Zachováno pro backwards compatibility s UI
+        Celkem: total, // Opraveno z 'celkem' na 'Celkem'
         // Dodatečné info pro UI
-        appliedTariff: appliedTariff
+        Tarif: appliedTariff // Opraveno z 'appliedTariff' na 'Tarif'
     };
 }
 
@@ -245,7 +245,7 @@ export function extractTeamMembers(head) {
     if (!head || typeof head !== 'object') return [];
     
     try {
-        return [1, 2, 3]
+        const members = [1, 2, 3]
             .map(i => ({
                 index: i,
                 name: head[`Znackar${i}`],
@@ -253,8 +253,9 @@ export function extractTeamMembers(head) {
                 isLeader: head[`Je_Vedouci${i}`] === "1"
             }))
             .filter(member => member.name?.trim && member.name.trim());
+            
+        return members;
     } catch (error) {
-        console.error('Error in extractTeamMembers:', error);
         return [];
     }
 }
@@ -284,9 +285,11 @@ export function calculateCompensationForAllMembers(formData, priceList, teamMemb
 export function isUserLeader(user, head) {
     if (!user || !head) return false;
     
-    return [1, 2, 3].some(i =>
+    const isLeader = [1, 2, 3].some(i =>
         head[`INT_ADR_${i}`] === user.INT_ADR && head[`Je_Vedouci${i}`] === "1"
     );
+    
+    return isLeader;
 }
 
 /**

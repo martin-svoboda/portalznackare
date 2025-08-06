@@ -1,0 +1,11 @@
+# Crontab pro monitoring Messenger Worker
+# Přidat do crontab: crontab -e
+
+# Monitoring každých 5 minut
+*/5 * * * * /var/www/portalznackare/deploy/messenger-monitor.sh > /dev/null 2>&1
+
+# Denní rotace logů
+0 2 * * * logrotate /var/www/portalznackare/deploy/logrotate.conf
+
+# Týdenní čištění starých XML exportů (volitelné)
+0 3 * * 0 find /var/www/portalznackare/var/xml-exports -name "*.xml" -mtime +30 -delete

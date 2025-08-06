@@ -142,6 +142,64 @@ const handleSubmit = (formData) => {
 - Pouze chyby
 - Minimální performance impact
 
+## Background Jobs (Symfony Messenger)
+
+### Přehled
+Symfony Messenger poskytuje asynchronní zpracování úloh v pozadí pomocí Message Bus pattern. Používá se pro náročné operace jako je odesílání do INSYZ systému.
+
+### Konfigurace
+```yaml
+# config/packages/messenger.yaml
+framework:
+    messenger:
+        transports:
+            async:
+                dsn: 'doctrine://default'
+                options:
+                    auto_setup: true
+            failed:
+                dsn: 'doctrine://default?queue_name=failed'
+        routing:
+            App\Message\SendToInsyzMessage:
+                senders: ['async']
+                retry_strategy:
+                    max_retries: 3
+                    delay: 1000
+                    multiplier: 2
+```
+
+### Použití pro INSYZ submission
+```php
+// Message
+class SendToInsyzMessage
+{
+    public function __construct(
+        private int $reportId,
+        private array $reportData,
+        private string $environment = 'test'
+    ) {}
+}
+
+// Handler
+#[AsMessageHandler]
+class SendToInsyzHandler
+{
+    public function __invoke(SendToInsyzMessage $message): void
+    {
+        // Zpracování v pozadí
+        $this->processInsyzSubmission($message);
+    }
+}
+
+// Dispatch z controlleru
+$this->messageBus->dispatch(new SendToInsyzMessage($reportId, $data));
+```
+
+### Database Transport
+- **Výhoda:** Spolehlivé ukládání jobs v PostgreSQL
+- **Konzumace:** `php bin/console messenger:consume async`
+- **Monitoring:** Jobs jsou viditelné v `messenger_messages` tabulce
+
 ## Nástroje a rozšíření
 
 ### Browser Developer Tools

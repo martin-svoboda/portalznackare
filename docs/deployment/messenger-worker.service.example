@@ -1,0 +1,25 @@
+# Systemd service pro messenger worker
+# Umístit do: /etc/systemd/system/portal-messenger.service
+
+[Unit]
+Description=Portal Messenger Worker
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/portal
+ExecStart=/usr/bin/php bin/console messenger:consume async --limit=100 --memory-limit=256M
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+
+# Aktivace:
+# sudo systemctl daemon-reload
+# sudo systemctl enable portal-messenger.service
+# sudo systemctl start portal-messenger.service

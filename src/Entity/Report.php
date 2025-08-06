@@ -137,7 +137,7 @@ class Report
         return $this->history;
     }
 
-    public function addHistoryEntry(string $action, array $user, string $details, array $data = []): static
+    public function addHistoryEntry(string $action, int $user, string $details, array $data = []): static
     {
         $this->history[] = [
             'timestamp' => (new \DateTimeImmutable())->format('c'),

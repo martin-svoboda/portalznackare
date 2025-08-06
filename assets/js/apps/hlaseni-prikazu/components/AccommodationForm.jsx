@@ -1,6 +1,10 @@
 import React from 'react';
 import { IconPlus, IconTrash, IconBed } from '@tabler/icons-react';
 import { AdvancedFileUpload } from './AdvancedFileUpload';
+import { 
+    getAttachmentsAsArray, 
+    setAttachmentsFromArray 
+} from '../utils/attachmentUtils';
 
 const createEmptyAccommodation = () => ({
     id: crypto.randomUUID(),
@@ -8,7 +12,7 @@ const createEmptyAccommodation = () => ({
     Zarizeni: "",
     Misto: "",
     Castka: 0,
-    Prilohy: []
+    Prilohy: {}
 });
 
 export const AccommodationForm = ({
@@ -137,8 +141,8 @@ export const AccommodationForm = ({
                                     <label className="form__label">Doklady</label>
                                     <AdvancedFileUpload
                                         id={`accommodation-${accommodation.id}-attachments`}
-                                        files={accommodation.Prilohy || []}
-                                        onFilesChange={(files) => handleUpdateAccommodation(accommodation.id, { Prilohy: files }))
+                                        files={getAttachmentsAsArray(accommodation.Prilohy || {})}
+                                        onFilesChange={(files) => handleUpdateAccommodation(accommodation.id, { Prilohy: setAttachmentsFromArray(files) })}
                                         maxFiles={5}
                                         accept="image/jpeg,image/png,image/heic,application/pdf"
                                         disabled={disabled}

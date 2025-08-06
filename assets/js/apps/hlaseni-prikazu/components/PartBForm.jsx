@@ -8,7 +8,12 @@ import {
     IconMapPin
 } from '@tabler/icons-react';
 import { AdvancedFileUpload } from './AdvancedFileUpload';
+import { RenewedSectionsForm } from './RenewedSectionsForm';
 import { renderHtmlContent, replaceTextWithIcons } from '../../../utils/htmlUtils';
+import { 
+    getAttachmentsAsArray, 
+    setAttachmentsFromArray 
+} from '../utils/attachmentUtils';
 
 const statusOptions = [
     { value: "1", label: "1 - Nová", color: "green" },
@@ -52,12 +57,24 @@ export const validateAllTimItemsCompleted = (predmety, Stavy_Tim) => {
         const legacyId = getLegacyItemIdentifier(item);
         
         // Look for this item in any TIM report
-        return Object.values(Stavy_Tim).some(timReport => 
-            timReport.Predmety?.some(status => 
-                status.ID_PREDMETY === primaryId || 
-                status.ID_PREDMETY === legacyId
-            )
-        );
+        return Object.values(Stavy_Tim).some(timReport => {
+            if (!timReport.Predmety) return false;
+            
+            // Support both object and array structures during transition
+            if (Array.isArray(timReport.Predmety)) {
+                // Legacy array structure
+                return timReport.Predmety.some(status => 
+                    status.ID_PREDMETY === primaryId || 
+                    status.ID_PREDMETY === legacyId
+                );
+            } else if (typeof timReport.Predmety === 'object') {
+                // New object structure with ID_PREDMETY as key
+                return timReport.Predmety[primaryId] !== undefined || 
+                       timReport.Predmety[legacyId] !== undefined;
+            }
+            
+            return false;
+        });
     });
 };
 
@@ -122,58 +139,35 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
         const timReport = formData.Stavy_Tim[timId] || {
             EvCi_TIM: timId,
             Koment_NP: "",
-            Prilohy_NP: [],
-            Predmety: [],
-            Prilohy_TIM: []
+            Prilohy_NP: {},
+            Predmety: {},
+            Prilohy_TIM: {}
         };
 
         const primaryId = getItemIdentifier(item);
         const legacyId = getLegacyItemIdentifier(item);
 
-        const existingStatusIndex = (timReport.Predmety || []).findIndex(s => 
-            s.ID_PREDMETY === primaryId
-        );
-        const newPredmety = [...(timReport.Predmety || [])];
+        const newPredmety = { ...(timReport.Predmety || {}) };
 
-        if (existingStatusIndex >= 0) {
-            newPredmety[existingStatusIndex] = {
-                ...newPredmety[existingStatusIndex],
-                ...status,
-                ID_PREDMETY: primaryId,
-                // Complete metadata for full traceability
-                metadata: {
-                    ID_PREDMETY: item.ID_PREDMETY,
-                    EvCi_TIM: item.EvCi_TIM,
-                    Predmet_Index: item.Predmet_Index,
-                    Druh_Predmetu: item.Druh_Predmetu,
-                    Druh_Predmetu_Naz: item.Druh_Predmetu_Naz,
-                    Radek1: item.Radek1,
-                    Barva_Kod: item.Barva_Kod,
-                    Barva: item.Barva,
-                    Smerovani: item.Smerovani,
-                    lastUpdated: new Date().toISOString()
-                }
-            };
-        } else {
-            newPredmety.push({
-                ID_PREDMETY: primaryId,
-                Zachovalost: 1,
-                ...status,
-                // Complete metadata for full traceability
-                metadata: {
-                    ID_PREDMETY: item.ID_PREDMETY,
-                    EvCi_TIM: item.EvCi_TIM,
-                    Predmet_Index: item.Predmet_Index,
-                    Druh_Predmetu: item.Druh_Predmetu,
-                    Druh_Predmetu_Naz: item.Druh_Predmetu_Naz,
-                    Radek1: item.Radek1,
-                    Barva_Kod: item.Barva_Kod,
-                    Barva: item.Barva,
-                    Smerovani: item.Smerovani,
-                    createdAt: new Date().toISOString()
-                }
-            });
-        }
+        newPredmety[primaryId] = {
+            ...newPredmety[primaryId],
+            ID_PREDMETY: primaryId,
+            Zachovalost: newPredmety[primaryId]?.Zachovalost || 1,
+            ...status,
+            // Complete metadata for full traceability
+            metadata: {
+                ID_PREDMETY: item.ID_PREDMETY,
+                EvCi_TIM: item.EvCi_TIM,
+                Predmet_Index: item.Predmet_Index,
+                Druh_Predmetu: item.Druh_Predmetu,
+                Druh_Predmetu_Naz: item.Druh_Predmetu_Naz,
+                Radek1: item.Radek1,
+                Barva_Kod: item.Barva_Kod,
+                Barva: item.Barva,
+                Smerovani: item.Smerovani,
+                lastUpdated: new Date().toISOString()
+            }
+        };
 
         updateTimReport(timId, {
             ...timReport,
@@ -183,14 +177,21 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
 
     const getItemStatus = (timId, item) => {
         const timReport = formData.Stavy_Tim[timId];
-        if (!timReport) return undefined;
+        if (!timReport || !timReport.Predmety) return undefined;
 
         const primaryId = getItemIdentifier(item);
-        const legacyId = getLegacyItemIdentifier(item);
-
-        return (timReport.Predmety || []).find(s => 
-            s.ID_PREDMETY === primaryId
-        );
+        
+        // Support both object and array structures during transition
+        if (Array.isArray(timReport.Predmety)) {
+            // Legacy array structure
+            return timReport.Predmety.find(status => 
+                status.ID_PREDMETY === primaryId || 
+                status.ID_PREDMETY === getLegacyItemIdentifier(item)
+            );
+        } else {
+            // New object structure with ID_PREDMETY as key
+            return timReport.Predmety[primaryId];
+        }
     };
 
     const getTimCompletionStatus = (timId) => {
@@ -200,7 +201,18 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
         if (!timData || !timReport) return { completed: false, total: 0, filled: 0 };
 
         const requiredFields = timData.items.length;
-        const filledFields = (timReport.Predmety || []).filter(status => {
+        
+        // Support both object and array structures during transition
+        let predmetyToCheck = [];
+        if (Array.isArray(timReport.Predmety)) {
+            // Legacy array structure
+            predmetyToCheck = timReport.Predmety || [];
+        } else if (timReport.Predmety && typeof timReport.Predmety === 'object') {
+            // New object structure with ID_PREDMETY as key
+            predmetyToCheck = Object.values(timReport.Predmety);
+        }
+        
+        const filledFields = predmetyToCheck.filter(status => {
             if (!status.Zachovalost) return false;
             if (status.Zachovalost === 3 || status.Zachovalost === 4) return true; // Nevyhovující/chybí don't require additional data
 
@@ -344,11 +356,11 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                             <label className="form__label mb-2 block">Fotografické přílohy k nosnému prvku</label>
                                                             <AdvancedFileUpload
                                                                 id={`structural-${timGroup.EvCi_TIM}`}
-                                                                files={timReport?.Prilohy_NP || []}
+                                                                files={getAttachmentsAsArray(timReport?.Prilohy_NP || {})}
                                                                 onFilesChange={(files) => updateTimReport(timGroup.EvCi_TIM, {
                                                                     ...(timReport || {}),
                                                                     EvCi_TIM: timGroup.EvCi_TIM,
-                                                                    Prilohy_NP: files
+                                                                    Prilohy_NP: setAttachmentsFromArray(files)
                                                                 })}
                                                                 maxFiles={5}
                                                                 accept="image/jpeg,image/png,image/heic"
@@ -537,7 +549,7 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                                                             max={new Date().getFullYear()}
                                                                                             value={itemStatus?.Rok_Vyroby || ""}
                                                                                             onChange={(e) => {
-                                                                                                const year = e.target.value ? parseInt(e.target.value) : null;
+                                                                                                const year = e.target.value ? e.target.value : null;
                                                                                                 updateItemStatus(
                                                                                                     timGroup.EvCi_TIM,
                                                                                                     item,
@@ -622,11 +634,11 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                         </label>
                                                         <AdvancedFileUpload
                                                             id={`photos-${timGroup.EvCi_TIM}`}
-                                                            files={timReport?.Prilohy_TIM || []}
+                                                            files={getAttachmentsAsArray(timReport?.Prilohy_TIM || {})}
                                                             onFilesChange={(files) => updateTimReport(timGroup.EvCi_TIM, {
                                                                 ...(timReport || {}),
                                                                 EvCi_TIM: timGroup.EvCi_TIM,
-                                                                Prilohy_TIM: files
+                                                                Prilohy_TIM: setAttachmentsFromArray(files)
                                                             })}
                                                             maxFiles={10}
                                                             accept="image/jpeg,image/png,image/heic"
@@ -644,6 +656,17 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                     )}
                 </div>
             </div>
+
+            {/* Renewed route sections */}
+            <RenewedSectionsForm
+                useky={useky}
+                Obnovene_Useky={formData.Obnovene_Useky || {}}
+                onObnoveneUsekyChange={(obnoveneUseky) => setFormData(prev => ({ 
+                    ...prev, 
+                    Obnovene_Useky: obnoveneUseky 
+                }))}
+                disabled={formData.status === 'submitted' || formData.status === 'send'}
+            />
 
             {/* Route section comment */}
             <div className="card">
@@ -676,8 +699,8 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                         </label>
                         <AdvancedFileUpload
                             id="route-attachments"
-                            files={formData.Prilohy_Usek || []}
-                            onFilesChange={(files) => setFormData(prev => ({ ...prev, Prilohy_Usek: files }))}
+                            files={getAttachmentsAsArray(formData.Prilohy_Usek || {})}
+                            onFilesChange={(files) => setFormData(prev => ({ ...prev, Prilohy_Usek: setAttachmentsFromArray(files) }))}
                             maxFiles={10}
                             accept="image/jpeg,image/png,image/heic"
                             maxSize={15}
@@ -743,8 +766,8 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                     </label>
                                     <AdvancedFileUpload
                                         id="Souhlasi_Mapa-attachments"
-                                        files={formData.Prilohy_Mapa || []}
-                                        onFilesChange={(files) => setFormData(prev => ({ ...prev, Prilohy_Mapa: files }))}
+                                        files={getAttachmentsAsArray(formData.Prilohy_Mapa || {})}
+                                        onFilesChange={(files) => setFormData(prev => ({ ...prev, Prilohy_Mapa: setAttachmentsFromArray(files) }))}
                                         maxFiles={5}
                                         accept="image/jpeg,image/png,image/heic"
                                         maxSize={15}

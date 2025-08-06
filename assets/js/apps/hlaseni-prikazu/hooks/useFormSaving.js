@@ -12,6 +12,7 @@ import {
     calculateCompensationForAllMembers,
     extractTeamMembers
 } from '../utils/compensationCalculator';
+import { convertAttachmentsObjectToArray } from '../utils/attachmentUtils';
 
 // Helper functions for date/time formatting
 const formatDateOnly = (date) => {
@@ -71,7 +72,7 @@ const serializeTravelSegment = (segment) => {
                 cleanSegment.Naklady = filteredNaklady;
             }
         }
-        cleanSegment.Prilohy = segment.Prilohy || [];
+        cleanSegment.Prilohy = convertAttachmentsObjectToArray(segment.Prilohy || {});
     }
     // For "P" (walking) and "K" (bike) - no additional fields needed
 
@@ -97,7 +98,7 @@ const serializeAccommodation = (accommodation) => {
         Datum: formatDateOnly(accommodation.Datum),
         Castka: accommodation.Castka || 0,
         Zaplatil: accommodation.Zaplatil || "",
-        Prilohy: accommodation.Prilohy || []
+        Prilohy: convertAttachmentsObjectToArray(accommodation.Prilohy || {})
     };
 };
 
@@ -108,24 +109,31 @@ const serializeExpense = (expense) => {
         Castka: expense.Castka || 0,
         Zaplatil: expense.Zaplatil || "",
         Datum: formatDateOnly(expense.Datum),
-        Prilohy: expense.Prilohy || []
+        Prilohy: convertAttachmentsObjectToArray(expense.Prilohy || {})
     };
 };
 
 const serializeTeamMember = (member) => {
-    return {
+    const serialized = {
         index: member.index,
         Znackar: member.name || member.Znackar || "",
         INT_ADR: member.INT_ADR,
-        Je_Vedouci: member.isLeader || member.Je_Vedouci || false
+        Je_Vedouci: member.isLeader || member.Je_Vedouci || member.je_vedouci || false
     };
+    return serialized;
 };
 
-export const useFormSaving = (formData, head, prikazId, priceList, isLeader, teamMembers, currentUser) => {
+export const useFormSaving = (formData, head, prikazId, priceList, isLeader, teamMembers, currentUser, reportLoaded = false) => {
     const [saving, setSaving] = useState(false);
 
     // Handle save operation
     const handleSave = useCallback(async (final = false) => {
+        // Ochrana proti přepsání dat před jejich načtením
+        if (!reportLoaded) {
+            log.error('Pokus o uložení před načtením existujících dat - blokováno');
+            return false;
+        }
+
         setSaving(true);
 
         try {
@@ -154,12 +162,38 @@ export const useFormSaving = (formData, head, prikazId, priceList, isLeader, tea
                     Presmerovani_Vyplat: formData.Presmerovani_Vyplat || {}
                 },
                 data_b: {
-                    Stavy_Tim: formData.Stavy_Tim,
+                    Stavy_Tim: (() => {
+                        const serializedStavyTim = {};
+                        Object.entries(formData.Stavy_Tim || {}).forEach(([timId, timReport]) => {
+                            serializedStavyTim[timId] = {
+                                ...timReport,
+                                Prilohy_NP: convertAttachmentsObjectToArray(timReport.Prilohy_NP || {}),
+                                Prilohy_TIM: convertAttachmentsObjectToArray(timReport.Prilohy_TIM || {}),
+                                // Serialize Predmety attachments if they exist
+                                Predmety: (() => {
+                                    if (!timReport.Predmety || typeof timReport.Predmety !== 'object') {
+                                        return timReport.Predmety || {};
+                                    }
+                                    
+                                    const serializedPredmety = {};
+                                    Object.entries(timReport.Predmety).forEach(([predmetId, predmet]) => {
+                                        serializedPredmety[predmetId] = {
+                                            ...predmet,
+                                            Prilohy: convertAttachmentsObjectToArray(predmet.Prilohy || {})
+                                        };
+                                    });
+                                    return serializedPredmety;
+                                })()
+                            };
+                        });
+                        return serializedStavyTim;
+                    })(),
                     Koment_Usek: formData.Koment_Usek,
-                    Prilohy_Usek: formData.Prilohy_Usek,
+                    Prilohy_Usek: convertAttachmentsObjectToArray(formData.Prilohy_Usek || {}),
+                    Obnovene_Useky: formData.Obnovene_Useky || {},
                     Souhlasi_Mapa: formData.Souhlasi_Mapa,
                     Koment_Mapa: formData.Koment_Mapa,
-                    Prilohy_Mapa: formData.Prilohy_Mapa,
+                    Prilohy_Mapa: convertAttachmentsObjectToArray(formData.Prilohy_Mapa || {}),
                     Cast_B_Dokoncena: formData.Cast_B_Dokoncena
                 },
                 calculation: (() => {
@@ -206,7 +240,36 @@ export const useFormSaving = (formData, head, prikazId, priceList, isLeader, tea
             return true;
         } catch (error) {
             log.error('Chyba při ukládání hlášení', error);
-            // Error notification is handled by api.js
+            
+            // Detailní zpracování chyb pro uživatele
+            let errorMessage = 'Chyba při ukládání hlášení';
+            let errorType = 'error';
+            
+            if (error.status) {
+                switch (error.status) {
+                    case 400:
+                        errorMessage = 'Neplatná data v hlášení. Zkontrolujte všechny povinné údaje.';
+                        errorType = 'warning';
+                        break;
+                    case 409:
+                        errorMessage = 'Hlášení už bylo odesláno a je v procesu zpracování.';
+                        errorType = 'info';
+                        break;
+                    case 503:
+                        errorMessage = 'Služba je dočasně nedostupná. Zkuste to za chvíli.';
+                        errorType = 'warning';
+                        break;
+                    case 500:
+                        errorMessage = 'Vnitřní chyba serveru. Kontaktujte administrátora.';
+                        break;
+                    default:
+                        errorMessage = `Chyba při komunikaci se serverem (${error.status})`;
+                }
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+            
+            showNotification(errorType, errorMessage);
             return false;
         } finally {
             setSaving(false);
@@ -218,7 +281,8 @@ export const useFormSaving = (formData, head, prikazId, priceList, isLeader, tea
         priceList, 
         isLeader, 
         teamMembers, 
-        currentUser
+        currentUser,
+        reportLoaded
     ]);
 
     // Save as draft
@@ -226,15 +290,199 @@ export const useFormSaving = (formData, head, prikazId, priceList, isLeader, tea
         return handleSave(false);
     }, [handleSave]);
 
-    // Submit final report
+    // Submit final report (old method - still used for final submission after validation)
     const submitReport = useCallback(() => {
         return handleSave(true);
     }, [handleSave]);
+
+    // Submit for approval - saves with 'send' status and triggers background processing
+    const submitForApproval = useCallback(async (setFormData) => {
+        // Ochrana proti přepsání dat před jejich načtením
+        if (!reportLoaded) {
+            log.error('Pokus o uložení před načtením existujících dat - blokováno');
+            return false;
+        }
+
+        setSaving(true);
+
+        try {
+            // Fallback pro teamMembers - pokud jsou prázdné, vytvoř je z head dat
+            const rawTeamMembers = teamMembers.length > 0 
+                ? teamMembers 
+                : head ? extractTeamMembers(head) : [];
+
+            const data = {
+                id_zp: prikazId,
+                cislo_zp: head?.Cislo_ZP || '',
+                znackari: rawTeamMembers.map(serializeTeamMember),
+                data_a: {
+                    Datum_Provedeni: formatDateOnly(formData.Datum_Provedeni),
+                    Skupiny_Cest: (formData.Skupiny_Cest || [])
+                        .filter(group => group && group.id)
+                        .map(serializeTravelGroup),
+                    Zvysena_Sazba: formData.Zvysena_Sazba || false,
+                    Noclezne: (formData.Noclezne || [])
+                        .filter(accommodation => accommodation && accommodation.id)
+                        .map(serializeAccommodation),
+                    Vedlejsi_Vydaje: (formData.Vedlejsi_Vydaje || [])
+                        .filter(expense => expense && expense.id)
+                        .map(serializeExpense),
+                    Cast_A_Dokoncena: formData.Cast_A_Dokoncena || false,
+                    Presmerovani_Vyplat: formData.Presmerovani_Vyplat || {}
+                },
+                data_b: {
+                    Stavy_Tim: (() => {
+                        const serializedStavyTim = {};
+                        Object.entries(formData.Stavy_Tim || {}).forEach(([timId, timReport]) => {
+                            serializedStavyTim[timId] = {
+                                ...timReport,
+                                Prilohy_NP: convertAttachmentsObjectToArray(timReport.Prilohy_NP || {}),
+                                Prilohy_TIM: convertAttachmentsObjectToArray(timReport.Prilohy_TIM || {}),
+                                // Serialize Predmety attachments if they exist
+                                Predmety: (() => {
+                                    if (!timReport.Predmety || typeof timReport.Predmety !== 'object') {
+                                        return timReport.Predmety || {};
+                                    }
+                                    
+                                    const serializedPredmety = {};
+                                    Object.entries(timReport.Predmety).forEach(([predmetId, predmet]) => {
+                                        serializedPredmety[predmetId] = {
+                                            ...predmet,
+                                            Prilohy: convertAttachmentsObjectToArray(predmet.Prilohy || {})
+                                        };
+                                    });
+                                    return serializedPredmety;
+                                })()
+                            };
+                        });
+                        return serializedStavyTim;
+                    })(),
+                    Koment_Usek: formData.Koment_Usek,
+                    Prilohy_Usek: convertAttachmentsObjectToArray(formData.Prilohy_Usek || {}),
+                    Obnovene_Useky: formData.Obnovene_Useky || {},
+                    Souhlasi_Mapa: formData.Souhlasi_Mapa,
+                    Koment_Mapa: formData.Koment_Mapa,
+                    Prilohy_Mapa: convertAttachmentsObjectToArray(formData.Prilohy_Mapa || {}),
+                    Cast_B_Dokoncena: formData.Cast_B_Dokoncena
+                },
+                calculation: (() => {
+                    if (!priceList) return {};
+                    
+                    if (isLeader && teamMembers.length > 0) {
+                        // Vedoucí - výpočet pro všechny členy týmu
+                        return calculateCompensationForAllMembers(
+                            formData,
+                            priceList,
+                            teamMembers
+                        );
+                    } else if (currentUser) {
+                        // Člen - výpočet jen pro sebe
+                        const compensation = calculateCompensation(
+                            formData,
+                            priceList,
+                            currentUser.INT_ADR
+                        );
+                        
+                        // Vrátit ve formátu {INT_ADR: compensation} pro konzistenci
+                        return compensation ? { [currentUser.INT_ADR]: compensation } : {};
+                    }
+                    
+                    return {};
+                })(),
+                state: 'send' // Key difference: save with 'send' status for background processing
+            };
+
+            log.info(`Odesílání hlášení ke schválení pro příkaz ${prikazId}`, { 
+                dataSize: JSON.stringify(data).length,
+                state: data.state,
+                endpoint: 'POST /portal/report'
+            });
+
+            const response = await api.prikazy.saveReport(data);
+            
+            log.info('Response from saveReport:', response);
+
+            log.info('Hlášení odesláno do INSYZ - čeká na zpracování');
+            showNotification('success', 'Hlášení bylo odesláno do INSYZ a nyní se zpracovává');
+
+            // Okamžitě aktualizuj stav v UI
+            if (setFormData && response.success) {
+                setFormData(prev => ({
+                    ...prev,
+                    status: 'send',
+                    date_send: new Date().toISOString(),
+                    // Vymaž případné staré chyby
+                    error_message: undefined,
+                    error_code: undefined,
+                    error_details: undefined
+                }));
+            }
+
+            return true;
+        } catch (error) {
+            log.error('Chyba při odesílání ke schválení', error);
+            
+            // Detailní zpracování chyb pro uživatele
+            let errorMessage = 'Chyba při odesílání ke schválení';
+            let errorType = 'error';
+            
+            if (error.status) {
+                switch (error.status) {
+                    case 400:
+                        errorMessage = 'Neplatná data v hlášení. Zkontrolujte všechny povinné údaje před odesláním.';
+                        errorType = 'warning';
+                        break;
+                    case 409:
+                        errorMessage = 'Hlášení už bylo odesláno a je v procesu zpracování.';
+                        errorType = 'info';
+                        break;
+                    case 503:
+                        errorMessage = 'Služba je dočasně nedostupná. Zkuste odeslat znovu za chvíli.';
+                        errorType = 'warning';
+                        break;
+                    case 500:
+                        errorMessage = 'Vnitřní chyba serveru při odesílání. Kontaktujte administrátora.';
+                        break;
+                    default:
+                        errorMessage = `Chyba při komunikaci se serverem při odesílání (${error.status})`;
+                }
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+            
+            showNotification(errorType, errorMessage);
+            
+            // Uložit chybové informace do formData pro zobrazení v UI
+            if (setFormData) {
+                setFormData(prev => ({
+                    ...prev,
+                    status: 'rejected',
+                    error_message: errorMessage,
+                    error_code: error.errorCode || 'UNKNOWN_ERROR',
+                    error_details: error.details
+                }));
+            }
+            
+            return false;
+        } finally {
+            setSaving(false);
+        }
+    }, [
+        formData, 
+        head, 
+        prikazId, 
+        priceList, 
+        isLeader, 
+        teamMembers, 
+        currentUser,
+        reportLoaded
+    ]);
 
     return {
         saving,
         handleSave,
         saveDraft,
-        submitReport
+        submitReport,
+        submitForApproval
     };
 };

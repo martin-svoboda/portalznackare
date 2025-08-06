@@ -14,6 +14,7 @@ use_dns_when_possible: true
 composer_version: "2"
 web_environment:
     - SYMFONY_ENV=dev
+    - USE_TEST_DATA=true
     - DEBUG_PHP=true
     - DEBUG_LOG=true
     - DEBUG_APPS=true

@@ -15,6 +15,10 @@ import {
     IconCurrencyDollar
 } from '@tabler/icons-react';
 import {AdvancedFileUpload} from './AdvancedFileUpload';
+import { 
+    getAttachmentsAsArray, 
+    setAttachmentsFromArray 
+} from '../utils/attachmentUtils';
 
 const druhDopravyOptions = [
     {value: "AUV", label: "AUV (Auto vlastní)", icon: IconCar},
@@ -39,7 +43,7 @@ const createEmptyTravelSegment = () => ({
     Druh_Dopravy: "AUV",
     Kilometry: undefined, // Undefined místo 0 pro prázdné pole
     Naklady: undefined,
-    Prilohy: []
+    Prilohy: {}
 });
 
 export const TravelGroupsForm = ({
@@ -52,6 +56,7 @@ export const TravelGroupsForm = ({
                                      fileUploadService,
                                      currentUser
                                  }) => {
+    
     // Generate storage path for this report
     const storagePath = useMemo(() => {
         if (!prikazId) return null;
@@ -177,7 +182,7 @@ export const TravelGroupsForm = ({
             // Vymazat časy
             Cas_Odjezdu: "",
             Cas_Prijezdu: "",
-            Prilohy: [] // Don't duplicate Prilohy
+            Prilohy: {} // Don't duplicate Prilohy
         };
 
         updateGroupField(groupId, {
@@ -214,7 +219,7 @@ export const TravelGroupsForm = ({
     // Get team member name by INT_ADR
     const getTeamMemberName = (intAdr) => {
         const member = (teamMembers || []).find(m => m.INT_ADR === intAdr);
-        return member?.name || `Člen ${intAdr}`;
+        return member?.name || member?.Znackar || `Člen ${intAdr}`;
     };
 
     // Handle higher rate change for radio buttons
@@ -272,7 +277,7 @@ export const TravelGroupsForm = ({
 
     const travelGroups = formData.Skupiny_Cest || [];
 
-    const isFormDisabled = formData.status === 'submitted';
+    const isFormDisabled = formData.status === 'submitted' || formData.status === 'send';
 
     return (
         <div className="space-y-6">
@@ -319,7 +324,7 @@ export const TravelGroupsForm = ({
                                                         }}
                                                         disabled={isFormDisabled}
                                                     />
-                                                    <span className="text-sm">{member.name}</span>
+                                                    <span className="text-sm">{member.name || member.Znackar || 'Neznámý člen'}</span>
                                                 </label>
                                             );
                                         })}
@@ -564,7 +569,7 @@ export const TravelGroupsForm = ({
                                                                                      className="flex gap-1">
                                                                                     <span
                                                                                         className="text-xs min-w-min w-20">
-                                                                                        {member?.name || `Člen ${intAdr}`}:
+                                                                                        {member?.name || member?.Znackar || `Člen ${intAdr}`}:
                                                                                     </span>
                                                                                         <input
                                                                                             type="number"
@@ -613,8 +618,8 @@ export const TravelGroupsForm = ({
                                                             doklady</label>
                                                         <AdvancedFileUpload
                                                             id={`segment-${segment.id}`}
-                                                            files={segment.Prilohy ?? []}
-                                                            onFilesChange={(files) => updateSegmentField(group.id, segment.id, {Prilohy: files})}
+                                                            files={getAttachmentsAsArray(segment.Prilohy || {})}
+                                                            onFilesChange={(files) => updateSegmentField(group.id, segment.id, {Prilohy: setAttachmentsFromArray(files)})}
                                                             maxFiles={10}
                                                             accept="image/jpeg,image/png,image/heic,application/pdf"
                                                             maxSize={10}
@@ -665,7 +670,7 @@ export const TravelGroupsForm = ({
                                                     const member = teamMembers.find(m => m.INT_ADR === intAdr);
                                                     return member ? (
                                                         <option key={intAdr} value={intAdr}>
-                                                            {member.name}{member.isLeader ? " (vedoucí)" : ""}
+                                                            {member.name || member.Znackar}{(member.isLeader || member.Je_Vedouci) ? " (vedoucí)" : ""}
                                                         </option>
                                                     ) : null;
                                                 })}

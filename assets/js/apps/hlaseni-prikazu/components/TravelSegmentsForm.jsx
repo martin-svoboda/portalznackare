@@ -1,6 +1,10 @@
 import React from 'react';
 import { IconPlus, IconMapPin } from '@tabler/icons-react';
 import { TravelSegmentItem } from './TravelSegmentItem';
+import { 
+    getAttachmentsAsArray, 
+    setAttachmentsFromArray 
+} from '../utils/attachmentUtils';
 
 const createEmptyTravelSegment = () => ({
     id: crypto.randomUUID(),
@@ -12,7 +16,7 @@ const createEmptyTravelSegment = () => ({
     Druh_Dopravy: "AUV",
     Kilometry: 0,
     Naklady: 0,
-    Prilohy: []
+    Prilohy: {}
 });
 
 export const TravelSegmentsForm = ({
@@ -42,7 +46,7 @@ export const TravelSegmentsForm = ({
         const duplicatedSegment = {
             ...originalSegment,
             id: crypto.randomUUID(),
-            Prilohy: [] // Don't duplicate attachments
+            Prilohy: {} // Don't duplicate attachments
         };
         onSegmentsChange([...segments, duplicatedSegment]);
     };

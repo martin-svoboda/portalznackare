@@ -16,7 +16,7 @@ const createEmptyTravelSegment = () => ({
     Druh_Dopravy: "AUV",
     Kilometry: 0,
     Naklady: 0,
-    Prilohy: []
+    Prilohy: {} // Changed from [] to {}
 });
 
 // Helper for creating empty travel group
@@ -40,7 +40,8 @@ const createInitialFormData = () => ({
     Cast_B_Dokoncena: false,
     Stavy_Tim: {},
     Koment_Usek: "",
-    Prilohy_Usek: [],
+    Prilohy_Usek: {}, // Changed from [] to {}
+    Obnovene_Useky: {},
     Presmerovani_Vyplat: {},
     Status: 'draft'
 });

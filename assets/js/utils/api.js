@@ -59,8 +59,21 @@ export async function apiCall(endpoint, options = {}) {
         
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            const message = errorData.message || `HTTP ${response.status}`;
-            throw new ApiError(response.status, message);
+            
+            // Podrobná chybová zpráva z serveru
+            let message = errorData.error || errorData.message || `HTTP ${response.status}`;
+            
+            // Přidej dodatečné informace pokud jsou k dispozici
+            if (errorData.error_code) {
+                message += ` (${errorData.error_code})`;
+            }
+            
+            const error = new ApiError(response.status, message);
+            error.errorCode = errorData.error_code;
+            error.details = errorData.details;
+            error.success = errorData.success;
+            
+            throw error;
         }
 
         const result = await response.json();
@@ -115,7 +128,11 @@ export const api = {
 
     insys: {
         user: () => api.get('/insys/user'),
-        ceniky: (date) => api.get('/insys/ceniky', { date })
+        ceniky: (date) => api.get('/insys/ceniky', { date }),
+        submitReport: (xmlData) => api.post('/insys/submit-report', { xml_data: xmlData }, {
+            showSuccess: true,
+            successMessage: 'Hlášení bylo úspěšně odesláno do INSYS'
+        })
     },
 
     auth: {

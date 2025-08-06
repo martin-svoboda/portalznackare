@@ -161,6 +161,21 @@ jobs:
           # Nastav writable adresáře
           chmod -R 777 var/cache var/log public/build 2>/dev/null || true
           
+          # Setup/restart Messenger Worker
+          echo "⚙️ Configuring Messenger Worker..."
+          if [ -f deploy/setup-messenger.sh ]; then
+            chmod +x deploy/setup-messenger.sh
+            if ! systemctl is-enabled --quiet portal-messenger 2>/dev/null; then
+              echo "🔧 Setting up Messenger Worker for first time..."
+              ./deploy/setup-messenger.sh || echo "⚠️ Messenger setup failed, continuing..."
+            else
+              echo "🔄 Restarting existing Messenger Worker..."
+              systemctl restart portal-messenger || echo "⚠️ Messenger restart failed"
+              sleep 2
+              systemctl is-active --quiet portal-messenger && echo "✅ Messenger Worker running" || echo "❌ Messenger Worker failed"
+            fi
+          fi
+          
           echo "✅ DEV deployment completed"
           EOF
 
@@ -247,6 +262,21 @@ jobs:
           
           # Nastav writable adresáře
           chmod -R 777 var/cache var/log public/build 2>/dev/null || true
+          
+          # Setup/restart Messenger Worker
+          echo "⚙️ Configuring Messenger Worker..."
+          if [ -f deploy/setup-messenger.sh ]; then
+            chmod +x deploy/setup-messenger.sh
+            if ! systemctl is-enabled --quiet portal-messenger 2>/dev/null; then
+              echo "🔧 Setting up Messenger Worker for first time..."
+              ./deploy/setup-messenger.sh || echo "⚠️ Messenger setup failed, continuing..."
+            else
+              echo "🔄 Restarting existing Messenger Worker..."
+              systemctl restart portal-messenger || echo "⚠️ Messenger restart failed"
+              sleep 2
+              systemctl is-active --quiet portal-messenger && echo "✅ Messenger Worker running" || echo "❌ Messenger Worker failed"
+            fi
+          fi
           
           # Restart PHP-FPM 8.3 (pro portalznackare.cz)
           systemctl reload php8.3-fpm 2>/dev/null || true
