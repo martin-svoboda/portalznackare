@@ -22,7 +22,7 @@
 ### 4. **Konvence názvů parametrů (POVINNÉ)**
 - **Všechna uživatelská data, formulářová pole, výpočty** používají český Snake_Case formát
 - **Hierarchie:** část → oblast → vlastnost  
-- **Příklady:** `Datum_Provedeni`, `Hlavni_Ridic`, `SPZ`, `Cast_A_Dokoncena`
+- **Příklady:** `Datum_Provedeni`, `Hlavni_Ridic`, `Cast_A_Dokoncena`
 - **INSYS konzistence:** Všechny parametry odpovídají vzorům pojmenování INSYS dat
 
 ## 🎯 Hybrid Twig + React architektura

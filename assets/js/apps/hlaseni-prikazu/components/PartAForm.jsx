@@ -48,6 +48,22 @@ export const PartAForm = ({
         return computed;
     }, [teamMembers, head]);
 
+    // Get unique drivers across all travel groups
+    const uniqueDrivers = useMemo(() => {
+        if (!formData.Skupiny_Cest || formData.Skupiny_Cest.length === 0) {
+            return computedTeamMembers;
+        }
+        
+        const driverIds = new Set();
+        formData.Skupiny_Cest.forEach(group => {
+            if (group.Ridic) {
+                driverIds.add(group.Ridic);
+            }
+        });
+        
+        return computedTeamMembers.filter(member => driverIds.has(member.INT_ADR));
+    }, [formData.Skupiny_Cest, computedTeamMembers]);
+
     // Generate storage path for this report
     const storagePath = useMemo(() => {
         if (!prikazId) return null;
@@ -157,6 +173,7 @@ export const PartAForm = ({
     };
 
 
+
     // Handler functions for payment redirects
     const handlePresmerovanivyplatChange = (Presmerovani_Vyplat) => {
         setFormData(prev => ({ ...prev, Presmerovani_Vyplat }));
@@ -169,17 +186,11 @@ export const PartAForm = ({
             {/* Basic Information */}
             <ErrorBoundary sectionName="Základní údaje">
                 <BasicInfoForm
-                Datum_Provedeni={formData.Datum_Provedeni}
-                primaryDriver={formData.primaryDriver}
-                vehicleRegistration={formData.vehicleRegistration}
-                Zvysena_Sazba={formData.Zvysena_Sazba}
-                onExecutionDateChange={handleExecutionDateChange}
-                teamMembers={computedTeamMembers}
-                currentUser={currentUser}
-                isLeader={isLeader}
-                canEditOthers={canEditOthers}
-                disabled={isFormDisabled}
-            />
+                    Datum_Provedeni={formData.Datum_Provedeni}
+                    Zvysena_Sazba={formData.Zvysena_Sazba}
+                    onExecutionDateChange={handleExecutionDateChange}
+                    disabled={isFormDisabled}
+                />
             </ErrorBoundary>
 
             {/* Travel Groups */}

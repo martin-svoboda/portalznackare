@@ -24,8 +24,7 @@ const createEmptyTravelGroup = (Cestujci = []) => ({
     id: crypto.randomUUID(),
     Cestujci: Cestujci, // int_adr účastníků
     Ridic: null, // int_adr řidiče
-    spz: "", // SPZ vozidla
-    Ma_Zvysenou_Sazbu: false, // Příznak pro zvýšenou sazbu cestovného
+    SPZ: "", // SPZ vozidla
     Cesty: [createEmptyTravelSegment()]
 });
 

@@ -111,7 +111,7 @@ const App = () => {
                             ...group,
                             Cestujci: group.Cestujci || group.participants || [], // Migrace: participants → Cestujci
                             Ridic: group.Ridic || group.driver || null, // Migrace: driver → Ridic
-                            spz: group.spz || "",
+                            SPZ: group.SPZ || group.spz || "",
                             // Migrace: přidat Ma_Zvysenou_Sazbu pokud chybí
                             // První řidič dostane true pokud je příkaz se zvýšenou sazbou
                             Ma_Zvysenou_Sazbu: group.Ma_Zvysenou_Sazbu ?? (index === 0 && (group.Ridic || group.driver) && loadedData.Zvysena_Sazba),

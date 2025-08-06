@@ -102,8 +102,7 @@ export const TravelGroupsForm = ({
             id: crypto.randomUUID(),
             Cestujci: (teamMembers || []).map(m => m.INT_ADR), // defaultně všichni
             Ridic: defaultDriver,
-            spz: "",
-            Ma_Zvysenou_Sazbu: false, // Příznak pro zvýšenou sazbu
+            SPZ: "",
             Cesty: [createEmptyTravelSegment()]
         };
 
@@ -222,16 +221,13 @@ export const TravelGroupsForm = ({
         return member?.name || member?.Znackar || `Člen ${intAdr}`;
     };
 
-    // Handle higher rate change for radio buttons
-    const handleHigherRateChange = (selectedGroupId) => {
+    // Handle higher rate change for radio buttons - nastavit hlavního řidiče
+    const handleHigherRateChange = React.useCallback((selectedDriverIntAdr) => {
         setFormData(prev => ({
             ...prev,
-            Skupiny_Cest: prev.Skupiny_Cest.map(group => ({
-                ...group,
-                Ma_Zvysenou_Sazbu: group.id === selectedGroupId
-            }))
+            Hlavni_Ridic: selectedDriverIntAdr
         }));
-    };
+    }, [setFormData]);
 
     // Calculate total kilometers for a group
     const calculateGroupKilometers = (group) => {
@@ -264,18 +260,42 @@ export const TravelGroupsForm = ({
 
     // Auto-set first driver to have higher rate when Zvysena_Sazba is true or when drivers change
     React.useEffect(() => {
-        if (formData.Zvysena_Sazba) {
-            const groupsWithDrivers = formData.Skupiny_Cest?.filter(g => g.Ridic) || [];
-            const hasAnyWithHigherRate = groupsWithDrivers.some(g => g.Ma_Zvysenou_Sazbu);
+        if (formData.Zvysena_Sazba && uniqueDrivers.length > 0) {
+            const hasValidMainDriver = formData.Hlavni_Ridic && uniqueDrivers.some(d => d.INT_ADR === formData.Hlavni_Ridic);
 
-            // If no one has higher rate and there's at least one driver, set the first one
-            if (!hasAnyWithHigherRate && groupsWithDrivers.length > 0) {
-                handleHigherRateChange(groupsWithDrivers[0].id);
+            // If no valid main driver is set, set the first one
+            if (!hasValidMainDriver) {
+                handleHigherRateChange(uniqueDrivers[0].INT_ADR);
             }
         }
-    }, [formData.Zvysena_Sazba, JSON.stringify(formData.Skupiny_Cest?.map(g => g.Ridic) || [])]); // Re-run when Zvysena_Sazba changes or drivers change
+    }, [formData.Zvysena_Sazba, uniqueDrivers, handleHigherRateChange]); // Remove formData.Hlavni_Ridic dependency to avoid loop
 
     const travelGroups = formData.Skupiny_Cest || [];
+
+    // Získat unikátní řidiče napříč skupinami
+    const uniqueDrivers = useMemo(() => {
+        const driverMap = new Map();
+        
+        travelGroups.forEach(group => {
+            if (group.Ridic) {
+                const driver = (teamMembers || []).find(m => m.INT_ADR === group.Ridic);
+                if (driver && !driverMap.has(group.Ridic)) {
+                    // Spočítat celkové kilometry pro tohoto řidiče napříč všemi skupinami
+                    const totalKmForDriver = travelGroups
+                        .filter(g => g.Ridic === group.Ridic)
+                        .reduce((total, g) => total + calculateGroupKilometers(g), 0);
+                    
+                    driverMap.set(group.Ridic, {
+                        ...driver,
+                        totalKm: totalKmForDriver,
+                        groups: travelGroups.filter(g => g.Ridic === group.Ridic).length
+                    });
+                }
+            }
+        });
+        
+        return Array.from(driverMap.values());
+    }, [travelGroups, teamMembers]);
 
     const isFormDisabled = formData.status === 'submitted' || formData.status === 'send';
 
@@ -678,18 +698,18 @@ export const TravelGroupsForm = ({
                                         </div>
 
                                         <div>
-                                            <label htmlFor={`spz-${group.id}`} className="form__label">
+                                            <label htmlFor={`SPZ-${group.id}`} className="form__label">
                                                 SPZ vozidla *
                                             </label>
                                             <input
-                                                id={`spz-${group.id}`}
-                                                name={`spz-${group.id}`}
+                                                id={`SPZ-${group.id}`}
+                                                name={`SPZ-${group.id}`}
                                                 type="text"
                                                 className="form__input"
                                                 placeholder="např. 1AB 2345"
-                                                value={group.spz || ""}
+                                                value={group.SPZ || ""}
                                                 maxLength={10}
-                                                onChange={(e) => updateGroupField(group.id, {spz: e.target.value})}
+                                                onChange={(e) => updateGroupField(group.id, {SPZ: e.target.value})}
                                                 required
                                                 disabled={isFormDisabled}
                                             />
@@ -703,44 +723,41 @@ export const TravelGroupsForm = ({
             ))}
 
             {/* Radio button group pro zvýšenou sazbu - zobrazit pouze když je příkaz se zvýšenou sazbou */}
-            {formData.Zvysena_Sazba && travelGroups.some(g => g.Ridic) && (
+            {formData.Zvysena_Sazba && uniqueDrivers.length > 0 && (
                 <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                     <h5 className="font-medium text-sm mb-3">
                         Přiřazení zvýšené sazby cestovného ({priceList?.jizdneZvysene || 8} Kč/km)
                     </h5>
 
                     <div className="space-y-2">
-                        {/* Radio pro každou skupinu s řidičem */}
-                        {travelGroups
-                            .filter(g => g.Ridic)
-                            .map((group, groupIndex) => {
-                                const totalKm = calculateGroupKilometers(group);
-                                return (
-                                    <label key={group.id} className="flex items-center space-x-2">
-                                        <input
-                                            type="radio"
-                                            name="zvysena_sazba_group"
-                                            className="form__radio"
-                                            checked={group.Ma_Zvysenou_Sazbu || false}
-                                            onChange={() => handleHigherRateChange(group.id)}
-                                            disabled={isFormDisabled}
-                                        />
-                                        <span className="text-sm">
-                                            {getTeamMemberName(group.Ridic)}
-                                            {travelGroups.length > 1 && ` - Skupina ${travelGroups.findIndex(g => g.id === group.id) + 1}`}
-                                            {totalKm > 0 && (
-                                                <span className="text-xs text-gray-500 ml-2">
-                                                    ({totalKm} km)
-                                                </span>
-                                            )}
-                                        </span>
-                                    </label>
-                                );
-                            })}
+                        {/* Radio pro každého unikátního řidiče */}
+                        {uniqueDrivers.map((driver) => {
+                            return (
+                                <label key={driver.INT_ADR} className="flex items-center space-x-2">
+                                    <input
+                                        type="radio"
+                                        name="zvysena_sazba_driver"
+                                        className="form__radio"
+                                        checked={formData.Hlavni_Ridic === driver.INT_ADR}
+                                        onChange={() => handleHigherRateChange(driver.INT_ADR)}
+                                        disabled={isFormDisabled}
+                                    />
+                                    <span className="text-sm">
+                                        {driver.name || driver.Znackar}
+                                        {driver.groups > 1 && ` - ve ${driver.groups} skupinách`}
+                                        {driver.totalKm > 0 && (
+                                            <span className="text-xs text-gray-500 ml-2">
+                                                (celkem {driver.totalKm} km)
+                                            </span>
+                                        )}
+                                    </span>
+                                </label>
+                            );
+                        })}
                     </div>
 
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
-                        Standardní sazba: {priceList?.jizdne || 6} Kč/km
+                        Standardní sazba: {priceList?.jizdne || 6} Kč/km • Hlavní řidič dostane zvýšenou sazbu na všechny své AUV jízdy
                     </p>
                 </div>
             )}

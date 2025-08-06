@@ -20,8 +20,6 @@ class PartADto
     #[Assert\Length(max: 255)]
     public string $Hlavni_Ridic = '';
 
-    #[Assert\Length(max: 20)]
-    public string $SPZ = '';
 
 
     #[Assert\Valid]

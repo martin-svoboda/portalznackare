@@ -140,7 +140,7 @@ export function findApplicableTariff(workHours, tariffs) {
  * Výpočet dopravních nákladů pro konkrétního uživatele
  * Auto jízdné: pouze řidiči skupiny
  * Veřejná doprava: všem cestujícím skupiny
- * Respektuje Ma_Zvysenou_Sazbu per skupina
+ * Respektuje Hlavni_Ridic pro zvýšenou sazbu napříč všemi skupinami
  */
 export function calculateTransportCosts(formData, priceList, userIntAdr = null) {
     if (!userIntAdr || !formData.Skupiny_Cest) return 0;
@@ -156,8 +156,8 @@ export function calculateTransportCosts(formData, priceList, userIntAdr = null) 
         // Zkontrolovat zda je uživatel řidičem této skupiny
         const isUserDriverOfGroup = group.Ridic === userIntAdr;
         
-        // Zkontrolovat zda má skupina zvýšenou sazbu
-        const hasGroupHigherRate = group.Ma_Zvysenou_Sazbu || false;
+        // Zkontrolovat zda je uživatel hlavním řidičem (dostane zvýšenou sazbu na všechny AUV jízdy)
+        const isUserMainDriver = formData.Hlavni_Ridic === userIntAdr;
         
         group.Cesty?.forEach(segment => {
             if (!segment || !segment.Druh_Dopravy) return;
@@ -165,7 +165,7 @@ export function calculateTransportCosts(formData, priceList, userIntAdr = null) 
             if (segment.Druh_Dopravy === "AUV" || segment.Druh_Dopravy === "AUV-Z") {
                 // Auto jízdné - pouze řidiči skupiny
                 if (isUserDriverOfGroup && segment.Kilometry > 0) {
-                    const rate = hasGroupHigherRate ? priceList.jizdneZvysene : priceList.jizdne;
+                    const rate = isUserMainDriver ? priceList.jizdneZvysene : priceList.jizdne;
                     totalCosts += segment.Kilometry * rate;
                 }
             } else if (segment.Druh_Dopravy === "V") {
@@ -214,11 +214,7 @@ export function calculateCompensation(formData, priceList, userIntAdr = null) {
         .reduce((sum, exp) => sum + (exp.Castka || 0), 0);
     
     // Zkontrolovat zda má uživatel zvýšenou sazbu v nějaké skupině
-    const hasHigherRate = formData.Skupiny_Cest?.some(group => 
-        group.Cestujci?.includes(userIntAdr) && 
-        group.Ridic === userIntAdr && 
-        group.Ma_Zvysenou_Sazbu
-    ) || false;
+    const hasHigherRate = formData.Hlavni_Ridic === userIntAdr;
     
     const total = transportCosts + mealAllowance + workAllowance + accommodationCosts + additionalExpenses;
     

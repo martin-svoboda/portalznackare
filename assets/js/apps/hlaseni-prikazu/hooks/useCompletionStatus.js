@@ -66,10 +66,10 @@ export const useCompletionStatus = (formData, head, predmety, setFormData) => {
             segment && segment.Druh_Dopravy && (segment.Druh_Dopravy === "AUV" || segment.Druh_Dopravy === "AUV-Z")
         );
 
-        // Pro Skupiny_Cest kontrolujeme Ridic a spz v každé skupině
+        // Pro Skupiny_Cest kontrolujeme Ridic a SPZ v každé skupině
         const hasDriverForCar = needsDriver && formData.Skupiny_Cest?.some(group => 
             group.Cesty?.some(s => s.Druh_Dopravy === "AUV" || s.Druh_Dopravy === "AUV-Z") &&
-            (!group.Ridic || !group.spz)
+            (!group.Ridic || !group.SPZ)
         );
 
         // Kontrola jízdenek - pro každý V segment musí mít každý cestující částku
@@ -152,7 +152,7 @@ export const useCompletionStatus = (formData, head, predmety, setFormData) => {
             
             const hasDriverForCar = needsDriver && formData.Skupiny_Cest?.some(group => 
                 group.Cesty?.some(s => s.Druh_Dopravy === "AUV" || s.Druh_Dopravy === "AUV-Z") &&
-                (!group.Ridic || !group.spz)
+                (!group.Ridic || !group.SPZ)
             );
             
             const hasTicketsForPublicTransport = allSegments.some(segment =>

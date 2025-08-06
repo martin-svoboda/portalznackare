@@ -1,25 +1,12 @@
 import React from 'react';
-import {IconCalendar, IconUser, IconCar} from '@tabler/icons-react';
+import {IconCalendar} from '@tabler/icons-react';
 
 export const BasicInfoForm = ({
                                   Datum_Provedeni,
-                                  primaryDriver,
-                                  vehicleRegistration,
                                   Zvysena_Sazba,
                                   onExecutionDateChange,
-                                  onPrimaryDriverChange,
-                                  onVehicleRegistrationChange,
-                                  teamMembers = [],
-                                  currentUser,
-                                  isLeader,
-                                  canEditOthers,
                                   disabled = false
                               }) => {
-    // Get available drivers (team members or current user)
-    const availableDrivers = isLeader && teamMembers.length > 0
-        ? teamMembers
-        : currentUser ? [{name: currentUser.jmeno, INT_ADR: currentUser.INT_ADR}] : [];
-
     return (
         <div className="card">
             <div className="card__header">
@@ -42,18 +29,12 @@ export const BasicInfoForm = ({
                             required
                         />
                     </div>
-
-
                 </div>
+
                 {/* Higher km rate - READ ONLY display */}
                 {Zvysena_Sazba && (
                     <div className="alert alert--info mt-4">
                         <p>Pro tento příkaz je nastavena vyšší sazba za km</p>
-                    </div>
-                )}
-                {!canEditOthers && isLeader && (
-                    <div className="alert alert--info mt-4">
-                        <p>Jako vedoucí můžete upravovat údaje všech členů týmu.</p>
                     </div>
                 )}
             </div>

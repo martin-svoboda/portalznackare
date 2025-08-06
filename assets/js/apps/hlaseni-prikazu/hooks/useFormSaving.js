@@ -84,8 +84,7 @@ const serializeTravelGroup = (group) => {
         id: group.id,
         Cestujci: group.Cestujci || [],
         Ridic: group.Ridic || null,
-        spz: group.spz || "",
-        Ma_Zvysenou_Sazbu: group.Ma_Zvysenou_Sazbu || false,
+        SPZ: group.SPZ || "",
         Cesty: (group.Cesty || []).map(serializeTravelSegment)
     };
 };
@@ -152,6 +151,7 @@ export const useFormSaving = (formData, head, prikazId, priceList, isLeader, tea
                         .filter(group => group && group.id)
                         .map(serializeTravelGroup),
                     Zvysena_Sazba: formData.Zvysena_Sazba || false,
+                    Hlavni_Ridic: formData.Hlavni_Ridic || null,
                     Noclezne: (formData.Noclezne || [])
                         .filter(accommodation => accommodation && accommodation.id)
                         .map(serializeAccommodation),
@@ -321,6 +321,7 @@ export const useFormSaving = (formData, head, prikazId, priceList, isLeader, tea
                         .filter(group => group && group.id)
                         .map(serializeTravelGroup),
                     Zvysena_Sazba: formData.Zvysena_Sazba || false,
+                    Hlavni_Ridic: formData.Hlavni_Ridic || null,
                     Noclezne: (formData.Noclezne || [])
                         .filter(accommodation => accommodation && accommodation.id)
                         .map(serializeAccommodation),

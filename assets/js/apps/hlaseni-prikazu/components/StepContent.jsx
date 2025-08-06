@@ -239,12 +239,6 @@ export const StepContent = ({
                                         <span className="text-sm">{formData.Hlavni_Ridic}</span>
                                     </div>
                                 )}
-                                {formData.SPZ && (
-                                    <div className="flex justify-between">
-                                        <span className="text-sm text-gray-600">SPZ vozidla:</span>
-                                        <span className="text-sm">{formData.SPZ}</span>
-                                    </div>
-                                )}
                             </div>
                             <div className="space-y-2">
                                 <div className="flex justify-between">

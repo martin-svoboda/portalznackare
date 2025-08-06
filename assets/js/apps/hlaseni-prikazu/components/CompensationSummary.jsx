@@ -1,17 +1,7 @@
 import React, {useMemo, useCallback, useEffect} from 'react';
 import {
-    IconCalculator,
-    IconCar,
-    IconClock,
-    IconBed,
-    IconReceipt,
-    IconArrowRight,
-} from '@tabler/icons-react';
-import {
     calculateCompensation,
-    calculateCompensationForAllMembers,
-    extractTeamMembers,
-    isUserLeader
+    calculateCompensationForAllMembers
 } from '../utils/compensationCalculator';
 import { log } from '../../../utils/debug';
 
@@ -22,7 +12,8 @@ const MemberCompensationDetail = ({
                                       formData,
                                       priceList,
                                       formatCurrency,
-                                      showMemberName = false
+                                      showMemberName = false,
+                                      compact = false
                                   }) => {
     if (!memberCompensation) return null;
 
@@ -53,12 +44,12 @@ const MemberCompensationDetail = ({
                             
                             if (!isDriverOfAnyCar) return null;
                             
-                            // Zjistit zda má člen zvýšenou sazbu
-                            const hasHigherRate = formData.Skupiny_Cest?.some(group => 
-                                group.Ridic === member?.INT_ADR && 
-                                group.Ma_Zvysenou_Sazbu &&
-                                group.Cesty?.some(s => s.Druh_Dopravy === "AUV" || s.Druh_Dopravy === "AUV-Z")
-                            );
+                            // Zjistit zda je člen hlavním řidičem (dostane zvýšenou sazbu)
+                            const hasHigherRate = formData.Hlavni_Ridic === member?.INT_ADR &&
+                                formData.Skupiny_Cest?.some(group => 
+                                    group.Ridic === member?.INT_ADR && 
+                                    group.Cesty?.some(s => s.Druh_Dopravy === "AUV" || s.Druh_Dopravy === "AUV-Z")
+                                );
                             const rate = hasHigherRate ? priceList.jizdneZvysene : priceList.jizdne;
                             return (
                                 <span className="text-xs text-gray-500 ml-1">
@@ -70,9 +61,9 @@ const MemberCompensationDetail = ({
                     <span className="text-sm">{formatCurrency(memberCompensation?.Jizdne || 0)}</span>
                 </div>
                 {/* Badge zvýšené sazby pod názvem */}
-                {formData.Skupiny_Cest?.some(group => 
+                {formData.Hlavni_Ridic === member?.INT_ADR &&
+                formData.Skupiny_Cest?.some(group => 
                     group.Ridic === member?.INT_ADR && 
-                    group.Ma_Zvysenou_Sazbu &&
                     group.Cesty?.some(s => s.Druh_Dopravy === "AUV" || s.Druh_Dopravy === "AUV-Z")
                 ) && (
                     <div className="ml-4">
@@ -161,7 +152,7 @@ const MemberCompensationDetail = ({
             <div className="flex justify-between">
                 <span className="font-semibold">Celkem</span>
                 <span className="font-semibold text-lg text-blue-600">
-                    {formatCurrency(memberCompensation?.celkem || 0)}
+                    {formatCurrency(memberCompensation?.Celkem || 0)}
                 </span>
             </div>
         </div>
@@ -177,7 +168,6 @@ export const CompensationSummary = ({
                                         currentUser,
                                         isLeader,
                                         teamMembers,
-                                        head
                                     }) => {
     // ALL HOOKS MUST BE AT THE TOP - React Error #310 fix
 
@@ -223,22 +213,6 @@ export const CompensationSummary = ({
         }
     }, [formData, priceList, isLeader, teamMembers, currentUser, calculateForAllMembers, calculateForSingleUser]);
 
-    // Pro zobrazení celkových hodin - pokud je compensation objekt podle INT_ADR, vezmi první hodnotu
-    const workHours = useMemo(() => {
-        if (!compensation) return 0;
-        if (typeof compensation === 'object' && !Array.isArray(compensation)) {
-            const firstCompensation = Object.values(compensation)[0];
-            return firstCompensation?.Hodin_Celkem || 0;
-        }
-        return 0;
-    }, [compensation]);
-
-    // Pro single view použít první dostupnou kompenzaci
-    const singleCompensation = useMemo(() => {
-        if (!compensation) return null;
-        const firstKey = Object.keys(compensation)[0];
-        return compensation[firstKey] || null;
-    }, [compensation]);
 
     // Determine which members to show based on permissions
     const membersToShow = useMemo(() => {
@@ -312,273 +286,28 @@ export const CompensationSummary = ({
         );
     }
 
-    // Handle both single compensation and team compensations
-    // Compensation je nyní vždy objekt indexovaný podle INT_ADR
-    const isTeamView = isLeader && compensation && Object.keys(compensation).length > 1;
-    const teamCompensations = compensation;
 
-    // Compact mode for sidebar - unified view using MemberCompensationDetail
-    if (compact) {
-        const showMultipleMembers = membersToShow.length > 1;
+    // Unified view - jedna komponenta pro oba módy
+    const showMultipleMembers = membersToShow.length > 1;
 
-        return (
-            <div className="space-y-4">
-                {membersToShow.map((member, index) => (
-                    <div key={member.INT_ADR}>
-                        <MemberCompensationDetail
-                            member={member}
-                            memberCompensation={memberCompensations[member.INT_ADR]}
-                            formData={formData}
-                            priceList={priceList}
-                            formatCurrency={formatCurrency}
-                            showMemberName={showMultipleMembers}
-                        />
-                        {showMultipleMembers && index < membersToShow.length - 1 && (
-                            <hr className="my-4 border-gray-300"/>
-                        )}
-                    </div>
-                ))}
-            </div>
-        );
-    }
-
-    // Full mode - detailed view
     return (
-        <div className="space-y-6">
-            {/* Work overview */}
-            <div className="card">
-                <div className="card__content">
-                    <div className="flex items-center justify-between mb-4">
-                        <h4 className="text-lg font-semibold">Přehled práce</h4>
-                        <div
-                            className="flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
-                            <IconClock size={14}/>
-                            {workHours.toFixed(1)} hodin
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <p className="text-sm text-gray-600">Celková doba práce</p>
-                            <p className="font-medium">{workHours.toFixed(1)} hodin</p>
-                            <p className="text-xs text-gray-500 mt-1">
-                                Od nejdřívějšího začátku do nejpozdějšího konce cesty
-                            </p>
-                        </div>
-                        <div>
-                            <p className="text-sm text-gray-600">Použitý tarif</p>
-                            <p className="font-medium">
-                                {singleCompensation?.appliedTariff
-                                    ? `${singleCompensation.appliedTariff.dobaOd}-${singleCompensation.appliedTariff.dobaDo}h`
-                                    : "Není stanoven"}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Team view for leaders */}
-            {isTeamView && teamCompensations && (
-                <div className="card">
-                    <div className="card__content">
-                        <h4 className="text-lg font-semibold mb-4">Kompenzace pro tým</h4>
-                        <div className="space-y-4">
-                            {Object.entries(teamCompensations).map(([intAdr, memberComp]) => {
-                                const member = teamMembers.find(m => m.INT_ADR === intAdr);
-                                return (
-                                    <div key={intAdr} className="border rounded-lg p-4">
-                                        <div className="flex justify-between items-center mb-2">
-                                            <h5 className="font-medium">{member?.name || intAdr}</h5>
-                                            <span className="font-bold text-blue-600">
-                                                {formatCurrency(memberComp.celkem)}
-                                            </span>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-2 text-sm">
-                                            <div>Doprava: {formatCurrency(memberComp.Jizdne)}</div>
-                                            <div>Stravné: {formatCurrency(memberComp.Stravne)}</div>
-                                            <div>Práce: {formatCurrency(memberComp.Nahrada_Prace)}</div>
-                                            <div>Ubytování: {formatCurrency(memberComp.Naklady_Ubytovani)}</div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Single member detailed view */}
-            {!isTeamView && (
-                <>
-                    {/* Transport costs */}
-                    <div className="card">
-                        <div className="card__content">
-                            <h4 className="text-lg font-semibold mb-4">Dopravní náklady</h4>
-
-                            <div className="overflow-x-auto">
-                                <table className="table">
-                                    <thead>
-                                    <tr>
-                                        <th>Segment</th>
-                                        <th>Typ dopravy</th>
-                                        <th>Množství</th>
-                                        <th>Sazba</th>
-                                        <th>Náklady</th>
-                                    </tr>
-                                    </thead>
-                                    <tbody>
-                                    {formData.Skupiny_Cest?.flatMap((group, groupIndex) => 
-                                        (group.Cesty || []).map((segment, segmentIndex) => {
-                                            if (!segment || !segment.Druh_Dopravy) return null;
-
-                                            let amount = 0;
-                                            let unit = "";
-                                            let rate = 0;
-                                            let costs = 0;
-                                            let showHigherRate = false;
-
-                                            if (segment.Druh_Dopravy === "AUV" || segment.Druh_Dopravy === "AUV-Z") {
-                                                amount = segment.Kilometry || 0;
-                                                unit = "km";
-                                                
-                                                // Použít správnou sazbu podle skupiny - pouze pokud je current user řidičem
-                                                const isCurrentUserDriver = group.Ridic === currentUser?.INT_ADR;
-                                                showHigherRate = isCurrentUserDriver && group.Ma_Zvysenou_Sazbu;
-                                                
-                                                if (isCurrentUserDriver) {
-                                                    rate = showHigherRate ? (priceList.jizdneZvysene || 0) : (priceList.jizdne || 0);
-                                                    costs = amount * rate;
-                                                } else {
-                                                    // Pokud není řidičem, nezobrazovat náklady
-                                                    rate = 0;
-                                                    costs = 0;
-                                                }
-                                            } else if (segment.Druh_Dopravy === "V") {
-                                                costs = segment.Naklady || 0;
-                                                unit = "Kč";
-                                            }
-
-                                            return (
-                                                <tr key={`${groupIndex}-${segmentIndex}`}>
-                                                    <td>Segment {groupIndex + 1}-{segmentIndex + 1}</td>
-                                                    <td>
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="inline-block px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">
-                                                                {segment.Druh_Dopravy}
-                                                            </span>
-                                                            {showHigherRate && (
-                                                                <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                                                                    Zvýšená
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        {amount > 0 ? `${amount} ${unit}` : "-"}
-                                                    </td>
-                                                    <td>
-                                                        {rate > 0 ? formatCurrency(rate) : "-"}
-                                                    </td>
-                                                    <td className="font-medium">
-                                                        {formatCurrency(costs)}
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })
-                                    ) || []}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Other costs */}
-                    {(formData.Noclezne.length > 0 || formData.Vedlejsi_Vydaje.length > 0) && (
-                        <div className="card">
-                            <div className="card__content">
-                                <h4 className="text-lg font-semibold mb-4">Ostatní náklady</h4>
-
-                                {formData.Noclezne.length > 0 && (
-                                    <div className="mb-4">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <IconBed size={16}/>
-                                            <span className="font-medium">Nocležné</span>
-                                        </div>
-                                        {formData.Noclezne.map(acc => (
-                                            <div key={acc.id} className="mb-2">
-                                                <div className="flex justify-between">
-                                                    <span className="text-sm">
-                                                        {acc.Zarizeni}, {acc.Misto}
-                                                    </span>
-                                                    <span className="font-medium">{formatCurrency(acc.Castka)}</span>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-
-                                {formData.Vedlejsi_Vydaje.length > 0 && (
-                                    <div>
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <IconReceipt size={16}/>
-                                            <span className="font-medium">Vedlejší výdaje</span>
-                                        </div>
-                                        {formData.Vedlejsi_Vydaje.map(exp => (
-                                            <div key={exp.id} className="mb-2">
-                                                <div className="flex justify-between">
-                                                    <span className="text-sm">{exp.Polozka}</span>
-                                                    <span className="font-medium">{formatCurrency(exp.Castka)}</span>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
+        <div className="space-y-4">
+            {membersToShow.map((member, index) => (
+                <div key={member.INT_ADR}>
+                    <MemberCompensationDetail
+                        member={member}
+                        memberCompensation={memberCompensations[member.INT_ADR]}
+                        formData={formData}
+                        priceList={priceList}
+                        formatCurrency={formatCurrency}
+                        showMemberName={showMultipleMembers}
+                        compact={compact}
+                    />
+                    {showMultipleMembers && index < membersToShow.length - 1 && (
+                        <hr className="my-4 border-gray-300"/>
                     )}
-
-                    {/* Total summary */}
-                    <div className="card">
-                        <div className="card__content">
-                            <h4 className="text-lg font-semibold mb-4">Celkový souhrn kompenzací</h4>
-
-                            <div className="space-y-2">
-                                <div className="flex justify-between">
-                                    <span>Dopravní náklady</span>
-                                    <span
-                                        className="font-medium">{formatCurrency(singleCompensation?.Jizdne || 0)}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span>Stravné</span>
-                                    <span
-                                        className="font-medium">{formatCurrency(singleCompensation?.Stravne || 0)}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span>Náhrada za práci</span>
-                                    <span
-                                        className="font-medium">{formatCurrency(singleCompensation?.Nahrada_Prace || 0)}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span>Nocležné</span>
-                                    <span
-                                        className="font-medium">{formatCurrency(singleCompensation?.Naklady_Ubytovani || 0)}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span>Vedlejší výdaje</span>
-                                    <span
-                                        className="font-medium">{formatCurrency(singleCompensation?.Vedlejsi_Vydaje || 0)}</span>
-                                </div>
-                                <hr className="my-3"/>
-                                <div className="flex justify-between">
-                                    <span className="text-lg font-bold">Celkem</span>
-                                    <span
-                                        className="text-lg font-bold">{formatCurrency(singleCompensation?.celkem || 0)}</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </>
-            )}
+                </div>
+            ))}
         </div>
     );
 };
