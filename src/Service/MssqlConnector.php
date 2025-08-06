@@ -19,13 +19,15 @@ class MssqlConnector
         $password = $_ENV['INSYZ_DB_PASS'] ?? '';
 
         try {
-            $dsn = "sqlsrv:server=$server;Database=$database";
+            $dsn = "sqlsrv:server=$server;Database=$database;ConnectionPooling=0;LoginTimeout=30";
             $this->conn = new PDO($dsn, $username, $password);
             $this->conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             
-            // Nastavit timeout pro connection a commands
-            $this->conn->setAttribute(PDO::ATTR_TIMEOUT, 30); // 30s connection timeout
+            // Nastavit timeout pro MSSQL
+            // PDO::ATTR_TIMEOUT není podporován v sqlsrv driveru
+            // Místo toho použijeme connection options a SQL příkazy
             $this->conn->exec("SET LOCK_TIMEOUT 30000"); // 30s lock timeout
+            $this->conn->exec("SET QUERY_GOVERNOR_COST_LIMIT 0"); // No query cost limit
         } catch (PDOException $e) {
             $this->conn = null;
             $this->lastError = $e->getMessage();
