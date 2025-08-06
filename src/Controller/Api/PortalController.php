@@ -14,6 +14,7 @@ use App\Entity\Report;
 use App\Repository\ReportRepository;
 use App\Enum\ReportStateEnum;
 use App\Message\SendToInsyzMessage;
+use App\Service\WorkerManagerService;
 use Doctrine\ORM\EntityManagerInterface;
 
 #[Route('/api/portal')]
@@ -23,7 +24,8 @@ class PortalController extends AbstractController
         private MockMSSQLService $mssqlService,
         private ReportRepository $reportRepository,
         private EntityManagerInterface $entityManager,
-        private MessageBusInterface $messageBus
+        private MessageBusInterface $messageBus,
+        private WorkerManagerService $workerManager
     ) {}
     #[Route('/post', methods: ['GET'])]
     public function getPost(Request $request): JsonResponse
@@ -127,6 +129,9 @@ class PortalController extends AbstractController
             }
 
             try {
+                // Nastavit database timeout pro dlouhé operace
+                $this->entityManager->getConnection()->executeStatement('SET statement_timeout = \'30s\'');
+                
                 // Validace dat
                 $requiredFields = ['id_zp', 'cislo_zp', 'data_a', 'data_b'];
                 $missingFields = [];
@@ -236,6 +241,9 @@ class PortalController extends AbstractController
                     );
                     
                     $this->messageBus->dispatch($message);
+                    
+                    // Spustit on-demand worker pro okamžité zpracování
+                    $this->workerManager->startSingleTaskWorker();
                 }
 
                 return new JsonResponse([

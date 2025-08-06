@@ -22,6 +22,10 @@ class MssqlConnector
             $dsn = "sqlsrv:server=$server;Database=$database";
             $this->conn = new PDO($dsn, $username, $password);
             $this->conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            
+            // Nastavit timeout pro connection a commands
+            $this->conn->setAttribute(PDO::ATTR_TIMEOUT, 30); // 30s connection timeout
+            $this->conn->exec("SET LOCK_TIMEOUT 30000"); // 30s lock timeout
         } catch (PDOException $e) {
             $this->conn = null;
             $this->lastError = $e->getMessage();
@@ -38,13 +42,16 @@ class MssqlConnector
         return $this->lastError ?? 'Unknown database error';
     }
 
-    public function callProcedure(string $procedure, array $params = []): array
+    public function callProcedure(string $procedure, array $params = [], int $timeout = 30): array
     {
         if ($this->hasError()) {
             throw new Exception('Database connection error: ' . $this->getError());
         }
 
         try {
+            // Nastavit query timeout pro tento call
+            $this->conn->exec("SET QUERY_TIMEOUT {$timeout}");
+            
             $isNamed = $this->isAssoc($params);
 
             if ($isNamed) {
@@ -60,9 +67,31 @@ class MssqlConnector
 
             $sql = sprintf("EXEC %s %s", $procedure, $placeholders);
             $stmt = $this->conn->prepare($sql);
+            
+            // Nastavit timeout pro statement
+            $stmt->setAttribute(PDO::ATTR_TIMEOUT, $timeout);
+            
             $stmt->execute($args);
 
-            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+            // Pokud procedure nevrací žádné řádky (columnCount = 0), vrátit prázdné pole
+            try {
+                if ($stmt->columnCount() > 0) {
+                    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+                } else {
+                    return []; // Procedure proběhla úspěšně, ale nevrací data
+                }
+            } catch (PDOException $e) {
+                // Fallback - pokud columnCount() není podporováno, zkusit fetch a zachytit chybu
+                try {
+                    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+                } catch (PDOException $fetchError) {
+                    // Pokud fetch selže kvůli "no fields", považovat za úspěch
+                    if (strpos($fetchError->getMessage(), 'no fields') !== false) {
+                        return [];
+                    }
+                    throw $fetchError;
+                }
+            }
 
         } catch (PDOException $e) {
             throw new Exception('SQL Procedure error: ' . $e->getMessage());

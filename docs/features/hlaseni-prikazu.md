@@ -4,661 +4,353 @@
 
 > **Programátorská poznámka:** Aplikace používá české Snake_Case parametry podle [konvence názvů](../development/development.md#konvence-názvů-parametrů).
 
-## 💡 Důležité upozornění
+## 🎯 Přehled funkcionality
 
-**Lokální databáze vs. INSYS submission:**
-- **Lokální PostgreSQL** slouží k ukládání a načítání vyplněných dat
-- Možnost ukládat i **rozepsaná/nedokončená** hlášení (draft mode)
-- **Finální odeslání** do INSYS systému je **zatím ve vývoji** (TODO)
-- Dokumentace obsahuje navržený workflow pro budoucí implementaci
+Hlášení příkazů umožňuje značkařům vykazovat provedenou práci a automaticky vypočítávat náhrady podle ceníků KČT. Systém podporuje draft mode a asynchronní odeslání do INSYZ systému.
 
-## 📋 Přehled hlášení příkazů
-
-### Architektura workflow
+### Workflow hlášení
 ```
-INSYS Příkaz → React Formulář → Validace → PostgreSQL Report → INSYS Submission
-     ↓              ↓            ↓              ↓                ↓
-Ceníky KČT    Část A + B    Symfony API    Local Storage    Final Send
-              kalkulace     Controller     (drafts/edits)   (TODO)
+INSYS Příkaz → React Formulář → Kalkulace → PostgreSQL → INSYZ Submission
+     ↓              ↓             ↓           ↓            ↓
+   Detail       Část A + B    Ceníky KČT   Draft/Send   Async Worker
 ```
 
-**Klíčové principy:**
-- **Lokální databáze:** PostgreSQL pro ukládání a načítání rozepsaných hlášení
-- **Draft system:** Možnost ukládat nedokončená hlášení a pokračovat později
-- **JSON storage:** Strukturovaná data v PostgreSQL JSON sloupcích
-- **State management:** Draft → Send → Submitted → Approved/Rejected (INSYZ submission)
-- **Auto-calculation:** Automatické výpočty podle ceníků KČT
-- **File attachments:** Doklady a fotografie s chráněným přístupem
-- **Asynchronous submission:** Symfony Messenger pro odesílání do INSYZ systému
+## 🔧 Backend komponenty
 
-## 🛠️ Backend Components
-
-### 1. **Report Entity** - Databázový model
-
+### 1. **ReportController** - API pro hlášení
 ```php
-// src/Entity/Report.php
-class Report {
-    private int $idZp;              // ID příkazu z INSYS
-    private string $cisloZp;        // Číslo příkazu (ZP001/2025)
-    private int $intAdr;            // INT_ADR uživatele
-    private bool $jeVedouci = false;
-    
-    // Strukturovaná data jako JSON
-    private array $dataA = [];      // Část A - Vyúčtování
-    private array $dataB = [];      // Část B - Hlášení činnosti/TIM
-    private array $calculation = []; // Vypočtené kompenzace
-    
-    // Workflow stavy
-    private ReportStateEnum $state = ReportStateEnum::DRAFT;
-    private ?\DateTimeImmutable $dateSend = null;
-    
-    public function isEditable(): bool {
-        return in_array($this->state, [ReportStateEnum::DRAFT, ReportStateEnum::REJECTED]);
-    }
-    // ...
-}
-```
-
-### 2. **Report States** - Workflow stavy
-
-```php
-enum ReportStateEnum: string {
-    case DRAFT = 'draft';           // Rozpracováno (lokálně, editovatelné)
-    case SEND = 'send';             // Odesláno ke zpracování (asynchronní)
-    case SUBMITTED = 'submitted';   // Přijato systémem INSYZ
-    case APPROVED = 'approved';     // Schváleno v INSYZ
-    case REJECTED = 'rejected';     // Zamítnuto v INSYZ (opět editovatelné)
-}
-```
-
-### 3. **ReportController** - API endpointy
-
-```php
+// src/Controller/Api/PortalController.php
 #[Route('/api/portal/report')]
-class ReportController extends AbstractController {
+class PortalController extends AbstractController {
     
     #[Route('', methods: ['GET'])]
     public function getReport(Request $request): JsonResponse {
+        // Načte existující hlášení pro příkaz
         $report = $this->reportRepository->findOneBy([
             'idZp' => $request->query->get('id_zp'),
             'intAdr' => $this->getUser()->getIntAdr()
         ]);
         
-        return new JsonResponse([
-            'report' => $report ? [
-                'state' => $report->getState()->value,
-                'data_a' => $report->getDataA(),
-                'data_b' => $report->getDataB(),
-                'calculation' => $report->getCalculation(),
-                'is_editable' => $report->isEditable()
-            ] : null
-        ]);
+        return new JsonResponse(['report' => $report]);
     }
     
     #[Route('', methods: ['POST'])]
     public function saveReport(Request $request): JsonResponse {
-        $reportDto = $this->serializer->deserialize($request->getContent(), ReportDto::class, 'json');
-        
-        $violations = $this->validator->validate($reportDto);
-        if (count($violations) > 0) {
-            return new JsonResponse(['errors' => $violations], 400);
-        }
-        
-        $report = $this->reportRepository->findOneBy([
-            'idZp' => $reportDto->idZp,
-            'intAdr' => $this->getUser()->getIntAdr()
-        ]) ?? new Report();
-        
-        if ($report->getId() && !$report->isEditable()) {
-            return new JsonResponse(['error' => 'Report není v editovatelném stavu'], 403);
-        }
-        
-        // Nastavení dat
-        $report->setDataA($reportDto->dataA->toArray());
-        $report->setDataB($reportDto->dataB->toArray());
-        $report->setState(ReportStateEnum::from($reportDto->state));
-        
+        // Uloží hlášení jako draft nebo odešle ke zpracování
         if ($reportDto->state === 'send') {
-            $report->setDateSend(new \DateTimeImmutable());
-            // Dispatch asynchronní zpracování pomocí Symfony Messenger
+            $this->messageBus->dispatch($message);
+            $this->workerManager->startSingleTaskWorker();
+        }
+    }
+}
+```
+
+### 2. **Report Entity** - Databázový model
+Report ukládá strukturovaná data jako JSON:
+- **Identifikace:** ID příkazu, číslo příkazu, uživatel
+- **Data:** Část A (vyúčtování), Část B (činnost), kompenzace
+- **Workflow:** draft → send → submitted → approved/rejected
+
+### 3. **WorkerManagerService** - On-demand zpracování
+```php
+// src/Service/WorkerManagerService.php
+class WorkerManagerService {
+    public function startSingleTaskWorker(): bool {
+        // Spustí worker pouze pro jednu úlohu
+        $this->cleanupStuckWorkers();
+        
+        if ($this->isWorkerRunning()) {
+            return true;
         }
         
-        $this->entityManager->persist($report);
-        $this->entityManager->flush();
-        
-        return new JsonResponse(['success' => true]);
+        // Timeout 60s, limit=1
+        exec($command);
+        return $this->waitForWorkerStart();
     }
-    
-    // ...
 }
 ```
 
-### 4. **Data Transfer Objects** - Validace
-
-```php
-class ReportDto {
-    #[Assert\NotBlank]
-    #[Assert\Positive]
-    public int $idZp;
-    
-    #[Assert\Valid]
-    public PartADto $dataA;
-    
-    #[Assert\Valid]  
-    public PartBDto $dataB;
-    
-    #[Assert\Choice(['draft', 'send'])]
-    public string $state = 'draft';
-    // ...
-}
-
-class PartADto {
-    #[Assert\Valid]
-    public array $travelSegments = [];
-    
-    #[Assert\Valid]
-    public array $accommodations = [];
-    
-    #[Assert\Valid]
-    public array $expenses = [];
-    // ...
-}
-
-class TravelSegmentDto {
-    #[Assert\Choice(['auto', 'vlak', 'autobus', 'mhd', 'pesi'])]
-    public string $transport;
-    
-    #[Assert\NotBlank]
-    public string $from;
-    
-    #[Assert\NotBlank]
-    public string $to;
-    
-    #[Assert\When(expression: 'this.transport == "auto"', constraints: [new Assert\Positive()])]
-    public ?int $kilometers = null;
-    // ...
-}
-```
-
-## ⚛️ React Frontend - Hlášení aplikace
+## ⚛️ React Frontend
 
 ### Aplikační struktura
-
-React aplikace `hlaseni-prikazu` používá multi-step formulář:
+React aplikace `hlaseni-prikazu` používá **3-krokový formulář**:
 
 ```jsx
+// assets/js/apps/hlaseni-prikazu/App.jsx
 const App = () => {
     const [currentStep, setCurrentStep] = useState(1);
     const [formData, setFormData] = useState({
-        dataA: { travelSegments: [], accommodations: [], expenses: [] },
-        dataB: { timItems: [], activityReport: '' }
+        Skupiny_Cest: [],
+        Noclezne: [],
+        Vedlejsi_Vydaje: []
     });
     
     // Načtení dat při startu
     useEffect(() => {
-        loadReportData();  // Načte existující hlášení z DB
-        loadPriceList();   // Načte ceníky pro kalkulaci
+        loadReportData();  // Existující hlášení z DB
+        loadPriceList();   // Aktuální ceníky KČT
+        loadTeamMembers(); // Tým z INSYS
     }, [prikazId]);
-    
-    return (
-        <div>
-            {/* Stepper progress bar */}
-            <Stepper currentStep={currentStep} steps={steps} />
-            
-            {/* Dynamické zobrazení kroků */}
-            {currentStep === 1 && <PartAForm {...formData} />}
-            {currentStep === 2 && <PartBForm {...formData} />}
-            {currentStep === 3 && <Summary {...formData} />}
-        </div>
-    );
 };
 ```
 
 ### Část A - Vyúčtování formulář
-
-```jsx
-const PartAForm = ({ data, onChange, priceList }) => {
-    const [activeTab, setActiveTab] = useState('travel');
-    
-    // Real-time kalkulace při změně dat
-    useEffect(() => {
-        if (priceList) {
-            const calculation = calculateCompensation(data, priceList);
-            onCalculationChange(calculation);
-        }
-    }, [data, priceList]);
-    
-    return (
-        <div>
-            {/* Tab navigation */}
-            <Tabs value={activeTab} onChange={setActiveTab}>
-                <Tab value="travel" label="Doprava" />
-                <Tab value="accommodation" label="Ubytování" />
-                <Tab value="expenses" label="Výdaje" />
-                <Tab value="driver" label="Řidič" />
-            </Tabs>
-            
-            {/* Dynamický obsah podle aktivní záložky */}
-            {activeTab === 'travel' && <TravelSegmentsForm {...data} />}
-            {activeTab === 'accommodation' && <AccommodationForm {...data} />}
-            {activeTab === 'expenses' && <ExpensesForm {...data} />}
-            {activeTab === 'driver' && <DriverForm {...data} />}
-        </div>
-    );
-};
-```
+**Záložkové rozhraní:**
+- **Doprava** - Cestovní segmenty s real-time kalkulací  
+- **Ubytování** - Noclehárny s příložkami
+- **Výdaje** - Vedlejší náklady
+- **Řidič** - SPZ vozidel a hlavní řidič pro zvýšenou sazbu
 
 #### Cestovní segmenty
+Podporované dopravní prostředky:
+- **AUV** - Auto vlastní (vyžaduje km + SPZ)
+- **V** - Vlak (vyžaduje náklady + doklady)
+- **P** - Pěšky
+- **K** - Kolo
+
+**Live preview kalkulace** se aktualizuje při každé změně podle ceníků KČT.
+
+#### Hlavní řidič a zvýšená sazba
+**Klíčová změna (2025-08-06):** Globální výběr místo per skupina
+
 ```jsx
-const TravelSegmentsForm = ({ segments, onChange }) => (
-    <div>
-        {segments.map(segment => (
-            <div key={segment.id} className="segment-card">
-                <select value={segment.transport} onChange={e => updateSegment(segment.id, 'transport', e.target.value)}>
-                    <option value="auto">Auto</option>
-                    <option value="vlak">Vlak</option>
-                    <option value="autobus">Autobus</option>
-                </select>
-                
-                <input placeholder="Odkud" value={segment.from} onChange={...} />
-                <input placeholder="Kam" value={segment.to} onChange={...} />
-                <input type="time" value={segment.startTime} onChange={...} />
-                <input type="time" value={segment.endTime} onChange={...} />
-                
-                {segment.transport === 'auto' && (
-                    <input type="number" placeholder="Km" value={segment.kilometers} />
-                )}
-                
-                {/* Live preview kalkulace */}
-                <div className="calculation-preview">
-                    Náhrada: {calculateSegmentCompensation(segment, priceList)} Kč
-                </div>
-            </div>
-        ))}
-        
-        <button onClick={addSegment}>Přidat segment</button>
-    </div>
-);
+// Zobrazuje unikátní řidiče napříč skupinami
+const uniqueDrivers = useMemo(() => {
+    const driverMap = new Map();
+    travelGroups.forEach(group => {
+        if (group.Ridic && !driverMap.has(group.Ridic)) {
+            const totalKm = calculateTotalKmForDriver(group.Ridic);
+            driverMap.set(group.Ridic, { ...driver, totalKm });
+        }
+    });
+    return Array.from(driverMap.values());
+}, [travelGroups]);
 ```
 
 ### Část B - Hlášení činnosti
-
-```jsx
-const PartBForm = ({ data, onChange, prikazType, predmety }) => {
-    const isObnovaType = prikazType === 'O';
-    
-    // Dynamické zobrazení podle typu příkazu
-    return isObnovaType ? (
-        <TimItemsForm 
-            timReports={data.timReports}
-            predmety={predmety}
-            onChange={onChange}
-        />
-    ) : (
-        <ActivityReportForm 
-            report={data.routeComment}
-            attachments={data.routeAttachments}
-            onChange={onChange}
-        />
-    );
-};
-```
+**Dynamické zobrazení podle typu příkazu:**
+- **Obnovy (O)** - TIM hodnocení s předměty a fotografiemi
+- **Ostatní typy** - Textové hlášení činnosti s přílohami
 
 #### TIM hodnocení (pro Obnovy)
-```jsx
-const TimItemsForm = ({ timReports, predmety }) => {
-    // Seskupení položek podle TIM
-    const timGroups = groupItemsByTIM(predmety);
-    
-    return (
-        <div>
-            {timGroups.map(timGroup => (
-                <TimCard key={timGroup.EvCi_TIM}>
-                    <h3>{timGroup.Naz_TIM}</h3>
-                    
-                    {/* Středové pravidlo */}
-                    <RadioGroup 
-                        name="centerRule"
-                        value={timReport?.centerRuleCompliant}
-                        onChange={value => updateTimReport(timGroup.EvCi_TIM, {centerRuleCompliant: value})}
-                    />
-                    
-                    {/* Hodnocení jednotlivých položek */}
-                    {timGroup.items.map(item => (
-                        <TimItemRow key={item.ID_PREDMETY}>
-                            <span>{item.Radek1}</span>
-                            <select value={getItemStatus(item)?.state || ''} onChange={...}>
-                                <option value="1">1 - Nová</option>
-                                <option value="2">2 - Zachovalá</option>
-                                <option value="3">3 - Nevyhovující</option>
-                                <option value="4">4 - Zcela chybí</option>
-                            </select>
-                            {needsYearInput && <input type="number" placeholder="Rok" />}
-                        </TimItemRow>
-                    ))}
-                    
-                    {/* Fotografie TIMu */}
-                    <AdvancedFileUpload 
-                        storagePath={generateStoragePath()} 
-                        files={timReport?.photos || []}
-                    />
-                </TimCard>
-            ))}
-        </div>
-    );
-};
-```
+**Struktura:**
+1. **TIM karty** - Seskupení podle turistických míst
+2. **Středové pravidlo** - Ano/Ne radio button
+3. **Předměty** - Hodnocení stavu (1-4) + rok výroby
+4. **Fotografie** - Upload pro TIM a předměty
 
 ### Automatická kalkulace kompenzací
-
 ```javascript
-export function calculateCompensation(formData, priceList, userIntAdr, isUserDriver = false, higherKmRate = false) {
-    const result = { 
-        transport: 0,      // Doprava (pouze řidič)
-        meals: 0,          // Stravné podle hodin
-        reward: 0,         // Odměna podle hodin
-        accommodation: 0,  // Ubytování (kdo platil)
-        expenses: 0,       // Výdaje (kdo platil)
-        total: 0,          // Celkem
-        workHours: 0       // Odpracované hodiny
+// utils/compensationCalculator.js
+export function calculateCompensation(formData, priceList, userIntAdr) {
+    const result = {
+        transport: 0,    // Doprava (jen řidiči)
+        meals: 0,        // Stravné podle hodin
+        reward: 0,       // Odměna podle hodin
+        accommodation: 0,// Ubytování (kdo platil)
+        expenses: 0,     // Výdaje (kdo platil)
+        total: 0
     };
     
-    if (!priceList) return result;
+    // Hlavní řidič = zvýšená sazba na VŠECHNY AUV jízdy
+    const isUserMainDriver = formData.Hlavni_Ridic === userIntAdr;
+    const rate = isUserMainDriver ? priceList.jizdneZvysene : priceList.jizdne;
     
-    // 1. Výpočet pracovních hodin (od nejdřívějšího startu po nejpozdější konec)
-    result.workHours = calculateWorkHours(formData.travelSegments);
-    
-    // 2. Doprava - pouze pro označeného řidiče
-    if (isUserDriver) {
-        const kmRate = higherKmRate ? priceList.km_sazba_zvysena : priceList.km_sazba;
-        result.transport = formData.travelSegments
-            .filter(s => s.transportType === 'AUV')
-            .reduce((sum, s) => sum + (s.kilometers * kmRate), 0);
-    }
-    
-    // 3. Stravné a odměna podle odpracovaných hodin
-    if (result.workHours >= 5) {
-        const tier = result.workHours >= 12 ? '12h_vice' : 
-                     result.workHours >= 8 ? '8_12h' : '5_8h';
-        result.meals = priceList[`stravne_${tier}`];
-        result.reward = priceList[`odmena_${tier}`];
-    }
-    
-    // 4. Ubytování a výdaje - pouze pro toho kdo platil
-    result.accommodation = formData.accommodations
-        .filter(a => a.paidByMember === userIntAdr)
-        .reduce((sum, a) => sum + a.amount, 0);
-        
-    result.expenses = formData.additionalExpenses
-        .filter(e => e.paidByMember === userIntAdr)
-        .reduce((sum, e) => sum + e.amount, 0);
-    
-    result.total = Object.values(result).reduce((a, b) => a + (typeof b === 'number' ? b : 0), 0);
-    
+    // Kalkulace podle ceníků KČT
     return result;
 }
 ```
 
-## 🔄 Kompletní workflow procesu
+## 🔄 Workflow procesu
 
 ### 1. **Inicializace hlášení**
 ```javascript
-1. Načti INSYS příkaz details (/api/insys/prikaz/{id})
-2. Načti existující hlášení (/api/portal/report?id_zp={id})
-3. Načti ceníky pro kalkulaci (/api/insys/ceniky?date=...)
-4. Inicializuj formulář s daty nebo prázdný
+// Automatické načítání při startu
+1. GET /api/insys/prikaz/{id} - Detail příkazu z INSYS
+2. GET /api/portal/report?id_zp={id} - Existující hlášení (draft)
+3. GET /api/insys/ceniky?date=... - Aktuální ceníky KČT
+4. Inicializace formuláře (prázdný nebo draft)
 ```
 
-### 2. **Část A - Vyúčtování workflow**
-```javascript
-// Uživatel postupně vyplní:
-1. Cestovní segmenty (odkud, kam, čas, dopravní prostředek)
+### 2. **Vyplnění formuláře**
+**Uživatel postupně vyplní:**
+1. Cestovní segmenty (odkud, kam, čas, doprava)
 2. Ubytování (místo, zařízení, částka, kdo platil)
-3. Vedlejší výdaje (popis, částka, kdo platil)
+3. Vedlejší výdaje (popis, částka, kdo platil)  
 4. Řidič a vozidlo (pokud auto segment)
-5. Přesměrování plateb (kdo dostane čí kompenzaci)
+5. TIM hodnocení nebo textové hlášení činnosti
 
-// Realtime kalkulace při každé změně
-const calculation = calculateCompensation(formData, priceList);
-```
+**Realtime kalkulace** při každé změně podle ceníků.
 
-### 3. **Část B - Hlášení činnosti**
+### 3. **Uložení a odeslání**
 ```javascript
-if (prikazType === 'O') {
-    // OBNOVY - TIM hodnocení
-    timItems.forEach(item => {
-        // Stav: 1-Nová, 2-Zachovalá, 3-Nevyhovující, 4-Zcela chybí
-        // Pro 1,2: + rok výroby, orientace
-    });
-} else {
-    // OSTATNÍ TYPY - textové hlášení
-    activityReport = "Popis provedené činnosti...";
+// Draft workflow
+onClick(saveDraft): {
+    state: 'draft',     // Uloží pouze do PostgreSQL
+    is_editable: true   // Lze pokračovat později
 }
 
-// File upload pro fotografie a doklady
-files = uploadFiles(storagePath: `reports/2025/${kkz}/${obvod}/${prikazId}`);
-```
-
-### 4. **Kontrola a kalkulace**
-```javascript
-const finalCalculation = {
-    transport: 245,      // Doprava (jen řidič)
-    meals: 120,          // Stravné podle hodin
-    reward: 180,         // Odměna podle hodin  
-    total: 1080,         // Celkem
-    workHours: 8.5       // Odpracované hodiny
-};
-
-// Pro vedoucí: kalkulace pro celý tým
-if (jeVedouci) {
-    allMembersCalculations = calculateForAllMembers(...);
+// Submit workflow  
+onClick(submitForApproval): {
+    state: 'send',            // Trigger async processing
+    workerManager.start(),    // Spustí on-demand worker
+    polling: true            // Sleduje stav zpracování
 }
-```
-
-### 5. **Finalizace a odeslání**
-```javascript
-const reportData = {
-    id_zp: prikazId,
-    data_a: { travelSegments: [...], accommodations: [...] },
-    data_b: { timItems: [...] || activityReport: "..." },
-    calculation: finalCalculation,
-    state: "send"  // "draft" = uložit lokálně, "send" = připravit k odeslání
-};
-
-// Uložení do lokální PostgreSQL databáze
-await fetch('/api/portal/report', {
-    method: 'POST',
-    body: JSON.stringify(reportData)
-});
-
-// Dispatch do Symfony Messenger pro asynchronní zpracování
-```
-
-## 🔒 Validace a kontroly
-
-### Frontend validace
-
-```javascript
-const canCompletePartA = useMemo(() => {
-    const hasSegments = formData.dataA.travelSegments.length > 0;
-    const segmentsValid = formData.dataA.travelSegments.every(seg => 
-        seg.transport && seg.from && seg.to && seg.startTime && seg.endTime &&
-        (seg.transport !== 'auto' || seg.kilometers)
-    );
-    
-    const needsDriver = formData.dataA.travelSegments.some(seg => seg.transport === 'auto');
-    const hasDriverInfo = !needsDriver || formData.dataA.driverInfo.intAdr;
-    
-    return hasSegments && segmentsValid && hasDriverInfo;
-}, [formData.dataA]);
-
-const canCompletePartB = useMemo(() => {
-    if (prikazType === 'O') {
-        return timItems.every(item => {
-            const timItem = formData.dataB.timItems.find(ti => ti.id === item.ID_usek);
-            return timItem?.state && (!['1', '2'].includes(timItem.state) || timItem.yearMade);
-        });
-    } else {
-        return formData.dataB.activityReport.trim().length >= 10;
-    }
-}, [formData.dataB, prikazType, timItems]);
-```
-
-### Backend validace
-
-```php
-class ReportDto {
-    #[Assert\NotBlank, Assert\Positive]
-    public int $idZp;
-    
-    #[Assert\Valid]
-    public PartADto $dataA;
-    
-    #[Assert\Choice(['draft', 'send'])]
-    public string $state = 'draft';
-    // ...
-}
-
-// Controller validation
-if ($report->getId() && !$report->isEditable()) {
-    return new JsonResponse(['error' => 'Report není v editovatelném stavu'], 403);
-}
-
-if ($reportDto->state === 'send') {
-    $violations = $this->validateForSend($reportDto);
-    if (count($violations) > 0) {
-        return new JsonResponse(['errors' => $violations], 400);
-    }
-}
-```
-
-## 🧪 Testing workflow
-
-### Test přihlášení
-- Username: `test`
-- Password: `test`
-
-### Testovací scénáře
-
-1. **Draft ukládání**: Vyplnit část A, uložit jako draft, obnovit stránku
-2. **Kalkulace**: Přidat auto segment s km, zkontrolovat výpočet
-3. **TIM hodnocení**: Pro příkaz typu Obnova vyplnit všechny TIM položky
-4. **File upload**: Nahrát doklady a fotografie, ověřit zobrazení
-
-### Rychlý test API
-```bash
-# Načtení hlášení
-curl "https://portalznackare.ddev.site/api/portal/report?id_zp=123"
-
-# Uložení draftu
-curl -X POST "https://portalznackare.ddev.site/api/portal/report" \
-  -H "Content-Type: application/json" \
-  -d '{"id_zp": 123, "state": "draft", "data_a": {...}, "data_b": {...}}'
 ```
 
 ## 📤 INSYZ Submission - Asynchronní zpracování
 
-### Implementace pomocí Symfony Messenger
+### On-demand worker systém (2025-08-06)
+**Optimalizace:** Pro nízký objem (jednotky příkazů denně)
 
-**Aktuální stav:** Hlášení se odesílají asynchronně do INSYZ pomocí background jobs
-
-#### 1. **Message Bus Pattern**
-```php
-// Dispatch z controlleru při state = 'send'
-$message = new SendToInsyzMessage(
-    $report->getId(),
-    [
-        'id_zp' => $report->getIdZp(),
-        'cislo_zp' => $report->getCisloZp(),
-        'znackari' => $report->getTeamMembers(),
-        'data_a' => $report->getDataA(),
-        'data_b' => $report->getDataB(),
-        'calculation' => $report->getCalculation()
-    ],
-    $this->getParameter('kernel.environment')
-);
-
-$this->messageBus->dispatch($message);
+```javascript
+// Workflow odeslání
+1. Frontend: "Odeslat ke schválení" 
+2. Backend: state='send' → dispatch message
+3. Worker: startSingleTaskWorker() → XML generace
+4. INSYZ: Submit přes stored procedure
+5. Status: submitted/rejected → frontend polling
 ```
 
-#### 2. **Background Handler**
+### Smart retry logika
 ```php
-#[AsMessageHandler]
-class SendToInsyzHandler
-{
-    public function __invoke(SendToInsyzMessage $message): void
-    {
-        $report = $this->reportRepository->find($message->getReportId());
-        
-        // Test mode: 70% úspěch, 30% chyba
-        if ($message->getEnvironment() === 'test') {
-            $result = $this->simulateInsyzCall($message->getReportData());
-        } else {
-            $result = $this->callInsyzApi($message->getReportData());
-        }
-        
-        // Aktualizace stavu podle výsledku
-        if ($result['success']) {
-            $report->setState(ReportStateEnum::SUBMITTED);
-        } else {
-            $report->setErrorMessage($result['error']);
-        }
-        
-        $this->entityManager->flush();
-    }
+// SendToInsyzHandler rozlišuje chyby
+private function shouldRetry(\Exception $e): bool {
+    $message = strtolower($e->getMessage());
+    
+    // Retry: timeout, connection, network  
+    if (strpos($message, 'timeout') !== false) return true;
+    
+    // No retry: authentication, invalid data
+    if (strpos($message, 'authentication') !== false) return false;
+    
+    return true; // Default: retry s backoff
 }
 ```
 
-#### 3. **Real-time Status Polling**
-Frontend používá **useStatusPolling** hook pro sledování zpracování:
+### Timeout protection (3-vrstvé)
+- **Frontend:** 45s timeout s AbortController
+- **Backend:** 30s database statement timeout  
+- **Worker:** 60s process timeout
 
-```javascript
-const { isPolling, pollCount } = useStatusPolling(
-    prikazId, 
-    formData, 
-    setFormData, 
-    formData.status === 'send'
-);
+## 📊 Data struktury
 
-// Automaticky kontroluje stav každých 5 sekund
-// Zobrazuje notifikace při změně stavu
-// Zastavuje polling při finálních stavech
+### Report JSON structure
+```json
+{
+    "id_zp": 12345,
+    "cislo_zp": "ZP001/2025",
+    "znackari": [{"INT_ADR": 1234, "Znackar": "Jan Novák"}],
+    "data_a": {
+        "Datum_Provedeni": "2025-08-06",
+        "Skupiny_Cest": [{
+            "Ridic": 1234,
+            "SPZ": "1A2 3456",
+            "Cesty": [{
+                "Druh_Dopravy": "AUV",
+                "Kilometry": 50,
+                "Misto_Odjezdu": "Praha",
+                "Misto_Prijezdu": "Karlštejn"
+            }]
+        }],
+        "Hlavni_Ridic": 1234,
+        "Zvysena_Sazba": true
+    },
+    "data_b": {
+        "Stavy_Tim": {"TIM123": {"Stav": 2, "Rok_vyroby": 2023}},
+        "Koment_Usek": "Značení obnoveno"
+    },
+    "calculation": {"1234": {"transport": 245, "total": 1080}},
+    "state": "send"
+}
 ```
 
-**Dokumentace background jobs:** [../development/development.md#background-jobs-symfony-messenger](../development/development.md#background-jobs-symfony-messenger)
+### Report states
+- **draft** - Rozpracováno (editovatelné)
+- **send** - Odesláno ke zpracování (async)
+- **submitted** - Přijato INSYZ systémem
+- **approved** - Schváleno v INSYZ
+- **rejected** - Zamítnuto (opět editovatelné)
+
+## 🔍 Validace a kontroly
+
+### Frontend validace
+```javascript
+const canCompletePartA = useMemo(() => {
+    const hasSegments = formData.Skupiny_Cest.length > 0;
+    const segmentsValid = formData.Skupiny_Cest.every(group =>
+        group.Cesty.every(seg => 
+            seg.Druh_Dopravy && seg.Misto_Odjezdu && seg.Misto_Prijezdu
+        )
+    );
+    return hasSegments && segmentsValid;
+}, [formData]);
+```
+
+### Backend validace
+Symfony validátory kontrolují:
+- **Identifikace:** Platné ID příkazu a uživatele
+- **Stavy:** Pouze povolené přechody (draft→send→submitted)
+- **Kompletnost:** Před odesláním všechny povinné údaje
+
+## 🧪 Testing workflow
+
+### Test přihlášení  
+- Username: `test` / Password: `test`
+
+### Testovací scénáře
+1. **Draft ukládání** - Vyplnit část A, uložit, obnovit stránku
+2. **Kalkulace** - Auto segment s km → zkontrolovat výpočet  
+3. **TIM hodnocení** - Obnova → vyplnit všechny předměty
+4. **Hlavní řidič** - Test výběru z unikátních řidičů
+5. **Async odeslání** - Submit → sledovat polling
+
+```bash
+# API testování
+curl "https://portalznackare.ddev.site/api/portal/report?id_zp=123"
+curl -X POST "/api/portal/report" -d '{"state": "draft", ...}'
+```
 
 ## 🛠️ Troubleshooting
 
-### Časté problémy a řešení
+### Časté problémy
 
-1. **Kalkulace se neaktualizuje**
-   - Zkontrolovat, zda se načetly ceníky správně
-   - Ověřit správné dependencies v useEffect
-   - Zkontrolovat console.log pro priceList data
+#### 1. **Kalkulace se neaktualizuje**
+```javascript
+// Zkontroluj načtení ceníků
+useEffect(() => {
+    if (priceList) {
+        const calculation = calculateCompensation(formData, priceList);
+        setCalculation(calculation);
+    }
+}, [formData, priceList]); // Dependencies!
+```
 
-2. **Report se neukládá**
-   - Ověřit stav hlášení (pouze draft/rejected lze editovat)
-   - Zkontrolovat unique constraint (1 hlášení na příkaz)
-   - Ověřit autentifikaci uživatele
+#### 2. **Hlavní řidič se neukládá**
+- Ověř výběr v části "Řidič" 
+- Zkontroluj že je aktivní "Zvýšená sazba"
+- Debug: `console.log(formData.Hlavni_Ridic)`
 
-3. **TIM položky se nezobrazují**
-   - Pouze pro příkazy typu "O" (Obnova)
-   - Zkontrolovat, zda příkaz obsahuje úseky s předměty
-   - Ověřit správné načtení predmety z API
+#### 3. **Worker neběží po DDEV restart**
+```bash
+# On-demand worker se spustí automaticky při submit
+# Nebo manuálně:
+ddev exec php bin/console messenger:consume async --limit=1
+```
 
-4. **TypeError při kliknutí na radiobutton**
-   ```javascript
-   // Problém: timReport je undefined
-   // Řešení: použít optional chaining nebo default hodnotu
-   onChange={() => updateTimReport(timId, {
-       ...(timReport || {}),  // Fix
-       centerRuleCompliant: true
-   })}
-   ```
+#### 4. **Timeout při odesílání**
+Frontend zobrazí: "Odesílání trvá déle než obvykle"
+- Zkontroluj síť a server load
+- Počkej 1-2 minuty a zkontroluj stav hlášení
+
+#### 5. **TIM položky chybí**
+- Pouze pro příkazy typu "O" (Obnova)
+- Zkontroluj že příkaz obsahuje úseky s předměty
+- Verify: GET `/api/insys/prikaz/{id}` → `predmety[]`
 
 ---
 
 **Propojené funkcionality:** [File Management](file-management.md) | [INSYS Integration](insys-integration.md)  
 **API Reference:** [../api/portal-api.md](../api/portal-api.md)  
-**Frontend:** [../architecture.md](../architecture.md)  
-**Aktualizováno:** 2025-08-03 - Přidána konvence Czech Snake_Case parametrů
+**Technical details:** [../development/development.md#background-jobs-symfony-messenger](../development/development.md#background-jobs-symfony-messenger)  
+**Aktualizováno:** 2025-08-06 - On-demand worker, Hlavni_Ridic, timeout protection

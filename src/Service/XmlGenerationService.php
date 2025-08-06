@@ -36,7 +36,8 @@ class XmlGenerationService
         
         // Konvertovat celé pole na XML
         $this->arrayToXml($xml, $root, $restructuredData);
-        
+
+	    // Pro MSSQL vrať bez deklarace
         return $xml->saveXML($xml->documentElement);
     }
     

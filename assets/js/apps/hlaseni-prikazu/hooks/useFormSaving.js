@@ -305,6 +305,13 @@ export const useFormSaving = (formData, head, prikazId, priceList, isLeader, tea
 
         setSaving(true);
 
+        // Timeout protection - 45 sekund
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+            controller.abort();
+            log.error('API call timeout po 45 sekundách');
+        }, 45000);
+
         try {
             // Fallback pro teamMembers - pokud jsou prázdné, vytvoř je z head dat
             const rawTeamMembers = teamMembers.length > 0 
@@ -399,7 +406,13 @@ export const useFormSaving = (formData, head, prikazId, priceList, isLeader, tea
                 endpoint: 'POST /portal/report'
             });
 
-            const response = await api.prikazy.saveReport(data);
+            const response = await api.prikazy.saveReport(data, { 
+                signal: controller.signal,
+                timeout: 45000 
+            });
+            
+            // Zrušit timeout pokud call proběhl úspěšně
+            clearTimeout(timeoutId);
             
             log.info('Response from saveReport:', response);
 
@@ -421,31 +434,53 @@ export const useFormSaving = (formData, head, prikazId, priceList, isLeader, tea
 
             return true;
         } catch (error) {
+            // Vždy zrušit timeout
+            clearTimeout(timeoutId);
+            
             log.error('Chyba při odesílání ke schválení', error);
             
             // Detailní zpracování chyb pro uživatele
             let errorMessage = 'Chyba při odesílání ke schválení';
             let errorType = 'error';
             
-            if (error.status) {
+            // Timeout specifické zpracování
+            if (error.name === 'AbortError') {
+                errorMessage = 'Odesílání trvá déle než obvykle. Zkontrolujte stav hlášení za chvíli nebo zkuste odeslat znovu.';
+                errorType = 'warning';
+            } else if (error.status) {
                 switch (error.status) {
                     case 400:
                         errorMessage = 'Neplatná data v hlášení. Zkontrolujte všechny povinné údaje před odesláním.';
+                        errorType = 'warning';
+                        break;
+                    case 408:
+                        errorMessage = 'Požadavek vypršel. Server zpracovává hlášení na pozadí - zkontrolujte stav za chvíli.';
                         errorType = 'warning';
                         break;
                     case 409:
                         errorMessage = 'Hlášení už bylo odesláno a je v procesu zpracování.';
                         errorType = 'info';
                         break;
-                    case 503:
-                        errorMessage = 'Služba je dočasně nedostupná. Zkuste odeslat znovu za chvíli.';
+                    case 422:
+                        errorMessage = 'Hlášení obsahuje neplatné údaje. Zkontrolujte všechny vyplněné hodnoty.';
+                        errorType = 'warning';
+                        break;
+                    case 429:
+                        errorMessage = 'Příliš mnoho požadavků. Počkejte chvíli a zkuste to znovu.';
                         errorType = 'warning';
                         break;
                     case 500:
-                        errorMessage = 'Vnitřní chyba serveru při odesílání. Kontaktujte administrátora.';
+                        errorMessage = 'Vnitřní chyba serveru. Hlášení může být zpracováváno na pozadí - zkontrolujte stav za chvíli.';
+                        errorType = 'warning';
+                        break;
+                    case 502:
+                    case 503:
+                    case 504:
+                        errorMessage = 'Server je dočasně nedostupný. Zkuste to za 1-2 minuty.';
+                        errorType = 'warning';
                         break;
                     default:
-                        errorMessage = `Chyba při komunikaci se serverem při odesílání (${error.status})`;
+                        errorMessage = `Komunikační chyba (${error.status}). Zkuste to za chvíli nebo kontaktujte podporu.`;
                 }
             } else if (error.message) {
                 errorMessage = error.message;
