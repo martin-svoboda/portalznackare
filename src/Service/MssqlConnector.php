@@ -25,9 +25,7 @@ class MssqlConnector
             
             // Nastavit timeout pro MSSQL
             // PDO::ATTR_TIMEOUT není podporován v sqlsrv driveru
-            // Místo toho použijeme connection options a SQL příkazy
             $this->conn->exec("SET LOCK_TIMEOUT 30000"); // 30s lock timeout
-            $this->conn->exec("SET QUERY_GOVERNOR_COST_LIMIT 0"); // No query cost limit
         } catch (PDOException $e) {
             $this->conn = null;
             $this->lastError = $e->getMessage();
@@ -52,7 +50,7 @@ class MssqlConnector
 
         try {
             // Nastavit query timeout pro tento call
-            $this->conn->exec("SET QUERY_TIMEOUT {$timeout}");
+            // QUERY_TIMEOUT není podporováno, použijeme statement timeout
             
             $isNamed = $this->isAssoc($params);
 
@@ -71,7 +69,7 @@ class MssqlConnector
             $stmt = $this->conn->prepare($sql);
             
             // Nastavit timeout pro statement
-            $stmt->setAttribute(PDO::ATTR_TIMEOUT, $timeout);
+            // PDO::ATTR_TIMEOUT není podporován pro sqlsrv statements
             
             $stmt->execute($args);
 
