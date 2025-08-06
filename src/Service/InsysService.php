@@ -119,20 +119,22 @@ class InsysService
 
     public function submitReportToInsys(string $xmlData, string $uzivatel): array
     {
+
+	    // Uložit XML pro kontrolu při testování
+	    $xmlDir = $this->kernel->getProjectDir() . '/var/xml-exports';
+	    if (!is_dir($xmlDir)) {
+		    mkdir($xmlDir, 0755, true);
+	    }
+
+	    $filename = sprintf('report-%s-%s.xml',
+		    $uzivatel,
+		    date('Ymd-His')
+	    );
+	    $filepath = $xmlDir . '/' . $filename;
+	    file_put_contents($filepath, $xmlData);
+
         if ($this->useTestData()) {
             // V testovacím režimu pouze simulujeme úspěšné odeslání
-            // Uložit XML pro kontrolu při testování
-            $xmlDir = $this->kernel->getProjectDir() . '/var/xml-exports';
-            if (!is_dir($xmlDir)) {
-                mkdir($xmlDir, 0755, true);
-            }
-            
-            $filename = sprintf('report-%s-%s.xml', 
-                $uzivatel, 
-                date('Ymd-His')
-            );
-            $filepath = $xmlDir . '/' . $filename;
-            file_put_contents($filepath, $xmlData);
             
             return [
                 'success' => true,
