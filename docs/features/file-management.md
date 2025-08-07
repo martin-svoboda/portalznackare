@@ -90,7 +90,7 @@ Controller pro serving souborů s podporou public/private přístupu a security 
 
 ## ⚛️ React Frontend - AdvancedFileUpload
 
-### Pokročilá upload komponenta
+### Jednotná upload komponenta (nahrazuje SimpleFileUpload)
 
 ```jsx
 // assets/js/apps/hlaseni-prikazu/components/AdvancedFileUpload.jsx
@@ -100,9 +100,13 @@ export const AdvancedFileUpload = ({
     onFilesChange, 
     maxFiles = 5, 
     accept = "image/jpeg,image/png,image/heic,application/pdf",
-    disabled = false,    // NEW: Disabled stav pro readonly formuláře
+    disabled = false,    // Disabled stav pro readonly formuláře
     storagePath = null,
-    isPublic = false     // Public vs private files
+    isPublic = false,    // Public vs private files
+    // Usage tracking props
+    usageType = null,    // Type použití ('report', 'methodology', etc.)
+    entityId = null,     // ID entity kde se soubor používá
+    usageData = null     // Dodatečná data o použití
 }) => {
     const [uploading, setUploading] = useState(false);
     const [cameraOpen, setCameraOpen] = useState(false);
@@ -123,7 +127,11 @@ export const AdvancedFileUpload = ({
         formData.append('is_public', isPublic.toString());
         formData.append('options', JSON.stringify({
             create_thumbnail: true,
-            optimize: true
+            optimize: true,
+            // Usage tracking data
+            usage_type: usageType,
+            entity_id: entityId,
+            usage_data: usageData
         }));
         
         try {
@@ -159,7 +167,7 @@ export const AdvancedFileUpload = ({
     };
     
     /**
-     * Remove file s potvrzením a kontextovým mazáním
+     * Remove file s potvrzením, kontextovým mazáním a usage tracking
      */
     const removeFile = async (fileId, context = {}) => {
         if (disabled) return;
@@ -174,6 +182,11 @@ export const AdvancedFileUpload = ({
         try {
             // Pokud má file numeric ID, je ze serveru - smaž ho
             if (typeof fileToRemove.id === 'number') {
+                // Nejdřív odregistruj usage pokud je nastaveno
+                if (usageType && entityId) {
+                    await unregisterFileUsage(fileToRemove.id, usageType, entityId);
+                }
+                
                 const response = await fetch(`/api/portal/files/${fileToRemove.id}`, {
                     method: 'DELETE',
                     credentials: 'same-origin',
@@ -471,7 +484,17 @@ public/uploads/
 
 ### 2. **Usage Tracking**
 ```php
-// Přidání usage tracking
+// Automatické přidání usage při uploadu
+$usageInfo = $request->request->get('options')['usage_info'] ?? null;
+if ($usageInfo) {
+    $file->addUsage(
+        $usageInfo['type'],
+        $usageInfo['entity_id'],
+        $usageInfo['data'] ?? []
+    );
+}
+
+// Manuální přidání usage tracking
 $file->addUsage('report', $reportId, ['section' => 'photos']);
 
 // File se stane permanent (není temporary)
@@ -485,17 +508,52 @@ if ($file->getUsageCount() === 0) {
     $file->setIsTemporary(true);
     $file->setExpiresAt(new DateTimeImmutable('+24 hours'));
 }
+
+// Cleanup orphaned references
+$cleanupResult = $fileUploadService->cleanupFileReferences($file);
 ```
 
-### 3. **Inteligentní Soft/Hard Delete Logic**
+### 3. **Physically Deleted Flag - Ochrana používaných souborů**
+```php
+// Speciální situace: Soubor se používá, ale někdo ho chce smazat
+if (!$attachment->isTemporary() && $attachment->getUsageCount() > 0) {
+    // Soubor se smaže z disku, ale záznam v DB zůstává
+    $attachment->setPhysicallyDeleted(true);
+    $this->repository->save($attachment, true);
+} else {
+    // Běžné mazání - úplné odstranění z DB
+    $this->repository->remove($attachment, true);
+}
+
+// Cleanup job kontroluje physically_deleted flag
+foreach ($softDeletedFiles as $file) {
+    if (!$file->isPhysicallyDeleted()) {
+        $this->deleteFile($file, true); // Smaž jen pokud ještě není physically deleted
+    }
+}
+
+// Tři stavy souboru:
+// 1. deletedAt = null → aktivní soubor
+// 2. deletedAt != null + physically_deleted = false → soft delete (soubor na disku existuje)
+// 3. deletedAt != null + physically_deleted = true → hard delete (soubor smazán, záznam pro usage tracking)
+```
+
+**Proč physically_deleted existuje:**
+- **Ochrana integrity** - i smazané soubory můžeme trackovat kde byly použité
+- **Orphaned reference cleanup** - můžeme najít a vyčistit odkazy na smazané soubory
+- **Prevence duplicate deletion** - cleanup job nesmaže už smazané soubory
+- **Audit trail** - historie co se s databázovými záznamy dělo
+
+### 4. **Inteligentní Soft/Hard Delete Logic**
 ```php
 // Kontextové mazání s potvrzením
-$context = ['draft' => true]; // Kontext drafy vždy hard delete
+$context = ['draft' => true]; // Kontext draftu vždy hard delete
 
-// Nová logika (po změně):
-// - Nové soubory (<5min) = soft delete (lze obnovit)
-// - Staré soubory (>5min) = hard delete (ihned pryč)
+// Aktuální logika mazání:
+// - Nové soubory (<5min) = hard delete (ihned pryč z disku)
+// - Staré soubory (>5min) = soft delete (pouze označí jako smazané)
 // - Draft kontext = vždy hard delete (bez ohledu na věk)
+// - Force delete = vždy hard delete (admin akce)
 $this->fileUploadService->deleteFile($file, false, $context);
 
 // Force delete pro admin akce
@@ -552,7 +610,7 @@ POST /api/portal/files/usage
 {
     "file_id": 123,
     "type": "report", 
-    "id": 456,
+    "entity_id": 456,
     "data": {"section": "photos"}
 }
 
@@ -561,13 +619,28 @@ DELETE /api/portal/files/usage
 {
     "file_id": 123,
     "type": "report",
-    "id": 456
+    "entity_id": 456
+}
+
+// Získej usage info
+GET /api/portal/files/usage/123
+Response:
+{
+    "usages": [
+        {
+            "type": "report",
+            "entity_id": 456,
+            "data": {"section": "photos"},
+            "created_at": "2025-08-07T10:00:00Z"
+        }
+    ],
+    "total_count": 1
 }
 ```
 
 ### React component test
 ```jsx
-// Test AdvancedFileUpload komponenty
+// Test AdvancedFileUpload komponenty s usage tracking
 <AdvancedFileUpload
     id="test-upload"
     files={files}
@@ -576,12 +649,18 @@ DELETE /api/portal/files/usage
     accept="image/jpeg,image/png,application/pdf"
     storagePath="reports/2025/test/1/123"  // Private path
     isPublic={false}
+    // Usage tracking
+    usageType="report"
+    entityId={123}
+    usageData={{ section: 'route_photos' }}
 />
 
 // Pro public files
 <AdvancedFileUpload
     storagePath="methodologies/test"
     isPublic={true}  // Explicit public
+    usageType="methodology"
+    entityId={"methodology-123"}
 />
 
 // Disabled stav (readonly formulář)
@@ -640,8 +719,68 @@ CREATE INDEX idx_file_created ON file_attachments(created_at);
 
 ---
 
+## 🔄 Migrace z SimpleFileUpload na AdvancedFileUpload
+
+### Důvod migrace
+Komponenta `SimpleFileUpload` byla nahrazena pokročilejší `AdvancedFileUpload`, která poskytuje:
+- Server-side upload s deduplikací
+- Usage tracking pro sledování použití souborů
+- Camera support pro mobilní zařízení  
+- Progress indicators během uploadu
+- Toast notifications pro lepší UX
+- Jednotné API napříč celou aplikací
+
+### Migrace kódu
+```jsx
+// Před (SimpleFileUpload) - DEPRECATED
+<SimpleFileUpload
+    files={files}
+    onFilesChange={setFiles}
+/>
+
+// Po (AdvancedFileUpload)
+<AdvancedFileUpload
+    id="unique-id"
+    files={files}
+    onFilesChange={setFiles}
+    storagePath={storagePath}
+    usageType="report"
+    entityId={reportId}
+/>
+```
+
+### Usage tracking v hlášení příkazů
+```jsx
+// Import v hlášení příkazů
+import { AdvancedFileUpload } from './components/AdvancedFileUpload';
+import { generateUsageType, generateEntityId } from '../utils/fileUsageUtils';
+
+// Použití ve StepContent.jsx
+<AdvancedFileUpload
+    id="hlaseni-route-attachments"
+    files={getAttachmentsAsArray(formData.Prilohy_Usek || {})}
+    onFilesChange={(files) => setFormData(prev => ({
+        ...prev,
+        Prilohy_Usek: setAttachmentsFromArray(files)
+    }))}
+    maxFiles={20}
+    accept="image/jpeg,image/png,image/heic,application/pdf"
+    disabled={disabled}
+    storagePath={storagePath}
+    // File usage tracking
+    usageType={generateUsageType('route', prikazId)}
+    entityId={generateEntityId(prikazId)}
+    usageData={{
+        section: 'route_report',
+        reportId: prikazId
+    }}
+/>
+```
+
+---
+
 **Related Documentation:**  
 **API Reference:** [../api/portal-api.md](../api/portal-api.md)  
 **Frontend:** [../architecture.md](../architecture.md)  
 **Configuration:** [../configuration.md](../configuration.md)  
-**Aktualizováno:** 2025-08-07 - Implementována inteligentní soft/hard delete logika, confirmation dialog a disabled stav
+**Aktualizováno:** 2025-08-07 - Přidán usage tracking, aktualizována delete logika, migrace na jednotnou AdvancedFileUpload komponentu

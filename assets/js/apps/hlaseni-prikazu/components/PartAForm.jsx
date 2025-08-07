@@ -12,6 +12,7 @@ import {
     setAttachmentsFromArray 
 } from '../utils/attachmentUtils';
 import { calculateExecutionDate } from '../utils/compensationCalculator';
+import { generateUsageType, generateEntityId } from '../utils/fileUsageUtils';
 
 
 export const PartAForm = ({ 
@@ -288,6 +289,14 @@ export const PartAForm = ({
                                                 accept="image/jpeg,image/png,image/heic,application/pdf"
                                                 maxSize={10}
                                                 storagePath={storagePath}
+                                                // File usage tracking
+                                                usageType={generateUsageType('accommodation', prikazId)}
+                                                entityId={generateEntityId(prikazId, accommodation.id)}
+                                                usageData={{
+                                                    section: 'accommodation',
+                                                    accommodationId: accommodation.id,
+                                                    reportId: prikazId
+                                                }}
                                             />
                                         </div>
                                     </div>
@@ -405,6 +414,14 @@ export const PartAForm = ({
                                                 accept="image/jpeg,image/png,image/heic,application/pdf"
                                                 maxSize={10}
                                                 storagePath={storagePath}
+                                                // File usage tracking
+                                                usageType={generateUsageType('expense', prikazId)}
+                                                entityId={generateEntityId(prikazId, expense.id)}
+                                                usageData={{
+                                                    section: 'expense',
+                                                    expenseId: expense.id,
+                                                    reportId: prikazId
+                                                }}
                                             />
                                         </div>
                                     </div>

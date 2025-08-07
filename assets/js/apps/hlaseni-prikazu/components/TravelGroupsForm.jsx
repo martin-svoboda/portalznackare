@@ -20,6 +20,7 @@ import {
     setAttachmentsFromArray 
 } from '../utils/attachmentUtils';
 import { calculateExecutionDate } from '../utils/compensationCalculator';
+import { generateUsageType, generateEntityId } from '../utils/fileUsageUtils';
 
 const druhDopravyOptions = [
     {value: "AUV", label: "AUV (Auto vlastní)", icon: IconCar},
@@ -645,6 +646,15 @@ export const TravelGroupsForm = ({
                                                             accept="image/jpeg,image/png,image/heic,application/pdf"
                                                             maxSize={10}
                                                             storagePath={storagePath}
+                                                            // File usage tracking
+                                                            usageType={generateUsageType('segment', prikazId)}
+                                                            entityId={generateEntityId(prikazId, segment.id)}
+                                                            usageData={{
+                                                                section: 'travel_segment',
+                                                                groupId: group.id,
+                                                                segmentId: segment.id,
+                                                                reportId: prikazId
+                                                            }}
                                                         />
                                                     </div>
                                                 )}

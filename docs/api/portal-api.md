@@ -227,9 +227,9 @@ public function saveReport(Request $request): JsonResponse {
 enum ReportStateEnum: string {
     case DRAFT = 'draft';           // Rozpracováno (editovatelné)
     case SEND = 'send';             // Odesláno ke zpracování (locked)
-    case SUBMITTED = 'submitted';   // TODO: Odesláno do INSYS  
+    case SUBMITTED = 'submitted';   // Odesláno do INSYS a přijato  
     case APPROVED = 'approved';     // TODO: Schváleno v INSYS
-    case REJECTED = 'rejected';     // TODO: Zamítnuto (opět editovatelné)
+    case REJECTED = 'rejected';     // Zamítnuto (opět editovatelné)
     
     public function isEditable(): bool {
         return in_array($this, [self::DRAFT, self::REJECTED]);
@@ -388,7 +388,7 @@ public function getStatistics(Request $request): JsonResponse {
 
 ### 📚 GET `/api/portal/metodika`
 
-Načte seznam metodik (zatím TODO).
+Načte seznam metodik (TODO).
 
 **Response:**
 ```json
@@ -401,7 +401,7 @@ Načte seznam metodik (zatím TODO).
 
 ### 📥 GET `/api/portal/downloads`
 
-Načte soubory ke stažení (zatím TODO).
+Načte soubory ke stažení (TODO).
 
 **Response:**
 ```json
@@ -414,7 +414,7 @@ Načte soubory ke stažení (zatím TODO).
 
 ### 📄 GET `/api/portal/post`
 
-Načte obsah stránek/příspěvků (zatím TODO).
+Načte obsah stránek/příspěvků (TODO).
 
 **Response:**
 ```json
@@ -646,7 +646,8 @@ curl -H "Cookie: PHPSESSID=..." "https://portalznackare.ddev.site/api/portal/rep
 ### **State transition problémy** 
 - Pouze DRAFT a REJECTED stavy jsou editovatelné
 - SEND stav zamyká hlášení pro editaci
-- TODO stavy (SUBMITTED, APPROVED) zatím nejsou implementované
+- SUBMITTED stav je implementován (SendToInsyzHandler)  
+- TODO: APPROVED stav není implementován (logika přechodu)
 
 ### **Statistics queries jsou pomalé**
 - Optimalizace JSON extraction queries

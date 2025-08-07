@@ -14,6 +14,7 @@ import {
     IconPhotoCancel
 } from '@tabler/icons-react';
 import {showErrorToast, showSuccessToast, showWarningToast} from '../../../utils/notifications.js';
+import {registerMultipleFileUsage, unregisterFileUsage} from '../utils/fileUsageUtils.js';
 
 export const AdvancedFileUpload = ({
                                        id,
@@ -24,7 +25,11 @@ export const AdvancedFileUpload = ({
                                        disabled = false,
                                        maxSize = 10, // MB
                                        storagePath = null,
-                                       isPublic = false // New parameter for public/private files
+                                       isPublic = false, // New parameter for public/private files
+                                       // Usage tracking props
+                                       usageType = null, // e.g., 'report_segment'
+                                       entityId = null,  // e.g., report ID or segment ID
+                                       usageData = null  // Additional metadata
                                    }) => {
     const [isDragOver, setIsDragOver] = useState(false);
     const [previewFile, setPreviewFile] = useState(null);
@@ -250,6 +255,25 @@ export const AdvancedFileUpload = ({
 
                 onFilesChange([...files, ...processedFiles]);
 
+                // Registrovat file usage pokud jsou zadány tracking parametry
+                if (usageType && entityId && processedFiles.length > 0) {
+                    try {
+                        await registerMultipleFileUsage(
+                            processedFiles, 
+                            usageType, 
+                            entityId, 
+                            {
+                                ...usageData,
+                                section: id, // ID komponenty pro identifikaci sekce
+                                uploadContext: 'direct_upload'
+                            }
+                        );
+                    } catch (error) {
+                        console.error('Failed to register file usage:', error);
+                        // Neblokujeme upload kvůli chybě usage trackingu
+                    }
+                }
+
                 // Zobrazit success toast pro úspěšně nahrané soubory
                 if (processedFiles.length > 0) {
                     const fileCount = processedFiles.length;
@@ -317,6 +341,16 @@ export const AdvancedFileUpload = ({
                     const errorMessage = errorData.error || 'Delete failed';
                     const errorDetails = errorData.details ? ` (${errorData.details})` : '';
                     throw new Error(`${errorMessage}${errorDetails}`);
+                }
+
+                // Unregister file usage pokud jsou zadány tracking parametry
+                if (usageType && entityId) {
+                    try {
+                        await unregisterFileUsage(fileToRemove.id, usageType, entityId);
+                    } catch (error) {
+                        console.error('Failed to unregister file usage:', error);
+                        // Neblokujeme delete kvůli chybě usage trackingu
+                    }
                 }
             }
 

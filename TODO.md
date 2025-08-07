@@ -2,35 +2,41 @@
 
 Přehled plánovaných funkcí a vylepšení pro systém Portál značkaře.
 
-## 🔥 Nejvyšší priorita - CMS System
+## 🔥 Nejvyšší priorita - INSYS Integrace & Příkazy
 
-### Content Management System
-- [ ] **Core CMS entities implementace**
-  - AbstractContent base entity
-  - Metodika, Page, Post, Download entities
-  - Taxonomy entities (Categories, Tags)
-  - Doctrine migrations
-  - Repository classes
+### INSYS API Integrace
+- [ ] **Status synchronizace**
+  - Implementovat SUBMITTED status po odeslání do INSYS
+  - Implementovat APPROVED status po schválení v INSYS
+  - Webhook endpoint pro notifikace z INSYS
+  - Error handling pro INSYS komunikaci
+  - Retry mechanismus pro failed requests
 
-- [ ] **Admin Backend**
-  - Base admin controller a služby
-  - CRUD rozhraní pro metodiky
-  - CRUD rozhraní pro stránky  
-  - CRUD rozhraní pro příspěvky
-  - CRUD rozhraní pro downloads
-  - Správa kategorií a tagů
+- [ ] **Automatické workflow**
+  - Automatické přepnutí z 'send' na 'submitted'
+  - Notifikace uživatelům o změně stavu
+  - Logování všech INSYS interakcí
+  - Monitoring INSYS dostupnosti
 
-- [ ] **CKEditor 5 integrace**
-  - Editor setup s custom toolbar
-  - Upload adapter pro file management
-  - Content processing pipeline
-  - Preview functionality
+### Příkazy - Rozšířené funkce
+- [ ] **Bulk operace s příkazy**
+  - Hromadné odeslání více hlášení
+  - Export hlášení do Excel/PDF
+  - Import dat z Excel pro rychlé vyplnění
+  - Kopírování hlášení jako šablona
 
-- [ ] **Dynamic Frontend**
-  - Twig templates pro content typy
-  - Content API endpoints
-  - SEO optimalizace (meta tags, structured data)
-  - URL routing pro content
+- [ ] **Vylepšení UX pro hlášení**
+  - Auto-save každých 30 sekund
+  - Offline mode s local storage
+  - Validace v reálném čase
+  - Nápověda kontextová k polím
+  - Klávesové zkratky pro rychlou navigaci
+
+- [ ] **Reporting a statistiky**
+  - Dashboard s přehledem hlášení
+  - Statistiky vyplacených náhrad
+  - Grafy využití tras a úseků
+  - Export pro účetnictví
 
 ## 🔥 Vysoká priorita
 
@@ -41,38 +47,43 @@ Přehled plánovaných funkcí a vylepšení pro systém Portál značkaře.
   - Storage statistiky (využité místo, počet souborů)
   - Status: Připraveno k implementaci
 
-### Batch operace
-- [ ] **Bulk upload** 
-  - Drag & drop celých složek
-  - Progress bar pro multiple files
-  - Hromadné nastavení storage path a is_public
+### Příkazy - Admin funkce
+- [ ] **Admin dashboard pro příkazy**
+  - Přehled všech hlášení (všech uživatelů)
+  - Rychlé schvalování/zamítání
+  - Bulk operace nad hlášeními
+  - Export dat pro INSYS
   
-- [ ] **Bulk delete/management**
-  - Multi-select v admin rozhraní
-  - Hromadné smazání selected files
-  - Bulk move mezi složkami
+- [ ] **Šablony a automatizace**
+  - Šablony pro opakující se trasy
+  - Automatické vyplnění na základě historie
+  - Prediktivní návrhy tras
+  - Kopírování mezi příkazy
 
-### Search & Filtering
-- [ ] **Admin search/filtering**
-  - Fulltext search v názvech souborů
-  - Filter podle typu souboru (image/pdf)
-  - Filter podle public/private
-  - Filter podle storage path
-  - Filter podle data uploadu
-  - Filter podle uploadera
+### JSON Data Cleanup
+- [x] **File usage tracking** ✅ IMPLEMENTOVÁNO
+  - Usage info při nahrání souborů
+  - Tracking kde se soubory používají
+  - API endpoints pro usage management
+  
+- [ ] **Automatic JSON cleanup**
+  - Odstranění orphaned file references z report dat
+  - Batch cleanup tool pro existující data
+  - Preventivní kontroly při ukládání
 
 ## 🔶 Střední priorita
 
-### Cleanup & Maintenance
-- [ ] **Orphaned files management**
-  - Detekce souborů bez usage_info
-  - Admin tools pro cleanup nepoužívaných souborů
-  - Automated cleanup command (cron job)
+### INSYS Rozšíření
+- [ ] **Rozšířené INSYS features**
+  - Real-time status updates
+  - Detailed error messages z INSYS
+  - Retry queue pro failed submissions
+  - INSYS health check endpoint
   
-- [ ] **Storage optimization**
-  - Komprese starších souborů
-  - Cleanup thumbnails pro smazané originály
-  - Storage quota warnings
+- [ ] **Integrace s KČT systémy**
+  - Synchronizace členské základny
+  - Automatické ověření oprávnění
+  - Propojení s centrální evidencí tras
 
 ### File Analytics & Reporting
 - [ ] **Basic analytics v admin rozhraní**
@@ -99,38 +110,36 @@ Přehled plánovaných funkcí a vylepšení pro systém Portál značkaře.
 
 ## 🔷 Nízká priorita
 
+### CMS System (může počkat)
+- [ ] **Core CMS entities**
+  - Metodika, Page, Post entities
+  - Basic admin CRUD
+  - Jednoduché templates
+  - Note: Statické stránky zatím stačí
+
+- [ ] **Downloads management**
+  - Správa souborů ke stažení
+  - Kategorizace downloads
+  - Public/private přístup
+  - Note: Mock API zatím funguje
+
 ### Advanced Features
 - [ ] **Image metadata extraction**
   - EXIF data reading
   - GPS coordinates extraction
   - Camera info display
   
-- [ ] **Advanced thumbnails**
-  - Multiple thumbnail sizes
-  - WebP format support
-  - Lazy loading thumbnails
+- [ ] **Performance optimizations**
+  - CDN integration
+  - Database query optimization
+  - Advanced caching strategies
 
-### Performance & Scalability
-- [ ] **CDN integration** (budoucnost)
-  - AWS CloudFront / CloudFlare support
-  - URL generation for CDN
-  - Cache invalidation
-  
-- [ ] **Database optimization**
-  - Indexing improvements
-  - Query optimization
-  - Pagination for large datasets
-
-### User Experience
-- [ ] **Pokročilé upload UI**
-  - Upload queue management
-  - Resume interrupted uploads
-  - File preview před uploadem
-  
-- [ ] **Better file organization**
-  - Folder tree view v admin
-  - Drag & drop reorganization
-  - Bulk folder operations
+### User Experience vylepšení
+- [ ] **Pokročilé features**
+  - Multi-language support
+  - Advanced search
+  - User preferences
+  - Custom dashboards
 
 ## 📋 Technické vylepšení
 
@@ -189,25 +198,24 @@ Přehled plánovaných funkcí a vylepšení pro systém Portál značkaře.
 ## 📝 Poznámky k implementaci
 
 ### Současný stav (✅ Hotovo)
-- ✅ File upload s public/private rozlišením
-- ✅ Hash security tokens pro chráněné soubory
-- ✅ Usage tracking systém
-- ✅ Soft delete s grace period
-- ✅ Kontextová organizace souborů
-- ✅ Image processing (thumbnails, optimization)
-- ✅ Deduplication pomocí SHA1 hash
-- ✅ React komponenty pro upload
-- ✅ Hlášení příkazů (Part A + B) - kompletní funkčnost
-- ✅ INSYS API integrace - plná parity s WordPress
-- ✅ Autentifikace systém - Symfony Security
-- ✅ User management - lepší než WordPress řešení
+- ✅ **Hlášení příkazů** - kompletní Part A + B s full workflow
+- ✅ **INSYS API integrace** - základní odeslání a polling
+- ✅ **File management** - upload, storage, deduplication
+- ✅ **File usage tracking** - sledování použití souborů
+- ✅ **Toast notifications** - jednotný systém notifikací
+- ✅ **Disabled logic refactoring** - centralizovaná logika
+- ✅ **Authentication** - Symfony Security s KČT LDAP
+- ✅ **User permissions** - role-based access control
+- ✅ **Dark mode** - kompletní podpora
+- ✅ **Responsive design** - mobile-first approach
 
-### 🚨 Kritické chybějící funkce (vs WordPress plugin)
-- ❌ **Metodika systém** - 0% implementováno (WordPress měl kompletní)
-- ❌ **Downloads management** - jen mock API (WordPress měl admin)  
-- ❌ **Static pages systém** - jen statické templaty (WordPress měl dynamic)
-- ❌ **News/Posts systém** - chybí kompletně
-- ❌ **Admin rozhraní** - pro správu obsahu (WordPress měl kompletní)
+### 🎯 Aktuální priority (dle business potřeb)
+- 🔥 **INSYS workflow** - dokončit submitted/approved stavy
+- 🔥 **Příkazy dashboard** - přehled a statistiky
+- 🔥 **Bulk operace** - hromadné zpracování hlášení
+- 🟡 **Admin rozhraní** - pro správu příkazů a souborů
+- 🟡 **JSON cleanup** - automatické čištění orphaned dat
+- 🟢 **CMS systém** - může počkat, statické stránky stačí
 
 ### Architektonická rozhodnutí
 - **Žádné versioning** - není potřeba pro náš use case
@@ -215,19 +223,24 @@ Přehled plánovaných funkcí a vylepšení pro systém Portál značkaře.
 - **Jednoduché thumbnails** - stačí jedna velikost
 - **Local storage** - CDN až v budoucnu podle potřeby
 
-### Prioritizace (aktualizováno po analýze WP pluginu)
-1. **CMS System** - metodiky, stránky, příspěvky (kritické)
-2. **Admin interface** - kompletní správa obsahu
-3. **File management admin** - rozšíření stávajícího systému
-4. **Advanced features** - podle potřeby uživatelů
+### Prioritizace (aktualizováno dle business potřeb)
+1. **INSYS integrace** - dokončit workflow pro submitted/approved (KRITICKÉ)
+2. **Příkazy features** - dashboard, bulk operace, šablony
+3. **Admin rozhraní** - správa příkazů a souborů
+4. **CMS System** - nízká priorita, statické stránky zatím vyhovují
 
-### Implementační plán (12 týdnů)
-**Fáze 1 (4-6 týdnů):** Core CMS - entities, admin CRUD, CKEditor
-**Fáze 2 (2-4 týdny):** Advanced features - search, SEO, performance  
-**Fáze 3 (1-2 týdny):** Polish - UX, analytics, optional features
+### Implementační plán (8-10 týdnů)
+**Fáze 1 (2-3 týdny):** INSYS workflow - status sync, webhooks, error handling
+**Fáze 2 (2-3 týdny):** Příkazy dashboard - statistiky, bulk ops, export
+**Fáze 3 (2 týdny):** Admin UI - file management, příkazy admin
+**Fáze 4 (2 týdny):** Polish - UX vylepšení, performance, testy
+
+### Technické TODO komentáře v kódu
+- `FileUploadService.php:678` - JSON cleanup implementace (střední priorita)
+- `PortalController.php` - CMS endpointy (nízká priorita, může zůstat mock)
 
 ---
 
-**Aktualizováno:** 2025-01-20  
-**Verze:** 1.0  
-**Status:** Draft
+**Aktualizováno:** 2025-08-07
+**Verze:** 2.0  
+**Status:** Aktivní development - fokus na INSYS a příkazy

@@ -12,7 +12,8 @@ import { PartAForm } from './PartAForm';
 import { PartBForm } from './PartBForm';
 import { CompensationSummary } from './CompensationSummary';
 import { AdvancedFileUpload } from './AdvancedFileUpload';
-import { SimpleFileUpload } from './SimpleFileUpload';
+import { generateUsageType, generateEntityId } from '../utils/fileUsageUtils';
+import { getAttachmentsAsArray, setAttachmentsFromArray } from '../utils/attachmentUtils';
 import { calculateExecutionDate } from '../utils/compensationCalculator';
 
 // Import debug funkcí
@@ -46,6 +47,19 @@ export const StepContent = ({
     polling,
     fileUploadService
 }) => {
+    // Generate storage path for route attachments
+    const storagePath = React.useMemo(() => {
+        if (!prikazId) return null;
+        
+        const year = calculateExecutionDate(formData).getFullYear();
+        const kkz = head?.KKZ?.toString().trim() || 'unknown';
+        const obvod = head?.ZO?.toString().trim() || 'unknown';
+        const sanitizedPrikazId = prikazId?.toString().trim() || 'unknown';
+        
+        const validYear = (year >= 2020 && year <= 2030) ? year : new Date().getFullYear();
+        
+        return `reports/${validYear}/${kkz}/${obvod}/${sanitizedPrikazId}`;
+    }, [prikazId, formData, head]);
     // Step 0 - Part A
     if (activeStep === 0) {
         return (
@@ -169,17 +183,25 @@ export const StepContent = ({
                                 Přiložte fotografie dokumentující provedenou činnost, stav značení,
                                 problémová místa apod.
                             </p>
-                            <SimpleFileUpload
+                            <AdvancedFileUpload
                                 id="hlaseni-route-attachments"
-                                files={formData.Prilohy_Usek || []}
+                                files={getAttachmentsAsArray(formData.Prilohy_Usek || {})}
                                 onFilesChange={(files) => setFormData(prev => ({
                                     ...prev,
-                                    Prilohy_Usek: files
+                                    Prilohy_Usek: setAttachmentsFromArray(files)
                                 }))}
                                 maxFiles={20}
                                 accept="image/jpeg,image/png,image/heic,application/pdf"
                                 disabled={disabled}
                                 maxSize={15}
+                                storagePath={storagePath}
+                                // File usage tracking
+                                usageType={generateUsageType('route', prikazId)}
+                                entityId={generateEntityId(prikazId)}
+                                usageData={{
+                                    section: 'route_report',
+                                    reportId: prikazId
+                                }}
                             />
                         </div>
                     </div>

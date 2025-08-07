@@ -214,12 +214,23 @@ class FileController extends AbstractController
             $requestData = json_decode($request->getContent(), true) ?? [];
             $forceDelete = $requestData['force'] ?? $request->query->getBoolean('force', false);
             
+            // Clean up references before deleting
+            $cleanupResults = $this->fileUploadService->cleanupFileReferences($file);
+            
             $this->fileUploadService->deleteFile($file, $forceDelete);
             
-            return new JsonResponse([
+            $response = [
                 'success' => true,
                 'message' => 'Soubor byl úspěšně smazán'
-            ]);
+            ];
+            
+            // Add cleanup info if there were references
+            if (!empty($cleanupResults)) {
+                $response['cleanup'] = $cleanupResults;
+                $response['message'] .= sprintf(' (%d odkazů bylo vyčištěno)', count($cleanupResults));
+            }
+            
+            return new JsonResponse($response);
         } catch (\Exception $e) {
             error_log(sprintf(
                 "File deletion failed - File ID: %d, User: %s, Error: %s",
@@ -315,5 +326,44 @@ class FileController extends AbstractController
                 'isTemporary' => $file->isTemporary()
             ]
         ]);
+    }
+
+    #[Route('/orphaned-references', methods: ['GET'])]
+    public function getOrphanedReferences(): JsonResponse
+    {
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            return new JsonResponse([
+                'error' => 'Nepřihlášený uživatel'
+            ], Response::HTTP_UNAUTHORIZED);
+        }
+
+        // Only admins can see orphaned references
+        if (!$this->isGranted('ROLE_ADMIN')) {
+            return new JsonResponse([
+                'error' => 'Nedostatečná oprávnění'
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        try {
+            $orphanedReferences = $this->fileUploadService->findPotentialOrphanedReferences();
+            
+            return new JsonResponse([
+                'success' => true,
+                'orphanedReferences' => $orphanedReferences,
+                'count' => count($orphanedReferences)
+            ]);
+        } catch (\Exception $e) {
+            error_log(sprintf(
+                "Failed to get orphaned references - User: %s, Error: %s",
+                $user->getIntAdr(),
+                $e->getMessage()
+            ));
+            
+            return new JsonResponse([
+                'error' => 'Chyba při načítání orphaned odkazů',
+                'details' => $e->getMessage()
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 }

@@ -394,7 +394,7 @@ INSYS_DB_PASS=complex_secure_password
 
 ### Security headers
 ```yaml
-# TODO: Implement security headers
+# TODO: Implementovat security headers
 # - Content-Security-Policy
 # - X-Frame-Options: DENY
 # - X-Content-Type-Options: nosniff

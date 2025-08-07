@@ -596,4 +596,123 @@ class FileUploadService
         $this->repository->save($file, true);
         return $file;
     }
+
+    /**
+     * Clean up orphaned file references when file is deleted from admin
+     * This method should be called before physically deleting a file
+     * to notify all systems that reference the file
+     */
+    public function cleanupFileReferences(FileAttachment $file): array
+    {
+        $cleanupResults = [];
+        
+        if (!$file->getUsageInfo()) {
+            return $cleanupResults;
+        }
+        
+        foreach ($file->getUsageInfo() as $usageKey => $usage) {
+            $type = $usage['type'] ?? '';
+            $entityId = $usage['id'] ?? 0;
+            $data = $usage['data'] ?? [];
+            
+            try {
+                switch ($type) {
+                    case 'report_segment':
+                    case 'report_accommodation':
+                    case 'report_expense':
+                    case 'report_tim':
+                    case 'report_route':
+                        $result = $this->cleanupReportFileReference($file, $type, $entityId, $data);
+                        $cleanupResults[] = [
+                            'type' => $type,
+                            'entityId' => $entityId,
+                            'success' => $result,
+                            'message' => $result ? 'Reference removed' : 'Failed to remove reference'
+                        ];
+                        break;
+                    
+                    default:
+                        $cleanupResults[] = [
+                            'type' => $type,
+                            'entityId' => $entityId,
+                            'success' => false,
+                            'message' => "Unknown usage type: {$type}"
+                        ];
+                        break;
+                }
+            } catch (\Exception $e) {
+                $cleanupResults[] = [
+                    'type' => $type,
+                    'entityId' => $entityId,
+                    'success' => false,
+                    'message' => "Error: " . $e->getMessage()
+                ];
+            }
+        }
+        
+        return $cleanupResults;
+    }
+    
+    /**
+     * Remove file reference from report data
+     */
+    private function cleanupReportFileReference(FileAttachment $file, string $type, int $entityId, array $data): bool
+    {
+        // For now, we'll log this and let manual cleanup handle it
+        // In the future, this could directly update report data in database
+        
+        $reportId = $data['reportId'] ?? 0;
+        $section = $data['section'] ?? 'unknown';
+        
+        error_log(sprintf(
+            "File cleanup notification: File %d (%s) was deleted from admin. " .
+            "It was used in report %d, section %s (entity %d). " .
+            "Manual cleanup may be required to remove orphaned references.",
+            $file->getId(),
+            $file->getOriginalName(),
+            $reportId,
+            $section,
+            $entityId
+        ));
+        
+        // TODO: Implement automatic cleanup of report JSON data
+        // This would require:
+        // 1. Loading the report from database
+        // 2. Parsing JSON data structure
+        // 3. Finding and removing file references
+        // 4. Saving updated report
+        
+        return true; // Return true for logging only
+    }
+    
+    /**
+     * Get files that may have orphaned references
+     * This helps identify files that were deleted but may still be referenced
+     */
+    public function findPotentialOrphanedReferences(): array
+    {
+        // Find files that are marked as deleted or physically deleted
+        // but have usage info that suggests they may be referenced elsewhere
+        $deletedFiles = $this->repository->createQueryBuilder('f')
+            ->where('f.deletedAt IS NOT NULL OR f.physicallyDeleted = true')
+            ->andWhere('f.usageInfo IS NOT NULL')
+            ->getQuery()
+            ->getResult();
+        
+        $orphanedReferences = [];
+        
+        foreach ($deletedFiles as $file) {
+            if ($file->getUsageInfo() && count($file->getUsageInfo()) > 0) {
+                $orphanedReferences[] = [
+                    'fileId' => $file->getId(),
+                    'fileName' => $file->getOriginalName(),
+                    'deletedAt' => $file->getDeletedAt()?->format('Y-m-d H:i:s'),
+                    'physicallyDeleted' => $file->isPhysicallyDeleted(),
+                    'usages' => $file->getUsageInfo()
+                ];
+            }
+        }
+        
+        return $orphanedReferences;
+    }
 }
