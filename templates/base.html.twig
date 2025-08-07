@@ -194,5 +194,8 @@
     {% block javascripts %}
         {# JavaScript entries budou načítány podle potřeby v konkrétních šablonách #}
     {% endblock %}
+    
+    {# Toast systém - globální kontejner #}
+    {{ encore_entry_script_tags('toast-system') }}
 </body>
 </html>

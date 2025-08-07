@@ -23,7 +23,8 @@ export const TravelSegmentsForm = ({
     segments,
     onSegmentsChange,
     storagePath,
-    disabled = false
+    disabled = false,
+    isDraft = false
 }) => {
     const handleAddSegment = () => {
         const newSegment = createEmptyTravelSegment();
@@ -101,6 +102,7 @@ export const TravelSegmentsForm = ({
                         canRemove={segments.length > 1}
                         storagePath={storagePath}
                         disabled={disabled}
+                        isDraft={isDraft}
                     />
                 ))}
             </div>

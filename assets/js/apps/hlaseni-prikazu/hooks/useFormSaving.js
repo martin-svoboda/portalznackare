@@ -10,7 +10,8 @@ import { showNotification } from '../../../utils/notifications';
 import {
     calculateCompensation,
     calculateCompensationForAllMembers,
-    extractTeamMembers
+    extractTeamMembers,
+    calculateExecutionDate
 } from '../utils/compensationCalculator';
 import { convertAttachmentsObjectToArray } from '../utils/attachmentUtils';
 
@@ -146,7 +147,7 @@ export const useFormSaving = (formData, head, prikazId, priceList, isLeader, tea
                 cislo_zp: head?.Cislo_ZP || '',
                 znackari: rawTeamMembers.map(serializeTeamMember),
                 data_a: {
-                    Datum_Provedeni: formatDateOnly(formData.Datum_Provedeni),
+                    Datum_Provedeni: formatDateOnly(calculateExecutionDate(formData)),
                     Skupiny_Cest: (formData.Skupiny_Cest || [])
                         .filter(group => group && group.id)
                         .map(serializeTravelGroup),
@@ -230,11 +231,14 @@ export const useFormSaving = (formData, head, prikazId, priceList, isLeader, tea
             log.info(final ? 'Hlášení odesláno' : 'Hlášení uloženo');
 
             if (final) {
-                showNotification('success', 'Hlášení bylo úspěšně odesláno');
+                showNotification('success', 'Hlášení bylo úspěšně odesláno', {
+                    title: 'Odesláno',
+                    duration: 3000
+                });
                 // Redirect to prikaz detail
-                window.location.href = `/prikaz/${prikazId}`;
-            } else {
-                showNotification('success', 'Hlášení bylo uloženo');
+                setTimeout(() => {
+                    window.location.href = `/prikaz/${prikazId}`;
+                }, 1000);
             }
 
             return true;
@@ -244,32 +248,46 @@ export const useFormSaving = (formData, head, prikazId, priceList, isLeader, tea
             // Detailní zpracování chyb pro uživatele
             let errorMessage = 'Chyba při ukládání hlášení';
             let errorType = 'error';
+            let errorTitle = 'Ukládání selhalo';
+            let errorDuration = 0; // Error toasty se nezavírají automaticky
             
             if (error.status) {
                 switch (error.status) {
                     case 400:
                         errorMessage = 'Neplatná data v hlášení. Zkontrolujte všechny povinné údaje.';
                         errorType = 'warning';
+                        errorTitle = 'Neplatná data';
+                        errorDuration = 8000;
                         break;
                     case 409:
                         errorMessage = 'Hlášení už bylo odesláno a je v procesu zpracování.';
                         errorType = 'info';
+                        errorTitle = 'Již odesláno';
+                        errorDuration = 6000;
                         break;
                     case 503:
                         errorMessage = 'Služba je dočasně nedostupná. Zkuste to za chvíli.';
                         errorType = 'warning';
+                        errorTitle = 'Služba nedostupná';
+                        errorDuration = 10000;
                         break;
                     case 500:
                         errorMessage = 'Vnitřní chyba serveru. Kontaktujte administrátora.';
+                        errorTitle = 'Chyba serveru';
                         break;
                     default:
                         errorMessage = `Chyba při komunikaci se serverem (${error.status})`;
+                        errorTitle = 'Chyba komunikace';
                 }
             } else if (error.message) {
                 errorMessage = error.message;
+                errorTitle = error.title || errorTitle;
             }
             
-            showNotification(errorType, errorMessage);
+            showNotification(errorType, errorMessage, {
+                title: errorTitle,
+                duration: errorDuration
+            });
             return false;
         } finally {
             setSaving(false);
@@ -323,7 +341,7 @@ export const useFormSaving = (formData, head, prikazId, priceList, isLeader, tea
                 cislo_zp: head?.Cislo_ZP || '',
                 znackari: rawTeamMembers.map(serializeTeamMember),
                 data_a: {
-                    Datum_Provedeni: formatDateOnly(formData.Datum_Provedeni),
+                    Datum_Provedeni: formatDateOnly(calculateExecutionDate(formData)),
                     Skupiny_Cest: (formData.Skupiny_Cest || [])
                         .filter(group => group && group.id)
                         .map(serializeTravelGroup),

@@ -39,48 +39,100 @@ class FileUploadService
         ?string $storagePath = null,
         array $options = []
     ): FileAttachment {
-        // Calculate file hash for deduplication
-        $hash = sha1_file($file->getPathname());
+        error_log("FileUploadService::uploadFile - Začátek pro soubor: " . $file->getClientOriginalName());
+        error_log("FileUploadService::uploadFile - Storage path: " . ($storagePath ?: 'null'));
+        error_log("FileUploadService::uploadFile - User: " . ($user ? $user->getJmeno() . ' ' . $user->getPrijmeni() : 'null'));
+        // Získat všechny potřebné informace z UploadedFile PŘED jakýmikoliv operacemi
+        $tempPath = $file->getPathname();
+        $originalName = $file->getClientOriginalName();
+        $fileSize = $file->getSize();
+        $mimeType = $file->getMimeType() ?? 'application/octet-stream';
+        
+        error_log("FileUploadService::uploadFile - Temp file path: " . $tempPath);
+        error_log("FileUploadService::uploadFile - Original name: " . $originalName);
+        error_log("FileUploadService::uploadFile - Size: " . $fileSize);
+        error_log("FileUploadService::uploadFile - MIME type: " . $mimeType);
+        
+        // Zkontrolovat, že temp soubor existuje
+        if (!file_exists($tempPath)) {
+            throw new \Exception("Temp soubor neexistuje: " . $tempPath);
+        }
+        
+        // Spočítat hash pro deduplikaci
+        $hash = sha1_file($tempPath);
+        error_log("FileUploadService::uploadFile - File hash: " . $hash);
         
         // Check if file already exists
         $existingFile = $this->repository->findByHash($hash);
         if ($existingFile && !($options['force_new'] ?? false)) {
+            error_log("FileUploadService::uploadFile - Soubor už existuje, vracím existující");
             return $existingFile;
         }
 
         // Generate unique filename
-        $originalFilename = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+        $originalFilename = pathinfo($originalName, PATHINFO_FILENAME);
         $safeFilename = $this->slugger->slug($originalFilename);
         $extension = $file->guessExtension() ?? 'bin';
+        error_log("FileUploadService::uploadFile - Safe filename: " . $safeFilename . '.' . $extension);
         
         // Use provided path or fallback to temp
         $relativePath = $storagePath ? $this->validateStoragePath($storagePath) : $this->generateTempPath();
+        error_log("FileUploadService::uploadFile - Relative path: " . $relativePath);
         
         $uploadPath = $this->uploadDir . '/' . $relativePath;
+        error_log("FileUploadService::uploadFile - Upload path: " . $uploadPath);
+        
         if (!is_dir($uploadPath)) {
-            mkdir($uploadPath, 0755, true);
+            error_log("FileUploadService::uploadFile - Vytvářím adresář: " . $uploadPath);
+            $mkdirResult = mkdir($uploadPath, 0755, true);
+            if (!$mkdirResult) {
+                $lastError = error_get_last();
+                throw new \Exception("Nepodařilo se vytvořit adresář $uploadPath: " . ($lastError['message'] ?? 'Neznámá chyba'));
+            }
+            error_log("FileUploadService::uploadFile - Adresář vytvořen úspěšně");
+        } else {
+            error_log("FileUploadService::uploadFile - Adresář už existuje");
         }
 
         // Generate stored filename
         $storedName = sprintf('%s-%s.%s', $safeFilename, uniqid(), $extension);
+        error_log("FileUploadService::uploadFile - Stored name: " . $storedName);
         
         // Move uploaded file
-        $file->move($uploadPath, $storedName);
+        error_log("FileUploadService::uploadFile - Přesouvám soubor do: " . $uploadPath . '/' . $storedName);
+        error_log("FileUploadService::uploadFile - Temp file exists before move: " . (file_exists($file->getPathname()) ? 'YES' : 'NO'));
+        error_log("FileUploadService::uploadFile - Target directory writable: " . (is_writable($uploadPath) ? 'YES' : 'NO'));
+        
+        try {
+            // Check again if temp file exists
+            if (!file_exists($file->getPathname())) {
+                throw new \Exception("Temp soubor zmizel před přesunem: " . $file->getPathname());
+            }
+            
+            $file->move($uploadPath, $storedName);
+            error_log("FileUploadService::uploadFile - Soubor přesunut úspěšně");
+        } catch (\Exception $e) {
+            error_log("FileUploadService::uploadFile - Chyba při přesunu souboru: " . $e->getMessage());
+            error_log("FileUploadService::uploadFile - Error trace: " . $e->getTraceAsString());
+            throw new \Exception("Nepodařilo se přesunout soubor: " . $e->getMessage());
+        }
+        
         $fullPath = $uploadPath . '/' . $storedName;
+        error_log("FileUploadService::uploadFile - Full path: " . $fullPath);
 
         // Process image if needed
         $metadata = [];
-        if ($this->isImage($file->getMimeType())) {
+        if ($this->isImage($mimeType)) {
             $metadata = $this->processImage($fullPath, $options);
         }
 
         // Create database entry
         $attachment = new FileAttachment();
         $attachment->setHash($hash);
-        $attachment->setOriginalName($file->getClientOriginalName());
+        $attachment->setOriginalName($originalName);
         $attachment->setStoredName($storedName);
-        $attachment->setMimeType($file->getMimeType() ?? 'application/octet-stream');
-        $attachment->setSize($file->getSize());
+        $attachment->setMimeType($mimeType);
+        $attachment->setSize($fileSize);
         $fullRelativePath = $relativePath . '/' . $storedName;
         $attachment->setPath($fullRelativePath);
         $attachment->setStoragePath($relativePath);
@@ -113,8 +165,39 @@ class FileUploadService
 
         $attachment->setMetadata($metadata);
 
-        $this->repository->save($attachment, true);
+        try {
+            error_log("FileUploadService::uploadFile - Ukládám do databáze, attachment data:");
+            error_log("  - Hash: " . $attachment->getHash());
+            error_log("  - Original name: " . $attachment->getOriginalName());
+            error_log("  - Stored name: " . $attachment->getStoredName());
+            error_log("  - Path: " . $attachment->getPath());
+            error_log("  - Storage path: " . $attachment->getStoragePath());
+            error_log("  - Size: " . $attachment->getSize());
+            error_log("  - MIME type: " . $attachment->getMimeType());
+            error_log("  - Uploaded by: " . ($attachment->getUploadedBy() ?: 'null'));
+            
+            $this->repository->save($attachment, true);
+            
+            $savedId = $attachment->getId();
+            error_log("FileUploadService::uploadFile - Úspěšně uloženo s ID: " . ($savedId ?: 'NULL'));
+            
+            if (!$savedId) {
+                throw new \Exception("Entity byla uložena, ale nemá ID - možná problém s auto-increment");
+            }
+            
+        } catch (\Exception $e) {
+            error_log("FileUploadService::uploadFile - Chyba při ukládání do databáze: " . $e->getMessage());
+            error_log("FileUploadService::uploadFile - Exception class: " . get_class($e));
+            error_log("FileUploadService::uploadFile - Stack trace: " . $e->getTraceAsString());
+            // Smazat fyzický soubor při chybě databáze
+            if (file_exists($fullPath)) {
+                error_log("FileUploadService::uploadFile - Mažu fyzický soubor kvůli chybě databáze");
+                unlink($fullPath);
+            }
+            throw new \Exception("Nepodařilo se uložit do databáze: " . $e->getMessage());
+        }
 
+        error_log("FileUploadService::uploadFile - Hotovo pro soubor: " . $attachment->getOriginalName());
         return $attachment;
     }
 
@@ -368,20 +451,42 @@ class FileUploadService
     }
 
     /**
-     * Delete file and its thumbnails
+     * Delete file with intelligent soft/hard delete logic
      */
     public function deleteFile(FileAttachment $attachment, bool $force = false): void
     {
-        // If not forcing and file was recently uploaded, soft delete instead
-        if (!$force && !$attachment->isDeleted()) {
-            $uploadedRecently = $attachment->getCreatedAt() > new \DateTimeImmutable('-5 minutes');
-            if ($uploadedRecently) {
-                $this->softDeleteFile($attachment);
-                return;
-            }
+        // Check if file was uploaded recently (5 minutes grace period)
+        $uploadedRecently = $attachment->getCreatedAt() > new \DateTimeImmutable('-5 minutes');
+
+        // Deletion strategy:
+        // - force = true (editable form) → hard delete immediately 
+        // - force = false (readonly form) → no deletion (handled by UI)
+        // - New files (<5min) → hard delete (can be mistake)
+        // - Old files (>5min) → soft delete (grace period)
+        $shouldHardDelete = false;
+        
+        if ($force) {
+            // Force delete from editable form (draft/rejected status)
+            $shouldHardDelete = true;
+        } elseif ($uploadedRecently) {
+            // New files = hard delete (likely user mistake)
+            $shouldHardDelete = true;
         }
 
-        // Physical deletion
+        if ($shouldHardDelete) {
+            // Physical deletion
+            $this->physicallyDeleteFile($attachment);
+        } else {
+            // Soft delete with grace period
+            $this->softDeleteFile($attachment);
+        }
+    }
+
+    /**
+     * Physically delete file from disk and database
+     */
+    private function physicallyDeleteFile(FileAttachment $attachment): void
+    {
         $fullPath = $this->uploadDir . '/' . $attachment->getPath();
         
         // Delete main file

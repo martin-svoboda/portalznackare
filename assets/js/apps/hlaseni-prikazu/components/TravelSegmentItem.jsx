@@ -35,7 +35,8 @@ export const TravelSegmentItem = ({
     onMoveDown,
     canRemove,
     storagePath,
-    disabled = false
+    disabled = false,
+    isDraft = false
 }) => {
     const handleUpdate = (field, value) => {
         onUpdate(segment.id, { [field]: value });

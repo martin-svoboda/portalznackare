@@ -91,6 +91,8 @@ jobs:
               
               # Development
               'development/development.md': 'development-development',
+              'development/background-jobs.md': 'development-background-jobs',
+              'development/toast-system.md': 'development-toast-system',
               'development/getting-started.md': 'development-getting-started',
               'development/insys-api-tester.md': 'development-insys-api-tester',
               'development/visual-components.md': 'development-visual-components',
@@ -200,6 +202,8 @@ jobs:
           
           ### 🛠️ Development
           - [[Development Guide|development-development]]
+          - [[Background Jobs|development-background-jobs]]
+          - [[Toast Notifications|development-toast-system]]
           - [[Instalace & Setup|development-getting-started]]
           - [[INSYS API Tester|development-insys-api-tester]]
           - [[Vizuální komponenty|development-visual-components]]

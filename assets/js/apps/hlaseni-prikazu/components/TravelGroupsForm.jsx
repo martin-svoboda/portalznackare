@@ -19,6 +19,7 @@ import {
     getAttachmentsAsArray, 
     setAttachmentsFromArray 
 } from '../utils/attachmentUtils';
+import { calculateExecutionDate } from '../utils/compensationCalculator';
 
 const druhDopravyOptions = [
     {value: "AUV", label: "AUV (Auto vlastní)", icon: IconCar},
@@ -54,14 +55,15 @@ export const TravelGroupsForm = ({
                                      teamMembers,
                                      prikazId,
                                      fileUploadService,
-                                     currentUser
+                                     currentUser,
+                                     disabled = false
                                  }) => {
     
     // Generate storage path for this report
     const storagePath = useMemo(() => {
         if (!prikazId) return null;
 
-        const year = formData.Datum_Provedeni ? formData.Datum_Provedeni.getFullYear() : new Date().getFullYear();
+        const year = calculateExecutionDate(formData).getFullYear();
         const kkz = head?.KKZ?.toString().trim() || 'unknown';
         const obvod = head?.ZO?.toString().trim() || 'unknown';
         const sanitizedPrikazId = prikazId?.toString().trim() || 'unknown';
@@ -69,7 +71,7 @@ export const TravelGroupsForm = ({
         const validYear = (year >= 2020 && year <= 2030) ? year : new Date().getFullYear();
 
         return `reports/${validYear}/${kkz}/${obvod}/${sanitizedPrikazId}`;
-    }, [prikazId, formData.Datum_Provedeni, head]);
+    }, [prikazId, formData, head]);
 
     // Helper functions for date formatting (from original)
     const formatDate = (date) => {
@@ -136,7 +138,7 @@ export const TravelGroupsForm = ({
         const lastSegment = group.Cesty[group.Cesty.length - 1];
         const newSegment = {
             ...createEmptyTravelSegment(),
-            datum: formData.Datum_Provedeni,
+            Datum: calculateExecutionDate(formData),
             Misto_Odjezdu: lastSegment?.Misto_Prijezdu || "",
         };
 
@@ -297,7 +299,6 @@ export const TravelGroupsForm = ({
         return Array.from(driverMap.values());
     }, [travelGroups, teamMembers]);
 
-    const isFormDisabled = formData.status === 'submitted' || formData.status === 'send';
 
     return (
         <div className="space-y-6">
@@ -342,7 +343,7 @@ export const TravelGroupsForm = ({
                                                                 : (group.Cestujci || []).filter(p => p !== memberIntAdr);
                                                             updateGroupField(group.id, {Cestujci: newCestujci});
                                                         }}
-                                                        disabled={isFormDisabled}
+                                                        disabled={disabled}
                                                     />
                                                     <span className="text-sm">{member.name || member.Znackar || 'Neznámý člen'}</span>
                                                 </label>
@@ -376,7 +377,7 @@ export const TravelGroupsForm = ({
                                                         className="btn btn--icon btn--gray--light"
                                                         onClick={() => moveSegmentUp(group.id, segment.id)}
                                                         title="Přesunout nahoru"
-                                                        disabled={isFormDisabled}
+                                                        disabled={disabled}
                                                     >
                                                         <IconArrowUp size={14}/>
                                                     </button>
@@ -389,7 +390,7 @@ export const TravelGroupsForm = ({
                                                         className="btn btn--icon btn--gray--light"
                                                         onClick={() => moveSegmentDown(group.id, segment.id)}
                                                         title="Přesunout dolů"
-                                                        disabled={isFormDisabled}
+                                                        disabled={disabled}
                                                     >
                                                         <IconArrowDown size={14}/>
                                                     </button>
@@ -401,7 +402,7 @@ export const TravelGroupsForm = ({
                                                     className="btn btn--icon btn--primary--light"
                                                     onClick={() => duplicateSegment(group.id, segment.id)}
                                                     title="Duplikovat cestu"
-                                                    disabled={isFormDisabled}
+                                                    disabled={disabled}
                                                 >
                                                     <IconCopy size={14}/>
                                                 </button>
@@ -413,7 +414,7 @@ export const TravelGroupsForm = ({
                                                         className="btn btn--icon btn--danger--light"
                                                         onClick={() => removeSegment(group.id, segment.id)}
                                                         title="Smazat cestu"
-                                                        disabled={isFormDisabled}
+                                                        disabled={disabled}
                                                     >
                                                         <IconTrash size={16}/>
                                                     </button>
@@ -440,9 +441,9 @@ export const TravelGroupsForm = ({
                                                                 name={`segment-date-${segment.id}`}
                                                                 type="date"
                                                                 className="form__input"
-                                                                value={formatDate(segment.Datum || formData.Datum_Provedeni)}
+                                                                value={formatDate(segment.Datum || calculateExecutionDate(formData))}
                                                                 onChange={(e) => updateSegmentField(group.id, segment.id, {Datum: parseDate(e.target.value)})}
-                                                                disabled={isFormDisabled}
+                                                                disabled={disabled}
                                                             />
                                                         </div>
                                                     </div>
@@ -469,7 +470,7 @@ export const TravelGroupsForm = ({
                                                                 placeholder="Místo"
                                                                 value={segment.Misto_Odjezdu || ""}
                                                                 onChange={(e) => updateSegmentField(group.id, segment.id, {Misto_Odjezdu: e.target.value})}
-                                                                disabled={isFormDisabled}
+                                                                disabled={disabled}
                                                             />
                                                         </div>
                                                         <div className="flex items-center gap-2">
@@ -483,7 +484,7 @@ export const TravelGroupsForm = ({
                                                                 className="form__input flex-1"
                                                                 value={segment.Cas_Odjezdu || ""}
                                                                 onChange={(e) => updateSegmentField(group.id, segment.id, {Cas_Odjezdu: e.target.value})}
-                                                                disabled={isFormDisabled}
+                                                                disabled={disabled}
                                                             />
                                                         </div>
                                                     </div>
@@ -511,7 +512,7 @@ export const TravelGroupsForm = ({
                                                                 placeholder="Místo"
                                                                 value={segment.Misto_Prijezdu || ""}
                                                                 onChange={(e) => updateSegmentField(group.id, segment.id, {Misto_Prijezdu: e.target.value})}
-                                                                disabled={isFormDisabled}
+                                                                disabled={disabled}
                                                             />
                                                         </div>
                                                         <div className="flex items-center gap-2">
@@ -525,7 +526,7 @@ export const TravelGroupsForm = ({
                                                                 className="form__input flex-1"
                                                                 value={segment.Cas_Prijezdu || ""}
                                                                 onChange={(e) => updateSegmentField(group.id, segment.id, {Cas_Prijezdu: e.target.value})}
-                                                                disabled={isFormDisabled}
+                                                                disabled={disabled}
                                                             />
                                                         </div>
                                                     </div>
@@ -542,7 +543,7 @@ export const TravelGroupsForm = ({
                                                             className="form__select"
                                                             value={segment.Druh_Dopravy || "AUV"}
                                                             onChange={(e) => updateSegmentField(group.id, segment.id, {Druh_Dopravy: e.target.value})}
-                                                            disabled={isFormDisabled}
+                                                            disabled={disabled}
                                                         >
                                                             {druhDopravyOptions.map(opt => (
                                                                 <option key={opt.value} value={opt.value}>
@@ -569,7 +570,7 @@ export const TravelGroupsForm = ({
                                                                     placeholder="0"
                                                                     min="0"
                                                                     step="0.1"
-                                                                    disabled={isFormDisabled}
+                                                                    disabled={disabled}
                                                                 />
                                                             </>
                                                         )}
@@ -614,7 +615,7 @@ export const TravelGroupsForm = ({
                                                                                             placeholder="0"
                                                                                             min="0"
                                                                                             step="0.01"
-                                                                                            disabled={isFormDisabled}
+                                                                                            disabled={disabled}
                                                                                         />
                                                                                 </div>
                                                                             );
@@ -659,7 +660,7 @@ export const TravelGroupsForm = ({
                                     type="button"
                                     className="btn btn--secondary"
                                     onClick={() => addTravelSegment(group.id)}
-                                    disabled={isFormDisabled}
+                                    disabled={disabled}
                                 >
                                     <IconPlus size={16} className="mr-2"/>
                                     Přidat segment
@@ -683,7 +684,7 @@ export const TravelGroupsForm = ({
                                                 value={group.Ridic || ""}
                                                 onChange={(e) => updateGroupField(group.id, {Ridic: e.target.value})}
                                                 required
-                                                disabled={isFormDisabled}
+                                                disabled={disabled}
                                             >
                                                 <option value="">Vyberte řidiče</option>
                                                 {(group.Cestujci || []).map(intAdr => {
@@ -711,7 +712,7 @@ export const TravelGroupsForm = ({
                                                 maxLength={10}
                                                 onChange={(e) => updateGroupField(group.id, {SPZ: e.target.value})}
                                                 required
-                                                disabled={isFormDisabled}
+                                                disabled={disabled}
                                             />
                                         </div>
                                     </div>
@@ -740,7 +741,7 @@ export const TravelGroupsForm = ({
                                         className="form__radio"
                                         checked={formData.Hlavni_Ridic === driver.INT_ADR}
                                         onChange={() => handleHigherRateChange(driver.INT_ADR)}
-                                        disabled={isFormDisabled}
+                                        disabled={disabled}
                                     />
                                     <span className="text-sm">
                                         {driver.name || driver.Znackar}

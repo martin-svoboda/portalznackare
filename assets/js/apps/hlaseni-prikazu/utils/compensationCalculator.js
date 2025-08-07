@@ -30,6 +30,27 @@ export function parsePriceListFromAPI(apiData) {
 }
 
 /**
+ * Výpočet data provedení z nejpozdějšího data segmentů
+ */
+export function calculateExecutionDate(formData) {
+    let latestDate = null;
+    
+    // Najít nejpozdější datum ze všech segmentů
+    formData.Skupiny_Cest?.forEach(group => {
+        group.Cesty?.forEach(segment => {
+            if (segment.Datum) {
+                const segmentDate = segment.Datum instanceof Date ? segment.Datum : new Date(segment.Datum);
+                if (!isNaN(segmentDate.getTime()) && (!latestDate || segmentDate > latestDate)) {
+                    latestDate = segmentDate;
+                }
+            }
+        });
+    });
+    
+    return latestDate || new Date();
+}
+
+/**
  * Výpočet pracovních dnů pro konkrétního uživatele
  * Vrací array dnů s detailními časy Od/Do/Hodin pro uživatele podle jeho účasti ve skupinách
  */
@@ -52,8 +73,8 @@ export function calculateWorkDays(formData, userIntAdr) {
     const segmentsByDate = userSegments.reduce((acc, segment) => {
         if (!segment || !segment.Cas_Odjezdu || !segment.Cas_Prijezdu) return acc;
         
-        // Použít segment.Datum pokud existuje, jinak Datum_Provedeni jako fallback
-        let segmentDate = segment.Datum || formData.Datum_Provedeni || new Date();
+        // Použít segment.Datum pokud existuje, jinak aktuální datum jako fallback
+        let segmentDate = segment.Datum || new Date();
         
         // Zajistit, že segmentDate je Date objekt
         if (!(segmentDate instanceof Date)) {

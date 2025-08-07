@@ -331,11 +331,11 @@ useEffect(() => {
 - Zkontroluj že je aktivní "Zvýšená sazba"
 - Debug: `console.log(formData.Hlavni_Ridic)`
 
-#### 3. **Worker neběží po DDEV restart**
+#### 3. **Worker neběží po submit**
 ```bash
 # On-demand worker se spustí automaticky při submit
 # Nebo manuálně:
-ddev exec php bin/console messenger:consume async --limit=1
+php bin/console messenger:consume async --limit=1
 ```
 
 #### 4. **Timeout při odesílání**
@@ -352,5 +352,5 @@ Frontend zobrazí: "Odesílání trvá déle než obvykle"
 
 **Propojené funkcionality:** [File Management](file-management.md) | [INSYZ Integration](insyz-integration.md)  
 **API Reference:** [../api/portal-api.md](../api/portal-api.md)  
-**Technical details:** [../development/development.md#background-jobs-symfony-messenger](../development/development.md#background-jobs-symfony-messenger)  
-**Aktualizováno:** 2025-08-06 - On-demand worker, Hlavni_Ridic, timeout protection
+**Technical details:** [../development/background-jobs.md](../development/background-jobs.md)  
+**Aktualizováno:** 2025-08-07

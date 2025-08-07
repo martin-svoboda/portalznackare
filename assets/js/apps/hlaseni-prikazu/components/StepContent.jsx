@@ -13,6 +13,7 @@ import { PartBForm } from './PartBForm';
 import { CompensationSummary } from './CompensationSummary';
 import { AdvancedFileUpload } from './AdvancedFileUpload';
 import { SimpleFileUpload } from './SimpleFileUpload';
+import { calculateExecutionDate } from '../utils/compensationCalculator';
 
 // Import debug funkcí
 const isDebugMode = () => {
@@ -41,6 +42,7 @@ export const StepContent = ({
     onSave,
     onSubmit,
     saving,
+    disabled,
     polling,
     fileUploadService
 }) => {
@@ -61,6 +63,7 @@ export const StepContent = ({
                         isLeader={isLeader}
                         canEditOthers={canEditOthers}
                         prikazId={prikazId}
+                        disabled={disabled}
                     />
                     
                     {!canCompletePartA && (
@@ -131,6 +134,7 @@ export const StepContent = ({
                         useky={useky}
                         predmety={predmety}
                         prikazId={prikazId}
+                        disabled={disabled}
                     />
                 ) : (
                     <div className="space-y-6">
@@ -153,7 +157,7 @@ export const StepContent = ({
                                     Koment_Usek: e.target.value
                                 }))}
                                 rows={6}
-                                disabled={formData.status === 'submitted' || formData.status === 'send'}
+                                disabled={disabled}
                             />
                         </div>
 
@@ -174,7 +178,7 @@ export const StepContent = ({
                                 }))}
                                 maxFiles={20}
                                 accept="image/jpeg,image/png,image/heic,application/pdf"
-                                disabled={formData.status === 'submitted' || formData.status === 'send'}
+                                disabled={disabled}
                                 maxSize={15}
                             />
                         </div>
@@ -227,7 +231,7 @@ export const StepContent = ({
                             <div className="space-y-2">
                                 <div className="flex justify-between">
                                     <span className="text-sm text-gray-600">Datum provedení:</span>
-                                    <span className="text-sm">{formData.Datum_Provedeni.toLocaleDateString('cs-CZ')}</span>
+                                    <span className="text-sm">{calculateExecutionDate(formData).toLocaleDateString('cs-CZ')}</span>
                                 </div>
                                 <div className="flex justify-between">
                                     <span className="text-sm text-gray-600">Počet segmentů dopravy:</span>
@@ -480,14 +484,14 @@ export const StepContent = ({
                                 <button
                                     className="btn btn--secondary"
                                     onClick={() => onStepChange(1)}
-                                    disabled={!isDebugMode() && (formData.status === 'send' || formData.status === 'submitted')}
+                                    disabled={disabled}
                                 >
                                     {formData.status === 'rejected' ? 'Upravit a odeslat znovu' : 'Zpět na úpravy'}
                                 </button>
 
                                 <button
                                     className="btn btn--primary btn--large"
-                                    disabled={saving || (!isDebugMode() && (formData.status === 'send' || formData.status === 'submitted'))}
+                                    disabled={saving || disabled}
                                     onClick={onSubmit}
                                 >
                                     <IconSend size={20} className="mr-2"/>

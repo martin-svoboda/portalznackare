@@ -14,6 +14,7 @@ import {
     getAttachmentsAsArray, 
     setAttachmentsFromArray 
 } from '../utils/attachmentUtils';
+import { calculateExecutionDate } from '../utils/compensationCalculator';
 
 const statusOptions = [
     { value: "1", label: "1 - Nová", color: "green" },
@@ -97,13 +98,13 @@ const groupItemsByTIM = (predmety) => {
     return Object.values(groups);
 };
 
-export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikazId }) => {
+export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikazId, disabled = false }) => {
     // Generate storage path for this report
     const generateStoragePath = () => {
         if (!prikazId) return null;
         
         // Validate and sanitize path components
-        const year = formData.Datum_Provedeni ? formData.Datum_Provedeni.getFullYear() : new Date().getFullYear();
+        const year = calculateExecutionDate(formData).getFullYear();
         const kkz = head?.KKZ?.toString().trim() || 'unknown';
         const obvod = head?.ZO?.toString().trim() || 'unknown';
         const sanitizedPrikazId = prikazId?.toString().trim() || 'unknown';
@@ -665,7 +666,7 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                     ...prev, 
                     Obnovene_Useky: obnoveneUseky 
                 }))}
-                disabled={formData.status === 'submitted' || formData.status === 'send'}
+                disabled={disabled}
             />
 
             {/* Route section comment */}

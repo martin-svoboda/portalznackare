@@ -50,7 +50,25 @@ Upload jednoho nebo více souborů s automatickou deduplikací.
 Načte metadata souboru.
 
 ### DELETE `/api/portal/files/{id}`
-Smaže soubor (soft delete s 30denní expirací).
+Smaže soubor s inteligentní soft/hard delete logikou.
+
+**Request Body:**
+```json
+{
+    "context": {
+        "draft": true  // Pro draft hlášení - vždy hard delete
+    },
+    "force": false  // true pro admin force delete
+}
+```
+
+**Response:**
+```json
+{
+    "success": true,
+    "message": "Soubor byl úspěšně smazán"
+}
+```
 
 ### GET `/api/portal/files/{id}/download`
 Stažení souboru s kontrolou oprávnění.
@@ -82,6 +100,7 @@ export const AdvancedFileUpload = ({
     onFilesChange, 
     maxFiles = 5, 
     accept = "image/jpeg,image/png,image/heic,application/pdf",
+    disabled = false,    // NEW: Disabled stav pro readonly formuláře
     storagePath = null,
     isPublic = false     // Public vs private files
 }) => {
@@ -140,29 +159,40 @@ export const AdvancedFileUpload = ({
     };
     
     /**
-     * Remove file s API voláním
+     * Remove file s potvrzením a kontextovým mazáním
      */
-    const removeFile = async (fileId) => {
+    const removeFile = async (fileId, context = {}) => {
+        if (disabled) return;
+        
         const fileToRemove = files.find(f => f.id === fileId);
         if (!fileToRemove) return;
+        
+        // Potvrzovací dialog
+        const confirmed = window.confirm('Opravdu chcete smazat tento soubor?');
+        if (!confirmed) return;
         
         try {
             // Pokud má file numeric ID, je ze serveru - smaž ho
             if (typeof fileToRemove.id === 'number') {
                 const response = await fetch(`/api/portal/files/${fileToRemove.id}`, {
                     method: 'DELETE',
-                    credentials: 'same-origin'
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ context })
                 });
                 
                 if (!response.ok) {
-                    throw new Error('Delete failed');
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error || 'Delete failed');
                 }
             }
             
             const updatedFiles = files.filter(f => f.id !== fileId);
             onFilesChange(updatedFiles);
+            showSuccessToast('Soubor byl úspěšně smazán');
         } catch (error) {
-            alert('Chyba při mazání souboru');
+            console.error('Error deleting file:', error);
+            showErrorToast(error.message || 'Chyba při mazání souboru');
         }
     };
     
@@ -187,18 +217,22 @@ export const AdvancedFileUpload = ({
     
     return (
         <div className="space-y-3">
-            {/* Drag & Drop upload area */}
+            {/* Drag & Drop upload area s disabled stavem */}
             <div
                 className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors
                     ${disabled ? 'border-gray-200 bg-gray-50 cursor-not-allowed' : 
                         isDragOver ? 'border-blue-400 bg-blue-50' : 'border-gray-300 hover:border-gray-400 cursor-pointer'}`}
                 onDragOver={handleDragOver}
                 onDrop={handleDrop}
-                onClick={() => document.getElementById(`file-input-${componentInstanceId}`).click()}
+                onClick={() => {
+                    if (!disabled) {
+                        document.getElementById(`file-input-${componentInstanceId}`).click();
+                    }
+                }}
             >
                 <IconUpload size={32} className="mx-auto mb-2 text-gray-400" />
                 <p className="text-sm text-gray-600">
-                    Klikněte nebo přetáhněte soubory sem
+                    {disabled ? 'Upload zakázán' : 'Klikněte nebo přetáhněte soubory sem'}
                 </p>
                 <p className="text-xs text-gray-400 mt-1">
                     Maximálně {maxFiles} souborů • {accept.replace(/[^a-zA-Z,]/g, '').toUpperCase()}
@@ -211,20 +245,23 @@ export const AdvancedFileUpload = ({
                     accept={accept}
                     className="hidden"
                     onChange={(e) => handleFileSelect(e.target.files)}
+                    disabled={disabled}
                 />
             </div>
             
-            {/* Camera button pro mobilní */}
-            <div className="flex gap-2 justify-center">
-                <button
-                    type="button"
-                    onClick={startCamera}
-                    className="inline-flex items-center gap-2 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                    <IconCamera size={16} />
-                    Fotoaparát
-                </button>
-            </div>
+            {/* Camera button - skrytý když disabled */}
+            {!disabled && (
+                <div className="flex gap-2 justify-center">
+                    <button
+                        type="button"
+                        onClick={startCamera}
+                        className="inline-flex items-center gap-2 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    >
+                        <IconCamera size={16} />
+                        Fotoaparát
+                    </button>
+                </div>
+            )}
             
             {/* Upload progress */}
             {uploading && (
@@ -450,16 +487,19 @@ if ($file->getUsageCount() === 0) {
 }
 ```
 
-### 3. **Soft Delete s Grace Period**
+### 3. **Inteligentní Soft/Hard Delete Logic**
 ```php
-// Soft delete při prvním smazání
-$file->softDelete();  // Nastaví deletedAt timestamp
+// Kontextové mazání s potvrzením
+$context = ['draft' => true]; // Kontext drafy vždy hard delete
 
-// Grace period check (24h default)
-if ($file->shouldBePhysicallyDeleted(24)) {
-    // Physical delete - smaž soubor z disku i databáze
-    $this->fileUploadService->deleteFile($file, true);
-}
+// Nová logika (po změně):
+// - Nové soubory (<5min) = soft delete (lze obnovit)
+// - Staré soubory (>5min) = hard delete (ihned pryč)
+// - Draft kontext = vždy hard delete (bez ohledu na věk)
+$this->fileUploadService->deleteFile($file, false, $context);
+
+// Force delete pro admin akce
+$this->fileUploadService->deleteFile($file, true); // Vždy hard delete
 
 // Cleanup job spouštěný cronem
 $deletedCount = $this->fileUploadService->cleanupFiles();
@@ -543,6 +583,13 @@ DELETE /api/portal/files/usage
     storagePath="methodologies/test"
     isPublic={true}  // Explicit public
 />
+
+// Disabled stav (readonly formulář)
+<AdvancedFileUpload
+    files={files}
+    onFilesChange={setFiles}
+    disabled={isReadonly}  // Skryje upload, camera, delete, rotation tlačítka
+/>
 ```
 
 ## 📈 Performance a Optimization
@@ -597,4 +644,4 @@ CREATE INDEX idx_file_created ON file_attachments(created_at);
 **API Reference:** [../api/portal-api.md](../api/portal-api.md)  
 **Frontend:** [../architecture.md](../architecture.md)  
 **Configuration:** [../configuration.md](../configuration.md)  
-**Aktualizováno:** 2025-07-22
+**Aktualizováno:** 2025-08-07 - Implementována inteligentní soft/hard delete logika, confirmation dialog a disabled stav

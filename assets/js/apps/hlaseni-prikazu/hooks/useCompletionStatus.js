@@ -32,7 +32,7 @@ export const useCompletionStatus = (formData, head, predmety, setFormData) => {
             const segmentsByDate = memberSegments.reduce((acc, segment) => {
                 if (!segment || !segment.Cas_Odjezdu || !segment.Cas_Prijezdu) return acc;
                 
-                let segmentDate = segment.Datum || formData.Datum_Provedeni || new Date();
+                let segmentDate = segment.Datum || new Date();
                 if (!(segmentDate instanceof Date)) {
                     segmentDate = new Date(segmentDate);
                 }

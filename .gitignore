@@ -44,4 +44,5 @@ Thumbs.db
 /.ddev/.dbimageBuild/
 /.ddev/.webimageBuild/
 /.ddev/.ddev-docker-compose-*
+/public/uploads/
 ###< Custom ###

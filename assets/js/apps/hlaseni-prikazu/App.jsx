@@ -1,22 +1,22 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { Loader } from '../../components/shared/Loader';
-import { PrikazHead } from '../../components/prikazy/PrikazHead';
-import { StepNavigation } from './components/StepNavigation';
-import { StepContent } from './components/StepContent';
+import React, {useEffect, useState, useCallback, useMemo} from 'react';
+import {Loader} from '../../components/shared/Loader';
+import {PrikazHead} from '../../components/prikazy/PrikazHead';
+import {StepNavigation} from './components/StepNavigation';
+import {StepContent} from './components/StepContent';
 import {
     extractTeamMembers,
     isUserLeader
 } from './utils/compensationCalculator';
-import { api } from '../../utils/api';
-import { log } from '../../utils/debug';
-import { useOrderData } from './hooks/useOrderData';
-import { usePriceList } from './hooks/usePriceList';
-import { useFormState } from './hooks/useFormState';
-import { useStepNavigation } from './hooks/useStepNavigation';
-import { useCompletionStatus } from './hooks/useCompletionStatus';
-import { useFormSaving } from './hooks/useFormSaving';
-import { useStatusPolling } from './hooks/useStatusPolling';
-import { migrateAttachmentsToObjectStructure } from './utils/attachmentUtils';
+import {api} from '../../utils/api';
+import {log} from '../../utils/debug';
+import {useOrderData} from './hooks/useOrderData';
+import {usePriceList} from './hooks/usePriceList';
+import {useFormState} from './hooks/useFormState';
+import {useStepNavigation} from './hooks/useStepNavigation';
+import {useCompletionStatus} from './hooks/useCompletionStatus';
+import {useFormSaving} from './hooks/useFormSaving';
+import {useStatusPolling} from './hooks/useStatusPolling';
+import {migrateAttachmentsToObjectStructure} from './utils/attachmentUtils';
 
 const App = () => {
     // Get prikaz ID from data attribute
@@ -27,29 +27,29 @@ const App = () => {
     const currentUser = container?.dataset?.user ? JSON.parse(container.dataset.user) : null;
 
     // Order data loading
-    const { head, predmety, useky, loading } = useOrderData(prikazId);
-    
+    const {head, predmety, useky, loading} = useOrderData(prikazId);
+
     // Memoizované členy týmu z hlavičky
     const membersFromHead = useMemo(() => {
         if (!head) return [];
         return extractTeamMembers(head);
     }, [head?.Znackar1, head?.Znackar2, head?.Znackar3, head?.INT_ADR_1, head?.INT_ADR_2, head?.INT_ADR_3]);
-    
+
     // Form state management
-    const { formData, setFormData, loadFormData } = useFormState();
-    
+    const {formData, setFormData, loadFormData} = useFormState();
+
     // Step navigation
-    const { activeStep, changeStep } = useStepNavigation();
-    
+    const {activeStep, changeStep} = useStepNavigation();
+
     // Additional state
     const [reportLoaded, setReportLoaded] = useState(false);
     const [teamMembers, setTeamMembers] = useState([]);
     const [isLeader, setIsLeader] = useState(false);
     const [canEditOthers, setCanEditOthers] = useState(false);
-    
-    // Price list loading (depends on formData.datumProvedeni)
-    const { priceList, loading: priceListLoading, error: priceListError } = usePriceList(
-        formData.Datum_Provedeni,
+
+    // Price list loading (depends on formData)
+    const {priceList, loading: priceListLoading, error: priceListError} = usePriceList(
+        formData,
         reportLoaded
     );
 
@@ -60,31 +60,50 @@ const App = () => {
     } = useCompletionStatus(formData, head, predmety, setFormData);
 
     // Form saving
-    const { saving, saveDraft, submitReport, submitForApproval } = useFormSaving(
-        formData, 
-        head, 
-        prikazId, 
-        priceList, 
-        isLeader, 
-        teamMembers, 
+    const {saving, saveDraft, submitReport, submitForApproval} = useFormSaving(
+        formData,
+        head,
+        prikazId,
+        priceList,
+        isLeader,
+        teamMembers,
         currentUser,
         reportLoaded
     );
 
     // Status polling pro sledování zpracování
-    const { 
-        isPolling, 
-        pollCount, 
-        startPolling, 
-        stopPolling, 
-        maxAttempts, 
-        interval 
+    const {
+        isPolling,
+        pollCount,
+        startPolling,
+        stopPolling,
+        maxAttempts,
+        interval
     } = useStatusPolling(
-        prikazId, 
-        formData, 
-        setFormData, 
+        prikazId,
+        formData,
+        setFormData,
         reportLoaded && formData.status === 'send'
     );
+
+    // Centralized form disabled logic - SINGLE SOURCE OF TRUTH
+    const disabled = useMemo(() => {
+        // Loading guard: pokud teamMembers ještě nejsou načteni, disabled = true (bezpečný default)
+        if (!teamMembers || teamMembers.length === 0) {
+            return true;
+        }
+        
+        // Status-based: lze editovat pouze draft a rejected
+        const statusDisabled = !['draft', 'rejected'].includes(formData.status);
+        
+        // Role-based: uživatel musí být v týmu (nebo být admin)
+        const currentUserInTeam = teamMembers.find(member => 
+            member.INT_ADR === currentUser?.INT_ADR
+        );
+        const roleDisabled = !currentUserInTeam && !canEditOthers; // admin může vždy
+        
+        return statusDisabled || roleDisabled;
+    }, [formData.status, teamMembers, currentUser?.INT_ADR, canEditOthers]);
 
     // Load existing report data
     const loadReportData = useCallback(async () => {
@@ -101,11 +120,7 @@ const App = () => {
                 // Load Part A (using czech keys)
                 if (result.data_a) {
                     Object.assign(loadedData, result.data_a);
-                    // Convert dates
-                    if (loadedData.Datum_Provedeni) {
-                        const execDate = new Date(loadedData.Datum_Provedeni);
-                        loadedData.Datum_Provedeni = isNaN(execDate.getTime()) ? new Date() : execDate;
-                    }
+                    // Convert travel groups
                     if (loadedData.Skupiny_Cest && Array.isArray(loadedData.Skupiny_Cest)) {
                         loadedData.Skupiny_Cest = loadedData.Skupiny_Cest.map((group, index) => ({
                             ...group,
@@ -141,11 +156,11 @@ const App = () => {
                 // Load Part B (using czech keys with data migration)
                 if (result.data_b) {
                     Object.assign(loadedData, result.data_b);
-                    
+
                     // Migrate old data structure to new Czech names
                     if (loadedData.Stavy_Tim) {
                         const migratedStavyTim = {};
-                        
+
                         for (const [timId, timReport] of Object.entries(loadedData.Stavy_Tim)) {
                             const migratedReport = {
                                 EvCi_TIM: timReport.EvCi_TIM || timReport.timId || timId,
@@ -157,11 +172,11 @@ const App = () => {
                                 Souhlasi_STP: timReport.Souhlasi_STP ?? timReport.centerRuleCompliant ?? null,
                                 Koment_STP: timReport.Koment_STP || timReport.centerRuleComment || ""
                             };
-                            
+
                             // Migrate item statuses to new object structure
                             const itemStatuses = timReport.Predmety || timReport.itemStatuses || [];
                             const migratedPredmety = {};
-                            
+
                             // Convert array to object with ID_PREDMETY as key
                             if (Array.isArray(itemStatuses)) {
                                 itemStatuses.forEach(status => {
@@ -192,21 +207,21 @@ const App = () => {
                                     };
                                 });
                             }
-                            
+
                             migratedReport.Predmety = migratedPredmety;
-                            
+
                             migratedStavyTim[timId] = migratedReport;
                         }
-                        
+
                         loadedData.Stavy_Tim = migratedStavyTim;
                     }
-                    
+
                     // Migrate route agreement
                     if (loadedData.routeAgreement !== undefined && loadedData.Souhlasi_Mapa === undefined) {
                         loadedData.Souhlasi_Mapa = loadedData.routeAgreement;
                         delete loadedData.routeAgreement;
                     }
-                    
+
                     // Migrate old route comment and attachments names
                     if (loadedData.Trasa_Poznamka !== undefined && loadedData.Koment_Usek === undefined) {
                         loadedData.Koment_Usek = loadedData.Trasa_Poznamka;
@@ -216,12 +231,12 @@ const App = () => {
                         loadedData.Prilohy_Usek = loadedData.Trasa_Prilohy;
                         delete loadedData.Trasa_Prilohy;
                     }
-                    
+
                     // Ensure Obnovene_Useky exists
                     if (loadedData.Obnovene_Useky === undefined) {
                         loadedData.Obnovene_Useky = {};
                     }
-                    
+
                     // Ensure attachment fields are objects
                     if (loadedData.Prilohy_Usek === undefined) {
                         loadedData.Prilohy_Usek = {};
@@ -235,17 +250,17 @@ const App = () => {
                 if (result.calculation) {
                     // Old calculation format migration to new Czech Snake_Case format
                     // Check if calculation is in old format (has properties like Naklady_Doprava, stravne, etc.)
-                    const needsCalculationMigration = typeof result.calculation === 'object' && 
-                        Object.values(result.calculation).some(comp => 
+                    const needsCalculationMigration = typeof result.calculation === 'object' &&
+                        Object.values(result.calculation).some(comp =>
                             comp && (comp.Naklady_Doprava !== undefined || comp.stravne !== undefined || comp.nahradaPrace !== undefined)
                         );
-                    
+
                     if (needsCalculationMigration) {
                         const migratedCalculation = {};
-                        
+
                         for (const [intAdr, oldComp] of Object.entries(result.calculation)) {
                             if (!oldComp || typeof oldComp !== 'object') continue;
-                            
+
                             migratedCalculation[intAdr] = {
                                 INT_ADR: parseInt(intAdr),
                                 Jizdne: oldComp.Jizdne || oldComp.Naklady_Doprava || 0,
@@ -260,7 +275,7 @@ const App = () => {
                                 appliedTariff: oldComp.appliedTariff || oldComp.pouzityTarif || null
                             };
                         }
-                        
+
                         loadedData.calculation = migratedCalculation;
                     } else {
                         // Calculation is already in new format or doesn't need migration
@@ -271,21 +286,21 @@ const App = () => {
                 // Load team members if available
                 if (result.znackari && Array.isArray(result.znackari)) {
                     setTeamMembers(result.znackari);
-                    
+
                     // Check if current user is leader from team members
                     const currentUserInTeam = result.znackari.find(
                         member => member.INT_ADR === currentUser?.INT_ADR
                     );
-                    
+
                     if (currentUserInTeam) {
-                        const isLeaderFromReport = currentUserInTeam.je_vedouci || 
-                                                 currentUserInTeam.Je_Vedouci || 
-                                                 currentUserInTeam.isLeader || 
-                                                 false;
+                        const isLeaderFromReport = currentUserInTeam.je_vedouci ||
+                            currentUserInTeam.Je_Vedouci ||
+                            currentUserInTeam.isLeader ||
+                            false;
                         setIsLeader(isLeaderFromReport);
                         setCanEditOthers(isLeaderFromReport);
-                        
-                        log.info('Tým načten z uloženého hlášení', { 
+
+                        log.info('Tým načten z uloženého hlášení', {
                             clenove: result.znackari.map(m => ({
                                 jmeno: m.name || m.Znackar,
                                 INT_ADR: m.INT_ADR,
@@ -301,7 +316,7 @@ const App = () => {
                 } else if (membersFromHead.length > 0 && currentUser) {
                     // Fallback: pokud report nemá znackari, použij data z head
                     setTeamMembers(membersFromHead);
-                    
+
                     const userIsLeader = isUserLeader(currentUser, head);
                     setIsLeader(userIsLeader);
                     setCanEditOthers(userIsLeader);
@@ -314,7 +329,7 @@ const App = () => {
 
                 // Migrate all attachment structures from arrays to objects
                 const migratedData = migrateAttachmentsToObjectStructure(loadedData);
-                
+
                 loadFormData(migratedData);
                 log.info('Načteno existující hlášení');
             }
@@ -347,8 +362,8 @@ const App = () => {
         // Přidat kontrolu, že effect běží pouze jednou při prvním načtení dat
         if (membersFromHead.length > 0 && currentUser && !reportLoaded && teamMembers.length === 0) {
             const userIsLeader = isUserLeader(currentUser, head);
-            
-            log.info('Tým načten z hlavičky příkazu', { 
+
+            log.info('Tým načten z hlavičky příkazu', {
                 clenove: membersFromHead.map(m => ({
                     jmeno: m.name || m.Znackar,
                     INT_ADR: m.INT_ADR,
@@ -360,7 +375,7 @@ const App = () => {
                     jeVedouci: userIsLeader
                 } : null
             });
-            
+
             setTeamMembers(membersFromHead);
             setIsLeader(userIsLeader);
             setCanEditOthers(userIsLeader);
@@ -428,6 +443,7 @@ const App = () => {
                 onSave={saveDraft}
                 onSubmit={() => submitForApproval(setFormData)}
                 saving={saving}
+                disabled={disabled}
                 polling={{
                     isPolling,
                     pollCount,

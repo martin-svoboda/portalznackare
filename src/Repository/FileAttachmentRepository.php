@@ -98,7 +98,7 @@ class FileAttachmentRepository extends ServiceEntityRepository
         
         return $this->createQueryBuilder('f')
             ->andWhere('f.isTemporary = :temp')
-            ->andWhere('f.contextType IS NULL')
+            ->andWhere('f.usageInfo IS NULL OR JSON_LENGTH(f.usageInfo) = 0')
             ->andWhere('f.createdAt < :threshold')
             ->setParameter('temp', true)
             ->setParameter('threshold', $threshold)

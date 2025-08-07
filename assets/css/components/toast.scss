@@ -1,0 +1,223 @@
+// Toast Components - BEM methodology
+// Notifikační toasty s animacemi a auto-dismiss funkcionalitou
+
+// Toast container - globální positioning
+.toast-container {
+  @apply fixed z-50 pointer-events-none;
+  
+  // Positioning variants
+  &--top-right {
+    @apply top-4 right-4;
+  }
+  
+  &--top-center {
+    @apply top-4 left-1/2 transform -translate-x-1/2;
+  }
+  
+  &--bottom-right {
+    @apply bottom-4 right-4;
+  }
+  
+  &--bottom-center {
+    @apply bottom-4 left-1/2 transform -translate-x-1/2;
+  }
+  
+  // Responsive positioning
+  @screen sm {
+    &--top-right,
+    &--bottom-right {
+      @apply right-6;
+    }
+    
+    &--top-center,
+    &--bottom-center {
+      @apply left-1/2 transform -translate-x-1/2;
+    }
+  }
+}
+
+// Individual toast item
+.toast {
+  @apply pointer-events-auto mb-3 max-w-sm w-full bg-white rounded-lg shadow-lg border;
+  @apply dark:bg-gray-800 dark:border-gray-700;
+  
+  // Animation states
+  &--entering {
+    animation: toast-slide-in 300ms ease-out forwards;
+  }
+  
+  &--exiting {
+    animation: toast-slide-out 200ms ease-in forwards;
+  }
+  
+  // Toast type variants
+  &--success {
+    @apply border-l-4 border-l-green-500;
+  }
+  
+  &--error {
+    @apply border-l-4 border-l-red-500;
+  }
+  
+  &--warning {
+    @apply border-l-4 border-l-yellow-500;
+  }
+  
+  &--info {
+    @apply border-l-4 border-l-blue-500;
+  }
+  
+  // Toast content structure
+  &__content {
+    @apply p-4 flex items-start;
+  }
+  
+  &__icon {
+    @apply flex-shrink-0 w-6 h-6 mr-3 mt-0.5;
+    
+    &--success {
+      @apply text-green-600 dark:text-green-400;
+    }
+    
+    &--error {
+      @apply text-red-600 dark:text-red-400;
+    }
+    
+    &--warning {
+      @apply text-yellow-600 dark:text-yellow-400;
+    }
+    
+    &--info {
+      @apply text-blue-600 dark:text-blue-400;
+    }
+  }
+  
+  &__body {
+    @apply flex-1 min-w-0;
+  }
+  
+  &__title {
+    @apply font-medium text-gray-900 dark:text-white text-sm mb-1;
+  }
+  
+  &__message {
+    @apply text-gray-700 dark:text-gray-300 text-sm leading-5;
+  }
+  
+  &__close {
+    @apply flex-shrink-0 ml-3 p-1 rounded-md text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300;
+    @apply focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800;
+    @apply transition-colors duration-200;
+  }
+  
+  // Progress bar for auto-dismiss
+  &__progress {
+    @apply absolute bottom-0 left-0 h-1 bg-gradient-to-r transition-all duration-100 ease-linear;
+    
+    &--success {
+      @apply from-green-500 to-green-400;
+    }
+    
+    &--error {
+      @apply from-red-500 to-red-400;
+    }
+    
+    &--warning {
+      @apply from-yellow-500 to-yellow-400;
+    }
+    
+    &--info {
+      @apply from-blue-500 to-blue-400;
+    }
+  }
+}
+
+// Animations
+@keyframes toast-slide-in {
+  0% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes toast-slide-out {
+  0% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+// Mobile optimizations
+@media (max-width: 639px) {
+  .toast-container {
+    @apply left-4 right-4;
+    
+    &--top-right,
+    &--top-center {
+      @apply top-4 left-4 right-4;
+      transform: none;
+    }
+    
+    &--bottom-right,
+    &--bottom-center {
+      @apply bottom-4 left-4 right-4;
+      transform: none;
+    }
+  }
+  
+  .toast {
+    @apply max-w-none;
+    
+    @keyframes toast-slide-in-mobile {
+      0% {
+        transform: translateY(-100%);
+        opacity: 0;
+      }
+      100% {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+    
+    @keyframes toast-slide-out-mobile {
+      0% {
+        transform: translateY(0);
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(-100%);
+        opacity: 0;
+      }
+    }
+    
+    &--entering {
+      animation: toast-slide-in-mobile 300ms ease-out forwards;
+    }
+    
+    &--exiting {
+      animation: toast-slide-out-mobile 200ms ease-in forwards;
+    }
+  }
+}
+
+// Hover states
+.toast:hover {
+  @apply shadow-xl;
+  
+  .toast__progress {
+    @apply opacity-75;
+  }
+}
+
+// Stack spacing adjustments for multiple toasts
+.toast-container .toast + .toast {
+  margin-top: 0; // Reset margin, handled by container
+}

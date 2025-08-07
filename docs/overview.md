@@ -24,6 +24,8 @@ Kompletní dokumentace webové aplikace pro správu turistického značení KČT
 
 ### 🛠️ Development
 - [Development guide](development/development.md) - Debug nástroje a workflow
+- [Background Jobs](development/background-jobs.md) - Symfony Messenger a asynchronní procesy
+- [Toast Notification System](development/toast-system.md) - Jednotný systém notifikací
 - [INSYS API Tester](development/insys-api-tester.md) - Testing nástroj
 - [Vizuální komponenty](development/visual-components.md) - Značky a TIM pro vývojáře
 
@@ -60,6 +62,6 @@ Kompletní dokumentace webové aplikace pro správu turistického značení KČT
 
 ---
 
-**Aktualizováno:** 2025-07-31  
-**Verze dokumentace:** 2.0  
+**Aktualizováno:** 2025-08-07  
+**Verze dokumentace:** 2.1  
 **Pro projekt:** Portál značkaře

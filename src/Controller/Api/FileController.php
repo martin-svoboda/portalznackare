@@ -25,97 +25,134 @@ class FileController extends AbstractController
     #[Route('/upload', methods: ['POST'])]
     public function upload(Request $request): JsonResponse
     {
-        $user = $this->getUser();
-        if (!$user instanceof User) {
-            return new JsonResponse([
-                'error' => 'Nepřihlášený uživatel'
-            ], Response::HTTP_UNAUTHORIZED);
-        }
+        try {
+            $user = $this->getUser();
+            if (!$user instanceof User) {
+                error_log("FileController::upload - Uživatel není přihlášený");
+                return new JsonResponse([
+                    'error' => 'Nepřihlášený uživatel'
+                ], Response::HTTP_UNAUTHORIZED);
+            }
 
-        $files = $request->files->get('files');
-        if (!$files) {
-            return new JsonResponse([
-                'error' => 'Žádné soubory k nahrání'
-            ], Response::HTTP_BAD_REQUEST);
-        }
+            error_log("FileController::upload - Uživatel: " . $user->getJmeno() . " " . $user->getPrijmeni() . " (ID: " . $user->getIntAdr() . ")");
 
-        // Convert single file to array
-        if (!is_array($files)) {
-            $files = [$files];
-        }
+            $files = $request->files->get('files');
+            if (!$files) {
+                error_log("FileController::upload - Žádné soubory k nahrání");
+                return new JsonResponse([
+                    'error' => 'Žádné soubory k nahrání'
+                ], Response::HTTP_BAD_REQUEST);
+            }
 
-        $storagePath = $request->request->get('path');
-        $options = json_decode($request->request->get('options', '{}'), true);
-        
-        // Add is_public parameter from request
-        if ($request->request->has('is_public')) {
-            $options['is_public'] = $request->request->getBoolean('is_public');
-        }
+            // Convert single file to array
+            if (!is_array($files)) {
+                $files = [$files];
+            }
 
-        $uploadedFiles = [];
-        $errors = [];
+            error_log("FileController::upload - Počet souborů k nahrání: " . count($files));
 
-        foreach ($files as $index => $file) {
-            // Validate file
-            $constraints = new Assert\File([
-                'maxSize' => '15M',
-                'mimeTypes' => [
-                    'image/jpeg',
-                    'image/png',
-                    'image/heic',
-                    'image/heif',
-                    'application/pdf',
-                ],
-                'mimeTypesMessage' => 'Povolené formáty: JPEG, PNG, HEIC, PDF',
-            ]);
-
-            $violations = $this->validator->validate($file, $constraints);
+            $storagePath = $request->request->get('path');
+            $options = json_decode($request->request->get('options', '{}'), true);
             
-            if (count($violations) > 0) {
-                $errors[] = [
-                    'file' => $file->getClientOriginalName(),
-                    'error' => $violations[0]->getMessage()
-                ];
-                continue;
+            error_log("FileController::upload - Storage path: " . ($storagePath ?: 'null'));
+            error_log("FileController::upload - Options: " . json_encode($options));
+            
+            // Add is_public parameter from request
+            if ($request->request->has('is_public')) {
+                $options['is_public'] = $request->request->getBoolean('is_public');
             }
 
-            try {
-                $attachment = $this->fileUploadService->uploadFile(
-                    $file,
-                    $user,
-                    $storagePath,
-                    $options
-                );
+            $uploadedFiles = [];
+            $errors = [];
 
-                $uploadedFiles[] = [
-                    'id' => $attachment->getId(),
-                    'fileName' => $attachment->getOriginalName(),
-                    'fileSize' => $attachment->getSize(),
-                    'fileType' => $attachment->getMimeType(),
-                    'url' => $attachment->getPublicUrl(),
-                    'uploadedAt' => $attachment->getCreatedAt()->format('c'),
-                    'uploadedBy' => $user->getName(),
-                    'metadata' => $attachment->getMetadata(),
-                    'isPublic' => $attachment->isPublic(),
-                ];
-            } catch (FileException $e) {
-                $errors[] = [
-                    'file' => $file->getClientOriginalName(),
-                    'error' => 'Chyba při ukládání souboru: ' . $e->getMessage()
-                ];
-            } catch (\Exception $e) {
-                $errors[] = [
-                    'file' => $file->getClientOriginalName(),
-                    'error' => 'Neočekávaná chyba: ' . $e->getMessage()
-                ];
+            foreach ($files as $index => $file) {
+                error_log("FileController::upload - Zpracovávám soubor #$index: " . $file->getClientOriginalName() . " (" . $file->getSize() . " bytes)");
+                
+                // Validate file
+                $constraints = new Assert\File([
+                    'maxSize' => '15M',
+                    'mimeTypes' => [
+                        'image/jpeg',
+                        'image/png',
+                        'image/heic',
+                        'image/heif',
+                        'application/pdf',
+                    ],
+                    'mimeTypesMessage' => 'Povolené formáty: JPEG, PNG, HEIC, PDF',
+                ]);
+
+                $violations = $this->validator->validate($file, $constraints);
+                
+                if (count($violations) > 0) {
+                    $errorMsg = $violations[0]->getMessage();
+                    error_log("FileController::upload - Validační chyba pro soubor " . $file->getClientOriginalName() . ": " . $errorMsg);
+                    $errors[] = [
+                        'file' => $file->getClientOriginalName(),
+                        'error' => $errorMsg
+                    ];
+                    continue;
+                }
+
+                try {
+                    error_log("FileController::upload - Volám uploadFile pro: " . $file->getClientOriginalName());
+                    
+                    $attachment = $this->fileUploadService->uploadFile(
+                        $file,
+                        $user,
+                        $storagePath,
+                        $options
+                    );
+
+                    error_log("FileController::upload - Úspěšně nahráno: " . $attachment->getOriginalName() . " (ID: " . $attachment->getId() . ")");
+
+                    $uploadedFiles[] = [
+                        'id' => $attachment->getId(),
+                        'fileName' => $attachment->getOriginalName(),
+                        'fileSize' => $attachment->getSize(),
+                        'fileType' => $attachment->getMimeType(),
+                        'url' => $attachment->getPublicUrl(),
+                        'uploadedAt' => $attachment->getCreatedAt()->format('c'),
+                        'uploadedBy' => $user->getJmeno() . ' ' . $user->getPrijmeni(),
+                        'metadata' => $attachment->getMetadata(),
+                        'isPublic' => $attachment->isPublic(),
+                    ];
+                } catch (FileException $e) {
+                    $errorMsg = 'Chyba při ukládání souboru: ' . $e->getMessage();
+                    error_log("FileController::upload - FileException pro " . $file->getClientOriginalName() . ": " . $e->getMessage());
+                    error_log("FileController::upload - FileException trace: " . $e->getTraceAsString());
+                    $errors[] = [
+                        'file' => $file->getClientOriginalName(),
+                        'error' => $errorMsg
+                    ];
+                } catch (\Exception $e) {
+                    $errorMsg = 'Neočekávaná chyba: ' . $e->getMessage();
+                    error_log("FileController::upload - Exception pro " . $file->getClientOriginalName() . ": " . $e->getMessage());
+                    error_log("FileController::upload - Exception trace: " . $e->getTraceAsString());
+                    $errors[] = [
+                        'file' => $file->getClientOriginalName(),
+                        'error' => $errorMsg
+                    ];
+                }
             }
+
+            error_log("FileController::upload - Výsledek: " . count($uploadedFiles) . " úspěšných, " . count($errors) . " chyb");
+            
+            return new JsonResponse([
+                'success' => count($uploadedFiles) > 0,
+                'files' => $uploadedFiles,
+                'errors' => $errors
+            ]);
+            
+        } catch (\Exception $e) {
+            error_log("FileController::upload - Fatální chyba: " . $e->getMessage());
+            error_log("FileController::upload - Fatální chyba trace: " . $e->getTraceAsString());
+            
+            return new JsonResponse([
+                'error' => 'Fatální chyba při uploadu: ' . $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'file' => $e->getFile() . ':' . $e->getLine()
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
-
-        return new JsonResponse([
-            'success' => count($uploadedFiles) > 0,
-            'files' => $uploadedFiles,
-            'errors' => $errors
-        ]);
     }
 
     #[Route('/{id}', methods: ['GET'])]
@@ -166,24 +203,35 @@ class FileController extends AbstractController
         }
 
         // Check if user can delete (uploaded by them or they are admin)
-        if ($file->getUploadedBy() !== $user->getIntAdr() && !$this->isGranted('ROLE_ADMIN')) {
+        if ((int)$file->getUploadedBy() !== (int)$user->getIntAdr() && !$this->isGranted('ROLE_ADMIN')) {
             return new JsonResponse([
                 'error' => 'Nemáte oprávnění smazat tento soubor'
             ], Response::HTTP_FORBIDDEN);
         }
 
         try {
-            // Check if user can delete immediately or use soft delete
-            $forceDelete = $request->query->getBoolean('force', false);
+            // Get force parameter from request body or query params
+            $requestData = json_decode($request->getContent(), true) ?? [];
+            $forceDelete = $requestData['force'] ?? $request->query->getBoolean('force', false);
+            
             $this->fileUploadService->deleteFile($file, $forceDelete);
             
             return new JsonResponse([
                 'success' => true,
-                'deleted' => $file->isDeleted() ? 'soft' : 'hard'
+                'message' => 'Soubor byl úspěšně smazán'
             ]);
         } catch (\Exception $e) {
+            error_log(sprintf(
+                "File deletion failed - File ID: %d, User: %s, Error: %s",
+                $file->getId(),
+                $user->getIntAdr(),
+                $e->getMessage()
+            ));
+            
             return new JsonResponse([
-                'error' => 'Chyba při mazání souboru'
+                'error' => 'Chyba při mazání souboru',
+                'details' => $e->getMessage(),
+                'file_id' => $file->getId()
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }

@@ -3,7 +3,6 @@ import {
     IconPlus,
     IconTrash
 } from '@tabler/icons-react';
-import { BasicInfoForm } from './BasicInfoForm';
 import { PaymentRedirectsForm } from './PaymentRedirectsForm';
 import { AdvancedFileUpload } from './AdvancedFileUpload';
 import { TravelGroupsForm } from './TravelGroupsForm';
@@ -12,6 +11,7 @@ import {
     getAttachmentsAsArray, 
     setAttachmentsFromArray 
 } from '../utils/attachmentUtils';
+import { calculateExecutionDate } from '../utils/compensationCalculator';
 
 
 export const PartAForm = ({ 
@@ -25,7 +25,6 @@ export const PartAForm = ({
     teamMembers = [],
     isLeader = false, 
     canEditOthers = false,
-    canEdit = true,
     disabled = false 
 }) => {
     // Team members - use prop if provided, otherwise calculate from head data (original logic)
@@ -68,7 +67,7 @@ export const PartAForm = ({
     const storagePath = useMemo(() => {
         if (!prikazId) return null;
         
-        const year = formData.Datum_Provedeni ? formData.Datum_Provedeni.getFullYear() : new Date().getFullYear();
+        const year = calculateExecutionDate(formData).getFullYear();
         const kkz = head?.KKZ?.toString().trim() || 'unknown';
         const obvod = head?.ZO?.toString().trim() || 'unknown';
         const sanitizedPrikazId = prikazId?.toString().trim() || 'unknown';
@@ -76,7 +75,7 @@ export const PartAForm = ({
         const validYear = (year >= 2020 && year <= 2030) ? year : new Date().getFullYear();
         
         return `reports/${validYear}/${kkz}/${obvod}/${sanitizedPrikazId}`;
-    }, [prikazId, formData.Datum_Provedeni, head]);
+    }, [prikazId, formData, head]);
 
     // Helper functions for date formatting (from original)
     const formatDate = (date) => {
@@ -96,7 +95,7 @@ export const PartAForm = ({
             id: crypto.randomUUID(),
             Misto: "",
             Zarizeni: "",
-            Datum: formData.Datum_Provedeni,
+            Datum: calculateExecutionDate(formData),
             Castka: 0,
             Zaplatil: computedTeamMembers[0]?.INT_ADR || "",
             Prilohy: {}
@@ -156,21 +155,6 @@ export const PartAForm = ({
         }));
     };
 
-    // Handler functions for basic info
-    const handleExecutionDateChange = (date) => {
-        setFormData(prev => ({
-            ...prev,
-            Datum_Provedeni: date,
-            // Aktualizovat datum ve všech segmentech cest
-            Skupiny_Cest: prev.Skupiny_Cest?.map(group => ({
-                ...group,
-                Cesty: group.Cesty?.map(segment => ({
-                    ...segment,
-                    Datum: date
-                })) || []
-            })) || []
-        }));
-    };
 
 
 
@@ -179,20 +163,9 @@ export const PartAForm = ({
         setFormData(prev => ({ ...prev, Presmerovani_Vyplat }));
     };
 
-    const isFormDisabled = !canEdit || disabled || formData.status === 'submitted' || formData.status === 'send';
 
     return (
         <div className="space-y-6">
-            {/* Basic Information */}
-            <ErrorBoundary sectionName="Základní údaje">
-                <BasicInfoForm
-                    Datum_Provedeni={formData.Datum_Provedeni}
-                    Zvysena_Sazba={formData.Zvysena_Sazba}
-                    onExecutionDateChange={handleExecutionDateChange}
-                    disabled={isFormDisabled}
-                />
-            </ErrorBoundary>
-
             {/* Travel Groups */}
             <ErrorBoundary sectionName="Segmenty cest">
                 <TravelGroupsForm
@@ -204,6 +177,7 @@ export const PartAForm = ({
                 prikazId={prikazId}
                 fileUploadService={fileUploadService}
                 currentUser={currentUser}
+                disabled={disabled}
             />
             </ErrorBoundary>
 
@@ -224,7 +198,7 @@ export const PartAForm = ({
                                             className="btn btn--icon btn--small btn--danger"
                                             onClick={() => removeAccommodation(accommodation.id)}
                                             title="Smazat nocležné"
-                                            disabled={isFormDisabled}
+                                            disabled={disabled}
                                         >
                                             <IconTrash size={16} />
                                         </button>
@@ -241,7 +215,7 @@ export const PartAForm = ({
                                                     className="form__input"
                                                     value={accommodation.Misto || ""}
                                                     onChange={(e) => updateAccommodation(accommodation.id, { Misto: e.target.value })}
-                                                    disabled={isFormDisabled}
+                                                    disabled={disabled}
                                                 />
                                             </div>
                                             <div>
@@ -253,7 +227,7 @@ export const PartAForm = ({
                                                     className="form__input"
                                                     value={accommodation.Zarizeni || ""}
                                                     onChange={(e) => updateAccommodation(accommodation.id, { Zarizeni: e.target.value })}
-                                                    disabled={isFormDisabled}
+                                                    disabled={disabled}
                                                 />
                                             </div>
                                         </div>
@@ -270,7 +244,7 @@ export const PartAForm = ({
                                                     onChange={(e) => updateAccommodation(accommodation.id, { Castka: Number(e.target.value) || 0 })}
                                                     min="0"
                                                     step="0.01"
-                                                    disabled={isFormDisabled}
+                                                    disabled={disabled}
                                                 />
                                             </div>
                                             <div>
@@ -281,7 +255,7 @@ export const PartAForm = ({
                                                     className="form__select"
                                                     value={accommodation.Zaplatil || ""}
                                                     onChange={(e) => updateAccommodation(accommodation.id, { Zaplatil: e.target.value })}
-                                                    disabled={isFormDisabled}
+                                                    disabled={disabled}
                                                 >
                                                     {computedTeamMembers.map(member => (
                                                         <option key={member.INT_ADR} value={member.INT_ADR}>
@@ -299,7 +273,7 @@ export const PartAForm = ({
                                                     className="form__input"
                                                     value={formatDate(accommodation.Datum)}
                                                     onChange={(e) => updateAccommodation(accommodation.id, { Datum: parseDate(e.target.value) })}
-                                                    disabled={isFormDisabled}
+                                                    disabled={disabled}
                                                 />
                                             </div>
                                         </div>
@@ -327,7 +301,7 @@ export const PartAForm = ({
                                 type="button"
                                 className="btn btn--secondary"
                                 onClick={addAccommodation}
-                                disabled={isFormDisabled}
+                                disabled={disabled}
                             >
                                 <IconPlus size={16} className="mr-2" />
                                 Přidat nocležné
@@ -355,7 +329,7 @@ export const PartAForm = ({
                                             className="btn btn--icon btn--small btn--danger"
                                             onClick={() => removeExpense(expense.id)}
                                             title="Smazat výdaj"
-                                            disabled={isFormDisabled}
+                                            disabled={disabled}
                                         >
                                             <IconTrash size={16} />
                                         </button>
@@ -371,7 +345,7 @@ export const PartAForm = ({
                                                 className="form__input"
                                                 value={expense.Polozka || ""}
                                                 onChange={(e) => updateExpense(expense.id, { Polozka: e.target.value })}
-                                                disabled={isFormDisabled}
+                                                disabled={disabled}
                                             />
                                         </div>
 
@@ -387,7 +361,7 @@ export const PartAForm = ({
                                                     onChange={(e) => updateExpense(expense.id, { Castka: Number(e.target.value) || 0 })}
                                                     min="0"
                                                     step="0.01"
-                                                    disabled={isFormDisabled}
+                                                    disabled={disabled}
                                                 />
                                             </div>
                                             <div>
@@ -398,7 +372,7 @@ export const PartAForm = ({
                                                     className="form__select"
                                                     value={expense.Zaplatil || ""}
                                                     onChange={(e) => updateExpense(expense.id, { Zaplatil: e.target.value })}
-                                                    disabled={isFormDisabled}
+                                                    disabled={disabled}
                                                 >
                                                     {computedTeamMembers.map(member => (
                                                         <option key={member.INT_ADR} value={member.INT_ADR}>
@@ -416,7 +390,7 @@ export const PartAForm = ({
                                                     className="form__input"
                                                     value={formatDate(expense.Datum)}
                                                     onChange={(e) => updateExpense(expense.id, { Datum: parseDate(e.target.value) })}
-                                                    disabled={isFormDisabled}
+                                                    disabled={disabled}
                                                 />
                                             </div>
                                         </div>
@@ -444,7 +418,7 @@ export const PartAForm = ({
                                 type="button"
                                 className="btn btn--secondary"
                                 onClick={addExpense}
-                                disabled={isFormDisabled}
+                                disabled={disabled}
                             >
                                 <IconPlus size={16} className="mr-2" />
                                 Přidat výdaj
@@ -463,7 +437,7 @@ export const PartAForm = ({
                 teamMembers={computedTeamMembers}
                 currentUser={currentUser}
                 isLeader={isLeader}
-                disabled={isFormDisabled}
+                disabled={disabled}
             />
             </ErrorBoundary>
         </div>

@@ -30,7 +30,6 @@ const createEmptyTravelGroup = (Cestujci = []) => ({
 
 // Initial form state
 const createInitialFormData = () => ({
-    Datum_Provedeni: new Date(),
     Skupiny_Cest: [createEmptyTravelGroup()],
     Zvysena_Sazba: false,
     Noclezne: [],
