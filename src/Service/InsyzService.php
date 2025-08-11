@@ -160,12 +160,22 @@ class InsyzService
         }
 
         return $this->cacheService->getCachedSazby($datum, function($datum) {
-            // Příprava data ve formátu {d 'yyyy-MM-dd'}
-            $datumProvedeni = $datum ? date('Y-m-d', strtotime($datum)) : date('Y-m-d');
-            
-            return $this->connect("trasy.ZP_Sazby", [
-                '@Datum_Provedeni' => "{d '" . $datumProvedeni . "'}"
-            ]);
+            try {
+                // Příprava data ve formátu YYYY-MM-DD (poziční parametr)
+                $datumProvedeni = $datum ? date('Y-m-d', strtotime($datum)) : date('Y-m-d');
+                
+                $result = $this->connect("trasy.ZP_Sazby", [$datumProvedeni]);
+                
+                // Zkontrolovat, zda procedura vrátila nějaká data
+                if (empty($result) || !is_array($result)) {
+                    throw new Exception('MSSQL procedura trasy.ZP_Sazby nevrátila žádná data pro datum: ' . $datumProvedeni);
+                }
+                
+                return $result[0]; // Vrátit první řádek s daty
+                
+            } catch (Exception $e) {
+                throw new Exception('Chyba při načítání sazeb z INSYZ: ' . $e->getMessage());
+            }
         });
     }
 
