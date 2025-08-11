@@ -30,7 +30,7 @@ class MockMSSQLService
 	public function getUser(int $intAdr): array
 	{
 		// Zkusit načíst z endpoint struktury
-		$data = $this->loadMockDataFromEndpoint('api/insys/user', [(string)$intAdr]);
+		$data = $this->loadMockDataFromEndpoint('api/insyz/user', [(string)$intAdr]);
 		if ($data !== null) {
 			return $data;
 		}
@@ -41,13 +41,13 @@ class MockMSSQLService
 	}
 
 	/**
-	 * Získání uživatele podle INT_ADR - použije stejná data jako InsysService
+	 * Získání uživatele podle INT_ADR - použije stejná data jako InsyzService
 	 */
 	public function getUserByIntAdr(string $intAdr): ?array
 	{
 		try {
-			// Použije stejná test data jako InsysService
-			$userData = $this->insysService->getUser((int)$intAdr);
+			// Použije stejná test data jako InsyzService
+			$userData = $this->insyzService->getUser((int)$intAdr);
 			
 			if (empty($userData)) {
 				return null;
@@ -70,7 +70,7 @@ class MockMSSQLService
 			];
 			
 		} catch (\Exception $e) {
-			$this->logger->error('Chyba při načítání uživatele z InsysService', [
+			$this->logger->error('Chyba při načítání uživatele z InsyzService', [
 				'int_adr' => $intAdr,
 				'error' => $e->getMessage()
 			]);
@@ -86,8 +86,8 @@ class MockMSSQLService
 		$this->logger->info('Mock MSSQL authentication', ['username' => $username]);
 		
 		try {
-			// Získej test data ze stejného zdroje jako InsysService
-			$userData = $this->insysService->getUser(4133); // Test user INT_ADR
+			// Získej test data ze stejného zdroje jako InsyzService
+			$userData = $this->insyzService->getUser(4133); // Test user INT_ADR
 			
 			if (empty($userData)) {
 				return null;
@@ -132,7 +132,7 @@ class MockMSSQLService
 	public function getPrikazy(int $intAdr, int $year): array
 	{
 		// Zkusit načíst z endpoint struktury
-		$data = $this->loadMockDataFromEndpoint('api/insys/prikazy', [$intAdr . '-' . $year]);
+		$data = $this->loadMockDataFromEndpoint('api/insyz/prikazy', [$intAdr . '-' . $year]);
 		if ($data !== null) {
 			return $data;
 		}
@@ -145,7 +145,7 @@ class MockMSSQLService
 	public function getPrikaz(int $intAdr, int $id): array
 	{
 		// Zkusit načíst z endpoint struktury
-		$data = $this->loadMockDataFromEndpoint('api/insys/prikaz', [(string)$id]);
+		$data = $this->loadMockDataFromEndpoint('api/insyz/prikaz', [(string)$id]);
 		if ($data !== null) {
 			return $data;
 		}

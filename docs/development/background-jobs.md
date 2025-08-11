@@ -102,7 +102,7 @@ if ($reportDto->state === 'send') {
 public function __invoke(SendToInsyzMessage $message): void {
     try {
         $xmlData = $this->xmlGenerator->generateReportXml($reportData);
-        $result = $this->insysService->submitReportToInsys($xmlData, $userIntAdr);
+        $result = $this->insyzService->submitReportToInsyz($xmlData, $userIntAdr);
         $report->setState(ReportStateEnum::SUBMITTED);
     } catch (\Exception $e) {
         if ($this->shouldRetry($e)) {

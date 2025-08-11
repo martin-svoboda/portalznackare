@@ -12,13 +12,14 @@ import {
     setAttachmentsFromArray 
 } from '../utils/attachmentUtils';
 import { calculateExecutionDate } from '../utils/compensationCalculator';
+import { toISODateString } from '../../../utils/dateUtils';
 import { generateUsageType, generateEntityId } from '../utils/fileUsageUtils';
 
 
 export const PartAForm = ({ 
     formData, 
     setFormData, 
-    priceList, 
+    tariffRates, 
     head, 
     prikazId, 
     fileUploadService,
@@ -78,11 +79,6 @@ export const PartAForm = ({
         return `reports/${validYear}/${kkz}/${obvod}/${sanitizedPrikazId}`;
     }, [prikazId, formData, head]);
 
-    // Helper functions for date formatting (from original)
-    const formatDate = (date) => {
-        if (!date) return '';
-        return date.toISOString().split('T')[0];
-    };
 
     const parseDate = (dateString) => {
         if (!dateString) return new Date();
@@ -172,7 +168,7 @@ export const PartAForm = ({
                 <TravelGroupsForm
                 formData={formData}
                 setFormData={setFormData}
-                priceList={priceList}
+                tariffRates={tariffRates}
                 head={head}
                 teamMembers={computedTeamMembers}
                 prikazId={prikazId}
@@ -272,7 +268,7 @@ export const PartAForm = ({
                                                     name={`accommodation-date-${accommodation.id}`}
                                                     type="date"
                                                     className="form__input"
-                                                    value={formatDate(accommodation.Datum)}
+                                                    value={toISODateString(accommodation.Datum)}
                                                     onChange={(e) => updateAccommodation(accommodation.id, { Datum: parseDate(e.target.value) })}
                                                     disabled={disabled}
                                                 />
@@ -397,7 +393,7 @@ export const PartAForm = ({
                                                     name={`expense-date-${expense.id}`}
                                                     type="date"
                                                     className="form__input"
-                                                    value={formatDate(expense.Datum)}
+                                                    value={toISODateString(expense.Datum)}
                                                     onChange={(e) => updateExpense(expense.id, { Datum: parseDate(e.target.value) })}
                                                     disabled={disabled}
                                                 />

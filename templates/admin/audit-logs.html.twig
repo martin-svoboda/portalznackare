@@ -1,0 +1,54 @@
+{% extends 'admin.html.twig' %}
+
+{% block title %}Audit logy - Admin{% endblock %}
+
+{% block body %}
+<div class="page">
+    <div class="page__header">
+        {% include 'components/page-header.html.twig' with {
+            'title': 'Audit logy',
+            'breadcrumbs': [
+                {'text': 'Administrace', 'url': path('admin_dashboard')},
+                {'text': 'Audit logy'}
+            ]
+        } %}
+    </div>
+
+    <div class="page__content">
+        <div class="card">
+            <div class="card__content">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Čas</th>
+                            <th>Uživatel</th>
+                            <th>Akce</th>
+                            <th>Entita</th>
+                            <th>IP adresa</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs %}
+                        <tr>
+                            <td>{{ log.createdAt|date('d.m.Y H:i:s') }}</td>
+                            <td>{{ log.intAdr }}</td>
+                            <td>
+                                <span class="badge badge--{{ log.action == 'delete' ? 'danger' : (log.action == 'create' ? 'success' : 'info') }}">
+                                    {{ log.action }}
+                                </span>
+                            </td>
+                            <td>{{ log.entityType }} #{{ log.entityId }}</td>
+                            <td>{{ log.ipAddress|default('-') }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center">Žádné záznamy</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

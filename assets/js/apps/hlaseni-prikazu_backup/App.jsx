@@ -94,7 +94,7 @@ const App = () => {
 
         setLoading(true);
         try {
-            const response = await fetch(`/api/insys/prikaz/${prikazId}`, {
+            const response = await fetch(`/api/insyz/prikaz/${prikazId}`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -197,7 +197,7 @@ const App = () => {
         setPriceListError(null);
 
         try {
-            const response = await fetch(`/api/insys/ceniky?date=${dateParam}`, {
+            const response = await fetch(`/api/insyz/ceniky?date=${dateParam}`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',

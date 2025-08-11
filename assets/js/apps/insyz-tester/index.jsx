@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import App from './App';
 
 // Mount aplikace
-const container = document.querySelector('[data-app="insys-tester"]');
+const container = document.querySelector('[data-app="insyz-tester"]');
 if (container) {
     const root = createRoot(container);
     const endpoints = JSON.parse(container.dataset.endpoints || '[]');

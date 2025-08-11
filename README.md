@@ -8,7 +8,7 @@ Portál značkaře je nástroj pro značkaře KČT, který umožňuje:
 - **Správu příkazů** - zobrazení, zpracování a hlášení značkařských příkazů
 - **Evidence práce** - zaznamenávání výkonů a nákladů v terénu  
 - **Metodiky a dokumentace** - přístup k aktuálním postupům a předpisům
-- **Komunikace se systémem INSYS** - propojení s centrální databází KČT
+- **Komunikace se systémem INSYZ** - propojení s centrální databází KČT
 
 ## 🚀 Rychlý start
 
@@ -38,7 +38,7 @@ open https://portalznackare.ddev.site
 - **Backend:** Symfony 6.4 LTS, PHP 8.2, PostgreSQL
 - **Frontend:** React 18, TypeScript, Tailwind CSS, Mantine UI
 - **Development:** DDEV, Webpack Encore
-- **Integrace:** MSSQL (INSYS databáze KČT)
+- **Integrace:** MSSQL (INSYZ databáze KČT)
 
 ## 📚 Dokumentace
 
@@ -50,7 +50,7 @@ open https://portalznackare.ddev.site
 - [⚙️ Backend development](docs/backend/)
 
 **🔌 API Reference:**
-- [INSYS API](docs/api/insyz.md) - Integrace s databází KČT
+- [INSYZ API](docs/api/insyz.md) - Integrace s databází KČT
 - [Portal API](docs/api/portal.md) - Lokální funkcionalita
 
 **📋 Pracovní dokumenty:**

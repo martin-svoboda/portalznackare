@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="cs" class="{% block htmlclass %}admin{% endblock %}">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}Admin - Portál značkaře{% endblock %}</title>
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="shortcut icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="Admin Portal" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    
+    {% block stylesheets %}
+        {{ encore_entry_link_tags('app-styles') }}
+    {% endblock %}
+</head>
+
+<body>
+    <div class="app-shell">
+        <!-- Admin Header -->
+        <header class="app-header">
+            <div class="app-header__brand">
+                <button class="burger" onclick="toggleNavbar()" aria-label="Otevřít/zavřít menu">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+                <a href="{{ path('admin_dashboard') }}" class="logo">
+                    {{ tabler_icon('shield', 20) }}
+                    Admin Portal
+                </a>
+            </div>
+            
+            <div class="app-header__actions">
+                <a href="{{ path('app_dashboard') }}" class="btn btn--ghost btn--sm" title="Přejít na uživatelské rozhraní">
+                    {{ tabler_icon('arrow-back', 16) }}
+                    Uživatelské rozhraní
+                </a>
+                
+                <button class="btn-icon" onclick="toggleTheme()" aria-label="Přepnout tmavý/světlý režim">
+                    {{ tabler_icon('sun', 24) }}
+                </button>
+                
+                {% if app.user %}
+                    <div class="user-widget">
+                        <span>{{ app.user.jmeno }} {{ app.user.prijmeni }}</span>
+                        <a href="{{ path('api_auth_logout') }}" class="btn-icon" onclick="return confirm('Opravdu se chcete odhlásit?')">
+                            {{ tabler_icon('logout', 20) }}
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </header>
+
+        <div class="app-content">
+            <!-- Admin Navbar -->
+            <nav class="app-navbar" id="navbar">
+                <a href="{{ path('admin_dashboard') }}" class="nav-link {{ app.request.attributes.get('_route') == 'admin_dashboard' ? 'active' : '' }}">
+                    {{ tabler_icon('dashboard') }}
+                    Dashboard
+                </a>
+                
+                <div class="nav-divider"></div>
+                
+                <a href="{{ path('admin_users') }}" class="nav-link {{ app.request.attributes.get('_route') == 'admin_users' ? 'active' : '' }}">
+                    {{ tabler_icon('users') }}
+                    Správa uživatelů
+                </a>
+                
+                <a href="{{ path('admin_audit_logs') }}" class="nav-link {{ app.request.attributes.get('_route') == 'admin_audit_logs' ? 'active' : '' }}">
+                    {{ tabler_icon('file-search') }}
+                    Audit logy
+                </a>
+                
+                <a href="{{ path('admin_insyz_monitoring') }}" class="nav-link {{ app.request.attributes.get('_route') == 'admin_insyz_monitoring' ? 'active' : '' }}">
+                    {{ tabler_icon('activity') }}
+                    INSYZ Monitoring
+                </a>
+                
+                {% if is_granted('ROLE_SUPER_ADMIN') %}
+                    <a href="{{ path('admin_system_options') }}" class="nav-link {{ app.request.attributes.get('_route') == 'admin_system_options' ? 'active' : '' }}">
+                        {{ tabler_icon('settings') }}
+                        Systémová nastavení
+                    </a>
+                {% endif %}
+                
+                <div class="nav-divider"></div>
+                
+                <a href="{{ path('app_dashboard') }}" class="nav-link">
+                    {{ tabler_icon('arrow-back') }}
+                    Zpět na portál
+                </a>
+            </nav>
+
+            <!-- Main Content -->
+            <main class="app-main">
+                {% block body %}{% endblock %}
+            </main>
+        </div>
+    </div>
+
+    <!-- Global JavaScript -->
+    <script>
+        // Theme toggle function
+        function toggleTheme() {
+            const html = document.documentElement;
+            const isDark = html.classList.contains('dark');
+            
+            if (isDark) {
+                html.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+            } else {
+                html.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+            }
+        }
+
+        // Navbar toggle function
+        function toggleNavbar() {
+            const navbar = document.getElementById('navbar');
+            navbar.classList.toggle('active');
+        }
+
+        // Initialize theme
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        if (savedTheme === 'dark') {
+            document.documentElement.classList.add('dark');
+        }
+
+        // Debug system for admin
+        window.debugTwig = {
+            mount: function(appName, selector, data) {
+                if (typeof data === 'undefined') data = {};
+                console.log(`[TWIG:MOUNT] ${new Date().toLocaleTimeString('cs-CZ')} - Mounting ${appName} at ${selector}`, data);
+            },
+            log: function(category, message, data) {
+                if (typeof data === 'undefined') data = {};
+                console.log(`[TWIG:${category}] ${new Date().toLocaleTimeString('cs-CZ')} - ${message}`, data);
+            }
+        };
+        
+        console.log(`[TWIG:INIT] ${new Date().toLocaleTimeString('cs-CZ')} - Admin debug system initialized`);
+    </script>
+
+    {% block javascripts %}
+        {{ encore_entry_script_tags('toast-system') }}
+    {% endblock %}
+</body>
+</html>

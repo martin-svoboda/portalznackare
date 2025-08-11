@@ -6,16 +6,19 @@
 
 ### Architektura autentifikace
 ```
-User Input → InsysAuthenticator → InsysUserProvider → Symfony Security → Session
+User Input → InsyzAuthenticator → InsyzUserProvider → Symfony Security → Session
             ↓                    ↓                   ↓               ↓
-      INSYS Validation    Load User Data        Create User      Store Session
+      INSYZ Validation    Load User Data        Create User      Store Session
+                                 ↓                   ↓
+                          Local DB Sync         Update User Entity
 ```
 
 **Klíčové principy:**
 - **Hybrid autentifikace:** JSON API + HTML forms
 - **Session-based:** Přihlášení uloženo v session, ne JWT tokeny
-- **INSYS integrace:** Ověření credentials přes INSYS/MSSQL
-- **Role-based access:** ROLE_USER, ROLE_VEDOUCI podle INSYS dat
+- **INSYZ integrace:** Ověření credentials přes INSYZ/MSSQL
+- **Local DB sync:** Automatická synchronizace s PostgreSQL při přihlášení
+- **Role-based access:** ROLE_USER, ROLE_VEDOUCI (INSYZ) + ROLE_ADMIN (local)
 
 ## 📋 API Endpointy
 
@@ -77,11 +80,11 @@ Odhlášení uživatele a zrušení session.
 
 ## 🛠️ Backend Security komponenty
 
-### 1. **InsysAuthenticator** - Custom authenticator
+### 1. **InsyzAuthenticator** - Custom authenticator
 
 ```php
-// src/Security/InsysAuthenticator.php
-class InsysAuthenticator extends AbstractAuthenticator 
+// src/Security/InsyzAuthenticator.php
+class InsyzAuthenticator extends AbstractAuthenticator 
 {
     public function supports(Request $request): ?bool {
         // Podporuje pouze POST na /api/auth/login
@@ -101,8 +104,8 @@ class InsysAuthenticator extends AbstractAuthenticator
             $password = $request->request->get('password', '');
         }
         
-        // INSYS ověření
-        $intAdr = $this->insysService->loginUser($username, $password);
+        // INSYZ ověření
+        $intAdr = $this->insyzService->loginUser($username, $password);
         
         // Vytvoř passport s user badge
         return new SelfValidatingPassport(
@@ -115,28 +118,46 @@ class InsysAuthenticator extends AbstractAuthenticator
 }
 ```
 
-### 2. **InsysUserProvider** - User loading z INSYS
+### 2. **InsyzUserProvider** - User loading z INSYZ + DB sync
 
 ```php
-// src/Security/InsysUserProvider.php
-class InsysUserProvider implements UserProviderInterface 
+// src/Security/InsyzUserProvider.php
+class InsyzUserProvider implements UserProviderInterface 
 {
     public function loadUserByIdentifier(string $identifier): UserInterface {
-        // Identifier je INT_ADR z INSYS
-        $userData = $this->insysService->getUser((int)$identifier);
+        // Identifier je INT_ADR z INSYZ
+        $userData = $this->insyzService->getUser((int)$identifier);
         
-        // Vytvoř User objekt z INSYS dat
-        $user = new User(
+        // Synchronizace s lokální DB
+        $dbUser = $this->userRepository->findByIntAdr((int)$identifier);
+        
+        if (!$dbUser) {
+            // Vytvoř nového uživatele v DB
+            $dbUser = User::createFromInsyzData($userData);
+            $this->entityManager->persist($dbUser);
+        } else {
+            // Aktualizuj existujícího
+            $dbUser->updateFromInsyzData($userData);
+        }
+        
+        // Ulož last_login_at
+        $dbUser->setLastLoginAt(new \DateTimeImmutable());
+        $this->entityManager->flush();
+        
+        // Vytvoř session User objekt
+        $user = new \App\Entity\User(
             (string)($userData['INT_ADR'] ?? ''),
             $userData['eMail'] ?? '',
             $userData['Jmeno'] ?? '',
             $userData['Prijmeni'] ?? ''
         );
         
-        // Role assignment podle INSYS dat
-        $roles = ['ROLE_USER'];
+        // Role assignment - kombinace INSYZ + lokální DB
+        $roles = $dbUser->getRoles();
         if (!empty($userData['Vedouci_dvojice']) && $userData['Vedouci_dvojice'] === '1') {
-            $roles[] = 'ROLE_VEDOUCI';
+            if (!in_array('ROLE_VEDOUCI', $roles)) {
+                $roles[] = 'ROLE_VEDOUCI';
+            }
         }
         $user->setRoles($roles);
         
@@ -162,12 +183,13 @@ class ApiAuthenticationEntryPoint implements AuthenticationEntryPointInterface
 }
 ```
 
-### 4. **User Entity** - Plain PHP class
+### 4. **User Entities** - Session vs DB
 
 ```php
-// src/Entity/User.php (není Doctrine entity!)
+// src/Entity/User.php - Session User (implements UserInterface)
 class User implements UserInterface 
 {
+    // Lightweight session object
     public function __construct(
         private string $intAdr,
         private string $email, 
@@ -175,18 +197,34 @@ class User implements UserInterface
         private string $prijmeni,
         private array $roles = ['ROLE_USER']
     ) {}
+}
+
+// src/Entity/User.php - DB User Entity (Doctrine)
+#[ORM\Entity(repositoryClass: UserRepository::class)]
+class User 
+{
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    private ?int $id = null;
     
-    // Gettery pro INSYS data
-    public function getIntAdr(): string;
-    public function getJmeno(): string;
-    public function getPrijmeni(): string;
-    public function getEmail(): string;
-    public function getPrukazZnackare(): ?string;
+    #[ORM\Column(unique: true)]
+    private int $intAdr;
     
-    // UserInterface implementation
-    public function getRoles(): array;
-    public function getUserIdentifier(): string;
-    public function eraseCredentials(): void;
+    #[ORM\Column(type: 'json')]
+    private array $roles = ['ROLE_USER'];
+    
+    #[ORM\Column(type: 'json')]
+    private array $preferences = [];
+    
+    #[ORM\Column(type: 'json')]
+    private array $settings = [];
+    
+    #[ORM\Column]
+    private bool $isActive = true;
+    
+    // Synchronizace s INSYZ
+    public static function createFromInsyzData(array $data): self;
+    public function updateFromInsyzData(array $data): self;
 }
 ```
 
@@ -197,18 +235,18 @@ class User implements UserInterface
 ```yaml
 security:
     providers:
-        insys_provider:
-            id: App\Security\InsysUserProvider
+        insyz_provider:
+            id: App\Security\InsyzUserProvider
     
     firewalls:
         # API endpoints firewall
         api:
             pattern: ^/api
             stateless: false                    # Session-based, ne stateless
-            provider: insys_provider
+            provider: insyz_provider
             context: shared_context             # Sdílený kontext mezi API a web
             entry_point: App\Security\ApiAuthenticationEntryPoint
-            custom_authenticator: App\Security\InsysAuthenticator
+            custom_authenticator: App\Security\InsyzAuthenticator
             remember_me:
                 secret: '%kernel.secret%'
                 lifetime: 604800                # 1 týden
@@ -219,7 +257,7 @@ security:
         # Web pages firewall 
         main:
             pattern: ^/
-            provider: insys_provider
+            provider: insyz_provider
             context: shared_context             # Sdílený s API
     
     access_control:
@@ -271,13 +309,13 @@ if (result.success) {
 
 ```php
 // Workflow po úspěšném přihlášení:
-1. InsysAuthenticator ověří credentials přes INSYS
-2. InsysUserProvider načte user data z INSYS  
+1. InsyzAuthenticator ověří credentials přes INSYZ
+2. InsyzUserProvider načte user data z INSYZ  
 3. Symfony vytvoří authenticated session
 4. Subsequent API calls automaticky authorized
 
 // Session data uložena:
-- User object s INSYS daty (INT_ADR, jméno, email, roles)
+- User object s INSYZ daty (INT_ADR, jméno, email, roles)
 - Remember me cookie (pokud selected)
 - Session storage (default: files)
 ```
@@ -298,7 +336,7 @@ if (!$this->isGranted('ROLE_VEDOUCI')) {
 }
 
 // Access specific data
-$prikazy = $this->insysService->getPrikazy($user->getIntAdr(), $year);
+$prikazy = $this->insyzService->getPrikazy($user->getIntAdr(), $year);
 ```
 
 ### 4. **React authentication check**
@@ -325,7 +363,7 @@ useEffect(() => {
 }, []);
 
 // API calls s automatickou session auth
-const response = await fetch('/api/insys/prikazy', {
+const response = await fetch('/api/insyz/prikazy', {
     credentials: 'same-origin'  // Session cookies
 });
 ```
@@ -362,15 +400,21 @@ remember_me:
 
 ### 4. **Role-based access**
 ```php
-// Role assignment v InsysUserProvider
-$roles = ['ROLE_USER'];
-if ($userData['Vedouci_dvojice'] === '1') {
-    $roles[] = 'ROLE_VEDOUCI';  // Team leader role
-}
+// Role hierarchy
+ROLE_USER         // Základní přihlášený uživatel
+ROLE_VEDOUCI      // Vedoucí dvojice (z INSYZ)
+ROLE_ADMIN        // Administrátor portálu (lokální)
+ROLE_SUPER_ADMIN  // Superadmin (nebezpečné operace)
 
 // Access control v controllers
-if (!$this->isGranted('ROLE_VEDOUCI')) {
+if (!$this->isGranted('ROLE_ADMIN')) {
     throw new AccessDeniedException();
+}
+
+// Role management přes Admin API
+PUT /api/users/{id}/roles
+{
+    "roles": ["ROLE_USER", "ROLE_ADMIN"]
 }
 ```
 
@@ -385,11 +429,11 @@ APP_ENV=prod
 APP_SECRET=random-32-character-secret-key-here
 SESSION_HANDLER_DSN=redis://localhost:6379  # Pro Redis sessions
 
-# INSYS credentials  
+# INSYZ credentials  
 USE_TEST_DATA=false
-INSYS_DB_HOST=secure.mssql.server
-INSYS_DB_USER=limited_portal_user  # Ne admin!
-INSYS_DB_PASS=complex_secure_password
+INSYZ_DB_HOST=secure.mssql.server
+INSYZ_DB_USER=limited_portal_user  # Ne admin!
+INSYZ_DB_PASS=complex_secure_password
 ```
 
 ### Security headers
@@ -410,7 +454,10 @@ INSYS_DB_PASS=complex_secure_password
 
 ---
 
-**INSYS Integration:** [insys-integration.md](insys-integration.md)  
-**API Reference:** [../api/insys-api.md](../api/insys-api.md)  
+**User Management:** [user-management.md](user-management.md)  
+**Audit Logging:** [audit-logging.md](audit-logging.md)  
+**Admin API:** [../api/admin-api.md](../api/admin-api.md)  
+**INSYZ Integration:** [insyz-integration.md](insyz-integration.md)  
+**API Reference:** [../api/insyz-api.md](../api/insyz-api.md)  
 **Configuration:** [../configuration.md](../configuration.md)  
-**Aktualizováno:** 2025-07-21
+**Aktualizováno:** 2025-08-08

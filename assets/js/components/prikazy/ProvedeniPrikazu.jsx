@@ -24,7 +24,7 @@ export const ProvedeniPrikazu = ({ prikazId, head, currentUser, isLeader }) => {
             return;
         }
 
-        log.info('Loading reports', { prikazId, intAdr: currentUser.intAdr });
+        log.info('Načítání hlášení', { prikazId, intAdr: currentUser.intAdr });
         setLoading(true);
         setError(null);
 
@@ -33,16 +33,19 @@ export const ProvedeniPrikazu = ({ prikazId, head, currentUser, isLeader }) => {
                 // Načtení jediného reportu pro celý příkaz
                 const report = await api.prikazy.report(prikazId);
                 
-                if (report) {
+                // Kontrola, zda jsme dostali skutečná data hlášení nebo jen null/prázdnou odpověď
+                if (report && report.id && !(report.id_zp && Object.keys(report).length === 1)) {
                     setReportData(report);
+                    log.info('Hlášení načteno', report);
                 } else {
                     setReportData(null);
+                    log.info('Hlášení ještě neexistuje');
                 }
                 
                 // Už nepotřebujeme - je jen jeden report
                 setAllReports([]);
             } catch (err) {
-                log.error('Failed to load reports', err);
+                log.error('Nepodařilo se načíst hlášení', err);
                 setError('Nepodařilo se načíst hlášení');
             } finally {
                 setLoading(false);
@@ -54,7 +57,7 @@ export const ProvedeniPrikazu = ({ prikazId, head, currentUser, isLeader }) => {
 
     const handleHlaseni = (action) => {
         const url = `/prikaz/${prikazId}/hlaseni`;
-        log.info('Navigate to hlaseni', { action, url });
+        log.info('Přechod na hlášení', { action, url });
         window.location.href = url;
     };
 

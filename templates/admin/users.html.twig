@@ -1,0 +1,62 @@
+{% extends 'admin.html.twig' %}
+
+{% block title %}Správa uživatelů - Admin{% endblock %}
+
+{% block body %}
+<div class="page">
+    <div class="page__header">
+        {% include 'components/page-header.html.twig' with {
+            'title': 'Správa uživatelů',
+            'breadcrumbs': [
+                {'text': 'Administrace', 'url': path('admin_dashboard')},
+                {'text': 'Uživatelé'}
+            ]
+        } %}
+    </div>
+
+    <div class="page__content">
+        <div class="card">
+            <div class="card__content">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Jméno</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Aktivní</th>
+                            <th>Poslední přihlášení</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                        <tr>
+                            <td>{{ user.intAdr }}</td>
+                            <td>{{ user.jmeno }} {{ user.prijmeni }}</td>
+                            <td>{{ user.email }}</td>
+                            <td>
+                                {% for role in user.roles %}
+                                    <span class="badge">{{ role|replace({'ROLE_': ''}) }}</span>
+                                {% endfor %}
+                            </td>
+                            <td>
+                                {% if user.isActive %}
+                                    <span class="badge badge--success">Ano</span>
+                                {% else %}
+                                    <span class="badge badge--danger">Ne</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ user.lastLoginAt ? user.lastLoginAt|date('d.m.Y H:i') : '-' }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center">Žádní uživatelé</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

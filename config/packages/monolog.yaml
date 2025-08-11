@@ -1,6 +1,7 @@
 monolog:
     channels:
         - deprecation # Deprecations are logged in the dedicated "deprecation" channel when it exists
+        - api         # API monitoring and performance logs
 
 when@dev:
     monolog:
@@ -9,7 +10,13 @@ when@dev:
                 type: stream
                 path: "%kernel.logs_dir%/%kernel.environment%.log"
                 level: debug
-                channels: ["!event"]
+                channels: ["!event", "!api"]
+            # API monitoring logs - separátní soubor pro snadnější analýzu
+            api:
+                type: stream
+                path: "%kernel.logs_dir%/api.log"
+                level: info
+                channels: [api]
             # uncomment to get logging in your browser
             # you may have to allow bigger header sizes in your Web server configuration
             #firephp:
@@ -46,15 +53,23 @@ when@prod:
                 handler: nested
                 excluded_http_codes: [404, 405]
                 buffer_size: 50 # How many messages should be saved? Prevent memory leaks
+                channels: ["!api"]  # API logs do separátního handleru
             nested:
                 type: stream
                 path: php://stderr
                 level: debug
                 formatter: monolog.formatter.json
+            # API monitoring logs - JSON formát pro analýzu
+            api:
+                type: stream
+                path: php://stderr
+                level: info
+                channels: [api]
+                formatter: monolog.formatter.json
             console:
                 type: console
                 process_psr_3_messages: false
-                channels: ["!event", "!doctrine"]
+                channels: ["!event", "!doctrine", "!api"]
             deprecation:
                 type: stream
                 channels: [deprecation]

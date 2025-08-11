@@ -4,7 +4,7 @@
 
 ## 🎯 Přehled funkcionality
 
-INSYZ integrace poskytuje přístup k datům KČT systému (příkazy, uživatelé, ceníky) prostřednictvím MSSQL databáze. Systém má dva režimy: **development** s mock daty a **production** s reálným MSSQL připojením.
+INSYZ integrace poskytuje přístup k datům KČT systému (příkazy, uživatelé, sazby) prostřednictvím MSSQL databáze. Systém má dva režimy: **development** s mock daty a **production** s reálným MSSQL připojením.
 
 ### Workflow integrace
 ```
@@ -14,13 +14,14 @@ Production:  MSSQL/INSYZ → MssqlConnector → InsyzService → API → React
 
 ## 🔧 Backend komponenty
 
-### 1. **InsyzService** - Hlavní integrace
+### 1. **InsyzService** - Hlavní integrace (čisté bez auditu)
 ```php
-// src/Service/InsyzService.php
+// src/Service/InsyzService.php  
 class InsyzService {
     public function __construct(
         private MssqlConnector $connector,
-        private KernelInterface $kernel
+        private KernelInterface $kernel,
+        private ApiCacheService $cacheService  // NOVÉ: Cache optimalizace
     ) {}
     
     // Dynamické přepínání mezi test/prod daty
@@ -49,7 +50,7 @@ class MockMSSQLService {
         return $this->testData;
     }
     
-    // Mock implementace stejných metod jako InsysService
+    // Mock implementace stejných metod jako InsyzService
     public function getPrikazy(int $intAdr, ?int $year = null): array;
     public function getUserByIntAdr(string $intAdr): ?array;
 }
@@ -63,7 +64,7 @@ class MssqlConnector {
     public function callProcedure(string $procedure, array $args): array;
     public function callProcedureMultiple(string $procedure, array $args): array;
     
-    // Používá INSYS stored procedures:
+    // Používá INSYZ stored procedures:
     // - trasy.WEB_Login
     // - trasy.ZNACKAR_DETAIL  
     // - trasy.PRIKAZY_SEZNAM
@@ -81,7 +82,7 @@ class DataEnricherService {
         private TransportIconService $transportIconService
     ) {}
     
-    // Přidá HTML/SVG komponenty k INSYS datům
+    // Přidá HTML/SVG komponenty k INSYZ datům
     public function enrichPrikazyList(array $prikazy): array;
     public function enrichPrikazDetail(array $detail): array;
 }
@@ -89,28 +90,52 @@ class DataEnricherService {
 
 ## 🌐 API endpointy
 
-### INSYS API Controller
+### INSYZ API Controller + Audit Logging
 ```php
-// src/Controller/Api/InsysController.php
+// src/Controller/Api/InsyzController.php
 #[Route('/api/insyz')]
-class InsysController extends AbstractController {
+class InsyzController extends AbstractController {
+    public function __construct(
+        private InsyzService $insyzService,
+        private InsyzAuditLogger $auditLogger  // NOVÉ: INSYZ API audit
+    ) {}
     
     #[Route('/login', methods: ['POST'])]
     public function login(Request $request): JsonResponse;
-    // POST /api/insyz/login
-    // Body: {"email": "test@test.com", "hash": "test123"}
+    // POST /api/insyz/login + MSSQL audit log
     
     #[Route('/user', methods: ['GET'])]  
-    public function getInsysUser(Request $request): JsonResponse;
-    // GET /api/insyz/user (vyžaduje přihlášení)
+    public function getInsyzUser(Request $request): JsonResponse;
+    // GET /api/insyz/user + performance tracking
     
     #[Route('/prikazy', methods: ['GET'])]
     public function getPrikazy(Request $request): JsonResponse;
-    // GET /api/insyz/prikazy?year=2025
+    // GET /api/insyz/prikazy + cache analytics
     
     #[Route('/prikaz/{id}', methods: ['GET'])]
     public function getPrikaz(Request $request, int $id): JsonResponse;
-    // GET /api/insyz/prikaz/12345
+    // GET /api/insyz/prikaz/{id} + MSSQL procedure logging
+    
+    #[Route('/submit-report', methods: ['POST'])]
+    public function submitReport(Request $request): JsonResponse;
+    // POST /api/insyz/submit-report + kompletní audit trail
+}
+
+// "Jeden log na proces" architektura:
+// Každý endpoint = právě 1 audit log (success XOR error)
+```
+
+### INSYZ Audit Logging System
+```php
+// Automatické audit logování všech INSYZ API volání
+class InsyzAuditLogger {
+    // Loguje do insyz_audit_logs tabulky:
+    // - Endpoint + HTTP metoda
+    // - MSSQL procedure name a timing
+    // - Request params (sanitized) 
+    // - Response metadata (bez citlivých dat)
+    // - Cache hit/miss
+    // - Performance metrics
 }
 ```
 
@@ -148,7 +173,7 @@ class InsysController extends AbstractController {
 }
 ```
 
-### INSYS stored procedures
+### INSYZ stored procedures
 
 #### WEB_Login
 ```sql
@@ -185,14 +210,14 @@ USE_TEST_DATA=true
 # .env.local (production)  
 USE_TEST_DATA=false
 INSYZ_DB_HOST=insyz.server.com
-INSYS_DB_NAME=INSYS_DATABASE
-INSYS_DB_USER=portal_user
-INSYS_DB_PASS=secure_password
+INSYZ_DB_NAME=INSYZ_DATABASE
+INSYZ_DB_USER=portal_user
+INSYZ_DB_PASS=secure_password
 ```
 
 ### Automatické přepínání
 ```php
-// InsysService automaticky detekuje režim
+// InsyzService automaticky detekuje režim
 public function getPrikazy(int $intAdr, ?int $year = null): array {
     if ($this->useTestData()) {
         // Mock data z testdata.json
@@ -258,9 +283,102 @@ const columns = [
 ];
 ```
 
+## 🚀 Performance Cache System
+
+### Cache architektura pro INSYZ data
+**Implementace:** `ApiCacheService` s inteligentní cache strategií pro optimalizaci MSSQL dotazů.
+
+#### Cache layer workflow:
+```
+Frontend Request → InsyzController → InsyzService → ApiCacheService
+                                                         ↓
+                                                  Cache HIT/MISS
+                                                         ↓
+                                                 INSYZ/MSSQL (jen při miss)
+```
+
+#### TTL strategie per data type:
+```php
+// Cache lifetimes optimalizované pro usage patterns
+private const CACHE_TTL_PRIKAZY_LIST = 300;    // 5 minut - seznam příkazů
+private const CACHE_TTL_PRIKAZ_DETAIL = 120;   // 2 minuty - detail příkazu  
+private const CACHE_TTL_USER_DATA = 1800;      // 30 minut - uživatelská data
+private const CACHE_TTL_SAZBY = 3600;         // 1 hodina - sazby
+```
+
+#### Cache keys struktura:
+```php
+// Unikátní keys per user/data type
+$cacheKey = sprintf('api.prikazy.%d.%d', $intAdr, $year ?? date('Y'));
+$cacheKey = sprintf('api.prikaz.%d.%d', $intAdr, $prikazId);
+$cacheKey = sprintf('api.user.%d', $intAdr);
+```
+
+#### Cache invalidation patterns:
+```php
+// Manuální invalidace při změnách dat
+$this->cacheService->invalidateUserCache($intAdr);        // Celá user cache
+$this->cacheService->invalidatePrikazCache($intAdr, $id); // Konkrétní příkaz
+```
+
+#### Expected performance improvements:
+- **MSSQL load reduction**: -70% (cached responses)
+- **Response time improvement**: -50% (cache hits)
+- **Concurrent user capacity**: 50 users (s cache bufferem)
+
+### Monitoring a Performance Tracking
+
+#### API Monitoring Service
+```php  
+// Comprehensive request monitoring
+$this->monitoring->logApiRequest(
+    $request, $user, $startTime, $responseData, $errorMessage
+);
+
+// MSSQL query monitoring
+$this->monitoring->logMssqlQuery(
+    $procedure, $params, $startTime, $resultCount, $error
+);
+```
+
+#### Monitored performance metrics:
+- **Response times** s automatickým upozorněním na >2s requesty
+- **MSSQL query timing** s detekcí >5s slow queries
+- **Cache hit/miss ratios** pro cache optimalizaci
+- **Suspicious activity detection** (rapid requests, repeated calls)
+- **Error rate tracking** pro stability monitoring
+
+#### Logging destinations:
+- **Development**: `/var/log/api.log` (human readable format)
+- **Production**: Structured JSON logs pro external monitoring
+- **Audit integration**: Critical API calls v `audit_logs` tabulce
+
 ## 🛠️ Troubleshooting
 
-### Časté problémy
+### Performance debugging
+
+#### 1. **Cache performance check**
+```bash
+# Zkontroluj cache hits/misses v logách
+tail -f var/log/api.log | grep "Cache MISS"
+
+# Redis cache status (produkce)
+redis-cli info stats
+
+# Filesystem cache size (development)  
+du -sh var/cache/
+```
+
+#### 2. **Slow query detection**
+```bash
+# Najdi pomalé MSSQL queries
+grep "Slow MSSQL Query" var/log/api.log
+
+# API response time monitoring
+grep "duration_ms" var/log/api.log | grep -E "duration_ms\":[0-9]{4,}"
+```
+
+### Connection troubleshooting
 
 #### 1. **TEST_DATA není načítána**
 ```bash
@@ -344,9 +462,9 @@ public function getPrikazy(Request $request): JsonResponse {
 ### 3. **Credential handling**
 ```bash
 # Production credentials v environment
-INSYS_DB_HOST=secure.server.com
-INSYS_DB_USER=limited_user  # Ne admin account
-INSYS_DB_PASS=complex_secure_password
+INSYZ_DB_HOST=secure.server.com
+INSYZ_DB_USER=limited_user  # Ne admin account
+INSYZ_DB_PASS=complex_secure_password
 
 # Nikdy v kódu:
 # ❌ $password = 'hardcoded_password';
@@ -354,7 +472,9 @@ INSYS_DB_PASS=complex_secure_password
 
 ---
 
-**Data Flow:** [../architecture.md](../architecture.md)  
+**Data Flow:** [../architecture.md](../architecture.md) - Cache a monitoring architektura  
 **API Reference:** [../api/insyz-api.md](../api/insyz-api.md)  
-**Configuration:** [../configuration.md](../configuration.md)  
-**Development nástroje:** [../development/insyz-api-tester.md](../development/insyz-api-tester.md)  \n**Aktualizováno:** 2025-07-30
+**Configuration:** [../configuration.md](../configuration.md) - Redis + Monolog setup  
+**Development nástroje:** [../development/insyz-api-tester.md](../development/insyz-api-tester.md)  
+**Monitoring:** [../development/development.md](../development/development.md) - Performance debugging  
+**Aktualizováno:** 2025-08-08

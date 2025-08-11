@@ -8,7 +8,7 @@
 - **Symfony 6.4 LTS** jako backend framework
 - **Twig templating** pro server-side rendering a layouty  
 - **React 18 micro-apps** pouze pro komplexní interaktivní komponenty
-- **PostgreSQL** pro aplikační data + **MSSQL** pro INSYS integraci
+- **PostgreSQL** pro aplikační data + **MSSQL** pro INSYZ integraci
 
 ### 2. **Micro-frontend přístup**
 - React aplikace jako samostatné micro-apps místo monolitické SPA
@@ -16,14 +16,14 @@
 - Twig šablony definují mount pointy pro React aplikace
 
 ### 3. **Data separation**
-- **INSYS data** (MSSQL) - příkazy, uživatelé, ceníky (read-only)
+- **INSYZ data** (MSSQL) - příkazy, uživatelé, sazby (read-only)
 - **Portal data** (PostgreSQL) - hlášení, soubory, CMS obsah (read-write)
 
 ### 4. **Konvence názvů parametrů (POVINNÉ)**
 - **Všechna uživatelská data, formulářová pole, výpočty** používají český Snake_Case formát
 - **Hierarchie:** část → oblast → vlastnost  
 - **Příklady:** `Datum_Provedeni`, `Hlavni_Ridic`, `Cast_A_Dokoncena`
-- **INSYS konzistence:** Všechny parametry odpovídají vzorům pojmenování INSYS dat
+- **INSYZ konzistence:** Všechny parametry odpovídají vzorům pojmenování INSYZ dat
 
 ## 🎯 Hybrid Twig + React architektura
 
@@ -68,9 +68,9 @@ if (container) {
 
 ## 📊 Datový tok
 
-### INSYS Integration (read-only)
+### INSYZ Integration (read-only)
 ```
-Frontend → /api/insys/* → InsysController → InsysService → MSSQL/Mock
+Frontend → /api/insyz/* → InsyzController → InsyzService → MSSQL/Mock
                                         ↓
                          DataEnricherService → Enhanced Data
 ```
@@ -123,11 +123,75 @@ Global Layout (Twig)
 - **Formuláře:** Hlášení příkazů, nastavení
 - **Datové tabulky:** Seznam příkazů, reporty
 - **File upload:** Správa příloh
-- **Interaktivní nástroje:** INSYS API tester
+- **Interaktivní nástroje:** INSYZ API tester
+
+## 🚀 Performance a Cache architektura
+
+### Cache strategy pro scalabilitu
+**Cíl:** Optimalizace pro 50 současných uživatelů s inteligentním cachováním INSYZ dat.
+
+#### Cache layers:
+```
+React App → Symfony API → Cache Service → INSYZ/MSSQL
+                          ↓
+                       Redis/Filesystem
+```
+
+#### TTL strategie:
+- **User data**: 30 min (dlouhodobě stabilní)
+- **Příkazy seznam**: 5 min (časté čtení při navigaci)
+- **Příkaz detail**: 2 min (detailní data)
+- **Sazby**: 1 hod (řídce se mění)
+
+#### Cache invalidation:
+- **Automatická**: TTL expiration
+- **Manuální**: User data změny → `ApiCacheService->invalidateUserCache()`
+- **Selektivní**: Konkrétní příkaz → `invalidatePrikazCache()`
+
+#### Environment-specific adapters:
+- **Production**: Redis cache pools (`redis://localhost:6379`)
+- **Development**: Filesystem cache (rychlejší debug)
+- **Testing**: Array cache (in-memory pro testy)
+
+### API Monitoring architektura
+
+#### Comprehensive logging:
+```
+Request → Controller → MonitoringService → Multiple logs
+                              ↓
+                    ┌─────────────────┬─────────────────┐
+                    ▼                 ▼                 ▼
+              Performance         Cache          Security
+              (response time)   (hit/miss)    (suspicious activity)
+```
+
+#### Monitored metrics:
+- **Response times** s upozorněním na >2s requesty
+- **MSSQL query timing** s detekcí >5s queries  
+- **Cache hit/miss ratios** pro optimalizaci
+- **API usage patterns** pro detekci abuse
+- **Error rates** a exception tracking
+
+#### Logging destinations:
+- **Development**: `/var/log/api.log` (human readable)
+- **Production**: JSON format pro external monitoring
+- **Audit trail**: Tracked requests v audit_logs tabulce
+
+#### Performance thresholds:
+- **Normal**: <500ms response
+- **Warning**: 500ms-2s response
+- **Alert**: >2s response (slow query investigation)
+
+### Scalability considerations:
+- **Session storage**: File-based (dostačující pro 50 users)
+- **Connection pooling**: MSSQL connection reuse
+- **Resource limits**: Cache memory management
+- **Monitoring alerts**: Performance degradation detection
 
 ---
 
 **Related Documentation:**  
 **Features:** [features/](features/)  
+**Cache details:** [features/insyz-integration.md](features/insyz-integration.md)  
 **Development:** [development/getting-started.md](development/getting-started.md)  
-**Aktualizováno:** 2025-07-31
+**Aktualizováno:** 2025-08-08

@@ -1,0 +1,10 @@
+# Test cache config - array cache pro rychlé testy
+framework:
+    cache:
+        pools:
+            # V testech používat in-memory cache
+            app.api_cache:
+                adapter: cache.adapter.array
+                
+            app.long_cache:
+                adapter: cache.adapter.array

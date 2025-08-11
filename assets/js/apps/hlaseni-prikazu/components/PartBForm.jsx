@@ -15,6 +15,7 @@ import {
     setAttachmentsFromArray 
 } from '../utils/attachmentUtils';
 import { calculateExecutionDate } from '../utils/compensationCalculator';
+import { toISODateString } from '../../../utils/dateUtils';
 
 const statusOptions = [
     { value: "1", label: "1 - Nová", color: "green" },
@@ -241,10 +242,6 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
         setExpandedTims(newExpanded);
     };
 
-    const formatDate = (date) => {
-        if (!date) return '';
-        return date.toISOString().split('T')[0];
-    };
 
     const parseDate = (dateString) => {
         if (!dateString) return new Date();

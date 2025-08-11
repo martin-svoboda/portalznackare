@@ -2,6 +2,7 @@
 
 namespace App\Service;
 
+use App\Entity\User;
 use Exception;
 use Symfony\Component\HttpKernel\KernelInterface;
 
@@ -11,7 +12,8 @@ class InsyzService
 
     public function __construct(
         private MssqlConnector $connector,
-        private KernelInterface $kernel
+        private KernelInterface $kernel,
+        private ApiCacheService $cacheService
     ) {
     }
 
@@ -53,7 +55,9 @@ class InsyzService
             return $data['user'] ?? [];
         }
 
-        return $this->connect("trasy.ZNACKAR_DETAIL", [$intAdr]);
+        return $this->cacheService->getCachedUserData($intAdr, function($intAdr) {
+            return $this->connect("trasy.ZNACKAR_DETAIL", [$intAdr]);
+        });
     }
 
     public function getPrikazy(int $intAdr, ?int $year = null): array
@@ -71,7 +75,9 @@ class InsyzService
             return $allPrikazy;
         }
 
-        return $this->connect("trasy.PRIKAZY_SEZNAM", [$intAdr, $year ?? date('Y')]);
+        return $this->cacheService->getCachedPrikazy($intAdr, $year, function($intAdr, $year) {
+            return $this->connect("trasy.PRIKAZY_SEZNAM", [$intAdr, $year ?? date('Y')]);
+        });
     }
 
     public function getPrikaz(int $intAdr, int $id): array
@@ -87,58 +93,102 @@ class InsyzService
             return $detail;
         }
 
-        $result = $this->connect("trasy.ZP_Detail", [$id], true);
+        return $this->cacheService->getCachedPrikaz($intAdr, $id, function($intAdr, $prikazId) {
+            $result = $this->connect("trasy.ZP_Detail", [$prikazId], true);
 
-        $head = $result[0][0] ?? [];
+            $head = $result[0][0] ?? [];
 
-        if (empty($head)) {
-            throw new Exception('U tohoto příkazu se nenačetla žádná data.');
-        }
-
-        // Hledání hodnoty INT_ADR v hlavičce
-        $found = array_filter(array_keys($head), fn($key) => str_starts_with($key, 'INT_ADR'));
-        $match = false;
-
-        foreach ($found as $key) {
-            if ((int) $head[$key] === $intAdr) {
-                $match = true;
-                break;
+            if (empty($head)) {
+                throw new Exception('U tohoto příkazu se nenačetla žádná data.');
             }
+
+            // Hledání hodnoty INT_ADR v hlavičce
+            $found = array_filter(array_keys($head), fn($key) => str_starts_with($key, 'INT_ADR'));
+            $match = false;
+
+            foreach ($found as $key) {
+                if ((int) $head[$key] === $intAdr) {
+                    $match = true;
+                    break;
+                }
+            }
+
+            if (!$match) {
+                throw new Exception('Tento příkaz vám nebyl přidělen a nemáte oprávnění k jeho nahlížení.');
+            }
+
+            return [
+                'head' => $head,
+                'predmety' => $result[1] ?? [],
+                'useky' => $result[2] ?? [],
+            ];
+        });
+    }
+
+    public function getSazby(?string $datum = null): array
+    {
+        if ($this->useTestData()) {
+            // Pro testovací režim vrátíme mock data
+            return [
+                'jizdne' => 6,
+                'jizdneZvysene' => 8,
+                'tarifDobaOd1' => 0,
+                'tarifDobaDo1' => 4,
+                'tarifStravne1' => 0,
+                'tarifNahrada1' => 0,
+                'tarifDobaOd2' => 4,
+                'tarifDobaDo2' => 5,
+                'tarifStravne2' => 0,
+                'tarifNahrada2' => 150,
+                'tarifDobaOd3' => 5,
+                'tarifDobaDo3' => 6,
+                'tarifStravne3' => 0,
+                'tarifNahrada3' => 200,
+                'tarifDobaOd4' => 6,
+                'tarifDobaDo4' => 8,
+                'tarifStravne4' => 0,
+                'tarifNahrada4' => 250,
+                'tarifDobaOd5' => 8,
+                'tarifDobaDo5' => 12,
+                'tarifStravne5' => 200,
+                'tarifNahrada5' => 300,
+                'tarifDobaOd6' => 12,
+                'tarifDobaDo6' => 24,
+                'tarifStravne6' => 400,
+                'tarifNahrada6' => 400
+            ];
         }
 
-        if (!$match) {
-            throw new Exception('Tento příkaz vám nebyl přidělen a nemáte oprávnění k jeho nahlížení.');
-        }
-
-        return [
-            'head' => $head,
-            'predmety' => $result[1] ?? [],
-            'useky' => $result[2] ?? [],
-        ];
+        return $this->cacheService->getCachedSazby($datum, function($datum) {
+            // Příprava data ve formátu {d 'yyyy-MM-dd'}
+            $datumProvedeni = $datum ? date('Y-m-d', strtotime($datum)) : date('Y-m-d');
+            
+            return $this->connect("trasy.ZP_Sazby", [
+                '@Datum_Provedeni' => "{d '" . $datumProvedeni . "'}"
+            ]);
+        });
     }
 
     public function submitReportToInsyz(string $xmlData, string $uzivatel): array
     {
+        // Uložit XML pro kontrolu při testování
+        $xmlDir = $this->kernel->getProjectDir() . '/var/xml-exports';
+        if (!is_dir($xmlDir)) {
+            mkdir($xmlDir, 0755, true);
+        }
 
-	    // Uložit XML pro kontrolu při testování
-	    $xmlDir = $this->kernel->getProjectDir() . '/var/xml-exports';
-	    if (!is_dir($xmlDir)) {
-		    mkdir($xmlDir, 0755, true);
-	    }
-
-	    $filename = sprintf('report-%s-%s.xml',
-		    $uzivatel,
-		    date('Ymd-His')
-	    );
-	    $filepath = $xmlDir . '/' . $filename;
-	    file_put_contents($filepath, $xmlData);
+        $filename = sprintf('report-%s-%s.xml',
+            $uzivatel,
+            date('Ymd-His')
+        );
+        $filepath = $xmlDir . '/' . $filename;
+        file_put_contents($filepath, $xmlData);
 
         if ($this->useTestData()) {
             // V testovacím režimu pouze simulujeme úspěšné odeslání
-            
             return [
                 'success' => true,
-                'message' => 'Test mode: Hlášení bylo simulovaně odesláno do INSYS',
+                'message' => 'Test mode: Hlášení bylo simulovaně odesláno do INSYZ',
                 'xml_length' => strlen($xmlData),
                 'xml_file' => $filename,
                 'user' => $uzivatel,
@@ -147,12 +197,10 @@ class InsyzService
         }
 
         // Volání stored procedure trasy.ZP_Zapis_XML s pojmenovanými parametry
-        $result = $this->connect("trasy.ZP_Zapis_XML", [
+        return $this->connect("trasy.ZP_Zapis_XML", [
             '@Data_XML' => $xmlData,
             '@Uzivatel' => $uzivatel
         ]);
-
-        return $result;
     }
 
     private function getTestData(): array

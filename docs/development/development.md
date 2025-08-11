@@ -146,8 +146,8 @@ const handleSubmit = (formData) => {
 **Účel:** Development nástroje pro testování a debugging  
 **Dostupné pouze v development módu**
 
-### GET `/api/test/insys-user`
-Test uživatelských dat z INSYS bez autentifikace.
+### GET `/api/test/insyz-user`
+Test uživatelských dat z INSYZ bez autentifikace.
 
 **Response:**
 ```json
@@ -159,8 +159,8 @@ Test uživatelských dat z INSYS bez autentifikace.
 }
 ```
 
-### GET `/api/test/insys-prikazy`
-Test seznam příkazů z INSYS bez autentifikace.
+### GET `/api/test/insyz-prikazy`
+Test seznam příkazů z INSYZ bez autentifikace.
 
 ### GET `/api/test/mssql-connection`
 Test MSSQL připojení a konfigurace.
@@ -265,10 +265,118 @@ export default MyComponent;
 
 Tento debug systém umožňuje efektivní ladění a monitoring aplikací ve všech fázích vývoje.
 
+## 📊 API Monitoring a Performance Tools
+
+### ApiMonitoringService - Production monitoring
+Komprehensivní monitoring systém pro sledování výkonu a detekci problémů v reálném čase.
+
+#### Monitoring capabilities:
+```php
+// Automatické API request monitoring (integrated v controllers)
+$this->monitoring->logApiRequest($request, $user, $startTime, $responseData, $errorMessage);
+
+// MSSQL query performance tracking  
+$this->monitoring->logMssqlQuery($procedure, $params, $startTime, $resultCount, $error);
+
+// Cache performance monitoring
+$this->monitoring->logCacheOperation('hit', $cacheKey, $duration);
+```
+
+#### Performance thresholds a alerts:
+- **Normal API response**: <500ms
+- **Warning threshold**: 500ms-2s (logged as warning)
+- **Alert threshold**: >2s (automatické upozornění)
+- **Slow MSSQL queries**: >5s (požaduje investigaci)
+- **Suspicious activity**: >100 requests/minute per user
+
+#### Log destinations a formáty:
+```bash
+# Development - human readable
+tail -f var/log/api.log
+
+# Production - structured JSON pro parsing
+tail -f /var/log/api.log | jq '.duration_ms'
+
+# Specific performance monitoring
+grep "duration_ms" var/log/api.log | grep -E "duration_ms\":[0-9]{4,}"
+```
+
+### Cache Performance Debugging
+
+#### Cache hit/miss analysis:
+```bash
+# Monitor cache effectiveness
+grep "API Cache MISS" var/log/api.log | grep prikazy
+grep "API Cache HIT" var/log/api.log | wc -l
+
+# Cache size monitoring (development filesystem cache)
+du -sh var/cache/app.api_cache/
+
+# Redis cache stats (production)
+redis-cli info stats | grep keyspace
+redis-cli info memory | grep used_memory_human
+```
+
+#### Cache debugging commands:
+```bash
+# Flush specific cache pools
+php bin/console cache:pool:clear app.api_cache
+php bin/console cache:pool:clear app.long_cache
+
+# Cache pool information  
+php bin/console cache:pool:list
+php bin/console debug:cache-pool app.api_cache
+```
+
+### Performance Profiling Tools
+
+#### API response time analysis:
+```bash
+# Find slowest endpoints
+grep "duration_ms" var/log/api.log | sort -t: -k4 -n | tail -10
+
+# Average response time per endpoint
+grep "/api/insyz/prikazy" var/log/api.log | grep duration_ms | awk -F'"duration_ms":' '{print $2}' | awk -F',' '{sum+=$1; count++} END {print sum/count}'
+
+# Error rate monitoring
+grep "status.*error" var/log/api.log | wc -l
+```
+
+#### MSSQL performance analysis:
+```bash
+# Slowest MSSQL stored procedures  
+grep "MSSQL Query executed" var/log/api.log | grep -E "duration_ms\":[0-9]{4,}"
+
+# Most called procedures
+grep "procedure.*trasy\." var/log/api.log | cut -d'"' -f4 | sort | uniq -c | sort -nr
+```
+
+### Security Monitoring Tools
+
+#### Suspicious activity detection:
+```bash
+# Rapid request detection
+grep "int_adr" var/log/api.log | cut -d'"' -f8 | sort | uniq -c | sort -nr | head -10
+
+# Failed authentication attempts  
+grep "Nepřihlášený uživatel" var/log/api.log | grep -o "ip_address.*" | sort | uniq -c
+
+# Error pattern analysis
+grep "error" var/log/api.log | cut -d'"' -f6 | sort | uniq -c | sort -nr
+```
+
+#### Security alerts setup:
+```bash
+# Create monitoring script pro abnormal activity
+#!/bin/bash
+# Monitor for >50 requests per minute per user
+grep "$(date '+%Y-%m-%d %H:%M')" var/log/api.log | cut -d'"' -f8 | sort | uniq -c | awk '$1>50 {print "Alert: User",$2,"made",$1,"requests in last minute"}'
+```
+
 ## Development Health Check
 ```bash
 # Kompletní health check (development prostředí)
-curl -s "https://portalznackare.ddev.site/api/test/insys-user"
+curl -s "https://portalznackare.ddev.site/api/test/insyz-user"
 curl -s "https://portalznackare.ddev.site/api/test/mssql-connection"
 
 # Test messenger worker
@@ -281,6 +389,7 @@ ps aux | grep messenger:consume
 ---
 
 **Related:** [Toast System](toast-system.md) | [Getting Started](getting-started.md)  
-**Architecture:** [../architecture.md](../architecture.md)  
+**Architecture:** [../architecture.md](../architecture.md) - Cache a performance architektury  
+**INSYZ Integration:** [../features/insyz-integration.md](../features/insyz-integration.md) - Cache troubleshooting  
 **API Integration:** [../api/portal-api.md](../api/portal-api.md)  
-**Updated:** 2025-08-07
+**Updated:** 2025-08-08

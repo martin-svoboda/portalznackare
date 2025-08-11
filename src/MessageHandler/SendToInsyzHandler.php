@@ -52,10 +52,10 @@ class SendToInsyzHandler
                 'xml_length' => strlen($xmlData)
             ]);
             
-            // Volání INSYZ API přes InsysService (stejný pattern jako login)
+            // Volání INSYZ API přes InsyzService (stejný pattern jako login)
             $result = $this->insyzService->submitReportToInsyz($xmlData, (string)$report->getIntAdr());
             
-            // Vyhodnotit odpověď - InsysService vrací buď success response nebo vyhazuje Exception
+            // Vyhodnotit odpověď - InsyzService vrací buď success response nebo vyhazuje Exception
             $report->setState(ReportStateEnum::SUBMITTED);
             $report->addHistoryEntry(
                 'insyz_submitted',

@@ -34,6 +34,12 @@ security:
             lazy: true
             provider: insyz_provider
             context: shared_context
+            custom_authenticator: App\Security\InsyzAuthenticator
+            remember_me:
+                secret: '%kernel.secret%'
+                lifetime: 604800 # 1 week
+                path: /
+                domain: ~
 
     # Easy way to control access for large sections of your site
     # Note: Only the *first* access control that matches will be used
@@ -44,7 +50,18 @@ security:
         - { path: ^/api/test/mssql-connection, roles: PUBLIC_ACCESS }
         - { path: ^/api/test/login-test, roles: PUBLIC_ACCESS }
         
-        # Protected API endpoints
+        # Admin pages - require ROLE_ADMIN
+        - { path: ^/admin, roles: ROLE_ADMIN }
+        
+        # Admin API endpoints - require ROLE_ADMIN
+        - { path: ^/api/users, roles: ROLE_ADMIN }
+        - { path: ^/api/audit-logs, roles: ROLE_ADMIN }
+        - { path: ^/api/system-options, roles: ROLE_ADMIN }
+        
+        # User can manage own settings/preferences  
+        - { path: ^/api/users/\d+/(settings|preferences), roles: ROLE_USER }
+        
+        # Protected API endpoints - general access
         - { path: ^/api, roles: ROLE_USER }
 
 when@test:

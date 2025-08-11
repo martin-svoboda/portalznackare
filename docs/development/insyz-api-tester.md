@@ -1,13 +1,13 @@
-# INSYS API Tester
+# INSYZ API Tester
 
-Vývojářský nástroj pro testování INSYS API endpointů a export mock dat do lokálního prostředí.
+Vývojářský nástroj pro testování INSYZ API endpointů a export mock dat do lokálního prostředí.
 
 ## Přehled
 
-INSYS API Tester je React aplikace dostupná pouze v dev prostředí na URL `/test-insys-api`. Umožňuje:
+INSYZ API Tester je React aplikace dostupná pouze v dev prostředí na URL `/test-insyz-api`. Umožňuje:
 
-- **Testování všech INSYS API endpointů** s jednoduchým formulářem
-- **Export surových dat** z INSYS do JSON souborů  
+- **Testování všech INSYZ API endpointů** s jednoduchým formulářem
+- **Export surových dat** z INSYZ do JSON souborů  
 - **Hromadný export** příkazů včetně detailů
 - **Automatické ukládání** do správné souborové struktury
 
@@ -16,10 +16,10 @@ INSYS API Tester je React aplikace dostupná pouze v dev prostředí na URL `/te
 ### Architektura
 
 ```
-templates/pages/insys-test.html.twig    → Twig template s mount pointem
-assets/js/apps/insys-tester/           → React aplikace
-src/Controller/InsysTestController.php  → Controller (pouze dev)
-src/Controller/Api/InsysController.php  → API endpointy s export funkcemi
+templates/pages/insyz-test.html.twig    → Twig template s mount pointem
+assets/js/apps/insyz-tester/           → React aplikace
+src/Controller/InsyzTestController.php  → Controller (pouze dev)
+src/Controller/Api/InsyzController.php  → API endpointy s export funkcemi
 ```
 
 ### React komponenty
@@ -30,13 +30,13 @@ src/Controller/Api/InsysController.php  → API endpointy s export funkcemi
 
 ### Automatické načítání endpointů
 
-Controller automaticky načítá všechny INSYS API endpointy ze Symfony Routeru:
+Controller automaticky načítá všechny INSYZ API endpointy ze Symfony Routeru:
 
 ```php
-private function getInsysEndpoints(): array
+private function getInsyzEndpoints(): array
 {
     $routes = $this->router->getRouteCollection();
-    // Filtruje pouze '/api/insys/*' endpointy (kromě export)
+    // Filtruje pouze '/api/insyz/*' endpointy (kromě export)
     // Vrací: path, method
 }
 ```
@@ -45,7 +45,7 @@ private function getInsysEndpoints(): array
 
 ### ⚠️ Důležité požadavky
 
-**Všechny INSYS API endpointy vyžadují přihlášeného uživatele.** Aplikace funguje se session-based autentizací - data se načítají pro právě přihlášeného uživatele stejně jako v běžné aplikaci.
+**Všechny INSYZ API endpointy vyžadují přihlášeného uživatele.** Aplikace funguje se session-based autentizací - data se načítají pro právě přihlášeného uživatele stejně jako v běžné aplikaci.
 
 **Před použitím aplikace:**
 1. **Přihlaste se** do hlavní aplikace (`/login`)
@@ -54,38 +54,38 @@ private function getInsysEndpoints(): array
 
 ### Základní testování
 
-1. **Otevřít aplikaci**: `https://portalznackare.ddev.site/test-insys-api`
+1. **Otevřít aplikaci**: `https://portalznackare.ddev.site/test-insyz-api`
 2. **Vybrat endpoint** z dropdown seznamu
 3. **Zadat parametry** pomocí key-value párů:
    - Path parametry se automaticky nahradí v URL
    - Ostatní parametry se pošlou jako query parametry (GET) nebo body (POST)
-4. **Odeslat požadavek** - zobrazí se surová data z INSYS
+4. **Odeslat požadavek** - zobrazí se surová data z INSYZ
 5. **Exportovat data** - uloží se na server do správné struktury
 
 ### Příklady použití
 
 #### User data
 ```
-Endpoint: GET /api/insys/user
+Endpoint: GET /api/insyz/user
 Parametry: (žádné)
 → Načte data přihlášeného uživatele
-→ Export: var/mock-data/api/insys/user/4133.json
+→ Export: var/mock-data/api/insyz/user/4133.json
 ```
 
 #### Seznam příkazů
 ```
-Endpoint: GET /api/insys/prikazy
+Endpoint: GET /api/insyz/prikazy
 Parametry: year = 2024
-→ URL: /api/insys/prikazy?year=2024&raw=1
-→ Export: var/mock-data/api/insys/prikazy/4133-2024.json
+→ URL: /api/insyz/prikazy?year=2024&raw=1
+→ Export: var/mock-data/api/insyz/prikazy/4133-2024.json
 ```
 
 #### Detail příkazu
 ```
-Endpoint: GET /api/insys/prikaz/{id}
+Endpoint: GET /api/insyz/prikaz/{id}
 Parametry: id = 123
-→ URL: /api/insys/prikaz/123?raw=1
-→ Export: var/mock-data/api/insys/prikaz/123.json
+→ URL: /api/insyz/prikaz/123?raw=1
+→ Export: var/mock-data/api/insyz/prikaz/123.json
 ```
 
 ### Hromadný export příkazů
@@ -107,7 +107,7 @@ Pro endpointy s `/prikazy` se zobrazí speciální tlačítko **"Exportovat deta
 ```
 var/mock-data/
 └── api/
-    └── insys/
+    └── insyz/
         ├── user/
         │   └── {INT_ADR}.json              # Data uživatele
         │
@@ -119,18 +119,18 @@ var/mock-data/
         │   ├── {id}.json                   # Detail příkazu
         │   └── {id}.json
         │
-        └── ceniky/
-            └── ceniky-{date}.json          # Ceníky
+        └── sazby/
+            └── sazby-{date}.json          # Sazby
 ```
 
 ### Mapování endpointů na soubory
 
 | API Endpoint | Mock soubor |
 |--------------|-------------|
-| `GET /api/insys/user` | `api/insys/user/{INT_ADR}.json` |
-| `GET /api/insys/prikazy?year=2024` | `api/insys/prikazy/{INT_ADR}-2024.json` |
-| `GET /api/insys/prikaz/123` | `api/insys/prikaz/123.json` |
-| `GET /api/insys/ceniky` | `api/insys/ceniky/ceniky-{date}.json` |
+| `GET /api/insyz/user` | `api/insyz/user/{INT_ADR}.json` |
+| `GET /api/insyz/prikazy?year=2024` | `api/insyz/prikazy/{INT_ADR}-2024.json` |
+| `GET /api/insyz/prikaz/123` | `api/insyz/prikaz/123.json` |
+| `GET /api/insyz/sazby` | `api/insyz/sazby/sazby-{date}.json` |
 
 ## Surová vs obohacená data
 
@@ -139,7 +139,7 @@ var/mock-data/
 Aplikace automaticky přidává `?raw=1` parametr ke všem požadavkům pro získání surových dat:
 
 ```php
-// V InsysController.php
+// V InsyzController.php
 $raw = $request->query->get('raw');
 if (!$raw) {
     $prikazy = $this->dataEnricher->enrichPrikazyList($prikazy);
@@ -148,8 +148,8 @@ if (!$raw) {
 
 ### Rozdíl v datech
 
-- **Běžné aplikace**: `GET /api/insys/prikazy/2024` → obohacená data s HTML ikonami
-- **Test aplikace**: `GET /api/insys/prikazy/2024?raw=1` → surová data z INSYS
+- **Běžné aplikace**: `GET /api/insyz/prikazy/2024` → obohacená data s HTML ikonami
+- **Test aplikace**: `GET /api/insyz/prikazy/2024?raw=1` → surová data z INSYZ
 
 ## MockMSSQLService integrace
 
@@ -159,7 +159,7 @@ Service automaticky načítá exportovaná data:
 public function getPrikazy(int $intAdr, int $year): array
 {
     // Zkusit načíst z endpoint struktury
-    $data = $this->loadMockDataFromEndpoint('api/insys/prikazy', [$intAdr . '-' . $year]);
+    $data = $this->loadMockDataFromEndpoint('api/insyz/prikazy', [$intAdr . '-' . $year]);
     if ($data !== null) {
         return $data;
     }
@@ -174,9 +174,9 @@ public function getPrikazy(int $intAdr, int $year): array
 
 ### Jednotlivý export
 ```
-POST /api/insys/export
+POST /api/insyz/export
 {
-  "endpoint": "/api/insys/user",
+  "endpoint": "/api/insyz/user",
   "response": {...},
   "params": {...}
 }
@@ -184,7 +184,7 @@ POST /api/insys/export
 
 ### Hromadný export příkazů
 ```
-POST /api/insys/export/batch-prikazy
+POST /api/insyz/export/batch-prikazy
 {
   "prikazy": [...],
   "year": 2024
@@ -196,11 +196,11 @@ POST /api/insys/export/batch-prikazy
 ### 1. Export dat z dev serveru
 
 1. **Přihlásit se** na dev server s testovacím účtem
-2. **Otevřít** `/test-insys-api`
+2. **Otevřít** `/test-insyz-api`
 3. **Exportovat potřebná data**:
-   - User data: `GET /api/insys/user` → Export
-   - Příkazy: `GET /api/insys/prikazy` + year → Exportovat detaily
-   - Ceníky: `GET /api/insys/ceniky` → Export
+   - User data: `GET /api/insyz/user` → Export
+   - Příkazy: `GET /api/insyz/prikazy` + year → Exportovat detaily
+   - Sazby: `GET /api/insyz/sazby` → Export
 
 ### 2. Zkopírování do lokálu
 
@@ -227,7 +227,7 @@ MockMSSQLService automaticky použije exportovaná data místo default mock dat.
 
 ### Přidání nového endpointu
 
-1. **Vytvořit metodu** v `InsysController.php` s route `/api/insys/*`
+1. **Vytvořit metodu** v `InsyzController.php` s route `/api/insyz/*`
 2. **Endpoint se automaticky objeví** v testeru
 3. **Pokud má speciální parametry**, přidat do `determineExportPathFromData()`
 
@@ -238,7 +238,7 @@ private function determineExportPathFromData(string $endpoint, array $params, ar
 {
     if (str_contains($endpoint, '/my-endpoint')) {
         return [
-            'dir' => 'api/insys/my-endpoint',
+            'dir' => 'api/insyz/my-endpoint',
             'filename' => 'custom-name.json'
         ];
     }
@@ -263,7 +263,7 @@ private function determineExportPathFromData(string $endpoint, array $params, ar
 
 ## Related
 
-- [INSYS API Reference](../api/insys-api.md)
-- [INSYS Integration](../features/insys-integration.md)
-- [INSYS API](../api/insys-api.md)
+- [INSYZ API Reference](../api/insyz-api.md)
+- [INSYZ Integration](../features/insyz-integration.md)
+- [INSYZ API](../api/insyz-api.md)
 - [Portal API](../api/portal-api.md)

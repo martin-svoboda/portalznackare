@@ -55,10 +55,10 @@ class TestController extends AbstractController
 
 		try {
 			// Test MSSQL connection parameters
-			$host = $_ENV['INSYS_DB_HOST'] ?? 'not_set';
-			$dbname = $_ENV['INSYS_DB_NAME'] ?? 'not_set';
-			$username = $_ENV['INSYS_DB_USER'] ?? 'not_set';
-			$password = $_ENV['INSYS_DB_PASS'] ?? 'not_set';
+			$host = $_ENV['INSYZ_DB_HOST'] ?? 'not_set';
+			$dbname = $_ENV['INSYZ_DB_NAME'] ?? 'not_set';
+			$username = $_ENV['INSYZ_DB_USER'] ?? 'not_set';
+			$password = $_ENV['INSYZ_DB_PASS'] ?? 'not_set';
 
 			$config = [
 				'host' => $host,
@@ -118,7 +118,7 @@ class TestController extends AbstractController
 				]
 			];
 
-			// Test login through InsysService
+			// Test login through InsyzService
 			$intAdr = $this->insyzService->loginUser($email, $hash);
 			
 			$result['login_result'] = [

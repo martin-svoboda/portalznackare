@@ -89,6 +89,15 @@
                         {{ tabler_icon('help') }}
                         Nápověda
                     </a>
+                    
+                    {% if is_granted('ROLE_ADMIN') %}
+                        <div class="nav-divider"></div>
+                        
+                        <a href="{{ path('admin_dashboard') }}" class="nav-link {{ app.request.attributes.get('_route') starts with 'admin_' ? 'active' : '' }}">
+                            {{ tabler_icon('settings') }}
+                            Administrace
+                        </a>
+                    {% endif %}
                 {% endif %}
             </nav>
 

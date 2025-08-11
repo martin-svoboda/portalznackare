@@ -139,7 +139,7 @@ Pro lokální development DDEV automaticky nakonfiguruje potřebné proměnné.
 ddev exec bin/console about
 
 # Test API
-curl https://portalznackare.ddev.site/api/test/insys-user
+curl https://portalznackare.ddev.site/api/test/insyz-user
 
 # Test assets
 curl https://portalznackare.ddev.site/build/app.js

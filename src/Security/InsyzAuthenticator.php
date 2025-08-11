@@ -26,12 +26,12 @@ class InsyzAuthenticator extends AbstractAuthenticator
     public function supports(Request $request): ?bool
     {
         // Debug log
-        error_log("InsysAuthenticator::supports called for: " . $request->getPathInfo() . " method: " . $request->getMethod());
+        error_log("InsyzAuthenticator::supports called for: " . $request->getPathInfo() . " method: " . $request->getMethod());
         
         // Podporujeme pouze POST na /api/auth/login pro autentizaci
         // Pro ostatní API endpointy používá Symfony automaticky session storage
         $supports = $request->getPathInfo() === '/api/auth/login' && $request->isMethod('POST');
-        error_log("InsysAuthenticator::supports returning: " . ($supports ? 'true' : 'false'));
+        error_log("InsyzAuthenticator::supports returning: " . ($supports ? 'true' : 'false'));
         
         return $supports;
     }
@@ -54,7 +54,7 @@ class InsyzAuthenticator extends AbstractAuthenticator
         }
 
         try {
-            // Ověř přes INSYS
+            // Ověř přes INSYZ
             $intAdr = $this->insyzService->loginUser($username, $password);
             
             if (!$intAdr) {

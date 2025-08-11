@@ -4,6 +4,7 @@ namespace App\Controller\Api;
 
 use App\Service\InsyzService;
 use App\Service\DataEnricherService;
+use App\Service\InsyzAuditLogger;
 use App\Entity\User;
 use Exception;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -19,27 +20,60 @@ class InsyzController extends AbstractController
 {
     public function __construct(
         private InsyzService $insyzService,
-        private DataEnricherService $dataEnricher
+        private DataEnricherService $dataEnricher,
+        private InsyzAuditLogger $auditLogger
     ) {
     }
 
     #[Route('/login', methods: ['POST'])]
     public function login(Request $request): JsonResponse
     {
+        $startTime = microtime(true);
         $data = json_decode($request->getContent(), true);
         
         if (!isset($data['email']) || !isset($data['hash'])) {
+            $this->auditLogger->logApiError(
+                endpoint: '/api/insyz/login',
+                method: 'POST',
+                user: null,
+                startTime: $startTime,
+                error: 'Chybí vyžadované parametry: email, hash',
+                requestParams: ['email_provided' => isset($data['email']), 'hash_provided' => isset($data['hash'])]
+            );
+            
             return new JsonResponse(['message' => 'Vyžadované parametry: email, hash'], 400);
         }
 
         try {
             $intAdr = $this->insyzService->loginUser($data['email'], $data['hash']);
             
-            return new JsonResponse([
+            $response = [
                 'success' => true,
                 'int_adr' => $intAdr
-            ]);
+            ];
+            
+            // INSYZ API audit - pro MSSQL volání
+            $this->auditLogger->logApiSuccess(
+                endpoint: '/api/insyz/login',
+                method: 'POST',
+                user: null,
+                intAdr: $intAdr,
+                startTime: $startTime,
+                responseData: ['int_adr' => $intAdr],
+                mssqlProcedure: $this->isUsingTestData() ? 'TEST_DATA' : 'trasy.WEB_Login'
+            );
+            
+            return new JsonResponse($response);
         } catch (Exception $e) {
+            $this->auditLogger->logApiError(
+                endpoint: '/api/insyz/login',
+                method: 'POST',
+                user: null,
+                startTime: $startTime,
+                error: $e->getMessage(),
+                requestParams: ['email' => $data['email']]
+            );
+            
             return new JsonResponse(['message' => $e->getMessage()], 401);
         }
     }
@@ -47,9 +81,19 @@ class InsyzController extends AbstractController
     #[Route('/user', methods: ['GET'])]
     public function getInsyzUser(Request $request): JsonResponse
     {
+        $startTime = microtime(true);
+        
         // Použít Symfony Security
         $user = $this->getUser();
         if (!$user instanceof User) {
+            $this->auditLogger->logApiError(
+                endpoint: '/api/insyz/user',
+                method: 'GET',
+                user: null,
+                startTime: $startTime,
+                error: 'Nepřihlášený uživatel'
+            );
+            
             return new JsonResponse([
                 'error' => 'Nepřihlášený uživatel'
             ], Response::HTTP_UNAUTHORIZED);
@@ -60,8 +104,25 @@ class InsyzController extends AbstractController
         try {
             $userData = $this->insyzService->getUser((int) $intAdr);
             
+            $this->auditLogger->logApiSuccess(
+                endpoint: '/api/insyz/user',
+                method: 'GET',
+                user: $user,
+                startTime: $startTime,
+                responseData: $userData,
+                mssqlProcedure: $this->isUsingTestData() ? 'TEST_DATA' : 'trasy.ZNACKAR_DETAIL'
+            );
+            
             return new JsonResponse($userData);
         } catch (Exception $e) {
+            $this->auditLogger->logApiError(
+                endpoint: '/api/insyz/user',
+                method: 'GET',
+                user: $user,
+                startTime: $startTime,
+                error: $e->getMessage()
+            );
+            
             return new JsonResponse(['error' => $e->getMessage()], 500);
         }
     }
@@ -69,9 +130,19 @@ class InsyzController extends AbstractController
     #[Route('/prikazy', methods: ['GET'])]
     public function getPrikazy(Request $request): JsonResponse
     {
+        $startTime = microtime(true);
+        
         // Použít Symfony Security
         $user = $this->getUser();
         if (!$user instanceof User) {
+            $this->auditLogger->logApiError(
+                endpoint: '/api/insyz/prikazy',
+                method: 'GET',
+                user: null,
+                startTime: $startTime,
+                error: 'Nepřihlášený uživatel'
+            );
+            
             return new JsonResponse([
                 'error' => 'Nepřihlášený uživatel'
             ], Response::HTTP_UNAUTHORIZED);
@@ -89,8 +160,27 @@ class InsyzController extends AbstractController
                 $prikazy = $this->dataEnricher->enrichPrikazyList($prikazy);
             }
             
+            // Comprehensive audit logging
+            $this->auditLogger->logApiSuccess(
+                endpoint: '/api/insyz/prikazy',
+                method: 'GET',
+                user: $user,
+                startTime: $startTime,
+                responseData: $prikazy,
+                mssqlProcedure: $this->isUsingTestData() ? 'TEST_DATA' : 'trasy.PRIKAZY_SEZNAM'
+            );
+            
             return new JsonResponse($prikazy);
         } catch (Exception $e) {
+            $this->auditLogger->logApiError(
+                endpoint: '/api/insyz/prikazy',
+                method: 'GET',
+                user: $user,
+                startTime: $startTime,
+                error: $e->getMessage(),
+                requestParams: ['year' => $year]
+            );
+            
             return new JsonResponse(['message' => $e->getMessage()], 500);
         }
     }
@@ -98,9 +188,19 @@ class InsyzController extends AbstractController
     #[Route('/prikaz/{id}', methods: ['GET'], requirements: ['id' => '\d+'])]
     public function getPrikaz(int $id, Request $request): JsonResponse
     {
+        $startTime = microtime(true);
+        
         // Použít Symfony Security
         $user = $this->getUser();
         if (!$user instanceof User) {
+            $this->auditLogger->logApiError(
+                endpoint: '/api/insyz/prikaz/{id}',
+                method: 'GET',
+                user: null,
+                startTime: $startTime,
+                error: 'Nepřihlášený uživatel'
+            );
+            
             return new JsonResponse([
                 'error' => 'Nepřihlášený uživatel'
             ], Response::HTTP_UNAUTHORIZED);
@@ -117,18 +217,47 @@ class InsyzController extends AbstractController
                 $prikaz = $this->dataEnricher->enrichPrikazDetail($prikaz);
             }
             
+            // Comprehensive audit logging
+            $this->auditLogger->logApiSuccess(
+                endpoint: '/api/insyz/prikaz/{id}',
+                method: 'GET',
+                user: $user,
+                startTime: $startTime,
+                responseData: $prikaz,
+                mssqlProcedure: $this->isUsingTestData() ? 'TEST_DATA' : 'trasy.ZP_Detail'
+            );
+            
             return new JsonResponse($prikaz);
         } catch (Exception $e) {
+            $this->auditLogger->logApiError(
+                endpoint: '/api/insyz/prikaz/{id}',
+                method: 'GET',
+                user: $user,
+                startTime: $startTime,
+                error: $e->getMessage(),
+                requestParams: ['id' => $id]
+            );
+            
             return new JsonResponse(['error' => $e->getMessage()], 500);
         }
     }
 
-    #[Route('/ceniky', methods: ['GET'])]
-    public function getCeniky(Request $request): JsonResponse
+    #[Route('/sazby', methods: ['GET'])]
+    public function getSazby(Request $request): JsonResponse
     {
+        $startTime = microtime(true);
+        
         // Použít Symfony Security
         $user = $this->getUser();
         if (!$user instanceof User) {
+            $this->auditLogger->logApiError(
+                endpoint: '/api/insyz/sazby',
+                method: 'GET',
+                user: null,
+                startTime: $startTime,
+                error: 'Nepřihlášený uživatel'
+            );
+            
             return new JsonResponse([
                 'error' => 'Nepřihlášený uživatel'
             ], Response::HTTP_UNAUTHORIZED);
@@ -137,39 +266,32 @@ class InsyzController extends AbstractController
         $date = $request->query->get('date');
         
         try {
-            // Mock data pro ceníky - v produkci by se načítalo z INSYZ
-            $ceniky = [
-                'jizdne' => 6,
-                'jizdneZvysene' => 8,
-                'tarifDobaOd1' => 0,
-                'tarifDobaDo1' => 4,
-                'tarifStravne1' => 0,
-                'tarifNahrada1' => 0,
-                'tarifDobaOd2' => 4,
-                'tarifDobaDo2' => 5,
-                'tarifStravne2' => 0,
-                'tarifNahrada2' => 150,
-                'tarifDobaOd3' => 5,
-                'tarifDobaDo3' => 8,
-                'tarifStravne3' => 160,
-                'tarifNahrada3' => 150,
-                'tarifDobaOd4' => 8,
-                'tarifDobaDo4' => 12,
-                'tarifStravne4' => 160,
-                'tarifNahrada4' => 300,
-                'tarifDobaOd5' => 12,
-                'tarifDobaDo5' => 18,
-                'tarifStravne5' => 250,
-                'tarifNahrada5' => 300,
-                'tarifDobaOd6' => 18,
-                'tarifDobaDo6' => 24,
-                'tarifStravne6' => 390,
-                'tarifNahrada6' => 300,
-                'date' => $date ?: date('Y-m-d')
-            ];
+            // Načít sazby z INSYZ přes stored proceduru
+            $sazby = $this->insyzService->getSazby($date);
             
-            return new JsonResponse($ceniky);
+            // Přidat datum do odpovědi pro kompatibilitu
+            $sazby['date'] = $date ?: date('Y-m-d');
+            
+            $this->auditLogger->logApiSuccess(
+                endpoint: '/api/insyz/sazby',
+                method: 'GET',
+                user: $user,
+                startTime: $startTime,
+                responseData: $sazby,
+                mssqlProcedure: 'trasy.ZP_Sazby'
+            );
+            
+            return new JsonResponse($sazby);
         } catch (Exception $e) {
+            $this->auditLogger->logApiError(
+                endpoint: '/api/insyz/sazby',
+                method: 'GET',
+                user: $user,
+                startTime: $startTime,
+                error: $e->getMessage(),
+                requestParams: ['date' => $date]
+            );
+            
             return new JsonResponse(['error' => $e->getMessage()], 500);
         }
     }
@@ -177,9 +299,19 @@ class InsyzController extends AbstractController
     #[Route('/submit-report', methods: ['POST'])]
     public function submitReport(Request $request): JsonResponse
     {
+        $startTime = microtime(true);
+        
         // Použít Symfony Security
         $user = $this->getUser();
         if (!$user instanceof User) {
+            $this->auditLogger->logApiError(
+                endpoint: '/api/insyz/submit-report',
+                method: 'POST',
+                user: null,
+                startTime: $startTime,
+                error: 'Nepřihlášený uživatel'
+            );
+            
             return new JsonResponse([
                 'error' => 'Nepřihlášený uživatel'
             ], Response::HTTP_UNAUTHORIZED);
@@ -188,6 +320,14 @@ class InsyzController extends AbstractController
         $data = json_decode($request->getContent(), true);
         
         if (!isset($data['xml_data'])) {
+            $this->auditLogger->logApiError(
+                endpoint: '/api/insyz/submit-report',
+                method: 'POST',
+                user: $user,
+                startTime: $startTime,
+                error: 'Chybí parametr xml_data'
+            );
+            
             return new JsonResponse([
                 'error' => 'Chybí parametr xml_data'
             ], Response::HTTP_BAD_REQUEST);
@@ -200,13 +340,33 @@ class InsyzController extends AbstractController
             // Volání stored procedure trasy.ZP_Zapis_XML
             $result = $this->insyzService->submitReportToInsyz($xmlData, (string)$intAdr);
             
-            return new JsonResponse([
+            $response = [
                 'success' => true,
                 'message' => 'Hlášení bylo úspěšně odesláno do INSYZ',
                 'result' => $result
-            ]);
+            ];
+            
+            $this->auditLogger->logApiSuccess(
+                endpoint: '/api/insyz/submit-report',
+                method: 'POST',
+                user: $user,
+                startTime: $startTime,
+                responseData: $response,
+                mssqlProcedure: 'trasy.ZP_Zapis_XML'
+            );
+            
+            return new JsonResponse($response);
             
         } catch (Exception $e) {
+            $this->auditLogger->logApiError(
+                endpoint: '/api/insyz/submit-report',
+                method: 'POST',
+                user: $user,
+                startTime: $startTime,
+                error: 'Chyba při odesílání hlášení do INSYZ: ' . $e->getMessage(),
+                requestParams: ['xml_length' => strlen($data['xml_data'] ?? '')]
+            );
+            
             return new JsonResponse([
                 'error' => 'Chyba při odesílání hlášení do INSYZ: ' . $e->getMessage()
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
@@ -381,10 +541,10 @@ class InsyzController extends AbstractController
             ];
         }
         
-        if (str_contains($endpoint, '/ceniky')) {
+        if (str_contains($endpoint, '/sazby')) {
             return [
-                'dir' => 'api/insyz/ceniky',
-                'filename' => 'ceniky-' . date('Y-m-d') . '.json'
+                'dir' => 'api/insyz/sazby',
+                'filename' => 'sazby-' . date('Y-m-d') . '.json'
             ];
         }
         
@@ -418,5 +578,13 @@ class InsyzController extends AbstractController
         }
         
         return null;
+    }
+    
+    /**
+     * Helper method to determine if we're using test data or real MSSQL
+     */
+    private function isUsingTestData(): bool
+    {
+        return $_ENV['USE_TEST_DATA'] === 'true';
     }
 }

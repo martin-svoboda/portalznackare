@@ -123,7 +123,7 @@ const serializeTeamMember = (member) => {
     return serialized;
 };
 
-export const useFormSaving = (formData, head, prikazId, priceList, isLeader, teamMembers, currentUser, reportLoaded = false) => {
+export const useFormSaving = (formData, head, prikazId, tariffRates, isLeader, teamMembers, currentUser, reportLoaded = false) => {
     const [saving, setSaving] = useState(false);
 
     // Handle save operation
@@ -198,20 +198,20 @@ export const useFormSaving = (formData, head, prikazId, priceList, isLeader, tea
                     Cast_B_Dokoncena: formData.Cast_B_Dokoncena
                 },
                 calculation: (() => {
-                    if (!priceList) return {};
+                    if (!tariffRates) return {};
                     
                     if (isLeader && teamMembers.length > 0) {
                         // Vedoucí - výpočet pro všechny členy týmu
                         return calculateCompensationForAllMembers(
                             formData,
-                            priceList,
+                            tariffRates,
                             teamMembers
                         );
                     } else if (currentUser) {
                         // Člen - výpočet jen pro sebe
                         const compensation = calculateCompensation(
                             formData,
-                            priceList,
+                            tariffRates,
                             currentUser.INT_ADR
                         );
                         
@@ -296,7 +296,7 @@ export const useFormSaving = (formData, head, prikazId, priceList, isLeader, tea
         formData, 
         head, 
         prikazId, 
-        priceList, 
+        tariffRates, 
         isLeader, 
         teamMembers, 
         currentUser,
@@ -392,20 +392,20 @@ export const useFormSaving = (formData, head, prikazId, priceList, isLeader, tea
                     Cast_B_Dokoncena: formData.Cast_B_Dokoncena
                 },
                 calculation: (() => {
-                    if (!priceList) return {};
+                    if (!tariffRates) return {};
                     
                     if (isLeader && teamMembers.length > 0) {
                         // Vedoucí - výpočet pro všechny členy týmu
                         return calculateCompensationForAllMembers(
                             formData,
-                            priceList,
+                            tariffRates,
                             teamMembers
                         );
                     } else if (currentUser) {
                         // Člen - výpočet jen pro sebe
                         const compensation = calculateCompensation(
                             formData,
-                            priceList,
+                            tariffRates,
                             currentUser.INT_ADR
                         );
                         
@@ -525,7 +525,7 @@ export const useFormSaving = (formData, head, prikazId, priceList, isLeader, tea
         formData, 
         head, 
         prikazId, 
-        priceList, 
+        tariffRates, 
         isLeader, 
         teamMembers, 
         currentUser,

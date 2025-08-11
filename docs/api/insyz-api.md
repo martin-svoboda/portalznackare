@@ -1,11 +1,11 @@
-# INSYS API Reference
+# INSYZ API Reference
 
-> **API dokumentace** - Endpointy pro integraci s KČT databází (MSSQL) - příkazy, uživatelé, ceníky
+> **API dokumentace** - Endpointy pro integraci s KČT databází (MSSQL) - příkazy, uživatelé, sazby
 
-## 🏛️ Přehled INSYS API
+## 🏛️ Přehled INSYZ API
 
-**Base URL:** `/api/insys/`  
-**Účel:** Integrace s databází KČT systému pro práci s příkazy, uživateli a ceníky  
+**Base URL:** `/api/insyz/`  
+**Účel:** Integrace s databází KČT systému pro práci s příkazy, uživateli a sazbami  
 **Autentifikace:** Session-based (Symfony Security)  
 **Data zdroj:** MSSQL databáze (produkce) nebo test data (development)
 
@@ -14,12 +14,15 @@
 - **Test/Production mode:** Přepínání mezi mock daty a live MSSQL
 - **Authorization:** Kontrola oprávnění na úrovni příkazů
 - **Error handling:** Strukturované chybové odpovědi
+- **Audit logging:** Kompletní audit všech INSYZ API volání
+- **Performance tracking:** MSSQL procedure timing a cache analytics
+- **Cache support:** Intelligent caching pro optimalizaci výkonu
 
 ## 📋 Endpointy
 
-### 🔐 POST `/api/insys/login`
+### 🔐 POST `/api/insyz/login`
 
-Přihlášení do INSYS systému (alternativa k Symfony auth).
+Přihlášení do INSYZ systému (alternativa k Symfony auth).
 
 **Request:**
 ```json
@@ -43,9 +46,9 @@ Přihlášení do INSYS systému (alternativa k Symfony auth).
 
 ---
 
-### 👤 GET `/api/insys/user`
+### 👤 GET `/api/insyz/user`
 
-Načte detail aktuálně přihlášeného uživatele z INSYS.
+Načte detail aktuálně přihlášeného uživatele z INSYZ.
 
 **Autentifikace:** Vyžadováno  
 
@@ -66,7 +69,7 @@ Načte detail aktuálně přihlášeného uživatele z INSYS.
 
 ---
 
-### 📋 GET `/api/insys/prikazy`
+### 📋 GET `/api/insyz/prikazy`
 
 Načte seznam příkazů pro aktuálního uživatele s automatickým obohacováním dat.
 
@@ -76,7 +79,7 @@ Načte seznam příkazů pro aktuálního uživatele s automatickým obohacován
 
 **Request:**
 ```bash
-GET /api/insys/prikazy?year=2025
+GET /api/insyz/prikazy?year=2025
 ```
 
 **Response:**
@@ -99,7 +102,7 @@ GET /api/insys/prikazy?year=2025
 
 ---
 
-### 📖 GET `/api/insys/prikaz/{id}`
+### 📖 GET `/api/insyz/prikaz/{id}`
 
 Načte detail konkrétního příkazu s kompletním obohacováním dat o značky a TIM náhledy.
 
@@ -109,7 +112,7 @@ Načte detail konkrétního příkazu s kompletním obohacováním dat o značky
 
 **Request:**
 ```bash
-GET /api/insys/prikaz/123
+GET /api/insyz/prikaz/123
 ```
 
 **Response:**
@@ -142,18 +145,18 @@ GET /api/insys/prikaz/123
 
 ---
 
-### 💰 GET `/api/insys/ceniky`
+### 💰 GET `/api/insyz/sazby`
 
-Načte aktuální ceníky pro výpočet náhrad (mock data).
+Načte aktuální sazby pro výpočet náhrad (mock data).
 
 **Autentifikace:** Vyžadováno  
 **Query parametry:**
-- `date` (optional) - Datum pro konkrétní ceník (default: dnes)
+- `date` (optional) - Datum pro konkrétní sazby (default: dnes)
 - `raw` (dev only) - Vrátí surová data bez obohacení
 
 **Request:**
 ```bash
-GET /api/insys/ceniky?date=2025-01-15
+GET /api/insyz/sazby?date=2025-01-15
 ```
 
 **Response:**
@@ -165,23 +168,23 @@ GET /api/insys/ceniky?date=2025-01-15
 
 **Chyby:**
 - `401` - Nepřihlášený uživatel
-- `500` - Chyba načítání ceníků
+- `500` - Chyba načítání sazeb
 
 ---
 
 ## 🔧 Development endpointy
 
-### 📤 POST `/api/insys/export` 
+### 📤 POST `/api/insyz/export` 
 
 **Pouze DEV prostředí** - Export dat z API responses do mock souborů.
 
 **Autentifikace:** Vyžadováno  
-**Použití:** [INSYS API Tester](../development/insys-api-tester.md)
+**Použití:** [INSYZ API Tester](../development/insyz-api-tester.md)
 
 **Request:**
 ```json
 {
-    "endpoint": "/api/insys/user",
+    "endpoint": "/api/insyz/user",
     "response": "/* API response data */",
     "params": "/* request parameters */"
 }
@@ -191,12 +194,12 @@ GET /api/insys/ceniky?date=2025-01-15
 
 ---
 
-### 📦 POST `/api/insys/export/batch-prikazy`
+### 📦 POST `/api/insyz/export/batch-prikazy`
 
 **Pouze DEV prostředí** - Hromadný export příkazů včetně jejich detailů.
 
 **Autentifikace:** Vyžadováno  
-**Použití:** [INSYS API Tester](../development/insys-api-tester.md)
+**Použití:** [INSYZ API Tester](../development/insyz-api-tester.md)
 
 **Request:**
 ```json
@@ -209,18 +212,23 @@ GET /api/insys/ceniky?date=2025-01-15
 **Response:** `{"success": true, "exported": [...], "metadata_file": "..."}`
 
 
+
 ## 🧪 Testování
 
 ```bash
-# Test s autentizací
-curl -X POST "https://portalznackare.ddev.site/api/insys/login" \
+# Test INSYZ API s audit loggingem
+curl -X POST "https://portalznackare.ddev.site/api/insyz/login" \
   -H "Content-Type: application/json" \
   -d '{"email": "test@test.com", "hash": "test123"}'
+
+# Zkontrolovat audit log
+curl "https://portalznackare.ddev.site/api/insyz-audit-logs?endpoint=/api/insyz/login"
 ```
 
 ---
 
-**Funkcionální dokumentace:** [../features/insys-integration.md](../features/insys-integration.md)  
-**API přehled:** [overview.md](overview.md)  
-**Development nástroje:** [../development/insys-api-tester.md](../development/insys-api-tester.md)  
-**Aktualizováno:** 2025-07-31
+**Funkcionální dokumentace:** [../features/insyz-integration.md](../features/insyz-integration.md)  
+**Audit logging:** [../features/audit-logging.md](../features/audit-logging.md)  
+**Admin API:** [admin-api.md](admin-api.md#insyz-audit-api)  
+**Development nástroje:** [../development/insyz-api-tester.md](../development/insyz-api-tester.md)  
+**Aktualizováno:** 2025-08-08

@@ -21,16 +21,16 @@ docs/
 │   ├── content-management.md
 │   ├── file-management.md
 │   ├── hlaseni-prikazu.md  
-│   ├── insys-integration.md
+│   ├── insyz-integration.md
 │   ├── localization.md
 │   └── prikazy-management.md
 ├── api/                    # API dokumentace (2 soubory)
-│   ├── insys-api.md
+│   ├── insyz-api.md
 │   └── portal-api.md
 └── development/            # Developer docs (4 soubory)
     ├── development.md      # Debug systém + workflow
     ├── getting-started.md  # Instalace
-    ├── insys-api-tester.md
+    ├── insyz-api-tester.md
     └── visual-components.md
 
 CELKEM: 11 souborů (bylo 20+)

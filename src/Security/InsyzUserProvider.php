@@ -3,6 +3,8 @@
 namespace App\Security;
 
 use App\Entity\User;
+use App\Repository\UserRepository;
+use App\Service\AuditLogger;
 use App\Service\InsyzService;
 use Symfony\Component\Security\Core\Exception\UserNotFoundException;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -11,7 +13,9 @@ use Symfony\Component\Security\Core\User\UserProviderInterface;
 class InsyzUserProvider implements UserProviderInterface
 {
     public function __construct(
-        private InsyzService $insyzService
+        private InsyzService $insyzService,
+        private UserRepository $userRepository,
+        private AuditLogger $auditLogger
     ) {}
 
     /**
@@ -19,44 +23,42 @@ class InsyzUserProvider implements UserProviderInterface
      */
     public function loadUserByIdentifier(string $identifier): UserInterface
     {
-        // Identifier je email nebo INT_ADR
-        if (filter_var($identifier, FILTER_VALIDATE_EMAIL)) {
-            // Je to email, musíme najít uživatele podle emailu
-            // Toto by v produkci vyžadovalo speciální INSYS endpoint
-            throw new UserNotFoundException('Loading by email not implemented yet');
+        // Try to load from database first if it's INT_ADR
+        if (is_numeric($identifier)) {
+            $user = $this->userRepository->findByIntAdr((int)$identifier);
+            if ($user && $user->isActive()) {
+                return $user;
+            }
         }
         
-        // Předpokládáme že identifier je INT_ADR
+        // If not found in DB or identifier is email, try INSYZ
+        if (filter_var($identifier, FILTER_VALIDATE_EMAIL)) {
+            // Loading by email would require special INSYZ endpoint
+            $user = $this->userRepository->findByEmail($identifier);
+            if ($user && $user->isActive()) {
+                return $user;
+            }
+            throw new UserNotFoundException('Loading by email from INSYZ not implemented yet');
+        }
+        
+        // Load from INSYZ and sync to database
         try {
             $userData = $this->insyzService->getUser((int)$identifier);
             
             if (!$userData || (is_array($userData) && empty($userData))) {
-                throw new UserNotFoundException(sprintf('User with INT_ADR "%s" not found.', $identifier));
+                throw new UserNotFoundException(sprintf('User with INT_ADR "%s" not found in INSYZ.', $identifier));
             }
             
-            // Pokud je pole uživatelů, vezmi prvního
+            // If array of users, take the first one
             if (is_array($userData) && isset($userData[0])) {
                 $userData = $userData[0];
             }
             
-            // Vytvoř User objekt
-            $user = new User(
-                (string)($userData['INT_ADR'] ?? ''),
-                $userData['eMail'] ?? '',
-                $userData['Jmeno'] ?? '',
-                $userData['Prijmeni'] ?? ''
-            );
+            // Find or create user in database
+            $user = $this->userRepository->findOrCreateFromInsyzData($userData);
             
-            if (isset($userData['Prukaz_znackare'])) {
-                $user->setPrukazZnackare($userData['Prukaz_znackare']);
-            }
-            
-            // Určit role podle dat z INSYS
-            $roles = ['ROLE_USER'];
-            if (!empty($userData['Vedouci_dvojice']) && $userData['Vedouci_dvojice'] === '1') {
-                $roles[] = 'ROLE_VEDOUCI';
-            }
-            $user->setRoles($roles);
+            // Log login
+            $this->auditLogger->logLogin($user);
             
             return $user;
             
@@ -71,7 +73,7 @@ class InsyzUserProvider implements UserProviderInterface
             throw new \InvalidArgumentException(sprintf('Instances of "%s" are not supported.', get_class($user)));
         }
 
-        return $this->loadUserByIdentifier($user->getIntAdr());
+        return $this->loadUserByIdentifier((string)$user->getIntAdr());
     }
 
     public function supportsClass(string $class): bool

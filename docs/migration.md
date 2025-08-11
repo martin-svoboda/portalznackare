@@ -8,7 +8,7 @@ Porovnání původního WordPress pluginu (WP-src/) s našou Symfony implementac
 ```
 Plugin.php                    # Main plugin class
 ├── Api/
-│   ├── InsysApi.php          # INSYS/MSSQL API endpoints  
+│   ├── InsyzApi.php          # INSYZ/MSSQL API endpoints  
 │   └── PortalApi.php         # Portal API endpoints
 ├── Models/
 │   ├── MetodikaModel.php     # Metodika data model
@@ -53,8 +53,8 @@ is_user_logged_in();
 **Naše implementace:**
 ```php
 // Symfony Security
-class InsysAuthenticator implements AuthenticatorInterface
-class InsysUserProvider implements UserProviderInterface
+class InsyzAuthenticator implements AuthenticatorInterface
+class InsyzUserProvider implements UserProviderInterface
 ```
 
 ### **3. File Upload System**
@@ -82,10 +82,10 @@ class FileUploadService {
 
 | Endpoint | WordPress | Symfony | Status |
 |----------|-----------|---------|--------|
-| Login | `/wp-json/portal/v1/login` | `/api/insys/login` | ✅ |
-| User info | `/wp-json/insys/v1/user` | `/api/insys/user` | ✅ |
-| Příkazy list | `/wp-json/insys/v1/prikazy` | `/api/insys/prikazy` | ✅ |
-| Příkaz detail | `/wp-json/insys/v1/prikaz/{id}` | `/api/insys/prikaz/{id}` | ✅ |
+| Login | `/wp-json/portal/v1/login` | `/api/insyz/login` | ✅ |
+| User info | `/wp-json/insyz/v1/user` | `/api/insyz/user` | ✅ |
+| Příkazy list | `/wp-json/insyz/v1/prikazy` | `/api/insyz/prikazy` | ✅ |
+| Příkaz detail | `/wp-json/insyz/v1/prikaz/{id}` | `/api/insyz/prikaz/{id}` | ✅ |
 | Report GET | `/wp-json/portal/v1/report` | `/api/portal/report` | ✅ |
 | Report POST | `/wp-json/portal/v1/report` | `/api/portal/report` | ✅ |
 | Metodika terms | `/wp-json/portal/v1/metodika-terms` | `/api/portal/methodologies` | ✅ |
@@ -227,7 +227,7 @@ class PageController
 
 ### **✅ Kompletně implementováno (90%+)**
 - Autentifikace systém
-- INSYS API integrace  
+- INSYZ API integrace  
 - Hlášení příkazů (Part A + B)
 - File upload s pokročilými funkcemi
 - Uživatelské rozhraní

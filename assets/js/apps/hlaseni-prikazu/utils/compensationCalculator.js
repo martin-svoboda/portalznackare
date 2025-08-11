@@ -1,7 +1,7 @@
 /**
- * Parse price list from API response - 1:1 s původní aplikací
+ * Parse tariff rates from API response - 1:1 s původní aplikací
  */
-export function parsePriceListFromAPI(apiData) {
+export function parseTariffRatesFromAPI(apiData) {
     if (!apiData) return null;
     
     // Vytvoření tarifů z API dat
@@ -122,8 +122,18 @@ export function calculateWorkDays(formData, userIntAdr) {
             }
         });
         
+        // Zajistit, že date je Date objekt před voláním toISOString()
+        let dateObj = date;
+        if (!(dateObj instanceof Date)) {
+            dateObj = new Date(dateObj);
+        }
+        // Pokud je datum neplatné, použít dnešní datum
+        if (isNaN(dateObj.getTime())) {
+            dateObj = new Date();
+        }
+        
         // Vytvořit ISO datetime string s lokálním časem (bez UTC konverze)
-        const dateFormatted = date.toISOString().split('T')[0]; // yyyy-mm-dd
+        const dateFormatted = dateObj.toISOString().split('T')[0]; // yyyy-mm-dd
         const startDateTime = `${dateFormatted}T${earliestTime}:00`; // přidat sekundy
         const endDateTime = `${dateFormatted}T${latestTime}:00`;
         
@@ -163,7 +173,7 @@ export function findApplicableTariff(workHours, tariffs) {
  * Veřejná doprava: všem cestujícím skupiny
  * Respektuje Hlavni_Ridic pro zvýšenou sazbu napříč všemi skupinami
  */
-export function calculateTransportCosts(formData, priceList, userIntAdr = null) {
+export function calculateTransportCosts(formData, tariffRates, userIntAdr = null) {
     if (!userIntAdr || !formData.Skupiny_Cest) return 0;
     
     let totalCosts = 0;
@@ -186,7 +196,7 @@ export function calculateTransportCosts(formData, priceList, userIntAdr = null) 
             if (segment.Druh_Dopravy === "AUV" || segment.Druh_Dopravy === "AUV-Z") {
                 // Auto jízdné - pouze řidiči skupiny
                 if (isUserDriverOfGroup && segment.Kilometry > 0) {
-                    const rate = isUserMainDriver ? priceList.jizdneZvysene : priceList.jizdne;
+                    const rate = isUserMainDriver ? tariffRates.jizdneZvysene : tariffRates.jizdne;
                     totalCosts += segment.Kilometry * rate;
                 }
             } else if (segment.Druh_Dopravy === "V") {
@@ -207,18 +217,18 @@ export function calculateTransportCosts(formData, priceList, userIntAdr = null) 
  * Výpočet kompenzace pro konkrétního uživatele
  * Vrací data v Czech Snake_Case formátu s detailními dny práce
  */
-export function calculateCompensation(formData, priceList, userIntAdr = null) {
-    if (!priceList || !priceList.tariffs || !userIntAdr) return null;
+export function calculateCompensation(formData, tariffRates, userIntAdr = null) {
+    if (!tariffRates || !tariffRates.tariffs || !userIntAdr) return null;
     
     // Spočítat pracovní dny a celkové hodiny pro uživatele
     const workDays = calculateWorkDays(formData, userIntAdr);
     const totalWorkHours = workDays.reduce((total, day) => total + day.Hodin, 0);
     
     // Najít příslušný tarif
-    const appliedTariff = findApplicableTariff(totalWorkHours, priceList.tariffs);
+    const appliedTariff = findApplicableTariff(totalWorkHours, tariffRates.tariffs);
     
     // Spočítat dopravní náklady pro uživatele
-    const transportCosts = calculateTransportCosts(formData, priceList, userIntAdr);
+    const transportCosts = calculateTransportCosts(formData, tariffRates, userIntAdr);
     
     // Stravné a náhrada za práci podle tarifu
     const mealAllowance = appliedTariff?.stravne || 0;
@@ -281,13 +291,13 @@ export function extractTeamMembers(head) {
  * Výpočet kompenzací pro všechny členy týmu
  * Vrací data indexovaná podle INT_ADR v novém formátu
  */
-export function calculateCompensationForAllMembers(formData, priceList, teamMembers) {
-    if (!priceList || !teamMembers) return {};
+export function calculateCompensationForAllMembers(formData, tariffRates, teamMembers) {
+    if (!tariffRates || !teamMembers) return {};
     
     const result = {};
     
     teamMembers.forEach(member => {
-        const compensation = calculateCompensation(formData, priceList, member.INT_ADR);
+        const compensation = calculateCompensation(formData, tariffRates, member.INT_ADR);
         if (compensation) {
             result[member.INT_ADR] = compensation;
         }
@@ -303,7 +313,7 @@ export function isUserLeader(user, head) {
     if (!user || !head) return false;
     
     const isLeader = [1, 2, 3].some(i =>
-        head[`INT_ADR_${i}`] === user.INT_ADR && head[`Je_Vedouci${i}`] === "1"
+        parseInt(head[`INT_ADR_${i}`]) === user.INT_ADR && head[`Je_Vedouci${i}`] === "1"
     );
     
     return isLeader;

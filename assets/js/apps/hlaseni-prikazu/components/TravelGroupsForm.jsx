@@ -21,6 +21,7 @@ import {
 } from '../utils/attachmentUtils';
 import { calculateExecutionDate } from '../utils/compensationCalculator';
 import { generateUsageType, generateEntityId } from '../utils/fileUsageUtils';
+import { toISODateString } from '../../../utils/dateUtils';
 
 const druhDopravyOptions = [
     {value: "AUV", label: "AUV (Auto vlastní)", icon: IconCar},
@@ -51,7 +52,7 @@ const createEmptyTravelSegment = () => ({
 export const TravelGroupsForm = ({
                                      formData,
                                      setFormData,
-                                     priceList,
+                                     tariffRates,
                                      head,
                                      teamMembers,
                                      prikazId,
@@ -74,23 +75,6 @@ export const TravelGroupsForm = ({
         return `reports/${validYear}/${kkz}/${obvod}/${sanitizedPrikazId}`;
     }, [prikazId, formData, head]);
 
-    // Helper functions for date formatting (from original)
-    const formatDate = (date) => {
-        if (!date) return '';
-
-        // Ensure date is a Date object
-        let dateObj = date;
-        if (!(date instanceof Date)) {
-            dateObj = new Date(date);
-        }
-
-        // Check if date is valid
-        if (isNaN(dateObj.getTime())) {
-            return '';
-        }
-
-        return dateObj.toISOString().split('T')[0];
-    };
 
     const parseDate = (dateString) => {
         if (!dateString) return new Date();
@@ -306,29 +290,30 @@ export const TravelGroupsForm = ({
             {travelGroups.map((group, groupIndex) => (
                 <div key={group.id} className="card">
                     <div className="card__content">
-                        {/* NOVÉ: Group header s participant selector - jen pokud je více skupin */}
-                        {travelGroups.length > 1 && (
-                            <>
-                                <div className="flex justify-between items-center mb-4">
-                                    <h4 className="text-lg font-semibold">
-                                        <IconUsers size={20} className="inline mr-2"/>
-                                        Skupina cest {groupIndex + 1}
-                                    </h4>
-                                    <button
-                                        type="button"
-                                        onClick={() => removeTravelGroup(group.id)}
-                                        className="btn btn--icon btn--danger--light btn--sm"
-                                        title="Odstranit skupinu"
-                                    >
-                                        <IconTrash size={16}/>
-                                    </button>
-                                </div>
+                        {/* Group header s participant selector */}
+                        <div className="flex justify-between items-center mb-4">
+                            <h4 className="text-lg font-semibold">
+                                <IconUsers size={20} className="inline mr-2"/>
+                                {travelGroups.length > 1 ? `Skupina cest ${groupIndex + 1}` : 'Segmenty cest'}
+                            </h4>
+                            {travelGroups.length > 1 && (
+                                <button
+                                    type="button"
+                                    onClick={() => removeTravelGroup(group.id)}
+                                    className="btn btn--icon btn--danger--light btn--sm"
+                                    title="Odstranit skupinu"
+                                >
+                                    <IconTrash size={16}/>
+                                </button>
+                            )}
+                        </div>
 
-                                {/* NOVÉ: Participant selector */}
-                                <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                                    <label className="form__label mb-3">
-                                        Účastníci této skupiny cest
-                                    </label>
+                        {/* Participant selector - zobrazit jen pokud je více skupin */}
+                        {travelGroups.length > 1 && (
+                            <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                                <label className="form__label mb-3">
+                                    Účastníci této skupiny cest
+                                </label>
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                                         {(teamMembers || []).map(member => {
                                             const memberIntAdr = member.INT_ADR;
@@ -351,8 +336,7 @@ export const TravelGroupsForm = ({
                                             );
                                         })}
                                     </div>
-                                </div>
-                            </>
+                            </div>
                         )}
 
                         {/* PŮVODNÍ: Zůstává stejná header struktura jako v původním */}
@@ -442,7 +426,7 @@ export const TravelGroupsForm = ({
                                                                 name={`segment-date-${segment.id}`}
                                                                 type="date"
                                                                 className="form__input"
-                                                                value={formatDate(segment.Datum || calculateExecutionDate(formData))}
+                                                                value={toISODateString(segment.Datum || calculateExecutionDate(formData))}
                                                                 onChange={(e) => updateSegmentField(group.id, segment.id, {Datum: parseDate(e.target.value)})}
                                                                 disabled={disabled}
                                                             />
@@ -737,7 +721,7 @@ export const TravelGroupsForm = ({
             {formData.Zvysena_Sazba && uniqueDrivers.length > 0 && (
                 <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                     <h5 className="font-medium text-sm mb-3">
-                        Přiřazení zvýšené sazby cestovného ({priceList?.jizdneZvysene || 8} Kč/km)
+                        Přiřazení zvýšené sazby cestovného ({tariffRates?.jizdneZvysene || 8} Kč/km)
                     </h5>
 
                     <div className="space-y-2">
@@ -768,7 +752,7 @@ export const TravelGroupsForm = ({
                     </div>
 
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
-                        Standardní sazba: {priceList?.jizdne || 6} Kč/km • Hlavní řidič dostane zvýšenou sazbu na všechny své AUV jízdy
+                        Standardní sazba: {tariffRates?.jizdne || 6} Kč/km • Hlavní řidič dostane zvýšenou sazbu na všechny své AUV jízdy
                     </p>
                 </div>
             )}

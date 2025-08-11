@@ -52,7 +52,7 @@ class AuthController extends AbstractController
     public function login(): JsonResponse
     {
         // Symfony Security automaticky zpracuje přihlášení
-        // díky InsysAuthenticator - tento endpoint slouží pouze pro redirect po úspěšném přihlášení
+        // díky InsyzAuthenticator - tento endpoint slouží pouze pro redirect po úspěšném přihlášení
         $user = $this->getUser();
         
         if (!$user instanceof User) {

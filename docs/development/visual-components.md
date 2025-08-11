@@ -298,13 +298,13 @@ public function enrichPrikazDetail(array $detail): array {
 
 ```bash
 # Testování značek přes API
-curl "https://portalznackare.ddev.site/api/test/insys-prikaz/123" | jq '.predmety[0].Znacka_HTML'
+curl "https://portalznackare.ddev.site/api/test/insyz-prikaz/123" | jq '.predmety[0].Znacka_HTML'
 
 # Testování TIM náhledů
-curl "https://portalznackare.ddev.site/api/test/insys-prikaz/123" | jq '.predmety[0].Tim_HTML'
+curl "https://portalznackare.ddev.site/api/test/insyz-prikaz/123" | jq '.predmety[0].Tim_HTML'
 
 # Testování dopravních ikon v textech
-curl "https://portalznackare.ddev.site/api/test/insys-prikaz/123" | jq '.predmety[0].Naz_TIM'
+curl "https://portalznackare.ddev.site/api/test/insyz-prikaz/123" | jq '.predmety[0].Naz_TIM'
 ```
 
 ## 🛠️ Troubleshooting
@@ -325,7 +325,7 @@ curl "https://portalznackare.ddev.site/api/test/insys-prikaz/123" | jq '.predmet
 
 ---
 
-**Propojené funkcionality:** [Správa příkazů](prikazy-management.md) | [INSYS Integration](insys-integration.md)  
-**API Reference:** [../api/insys-api.md](../api/insys-api.md)  
+**Propojené funkcionality:** [Správa příkazů](prikazy-management.md) | [INSYZ Integration](insyz-integration.md)  
+**API Reference:** [../api/insyz-api.md](../api/insyz-api.md)  
 **Styling:** [../architecture.md](../architecture.md)  
 **Aktualizováno:** 2025-07-22

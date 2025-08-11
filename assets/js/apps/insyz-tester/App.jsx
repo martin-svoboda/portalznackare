@@ -151,7 +151,7 @@ const App = ({ endpoints }) => {
                 params: paramsToJson()
             };
 
-            const res = await fetch('/api/insys/export', {
+            const res = await fetch('/api/insyz/export', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -190,7 +190,7 @@ const App = ({ endpoints }) => {
                 year: year
             };
 
-            const res = await fetch('/api/insys/export/batch-prikazy', {
+            const res = await fetch('/api/insyz/export/batch-prikazy', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -222,7 +222,7 @@ const App = ({ endpoints }) => {
     }, []);
 
     return (
-        <div className="insys-tester">
+        <div className="insyz-tester">
             {/* Formulář nahoře */}
             <div className="card">
                 <h2 className="text-lg font-semibold mb-4">API Tester</h2>

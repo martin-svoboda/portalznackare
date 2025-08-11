@@ -22,12 +22,12 @@ APP_SECRET=your-secret-key
 # Databáze - PostgreSQL (aplikační data)
 DATABASE_URL="postgresql://user:pass@localhost:5432/portal_znackare"
 
-# INSYS integrace - MSSQL (KČT data)
+# INSYZ integrace - MSSQL (KČT data)
 USE_TEST_DATA=true               # Dev: true, Prod: false
-INSYS_DB_HOST=mssql.server.com
-INSYS_DB_NAME=INSYS_DB
-INSYS_DB_USER=portal_user
-INSYS_DB_PASS=secure_password
+INSYZ_DB_HOST=mssql.server.com
+INSYZ_DB_NAME=INSYZ_DB
+INSYZ_DB_USER=portal_user
+INSYZ_DB_PASS=secure_password
 
 # Debug systém
 DEBUG_PHP=false                  # Backend debugging
@@ -82,18 +82,18 @@ public function onKernelRequest(RequestEvent $event): void {
 # config/packages/security.yaml
 security:
     providers:
-        insys_provider:
-            id: App\Security\InsysUserProvider
+        insyz_provider:
+            id: App\Security\InsyzUserProvider
     
     firewalls:
         api:
             pattern: ^/api
             stateless: false
-            provider: insys_provider
-            custom_authenticator: App\Security\InsysAuthenticator
+            provider: insyz_provider
+            custom_authenticator: App\Security\InsyzAuthenticator
         main:
             pattern: ^/
-            provider: insys_provider
+            provider: insyz_provider
             context: shared_context
     
     access_control:
@@ -108,8 +108,8 @@ security:
 ```yaml
 # config/services.yaml
 services:
-    # INSYS Integration
-    App\Service\InsysService:
+    # INSYZ Integration
+    App\Service\InsyzService:
         arguments:
             $useTestData: '%env(bool:USE_TEST_DATA)%'
     
@@ -124,17 +124,17 @@ services:
             $uploadDirectory: '%kernel.project_dir%/public/uploads'
 ```
 
-### INSYS Service
+### INSYZ Service
 ```php
-// src/Service/InsysService.php
-class InsysService {
+// src/Service/InsyzService.php
+class InsyzService {
     public function __construct(
         private bool $useTestData,
         private MockMSSQLService $mockService,
-        private string $insysDbHost,
-        private string $insysDbName,
-        private string $insysDbUser,
-        private string $insysDbPass
+        private string $insyzDbHost,
+        private string $insyzDbName,
+        private string $insyzDbUser,
+        private string $insyzDbPass
     ) {}
     
     public function getConnection(): \PDO {
@@ -142,8 +142,8 @@ class InsysService {
             throw new \Exception('Mock mode - no real connection');
         }
         
-        $dsn = "sqlsrv:Server={$this->insysDbHost};Database={$this->insysDbName}";
-        return new \PDO($dsn, $this->insysDbUser, $this->insysDbPass);
+        $dsn = "sqlsrv:Server={$this->insyzDbHost};Database={$this->insyzDbName}";
+        return new \PDO($dsn, $this->insyzDbUser, $this->insyzDbPass);
     }
 }
 ```
@@ -169,7 +169,7 @@ Služby pro generování značek a TIM náhledů:
 ```php
 class SomeController extends AbstractController {
     public function __construct(
-        private InsysService $insysService,
+        private InsyzService $insyzService,
         private ZnackaService $znackaService,
         private DataEnricherService $enricher
     ) {}
@@ -187,12 +187,126 @@ services:
 ### Service Decoration
 ```php
 // Decorator pattern pro data enrichment
-class EnrichedInsysService {
+class EnrichedInsyzService {
     public function __construct(
-        private InsysService $insysService,
+        private InsyzService $insyzService,
         private DataEnricherService $enricher
     ) {}
 }
+```
+
+## 🚀 Cache Configuration
+
+### Redis Cache Pools (Production)
+**Optimalizace pro 50 concurrent users** s inteligentním cachováním INSYZ dat.
+
+```yaml
+# config/packages/cache.yaml
+framework:
+    cache:
+        prefix_seed: portalznackare_api
+        app: cache.adapter.filesystem  # Default fallback
+        
+        pools:
+            # API cache pro INSYZ data  
+            app.api_cache:
+                adapter: cache.adapter.redis
+                provider: 'redis://localhost:6379/0'
+                default_lifetime: 600  # 10 minut
+                
+            # Long-term cache pro user data
+            app.long_cache:
+                adapter: cache.adapter.redis  
+                provider: 'redis://localhost:6379/1'
+                default_lifetime: 1800  # 30 minut
+```
+
+### Environment-Specific Cache Adapters
+```yaml
+# config/packages/dev/cache.yaml (Development)
+framework:
+    cache:
+        pools:
+            app.api_cache:
+                adapter: cache.adapter.filesystem
+                default_lifetime: 300  # 5 minut pro rychlé testování
+            app.long_cache:
+                adapter: cache.adapter.filesystem
+                default_lifetime: 900   # 15 minut
+                
+# config/packages/test/cache.yaml (Testing)
+framework:
+    cache:
+        pools:
+            app.api_cache:
+                adapter: cache.adapter.array  # In-memory
+            app.long_cache:
+                adapter: cache.adapter.array
+```
+
+### Cache Service Configuration
+```yaml
+# config/services.yaml
+services:
+    App\Service\ApiCacheService:
+        arguments:
+            $apiCache: '@app.api_cache'
+            $logger: '@monolog.logger.api'
+```
+
+## 📊 Monitoring & Logging Configuration
+
+### Monolog API Logging
+**Separátní API logs** pro performance monitoring a debugging.
+
+```yaml
+# config/packages/monolog.yaml
+monolog:
+    channels:
+        - deprecation
+        - api         # API monitoring channel
+        
+# Development - separátní soubory pro snadnější debug
+when@dev:
+    monolog:
+        handlers:
+            main:
+                channels: ["!event", "!api"]  # Exclude API logs
+            api:
+                type: stream
+                path: "%kernel.logs_dir%/api.log"
+                level: info
+                channels: [api]
+
+# Production - JSON format pro external parsing                
+when@prod:
+    monolog:
+        handlers:
+            api:
+                type: stream
+                path: php://stderr
+                level: info
+                channels: [api]
+                formatter: monolog.formatter.json
+```
+
+### API Monitoring Service Setup
+```yaml
+# config/services.yaml
+services:
+    App\Service\ApiMonitoringService:
+        arguments:
+            $logger: '@monolog.logger.api'
+            $auditLogger: '@App\Service\AuditLogger'
+```
+
+### Performance Environment Variables
+```bash
+# Additional ENV vars for monitoring
+CACHE_DEFAULT_TTL=600                    # Default cache TTL
+API_MONITORING_ENABLED=true              # Enable performance monitoring
+API_SLOW_QUERY_THRESHOLD=5000           # >5s queries logged as slow
+API_RESPONSE_TIME_WARNING=2000          # >2s responses logged as warning
 ```
 
 ## 🔧 Development vs Production
@@ -206,6 +320,12 @@ USE_TEST_DATA=true
 DEBUG_PHP=true
 DEBUG_LOG=true
 DEBUG_APPS=true
+
+# Cache & Monitoring (development)
+CACHE_DEFAULT_TTL=300
+API_MONITORING_ENABLED=true
+API_SLOW_QUERY_THRESHOLD=3000
+API_RESPONSE_TIME_WARNING=1000
 ```
 
 ### Production
@@ -218,10 +338,19 @@ DEBUG_PHP=false
 DEBUG_LOG=false
 DEBUG_APPS=false
 
-# Real INSYS credentials
-INSYS_DB_HOST=production.mssql.server
-INSYS_DB_USER=limited_portal_user
-INSYS_DB_PASS=complex_secure_password
+# Cache & Monitoring (production)
+CACHE_DEFAULT_TTL=600
+API_MONITORING_ENABLED=true
+API_SLOW_QUERY_THRESHOLD=5000
+API_RESPONSE_TIME_WARNING=2000
+
+# Redis configuration (production only)
+REDIS_URL=redis://localhost:6379
+
+# Real INSYZ credentials
+INSYZ_DB_HOST=production.mssql.server
+INSYZ_DB_USER=limited_portal_user
+INSYZ_DB_PASS=complex_secure_password
 ```
 
 ## 📊 Monitoring a Logging
@@ -230,7 +359,7 @@ INSYS_DB_PASS=complex_secure_password
 ```yaml
 # config/packages/monolog.yaml
 monolog:
-    channels: ['insys', 'portal', 'visual']
+    channels: ['insyz', 'portal', 'visual']
     handlers:
         main:
             type: stream
@@ -239,12 +368,14 @@ monolog:
 
 ### Performance Monitoring
 - Symfony Profiler (dev only)
-- Custom logging pro INSYS volání
+- Custom logging pro INSYZ volání
 - File upload monitoring
 
 ---
 
 **Related Documentation:**  
-**Architecture:** [architecture.md](architecture.md)  
+**Architecture:** [architecture.md](architecture.md) - Performance a cache architektury  
 **Development:** [development/getting-started.md](development/getting-started.md)  
-**Aktualizováno:** 2025-07-31
+**Monitoring:** [development/development.md](development/development.md) - Performance debugging tools  
+**INSYZ Integration:** [features/insyz-integration.md](features/insyz-integration.md) - Cache configuration  
+**Aktualizováno:** 2025-08-08

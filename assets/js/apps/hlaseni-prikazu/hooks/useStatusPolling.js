@@ -154,9 +154,10 @@ export const useStatusPolling = (prikazId, formData, setFormData, isActive = fal
 
     // Automaticky spustit polling pokud je status 'send'
     useEffect(() => {
-        if (formData.status === 'send' && isActive && !isPolling) {
+        const currentStatus = formData.status;
+        if (currentStatus === 'send' && isActive && !isPolling) {
             startPolling();
-        } else if (formData.status !== 'send' && isPolling) {
+        } else if (currentStatus !== 'send' && isPolling) {
             stopPolling();
         }
     }, [formData.status, isActive, isPolling, startPolling, stopPolling]);

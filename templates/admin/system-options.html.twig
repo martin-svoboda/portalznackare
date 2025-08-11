@@ -1,0 +1,110 @@
+{% extends 'admin.html.twig' %}
+
+{% block title %}Systémová nastavení - Admin{% endblock %}
+
+{% block body %}
+<div class="page">
+    <div class="page__header">
+        {% include 'components/page-header.html.twig' with {
+            'title': 'Systémová nastavení',
+            'breadcrumbs': [
+                {'text': 'Administrace', 'url': path('admin_dashboard')},
+                {'text': 'Systémová nastavení'}
+            ]
+        } %}
+    </div>
+
+    <div class="page__content">
+        {# Flash messages #}
+        {% for type, messages in app.flashes %}
+            {% for message in messages %}
+                <div class="alert alert--{{ type == 'error' ? 'error' : 'success' }} mb-4">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endfor %}
+
+        {# Jednoduchý HTML formulář #}
+        <form method="post" class="settings-form">
+            {# Obecné nastavení #}
+            <div class="card mb-6">
+                <div class="card__header">
+                    <h3>⚙️ Obecné nastavení</h3>
+                </div>
+                <div class="card__content">
+                    <div class="form-field">
+                        <label for="maintenance_scheduled_downtime">Plánovaná odstávka</label>
+                        <input type="datetime-local" id="maintenance_scheduled_downtime" name="maintenance_scheduled_downtime" 
+                               value="{{ settings.maintenance_scheduled_downtime }}" class="form-control">
+                    </div>
+                </div>
+            </div>
+
+            {# Audit nastavení #}
+            <div class="card mb-6">
+                <div class="card__header">
+                    <h3>🔒 Auditování a bezpečnost</h3>
+                </div>
+                <div class="card__content">
+                    <div class="form-field">
+                        <label for="audit_retention_days">Doba uchovávání audit logů (dny)</label>
+                        <input type="number" id="audit_retention_days" name="audit_retention_days" 
+                               value="{{ settings.audit_retention_days }}" min="30" max="365" class="form-control">
+                    </div>
+                    
+                    <div class="form-field">
+                        <label>
+                            <input type="checkbox" name="audit_log_ip_addresses" 
+                                   {{ settings.audit_log_ip_addresses ? 'checked' : '' }}>
+                            Logovat IP adresy uživatelů
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            {# INSYZ nastavení #}
+            <div class="card mb-6">
+                <div class="card__header">
+                    <h3>🔧 INSYZ Integrace</h3>
+                </div>
+                <div class="card__content">
+                    <div class="form-field">
+                        <label>
+                            <input type="checkbox" name="insyz_audit_enabled" 
+                                   {{ settings.insyz_audit_enabled ? 'checked' : '' }}>
+                            Povolit INSYZ auditování
+                        </label>
+                    </div>
+                    
+                    <div class="form-field">
+                        <label>
+                            <input type="checkbox" name="insyz_audit_log_requests" 
+                                   {{ settings.insyz_audit_log_requests ? 'checked' : '' }}>
+                            Logovat požadavky do INSYZ
+                        </label>
+                    </div>
+                    
+                    <div class="form-field">
+                        <label>
+                            <input type="checkbox" name="insyz_audit_log_responses" 
+                                   {{ settings.insyz_audit_log_responses ? 'checked' : '' }}>
+                            Logovat odpovědi z INSYZ
+                        </label>
+                    </div>
+                    
+                    <div class="form-field">
+                        <label for="insyz_audit_retention_days">INSYZ audit - doba uchovávání (dny)</label>
+                        <input type="number" id="insyz_audit_retention_days" name="insyz_audit_retention_days" 
+                               value="{{ settings.insyz_audit_retention_days }}" min="30" max="365" class="form-control">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn--primary btn--lg">Uložit nastavení</button>
+                <a href="{{ path('admin_dashboard') }}" class="btn btn--ghost btn--lg">Zpět</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

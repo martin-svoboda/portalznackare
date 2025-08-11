@@ -26,9 +26,21 @@ final class Version20250806145000 extends AbstractMigration
         $this->addSql('ALTER TABLE reports ADD COLUMN IF NOT EXISTS date_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
         $this->addSql('ALTER TABLE reports ADD COLUMN IF NOT EXISTS date_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
         
-        // Rename created_at and updated_at if they exist
-        $this->addSql('ALTER TABLE reports RENAME COLUMN created_at TO date_created_old');
-        $this->addSql('ALTER TABLE reports RENAME COLUMN updated_at TO date_updated_old');
+        // Check if old columns exist and rename them
+        $this->addSql('
+            DO $$ 
+            BEGIN
+                IF EXISTS (SELECT 1 FROM information_schema.columns 
+                          WHERE table_name = \'reports\' AND column_name = \'created_at\') THEN
+                    ALTER TABLE reports RENAME COLUMN created_at TO date_created_old;
+                END IF;
+                
+                IF EXISTS (SELECT 1 FROM information_schema.columns 
+                          WHERE table_name = \'reports\' AND column_name = \'updated_at\') THEN
+                    ALTER TABLE reports RENAME COLUMN updated_at TO date_updated_old;
+                END IF;
+            END $$;
+        ');
     }
 
     public function down(Schema $schema): void

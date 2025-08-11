@@ -1,0 +1,205 @@
+{% extends 'admin.html.twig' %}
+
+{% block body %}
+    <div class="page">
+        <div class="page__header">
+            {% include 'components/page-header.html.twig' with {
+                'title': 'Administrace',
+                'breadcrumbs': [
+                    {'text': 'Dashboard'}
+                ]
+            } %}
+        </div>
+
+        <div class="page__content">
+            {# Statistiky #}
+            <div class="grid-layout grid-layout--cols-4">
+                {# Uživatelé #}
+                <div class="card">
+                    <div class="card__content">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">Celkem uživatelů</p>
+                                <p class="text-2xl font-bold">{{ stats.users.total }}</p>
+                                <p class="text-xs text-gray-500 mt-1">
+                                    {{ stats.users.active }} aktivních
+                                </p>
+                            </div>
+                            {{ tabler_icon('users', 24, 'text-blue-500') }}
+                        </div>
+                    </div>
+                </div>
+
+                {# Administrátoři #}
+                <div class="card">
+                    <div class="card__content">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">Administrátoři</p>
+                                <p class="text-2xl font-bold">{{ stats.users.admins }}</p>
+                                <p class="text-xs text-gray-500 mt-1">
+                                    {{ stats.users.recent_logins }} přihlášení (7 dní)
+                                </p>
+                            </div>
+                            {{ tabler_icon('shield', 24, 'text-green-500') }}
+                        </div>
+                    </div>
+                </div>
+
+                {# Hlášení #}
+                <div class="card">
+                    <div class="card__content">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">Hlášení celkem</p>
+                                <p class="text-2xl font-bold">{{ stats.reports.total }}</p>
+                                <p class="text-xs text-gray-500 mt-1">
+                                    {{ stats.reports.draft }} rozepsaných
+                                </p>
+                            </div>
+                            {{ tabler_icon('file-text', 24, 'text-orange-500') }}
+                        </div>
+                    </div>
+                </div>
+
+                {# INSYZ API #}
+                <div class="card">
+                    <div class="card__content">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">INSYZ API dnes</p>
+                                <p class="text-2xl font-bold">{{ stats.insyz.today_calls }}</p>
+                                <p class="text-xs text-gray-500 mt-1">
+                                    {% if stats.insyz.today_errors > 0 %}
+                                        <span class="text-red-600">{{ stats.insyz.today_errors }} chyb</span>
+                                    {% else %}
+                                        <span class="text-green-600">Bez chyb</span>
+                                    {% endif %}
+                                </p>
+                            </div>
+                            {{ tabler_icon('api', 24, 'text-purple-500') }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {# Rychlé akce #}
+            <div class="card mt-6">
+                <div class="card__header">
+                    <h3 class="card__title">Rychlé akce</h3>
+                </div>
+                <div class="card__content">
+                    <div class="grid-layout grid-layout--cols-4">
+                        <a href="{{ path('admin_users') }}" class="btn btn--secondary">
+                            {{ tabler_icon('users', 20) }}
+                            Správa uživatelů
+                        </a>
+                        <a href="{{ path('admin_audit_logs') }}" class="btn btn--secondary">
+                            {{ tabler_icon('file-search', 20) }}
+                            Audit logy
+                        </a>
+                        <a href="{{ path('admin_insyz_monitoring') }}" class="btn btn--secondary">
+                            {{ tabler_icon('activity', 20) }}
+                            INSYZ monitoring
+                        </a>
+                        <a href="{{ path('admin_system_options') }}" class="btn btn--secondary">
+                            {{ tabler_icon('settings', 20) }}
+                            Systémová nastavení
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            {# Nedávné aktivity #}
+            <div class="card mt-6">
+                <div class="card__header">
+                    <h3 class="card__title">Nedávné aktivity</h3>
+                    <a href="{{ path('admin_audit_logs') }}" class="text-sm text-blue-600 hover:text-blue-800">
+                        Zobrazit vše →
+                    </a>
+                </div>
+                <div class="card__content">
+                    {% if recent_audit_logs|length > 0 %}
+                        <div class="table-wrapper">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Čas</th>
+                                        <th>Uživatel</th>
+                                        <th>Akce</th>
+                                        <th>Entita</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for log in recent_audit_logs %}
+                                        <tr>
+                                            <td class="text-sm text-gray-600">
+                                                {{ log.createdAt|date('d.m. H:i') }}
+                                            </td>
+                                            <td>
+                                                {% if log.intAdr %}
+                                                    <span class="text-sm">{{ log.intAdr }}</span>
+                                                {% else %}
+                                                    <span class="text-sm text-gray-400">System</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <span class="badge badge--sm">{{ log.action }}</span>
+                                            </td>
+                                            <td class="text-sm">
+                                                {% if log.entityType %}
+                                                    {{ log.entityType }}{% if log.entityId %} #{{ log.entityId }}{% endif %}
+                                                {% else %}
+                                                    -
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-gray-500">Žádné nedávné aktivity</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            {# Systémové informace #}
+            <div class="card mt-6">
+                <div class="card__header">
+                    <h3 class="card__title">Systémové informace</h3>
+                </div>
+                <div class="card__content">
+                    <div class="grid-layout grid-layout--cols-2">
+                        <div>
+                            <h4 class="font-semibold mb-2">Audit logy</h4>
+                            <dl class="space-y-1">
+                                <div class="flex justify-between">
+                                    <dt class="text-sm text-gray-600">Dnes:</dt>
+                                    <dd class="text-sm font-medium">{{ stats.audit.today }}</dd>
+                                </div>
+                                <div class="flex justify-between">
+                                    <dt class="text-sm text-gray-600">Tento týden:</dt>
+                                    <dd class="text-sm font-medium">{{ stats.audit.week }}</dd>
+                                </div>
+                            </dl>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold mb-2">Hlášení</h4>
+                            <dl class="space-y-1">
+                                <div class="flex justify-between">
+                                    <dt class="text-sm text-gray-600">Čekající na schválení:</dt>
+                                    <dd class="text-sm font-medium">{{ stats.reports.submitted }}</dd>
+                                </div>
+                                <div class="flex justify-between">
+                                    <dt class="text-sm text-gray-600">Schválená:</dt>
+                                    <dd class="text-sm font-medium">{{ stats.reports.approved }}</dd>
+                                </div>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

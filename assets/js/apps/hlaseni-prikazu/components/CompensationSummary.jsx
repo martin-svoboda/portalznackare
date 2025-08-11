@@ -10,7 +10,7 @@ const MemberCompensationDetail = ({
                                       member,
                                       memberCompensation,
                                       formData,
-                                      priceList,
+                                      tariffRates,
                                       formatCurrency,
                                       showMemberName = false,
                                       compact = false
@@ -35,7 +35,7 @@ const MemberCompensationDetail = ({
                     <span className="text-sm font-medium">
                         Jízdné
                         {/* Zobrazit konkrétní použitou sazbu pouze pokud je řidičem nějaké auto cesty */}
-                        {priceList && (() => {
+                        {tariffRates && (() => {
                             // Zkontrolovat zda je řidičem nějaké auto cesty
                             const isDriverOfAnyCar = formData.Skupiny_Cest?.some(group => 
                                 group.Ridic === member?.INT_ADR && 
@@ -50,7 +50,7 @@ const MemberCompensationDetail = ({
                                     group.Ridic === member?.INT_ADR && 
                                     group.Cesty?.some(s => s.Druh_Dopravy === "AUV" || s.Druh_Dopravy === "AUV-Z")
                                 );
-                            const rate = hasHigherRate ? priceList.jizdneZvysene : priceList.jizdne;
+                            const rate = hasHigherRate ? tariffRates.jizdneZvysene : tariffRates.jizdne;
                             return (
                                 <span className="text-xs text-gray-500 ml-1">
                                     ({rate || 0} Kč/km)
@@ -161,10 +161,10 @@ const MemberCompensationDetail = ({
 
 export const CompensationSummary = ({
                                         formData,
-                                        priceList,
+                                        tariffRates,
                                         compact = false,
-                                        priceListLoading = false,
-                                        priceListError = null,
+                                        tariffRatesLoading = false,
+                                        tariffRatesError = null,
                                         currentUser,
                                         isLeader,
                                         teamMembers,
@@ -173,31 +173,31 @@ export const CompensationSummary = ({
 
 
     // Create stable calculator functions
-    const calculateForAllMembers = useCallback((formData, priceList, teamMembers) => {
-        return calculateCompensationForAllMembers(formData, priceList, teamMembers);
+    const calculateForAllMembers = useCallback((formData, tariffRates, teamMembers) => {
+        return calculateCompensationForAllMembers(formData, tariffRates, teamMembers);
     }, []);
 
-    const calculateForSingleUser = useCallback((formData, priceList, userIntAdr) => {
-        return calculateCompensation(formData, priceList, userIntAdr);
+    const calculateForSingleUser = useCallback((formData, tariffRates, userIntAdr) => {
+        return calculateCompensation(formData, tariffRates, userIntAdr);
     }, []);
 
     // Calculate compensation using proper calculator functions
     const compensation = useMemo(() => {
         try {
 
-            if (!priceList) {
+            if (!tariffRates) {
                 return null;
             }
 
             if (isLeader && teamMembers && teamMembers.length > 0) {
                 // Leader view - show all team members
-                const result = calculateForAllMembers(formData, priceList, teamMembers);
+                const result = calculateForAllMembers(formData, tariffRates, teamMembers);
                 return result;
             } else if (currentUser) {
                 // Member view - show only own compensation
                 const singleCompensation = calculateForSingleUser(
                     formData,
-                    priceList,
+                    tariffRates,
                     currentUser.INT_ADR
                 );
 
@@ -211,7 +211,7 @@ export const CompensationSummary = ({
             log.error('Error in compensation calculation', error);
             return null;
         }
-    }, [formData, priceList, isLeader, teamMembers, currentUser, calculateForAllMembers, calculateForSingleUser]);
+    }, [formData, tariffRates, isLeader, teamMembers, currentUser, calculateForAllMembers, calculateForSingleUser]);
 
 
     // Determine which members to show based on permissions
@@ -252,7 +252,7 @@ export const CompensationSummary = ({
     // EARLY RETURNS AFTER ALL HOOKS
 
     // Show loading state
-    if (priceListLoading) {
+    if (tariffRatesLoading) {
         return (
             <div className="alert alert--info">
                 Načítání ceníku pro výpočet kompenzací...
@@ -261,16 +261,16 @@ export const CompensationSummary = ({
     }
 
     // Show error state
-    if (priceListError) {
+    if (tariffRatesError) {
         return (
             <div className="alert alert--warning">
-                {priceListError}
+                {tariffRatesError}
             </div>
         );
     }
 
-    // Show missing price list
-    if (!priceList) {
+    // Show missing tariff rates
+    if (!tariffRates) {
         return (
             <div className="alert alert--warning">
                 Ceník není k dispozici pro výpočet kompenzací.
@@ -298,7 +298,7 @@ export const CompensationSummary = ({
                         member={member}
                         memberCompensation={memberCompensations[member.INT_ADR]}
                         formData={formData}
-                        priceList={priceList}
+                        tariffRates={tariffRates}
                         formatCurrency={formatCurrency}
                         showMemberName={showMultipleMembers}
                         compact={compact}

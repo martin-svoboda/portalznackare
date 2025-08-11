@@ -1,0 +1,5 @@
+# Development cache config - disable problematic pools for testing
+framework:
+    cache:
+        # Pro development zjednodušit - nepoužívat custom pools
+        prefix_seed: portalznackare_api_dev

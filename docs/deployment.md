@@ -32,7 +32,7 @@ PROD: https://portalznackare.cz      (37.235.105.56:/www/hosting/portalznackare.
 
 ### 3. Health check
 - Test API endpointů
-- INSYS/MSSQL connection test
+- INSYZ/MSSQL connection test
 - Error log monitoring
 
 ## 🔑 Požadavky na serveru
@@ -45,7 +45,7 @@ Na serveru musí existovat `.env.local` s příslušnou konfigurací.
 ### Server requirements
 - **PHP 8.3** s extensions: pdo, pdo_pgsql, pdo_sqlsrv
 - **PostgreSQL 16+** pro aplikační data
-- **MSSQL driver** pro INSYS připojení
+- **MSSQL driver** pro INSYZ připojení
 - **composer** pro PHP dependencies
 - **www-data** user permissions
 
@@ -67,9 +67,9 @@ git push origin 1.0.0
 ## 🔍 Monitoring
 
 ### Health check endpoints
-- `/api/test/mssql-connection` - Test INSYS databáze
-- `/api/test/insys-user` - Test API funkcionality
-- `/api/test/insys-prikazy` - Test dat z INSYS
+- `/api/test/mssql-connection` - Test INSYZ databáze
+- `/api/test/insyz-user` - Test API funkcionality
+- `/api/test/insyz-prikazy` - Test dat z INSYZ
 
 ### Log soubory
 - **DEV:** `/var/log/dev.log`

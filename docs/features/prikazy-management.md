@@ -6,7 +6,7 @@
 
 ### Architektura systému
 ```
-INSYS Příkazy → API → Material React Table → Detail View
+INSYZ Příkazy → API → Material React Table → Detail View
       ↓          ↓           ↓                ↓
    Mock/Live   Enrichment  Filtering      Navigation
       Data      Service    + Search       + Actions
@@ -15,23 +15,23 @@ INSYS Příkazy → API → Material React Table → Detail View
 **Klíčové principy:**
 - **Hybrid UI:** Twig pages + React pro tabulky a komplexní UI
 - **Material React Table:** Pouze pro datové tabulky s pokročilými funkcemi  
-- **INSYS data:** Načítání příkazů z INSYS systému přes API
+- **INSYZ data:** Načítání příkazů z INSYZ systému přes API
 - **Real-time filtering:** Rok, stav, vyhledávání s instant feedback
 - **Responsive design:** Desktop i mobilní rozhraní
 
 ## 🛠️ Backend Processing Chain
 
-### 1. **InsysController** - API endpointy s data enrichment
+### 1. **InsyzController** - API endpointy s data enrichment
 
 ```php
-// src/Controller/Api/InsysController.php
+// src/Controller/Api/InsyzController.php
 #[Route('/prikazy', methods: ['GET'])]
 public function getPrikazy(Request $request): JsonResponse {
     $year = $request->query->get('year');
     $intAdr = $this->getUser()->getIntAdr();
     
-    // 1. Načtení raw dat z INSYS/Mock
-    $prikazy = $this->insysService->getPrikazy($intAdr, $year);
+    // 1. Načtení raw dat z INSYZ/Mock
+    $prikazy = $this->insyzService->getPrikazy($intAdr, $year);
     
     // 2. Obohacení o HTML komponenty  
     $enrichedPrikazy = $this->dataEnricher->enrichPrikazyList($prikazy);
@@ -44,7 +44,7 @@ public function getPrikaz(int $id): JsonResponse {
     $intAdr = $this->getUser()->getIntAdr();
     
     // 1. Načtení detailu s authorization check
-    $prikaz = $this->insysService->getPrikaz($intAdr, $id);
+    $prikaz = $this->insyzService->getPrikaz($intAdr, $id);
     
     // 2. Obohacení o vizuální komponenty
     $enrichedPrikaz = $this->dataEnricher->enrichPrikazDetail($prikaz);
@@ -53,10 +53,10 @@ public function getPrikaz(int $id): JsonResponse {
 }
 ```
 
-### 2. **InsysService** - Data loading s testovací/produkční logiku
+### 2. **InsyzService** - Data loading s testovací/produkční logiku
 
 ```php
-// src/Service/InsysService.php
+// src/Service/InsyzService.php
 public function getPrikazy(int $intAdr, ?int $year = null): array {
     if ($this->useTestData()) {
         // Testovací data z var/testdata.json
@@ -105,11 +105,11 @@ public function enrichPrikazDetail(array $detail): array {
 
 ```javascript
 // Kompletní tok zpracování dat
-1. Request: GET /api/insys/prikazy?year=2025
+1. Request: GET /api/insyz/prikazy?year=2025
 
-2. InsysController::getPrikazy()
+2. InsyzController::getPrikazy()
    ├── Security: Ověří přihlášeného uživatele
-   ├── InsysService: Načte raw data (mock/MSSQL)
+   ├── InsyzService: Načte raw data (mock/MSSQL)
    └── DataEnricherService: Obohatí o HTML komponenty
        ├── replaceIconsInText(&BUS → <span class="transport-icon">🚌</span>)
        └── enrichPrikazData(popis, poznámka)
@@ -136,7 +136,7 @@ const App = () => {
     });
     
     const fetchPrikazy = async () => {
-        const response = await fetch(`/api/insys/prikazy?year=${filters.year}`, {
+        const response = await fetch(`/api/insyz/prikazy?year=${filters.year}`, {
             credentials: 'same-origin'
         });
         const prikazy = await response.json();
@@ -156,7 +156,7 @@ const App = () => {
     const [prikaz, setPrikaz] = useState(null);
     
     const loadPrikazDetail = async () => {
-        const response = await fetch(`/api/insys/prikaz/${prikazId}`, {
+        const response = await fetch(`/api/insyz/prikaz/${prikazId}`, {
             credentials: 'same-origin'
         });
         const data = await response.json();
@@ -181,7 +181,7 @@ const App = () => {
 // Návštěvník → /prikazy
 1. Twig renderuje page s React kontejnerem
 2. React app se inicializuje s data-app="prikazy"
-3. Načte data z /api/insys/prikazy?year=current
+3. Načte data z /api/insyz/prikazy?year=current
 4. Zobrazí Material React Table s filtry
 5. Click na řádek → navigate do detailu
 ```
@@ -191,7 +191,7 @@ const App = () => {
 // Návštěvník → /prikaz/{id}
 1. Twig renderuje page s data-prikaz-id="{id}"
 2. React app načte ID z DOM atributu  
-3. Fetch /api/insys/prikaz/{id}
+3. Fetch /api/insyz/prikaz/{id}
 4. Render detailu podle typu příkazu
 5. Akční tlačítka pro další kroky
 ```
@@ -207,7 +207,7 @@ if (isActiveStav(prikaz.Stav_ZP_Naz)) {
 
 ## 📊 Data Structure
 
-### INSYS příkaz response
+### INSYZ příkaz response
 ```json
 {
   "ID_Znackarske_Prikazy": 123,
@@ -234,8 +234,8 @@ if (isActiveStav(prikaz.Stav_ZP_Naz)) {
 
 ```bash
 # API testování  
-curl "https://portalznackare.ddev.site/api/test/insys-prikazy?year=2025"
-curl "https://portalznackare.ddev.site/api/test/insys-prikaz/123"
+curl "https://portalznackare.ddev.site/api/test/insyz-prikazy?year=2025"
+curl "https://portalznackare.ddev.site/api/test/insyz-prikaz/123"
 ```
 
 ## 🛠️ Troubleshooting
@@ -248,7 +248,7 @@ curl "https://portalznackare.ddev.site/api/test/insys-prikaz/123"
 
 ---
 
-**Propojené funkcionality:** [Hlášení příkazů](hlaseni-prikazu.md) | [INSYS Integration](insys-integration.md)  
-**API Reference:** [../api/insys-api.md](../api/insys-api.md)  
+**Propojené funkcionality:** [Hlášení příkazů](hlaseni-prikazu.md) | [INSYZ Integration](insyz-integration.md)  
+**API Reference:** [../api/insyz-api.md](../api/insyz-api.md)  
 **Frontend:** [../architecture.md](../architecture.md)  
 **Aktualizováno:** 2025-07-22

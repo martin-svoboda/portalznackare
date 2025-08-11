@@ -138,12 +138,12 @@ jobs:
             echo "Please create .env.local on server with:"
             echo "# Internal PostgreSQL database for portal content"
             echo "DATABASE_URL=postgresql://portal_user:password@localhost:5432/portal_db"
-            echo "# External MSSQL INSYS connection"
+            echo "# External MSSQL INSYZ connection"
             echo "USE_TEST_DATA=false"
-            echo "INSYS_DB_HOST=insys_server"
-            echo "INSYS_DB_NAME=insys_database"
-            echo "INSYS_DB_USER=insys_user"
-            echo "INSYS_DB_PASS=insys_password"
+            echo "INSYZ_DB_HOST=insyz_server"
+            echo "INSYZ_DB_NAME=insyz_database"
+            echo "INSYZ_DB_USER=insyz_user"
+            echo "INSYZ_DB_PASS=insyz_password"
             echo "APP_SECRET=your-secret-here"
             exit 1
           fi
@@ -154,6 +154,11 @@ jobs:
             /usr/bin/php8.3 bin/console cache:clear --env=dev || echo "⚠️ Cache clear failed"
             /usr/bin/php8.3 bin/console doctrine:migrations:status --env=dev || echo "⚠️ Migration status check failed"
             /usr/bin/php8.3 bin/console doctrine:migrations:migrate --no-interaction --env=dev || echo "⚠️ Migration skipped (no migrations or DB issue)"
+            
+            # Cache pools setup
+            echo "🚀 Setting up cache pools..."
+            /usr/bin/php8.3 bin/console cache:pool:clear app.api_cache --env=dev 2>/dev/null || echo "⚠️ API cache pool not available"
+            /usr/bin/php8.3 bin/console cache:pool:list --env=dev 2>/dev/null || echo "⚠️ Cache pool list unavailable"
           else
             echo "⚠️ Symfony console not working with PHP 8.3, skipping Symfony commands"
           fi
@@ -240,12 +245,12 @@ jobs:
             echo "APP_ENV=prod"
             echo "# Internal PostgreSQL database for portal content"
             echo "DATABASE_URL=postgresql://portal_user:password@localhost:5432/portal_db"
-            echo "# External MSSQL INSYS connection"
+            echo "# External MSSQL INSYZ connection"
             echo "USE_TEST_DATA=false"
-            echo "INSYS_DB_HOST=insys_server"
-            echo "INSYS_DB_NAME=insys_database"
-            echo "INSYS_DB_USER=insys_user"
-            echo "INSYS_DB_PASS=insys_password"
+            echo "INSYZ_DB_HOST=insyz_server"
+            echo "INSYZ_DB_NAME=insyz_database"
+            echo "INSYZ_DB_USER=insyz_user"
+            echo "INSYZ_DB_PASS=insyz_password"
             echo "APP_SECRET=your-production-secret"
             exit 1
           fi
@@ -256,6 +261,13 @@ jobs:
             /usr/bin/php8.3 bin/console cache:clear --env=prod || echo "⚠️ Cache clear failed"
             /usr/bin/php8.3 bin/console doctrine:migrations:status --env=prod || echo "⚠️ Migration status check failed"
             /usr/bin/php8.3 bin/console doctrine:migrations:migrate --no-interaction --env=prod || echo "⚠️ Migration skipped (no migrations or DB issue)"
+            
+            # Production cache warming
+            echo "🚀 Production cache warming..."
+            /usr/bin/php8.3 bin/console cache:warmup --env=prod 2>/dev/null || echo "⚠️ Cache warmup failed"
+            
+            # Verify cache pools are available
+            /usr/bin/php8.3 bin/console cache:pool:list --env=prod 2>/dev/null | grep "app.api_cache" && echo "✅ API cache pool ready" || echo "⚠️ API cache pool not available"
           else
             echo "⚠️ Symfony console not working with PHP 8.3, skipping Symfony commands"
           fi
@@ -292,38 +304,43 @@ jobs:
           INDEX_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://dev.portalznackare.cz/ || echo "000")
           echo "Index page returned HTTP $INDEX_CODE"
           
-          echo "Testing INSYS PDO connection..."
+          echo "Testing INSYZ PDO connection..."
           MSSQL_RESPONSE=$(curl -s https://dev.portalznackare.cz/api/test/mssql-connection || echo "curl_failed")
           MSSQL_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://dev.portalznackare.cz/api/test/mssql-connection || echo "000")
-          echo "INSYS connection test returned HTTP $MSSQL_CODE"
+          echo "INSYZ connection test returned HTTP $MSSQL_CODE"
           echo "Response: $MSSQL_RESPONSE"
           
+          # Test API monitoring logs
+          echo "Testing API monitoring logs..."
+          API_LOG_RESPONSE=$(curl -s -o /dev/null -w "%{time_total}" https://dev.portalznackare.cz/api/test/insyz-user || echo "0")
+          echo "API response time: ${API_LOG_RESPONSE}s"
+          
           if [ "$MSSQL_CODE" != "200" ]; then
-            echo "⚠️ INSYS connection test failed, but continuing deployment"
+            echo "⚠️ INSYZ connection test failed, but continuing deployment"
             
             # Show recent error logs for debugging
             echo "=== Recent error logs ==="
             ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no $SSH_USER@$SSH_SERVER "tail -20 ${{ env.DEV_PATH }}var/log/dev.log || echo 'No dev.log found'"
           else
-            echo "✅ INSYS connection test passed"
+            echo "✅ INSYZ connection test passed"
           fi
 
       - name: Health check PROD
         if: env.IS_TAG == 'true'
         run: |
           sleep 10
-          echo "Testing INSYS PDO connection..."
+          echo "Testing INSYZ PDO connection..."
           MSSQL_RESPONSE=$(curl -s https://portalznackare.cz/api/test/mssql-connection || echo "curl_failed")
           HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://portalznackare.cz/api/test/mssql-connection || echo "000")
-          echo "INSYS connection test returned HTTP $HTTP_CODE"
+          echo "INSYZ connection test returned HTTP $HTTP_CODE"
           echo "Response: $MSSQL_RESPONSE"
           
           if [ "$HTTP_CODE" != "200" ]; then
-            echo "⚠️ PROD INSYS connection test failed, but continuing deployment"
+            echo "⚠️ PROD INSYZ connection test failed, but continuing deployment"
             # Zobraz error log pro debugging
             ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no $SSH_USER@$SSH_SERVER "tail -20 ${{ env.PROD_PATH }}var/log/prod.log || echo 'No prod.log found'"
           else
-            echo "✅ PROD INSYS connection test passed"
+            echo "✅ PROD INSYZ connection test passed"
           fi
 
       - name: Create GitHub Release (only for tag)
@@ -347,8 +364,8 @@ jobs:
             - ✅ Health check prošel
             
             ### API Endpoints
-            - `GET /api/test/insys-user` - Test uživatelských dat
-            - `GET /api/test/insys-prikazy` - Test příkazů
+            - `GET /api/test/insyz-user` - Test uživatelských dat
+            - `GET /api/test/insyz-prikazy` - Test příkazů
 
           generate_release_notes: true
         env:

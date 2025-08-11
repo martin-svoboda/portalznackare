@@ -51,5 +51,18 @@ services:
         tags:
             - { name: twig.extension }
 
+    # Cache services konfigurace
+    App\Service\ApiCacheService:
+        arguments:
+            $cache: '@cache.app'
+            $logger: '@monolog.logger.api'
+
+    App\Service\ApiMonitoringService:
+        arguments:
+            $logger: '@monolog.logger.api'
+
+    # MSSQL services konfigurace - clean without audit
+    # App\Service\MssqlConnector: # uses default autowiring now
+
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

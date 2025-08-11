@@ -10,8 +10,10 @@ Kompletní dokumentace webové aplikace pro správu turistického značení KČT
 - [Konfigurace](configuration.md)
 
 ### ⭐ Funkcionalita
-- [INSYS integrace](features/insys-integration.md) - Napojení na KČT databázi
+- [INSYZ integrace](features/insyz-integration.md) - Napojení na KČT databázi
 - [Autentifikace](features/authentication.md) - Přihlašování a zabezpečení
+- [Správa uživatelů](features/user-management.md) - Lokální uživatelé a synchronizace + **NOVÉ: Admin rozhraní**
+- [Audit logging](features/audit-logging.md) - Dvojitý audit systém (aplikace + INSYZ API)
 - [Správa příkazů](features/prikazy-management.md) - Zobrazení a správa příkazů
 - [Hlášení příkazů](features/hlaseni-prikazu.md) - Workflow hlášení práce
 - [Správa souborů](features/file-management.md) - Upload a správa příloh
@@ -19,14 +21,15 @@ Kompletní dokumentace webové aplikace pro správu turistického značení KČT
 - [Content Management](features/content-management.md) - CMS funkcionalita
 
 ### 🔌 API Reference
-- [INSYS API](api/insys-api.md) - Endpointy pro KČT data
+- [INSYZ API](api/insyz-api.md) - Endpointy pro KČT data
 - [Portal API](api/portal-api.md) - Lokální funkcionalita
+- [Admin API](api/admin-api.md) - Administrační endpointy
 
 ### 🛠️ Development
 - [Development guide](development/development.md) - Debug nástroje a workflow
 - [Background Jobs](development/background-jobs.md) - Symfony Messenger a asynchronní procesy
 - [Toast Notification System](development/toast-system.md) - Jednotný systém notifikací
-- [INSYS API Tester](development/insys-api-tester.md) - Testing nástroj
+- [INSYZ API Tester](development/insyz-api-tester.md) - Testing nástroj
 - [Vizuální komponenty](development/visual-components.md) - Značky a TIM pro vývojáře
 
 ### 🚀 Deployment & Migrace
@@ -40,10 +43,10 @@ Kompletní dokumentace webové aplikace pro správu turistického značení KČT
 ### Pro nové vývojáře
 1. [Setup prostředí](development/getting-started.md)
 2. [Architektura](architecture.md)
-3. [INSYS integrace](features/insys-integration.md)
+3. [INSYZ integrace](features/insyz-integration.md)
 
 ### Pro existující tým
-- [API dokumentace](api/insys-api.md)
+- [API dokumentace](api/insyz-api.md)
 - [File management](features/file-management.md)
 - [Debug nástroje](development/development.md)
 
@@ -56,12 +59,12 @@ Kompletní dokumentace webové aplikace pro správu turistického značení KČT
 ## 📖 Struktura projektu
 
 **Hybridní architektura:** Symfony backend + Twig templating + React micro-apps  
-**Databáze:** PostgreSQL (app data) + MSSQL (INSYS data)  
+**Databáze:** PostgreSQL (app data) + MSSQL (INSYZ data)  
 **Frontend:** Tailwind CSS + BEM + Material React Table  
-**Development:** DDEV + Mock INSYS data
+**Development:** DDEV + Mock INSYZ data
 
 ---
 
-**Aktualizováno:** 2025-08-07  
-**Verze dokumentace:** 2.1  
+**Aktualizováno:** 2025-08-08  
+**Verze dokumentace:** 2.2  
 **Pro projekt:** Portál značkaře

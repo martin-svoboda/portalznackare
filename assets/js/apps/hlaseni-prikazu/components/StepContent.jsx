@@ -23,30 +23,32 @@ const isDebugMode = () => {
 };
 
 export const StepContent = ({
-    activeStep,
-    formData,
+    data,
     setFormData,
-    head,
-    useky,
-    predmety,
-    priceList,
-    priceListLoading,
-    priceListError,
-    currentUser,
-    teamMembers,
-    isLeader,
-    canEditOthers,
-    prikazId,
-    canCompletePartA,
-    canCompletePartB,
+    activeStep,
     onStepChange,
     onSave,
     onSubmit,
     saving,
-    disabled,
-    polling,
-    fileUploadService
+    prikazId
 }) => {
+    // Rozbalení dat z jednoho objektu
+    const formData = data.formData;
+    const head = data.head;
+    const useky = data.useky;
+    const predmety = data.predmety;
+    const tariffRates = data.tariffRates;
+    const teamMembers = data.teamMembers;
+    const isLeader = data.isLeader;
+    const disabled = !data.canEdit;
+    const canEditOthers = data.isLeader;
+    const currentUser = data.currentUser;
+    const tariffRatesLoading = false;
+    const tariffRatesError = null;
+    const fileUploadService = null;
+    const polling = data.polling || null;
+    const canCompletePartA = formData.Skupiny_Cest?.length > 0 && formData.Skupiny_Cest.some(g => g.Cesty?.length > 0);
+    const canCompletePartB = Object.keys(formData.Stavy_Tim || {}).length > 0;
     // Generate storage path for route attachments
     const storagePath = React.useMemo(() => {
         if (!prikazId) return null;
@@ -69,7 +71,7 @@ export const StepContent = ({
                     <PartAForm
                         formData={formData}
                         setFormData={setFormData}
-                        priceList={priceList}
+                        tariffRates={tariffRates}
                         head={head}
                         fileUploadService={fileUploadService}
                         currentUser={currentUser}
@@ -118,9 +120,9 @@ export const StepContent = ({
                                 <ErrorBoundary sectionName="Výpočet náhrad">
                                     <CompensationSummary
                                         formData={formData}
-                                        priceList={priceList}
-                                        priceListLoading={priceListLoading}
-                                        priceListError={priceListError}
+                                        tariffRates={tariffRates}
+                                        tariffRatesLoading={tariffRatesLoading}
+                                        tariffRatesError={tariffRatesError}
                                         compact={true}
                                         isLeader={isLeader}
                                         teamMembers={teamMembers}
@@ -373,9 +375,9 @@ export const StepContent = ({
                         <ErrorBoundary sectionName="Celkový výpočet náhrad">
                             <CompensationSummary
                                 formData={formData}
-                                priceList={priceList}
-                                priceListLoading={priceListLoading}
-                                priceListError={priceListError}
+                                tariffRates={tariffRates}
+                                tariffRatesLoading={tariffRatesLoading}
+                                tariffRatesError={tariffRatesError}
                                 compact={false}
                                 isLeader={isLeader}
                                 teamMembers={teamMembers}

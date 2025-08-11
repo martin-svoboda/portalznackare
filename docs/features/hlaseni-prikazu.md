@@ -6,13 +6,13 @@
 
 ## 🎯 Přehled funkcionality
 
-Hlášení příkazů umožňuje značkařům vykazovat provedenou práci a automaticky vypočítávat náhrady podle ceníků KČT. Systém podporuje draft mode a asynchronní odeslání do INSYZ systému.
+Hlášení příkazů umožňuje značkařům vykazovat provedenou práci a automaticky vypočítávat náhrady podle sazeb KČT. Systém podporuje draft mode a asynchronní odeslání do INSYZ systému.
 
 ### Workflow hlášení
 ```
 INSYZ Příkaz → React Formulář → Kalkulace → PostgreSQL → INSYZ Submission
      ↓              ↓             ↓           ↓            ↓
-   Detail       Část A + B    Ceníky KČT   Draft/Send   Async Worker
+   Detail       Část A + B    Sazby KČT   Draft/Send   Async Worker
 ```
 
 ## 🔧 Backend komponenty
@@ -88,7 +88,7 @@ const App = () => {
     // Načtení dat při startu
     useEffect(() => {
         loadReportData();  // Existující hlášení z DB
-        loadPriceList();   // Aktuální ceníky KČT
+        loadPriceList();   // Aktuální sazby KČT
         loadTeamMembers(); // Tým z INSYZ
     }, [prikazId]);
 };
@@ -108,7 +108,7 @@ Podporované dopravní prostředky:
 - **P** - Pěšky
 - **K** - Kolo
 
-**Live preview kalkulace** se aktualizuje při každé změně podle ceníků KČT.
+**Live preview kalkulace** se aktualizuje při každé změně podle sazeb KČT.
 
 #### Hlavní řidič a zvýšená sazba
 **Klíčová změna (2025-08-06):** Globální výběr místo per skupina
@@ -156,7 +156,7 @@ export function calculateCompensation(formData, priceList, userIntAdr) {
     const isUserMainDriver = formData.Hlavni_Ridic === userIntAdr;
     const rate = isUserMainDriver ? priceList.jizdneZvysene : priceList.jizdne;
     
-    // Kalkulace podle ceníků KČT
+    // Kalkulace podle sazeb KČT
     return result;
 }
 ```
@@ -168,7 +168,7 @@ export function calculateCompensation(formData, priceList, userIntAdr) {
 // Automatické načítání při startu
 1. GET /api/insyz/prikaz/{id} - Detail příkazu z INSYZ
 2. GET /api/portal/report?id_zp={id} - Existující hlášení (draft)
-3. GET /api/insys/ceniky?date=... - Aktuální ceníky KČT
+3. GET /api/insyz/sazby?date=... - Aktuální sazby KČT
 4. Inicializace formuláře (prázdný nebo draft)
 ```
 
@@ -180,7 +180,7 @@ export function calculateCompensation(formData, priceList, userIntAdr) {
 4. Řidič a vozidlo (pokud auto segment)
 5. TIM hodnocení nebo textové hlášení činnosti
 
-**Realtime kalkulace** při každé změně podle ceníků.
+**Realtime kalkulace** při každé změně podle sazeb.
 
 ### 3. **Uložení a odeslání**
 ```javascript
@@ -317,7 +317,7 @@ curl -X POST "/api/portal/report" -d '{"state": "draft", ...}'
 
 #### 1. **Kalkulace se neaktualizuje**
 ```javascript
-// Zkontroluj načtení ceníků
+// Zkontroluj načtení sazeb
 useEffect(() => {
     if (priceList) {
         const calculation = calculateCompensation(formData, priceList);
@@ -346,7 +346,7 @@ Frontend zobrazí: "Odesílání trvá déle než obvykle"
 #### 5. **TIM položky chybí**
 - Pouze pro příkazy typu "O" (Obnova)
 - Zkontroluj že příkaz obsahuje úseky s předměty
-- Verify: GET `/api/insys/prikaz/{id}` → `predmety[]`
+- Verify: GET `/api/insyz/prikaz/{id}` → `predmety[]`
 
 ---
 

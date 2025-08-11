@@ -81,7 +81,7 @@ export const api = {
     // Příkazy
     prikazy: {
         list: (params?: { year?: number; int_adr?: number }) =>
-            apiCall<any[]>('/insys/prikazy', 'GET', params),
+            apiCall<any[]>('/insyz/prikazy', 'GET', params),
         detail: (id: number) =>
             apiCall<any>('/portal/prikaz', 'GET', { id }),
         report: (id: number) =>
@@ -90,11 +90,11 @@ export const api = {
             apiCall<ApiResponse>('/portal/report', 'POST', data),
     },
 
-    // Insys
-    insys: {
+    // Insyz
+    insyz: {
         user: () =>
-            apiCall<any>('/insys/user'),
+            apiCall<any>('/insyz/user'),
         ceniky: (date?: string) =>
-            apiCall<any>('/insys/ceniky', 'GET', { date }),
+            apiCall<any>('/insyz/ceniky', 'GET', { date }),
     },
 };

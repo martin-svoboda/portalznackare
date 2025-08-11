@@ -57,11 +57,32 @@ export async function apiCall(endpoint, options = {}) {
     try {
         const response = await fetch(finalUrl, config);
         
+        // Zpracování 204 No Content - žádné JSON k parsování
+        if (response.status === 204) {
+            log.api('Odpověď:', finalUrl, 'Žádný obsah (204)');
+            return null;
+        }
+        
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
             
+            // Speciální handling pro autentizační chyby
+            if (response.status === 401) {
+                const message = 'Nejste přihlášení. Přihlaste se prosím.';
+                const error = new ApiError(response.status, message);
+                error.requiresAuth = true;
+                throw error;
+            }
+            
+            if (response.status === 403) {
+                const message = 'Nemáte oprávnění pro přístup k tomuto prostředku.';
+                const error = new ApiError(response.status, message);
+                error.insufficientPermissions = true;
+                throw error;
+            }
+            
             // Podrobná chybová zpráva z serveru
-            let message = errorData.error || errorData.message || `HTTP ${response.status}`;
+            let message = (typeof errorData.error === 'string' ? errorData.error : errorData.message) || `HTTP ${response.status}`;
             
             // Přidej dodatečné informace pokud jsou k dispozici
             if (errorData.error_code) {
@@ -128,10 +149,10 @@ export const api = {
 
     insyz: {
         user: () => api.get('/insyz/user'),
-        ceniky: (date) => api.get('/insyz/ceniky', { date }),
+        sazby: (date) => api.get('/insyz/sazby', { date }),
         submitReport: (xmlData) => api.post('/insyz/submit-report', { xml_data: xmlData }, {
             showSuccess: true,
-            successMessage: 'Hlášení bylo úspěšně odesláno do INSYS'
+            successMessage: 'Hlášení bylo úspěšně odesláno do INSYZ'
         })
     },
 

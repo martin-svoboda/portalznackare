@@ -7,6 +7,7 @@ use App\Entity\Report;
 use App\Entity\User;
 use App\Enum\ReportStateEnum;
 use App\Repository\ReportRepository;
+use App\Service\AuditLogger;
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -24,7 +25,8 @@ class ReportController extends AbstractController
         private ReportRepository $reportRepository,
         private EntityManagerInterface $entityManager,
         private SerializerInterface $serializer,
-        private ValidatorInterface $validator
+        private ValidatorInterface $validator,
+        private AuditLogger $auditLogger
     ) {
     }
 
@@ -123,10 +125,12 @@ class ReportController extends AbstractController
             // Najít existující report nebo vytvořit nový (pouze podle id_zp)
             $report = $this->reportRepository->findOneBy(['idZp' => $idZp]);
             
+            $isNewReport = false;
             if (!$report) {
                 $report = new Report();
                 $report->setIdZp($idZp);
                 $report->setIntAdr($intAdr); // Nastavit současného uživatele jako zpracovatele
+                $isNewReport = true;
                 
                 // Přidat do historie vytvoření
                 $report->addHistoryEntry(
@@ -165,6 +169,33 @@ class ReportController extends AbstractController
 
             // Uložení
             $this->reportRepository->save($report, true);
+
+            // Audit logging
+            if ($isNewReport) {
+                $this->auditLogger->log(
+                    action: 'report_create',
+                    entityType: 'Report',
+                    entityId: $report->getId(),
+                    user: $user,
+                    newValues: [
+                        'id_zp' => $report->getIdZp(),
+                        'cislo_zp' => $report->getCisloZp(),
+                        'state' => $report->getState()->value,
+                        'team_members_count' => count($report->getTeamMembers())
+                    ]
+                );
+            } else {
+                $this->auditLogger->log(
+                    action: 'report_update',
+                    entityType: 'Report', 
+                    entityId: $report->getId(),
+                    user: $user,
+                    newValues: [
+                        'updated_fields' => array_keys($data),
+                        'current_state' => $report->getState()->value
+                    ]
+                );
+            }
 
             // Vrácení aktualizované entity
             $responseData = $this->serializer->serialize($report, 'json', [

@@ -2,21 +2,21 @@
 
 Přehled plánovaných funkcí a vylepšení pro systém Portál značkaře.
 
-## 🔥 Nejvyšší priorita - INSYS Integrace & Příkazy
+## 🔥 Nejvyšší priorita - INSYZ Integrace & Příkazy
 
-### INSYS API Integrace
+### INSYZ API Integrace
 - [ ] **Status synchronizace**
-  - Implementovat SUBMITTED status po odeslání do INSYS
-  - Implementovat APPROVED status po schválení v INSYS
-  - Webhook endpoint pro notifikace z INSYS
-  - Error handling pro INSYS komunikaci
+  - Implementovat SUBMITTED status po odeslání do INSYZ
+  - Implementovat APPROVED status po schválení v INSYZ
+  - Webhook endpoint pro notifikace z INSYZ
+  - Error handling pro INSYZ komunikaci
   - Retry mechanismus pro failed requests
 
 - [ ] **Automatické workflow**
   - Automatické přepnutí z 'send' na 'submitted'
   - Notifikace uživatelům o změně stavu
-  - Logování všech INSYS interakcí
-  - Monitoring INSYS dostupnosti
+  - Logování všech INSYZ interakcí
+  - Monitoring INSYZ dostupnosti
 
 ### Příkazy - Rozšířené funkce
 - [ ] **Bulk operace s příkazy**
@@ -52,7 +52,7 @@ Přehled plánovaných funkcí a vylepšení pro systém Portál značkaře.
   - Přehled všech hlášení (všech uživatelů)
   - Rychlé schvalování/zamítání
   - Bulk operace nad hlášeními
-  - Export dat pro INSYS
+  - Export dat pro INSYZ
   
 - [ ] **Šablony a automatizace**
   - Šablony pro opakující se trasy
@@ -73,12 +73,12 @@ Přehled plánovaných funkcí a vylepšení pro systém Portál značkaře.
 
 ## 🔶 Střední priorita
 
-### INSYS Rozšíření
-- [ ] **Rozšířené INSYS features**
+### INSYZ Rozšíření
+- [ ] **Rozšířené INSYZ features**
   - Real-time status updates
-  - Detailed error messages z INSYS
+  - Detailed error messages z INSYZ
   - Retry queue pro failed submissions
-  - INSYS health check endpoint
+  - INSYZ health check endpoint
   
 - [ ] **Integrace s KČT systémy**
   - Synchronizace členské základny
@@ -180,7 +180,7 @@ Přehled plánovaných funkcí a vylepšení pro systém Portál značkaře.
 
 ### Integration Possibilities
 - [ ] **External integrations**
-  - Export do INSYS systému
+  - Export do INSYZ systému
   - Import z external sources
   - Webhook notifications
   
@@ -199,7 +199,7 @@ Přehled plánovaných funkcí a vylepšení pro systém Portál značkaře.
 
 ### Současný stav (✅ Hotovo)
 - ✅ **Hlášení příkazů** - kompletní Part A + B s full workflow
-- ✅ **INSYS API integrace** - základní odeslání a polling
+- ✅ **INSYZ API integrace** - základní odeslání a polling
 - ✅ **File management** - upload, storage, deduplication
 - ✅ **File usage tracking** - sledování použití souborů
 - ✅ **Toast notifications** - jednotný systém notifikací
@@ -210,7 +210,7 @@ Přehled plánovaných funkcí a vylepšení pro systém Portál značkaře.
 - ✅ **Responsive design** - mobile-first approach
 
 ### 🎯 Aktuální priority (dle business potřeb)
-- 🔥 **INSYS workflow** - dokončit submitted/approved stavy
+- 🔥 **INSYZ workflow** - dokončit submitted/approved stavy
 - 🔥 **Příkazy dashboard** - přehled a statistiky
 - 🔥 **Bulk operace** - hromadné zpracování hlášení
 - 🟡 **Admin rozhraní** - pro správu příkazů a souborů
@@ -224,13 +224,13 @@ Přehled plánovaných funkcí a vylepšení pro systém Portál značkaře.
 - **Local storage** - CDN až v budoucnu podle potřeby
 
 ### Prioritizace (aktualizováno dle business potřeb)
-1. **INSYS integrace** - dokončit workflow pro submitted/approved (KRITICKÉ)
+1. **INSYZ integrace** - dokončit workflow pro submitted/approved (KRITICKÉ)
 2. **Příkazy features** - dashboard, bulk operace, šablony
 3. **Admin rozhraní** - správa příkazů a souborů
 4. **CMS System** - nízká priorita, statické stránky zatím vyhovují
 
 ### Implementační plán (8-10 týdnů)
-**Fáze 1 (2-3 týdny):** INSYS workflow - status sync, webhooks, error handling
+**Fáze 1 (2-3 týdny):** INSYZ workflow - status sync, webhooks, error handling
 **Fáze 2 (2-3 týdny):** Příkazy dashboard - statistiky, bulk ops, export
 **Fáze 3 (2 týdny):** Admin UI - file management, příkazy admin
 **Fáze 4 (2 týdny):** Polish - UX vylepšení, performance, testy
@@ -243,4 +243,4 @@ Přehled plánovaných funkcí a vylepšení pro systém Portál značkaře.
 
 **Aktualizováno:** 2025-08-07
 **Verze:** 2.0  
-**Status:** Aktivní development - fokus na INSYS a příkazy
+**Status:** Aktivní development - fokus na INSYZ a příkazy

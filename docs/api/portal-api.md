@@ -227,8 +227,8 @@ public function saveReport(Request $request): JsonResponse {
 enum ReportStateEnum: string {
     case DRAFT = 'draft';           // Rozpracováno (editovatelné)
     case SEND = 'send';             // Odesláno ke zpracování (locked)
-    case SUBMITTED = 'submitted';   // Odesláno do INSYS a přijato  
-    case APPROVED = 'approved';     // TODO: Schváleno v INSYS
+    case SUBMITTED = 'submitted';   // Odesláno do INSYZ a přijato  
+    case APPROVED = 'approved';     // TODO: Schváleno v INSYZ
     case REJECTED = 'rejected';     // Zamítnuto (opět editovatelné)
     
     public function isEditable(): bool {

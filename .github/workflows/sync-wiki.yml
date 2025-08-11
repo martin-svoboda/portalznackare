@@ -77,7 +77,7 @@ jobs:
               'migration.md': 'migration',
               
               # Features
-              'features/insys-integration.md': 'features-insys-integration',
+              'features/insyz-integration.md': 'features-insyz-integration',
               'features/authentication.md': 'features-authentication',
               'features/file-management.md': 'features-file-management',
               'features/hlaseni-prikazu.md': 'features-hlaseni-prikazu',
@@ -86,7 +86,7 @@ jobs:
               'features/localization.md': 'features-localization',
               
               # API
-              'api/insys-api.md': 'api-insys-api',
+              'api/insyz-api.md': 'api-insyz-api',
               'api/portal-api.md': 'api-portal-api',
               
               # Development
@@ -94,7 +94,7 @@ jobs:
               'development/background-jobs.md': 'development-background-jobs',
               'development/toast-system.md': 'development-toast-system',
               'development/getting-started.md': 'development-getting-started',
-              'development/insys-api-tester.md': 'development-insys-api-tester',
+              'development/insyz-api-tester.md': 'development-insyz-api-tester',
               'development/visual-components.md': 'development-visual-components',
               
               # User docs
@@ -188,7 +188,7 @@ jobs:
           - [[Migrace|migration]]
           
           ### ⭐ Funkcionalita
-          - [[INSYS integrace|features-insys-integration]]
+          - [[INSYZ integrace|features-insyz-integration]]
           - [[Autentifikace|features-authentication]]
           - [[Správa souborů|features-file-management]]
           - [[Hlášení příkazů|features-hlaseni-prikazu]]
@@ -197,7 +197,7 @@ jobs:
           - [[Lokalizace|features-localization]]
           
           ### 🔌 API
-          - [[INSYS API|api-insys-api]]
+          - [[INSYZ API|api-insyz-api]]
           - [[Portal API|api-portal-api]]
           
           ### 🛠️ Development
@@ -205,7 +205,7 @@ jobs:
           - [[Background Jobs|development-background-jobs]]
           - [[Toast Notifications|development-toast-system]]
           - [[Instalace & Setup|development-getting-started]]
-          - [[INSYS API Tester|development-insys-api-tester]]
+          - [[INSYZ API Tester|development-insyz-api-tester]]
           - [[Vizuální komponenty|development-visual-components]]
           
           ### 👥 Uživatelská nápověda

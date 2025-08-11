@@ -10,9 +10,8 @@ class MssqlConnector
 {
     private ?PDO $conn = null;
     private ?string $lastError = null;
-
-    public function __construct()
-    {
+    
+    public function __construct() {
         $server = $_ENV['INSYZ_DB_HOST'] ?? 'localhost';
         $database = $_ENV['INSYZ_DB_NAME'] ?? '';
         $username = $_ENV['INSYZ_DB_USER'] ?? '';

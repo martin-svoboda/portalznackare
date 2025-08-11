@@ -1,0 +1,56 @@
+{% extends 'admin.html.twig' %}
+
+{% block title %}INSYZ Monitoring - Admin{% endblock %}
+
+{% block body %}
+<div class="page">
+    <div class="page__header">
+        {% include 'components/page-header.html.twig' with {
+            'title': 'INSYZ Monitoring',
+            'breadcrumbs': [
+                {'text': 'Administrace', 'url': path('admin_dashboard')},
+                {'text': 'INSYZ Monitoring'}
+            ]
+        } %}
+    </div>
+
+    <div class="page__content">
+        <div class="card">
+            <div class="card__content">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Čas</th>
+                            <th>Endpoint</th>
+                            <th>Metoda</th>
+                            <th>Status</th>
+                            <th>Doba odezvy</th>
+                            <th>Chyba</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs %}
+                        <tr>
+                            <td>{{ log.createdAt|date('d.m.Y H:i:s') }}</td>
+                            <td>{{ log.endpoint }}</td>
+                            <td>{{ log.method }}</td>
+                            <td>
+                                <span class="badge badge--{{ log.status == 'success' ? 'success' : 'danger' }}">
+                                    {{ log.status }}
+                                </span>
+                            </td>
+                            <td>{{ log.durationMs }}ms</td>
+                            <td>{{ log.errorMessage|default('-') }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center">Žádné záznamy</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
