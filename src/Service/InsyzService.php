@@ -164,14 +164,16 @@ class InsyzService
                 // Příprava data ve formátu YYYY-MM-DD (poziční parametr)
                 $datumProvedeni = $datum ? date('Y-m-d', strtotime($datum)) : date('Y-m-d');
                 
-                $result = $this->connect("trasy.ZP_Sazby", [$datumProvedeni]);
+                // Volat proceduru s multiple recordsets (jako ZP_Detail)
+                $result = $this->connect("trasy.ZP_Sazby", [$datumProvedeni], true);
                 
                 // Zkontrolovat, zda procedura vrátila nějaká data
                 if (empty($result) || !is_array($result)) {
                     throw new Exception('MSSQL procedura trasy.ZP_Sazby nevrátila žádná data pro datum: ' . $datumProvedeni);
                 }
                 
-                return $result[0]; // Vrátit první řádek s daty
+                // Vrátit všechny recordsety jak jsou
+                return $result;
                 
             } catch (Exception $e) {
                 throw new Exception('Chyba při načítání sazeb z INSYZ: ' . $e->getMessage());
