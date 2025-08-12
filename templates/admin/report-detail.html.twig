@@ -1,0 +1,27 @@
+{% extends 'admin.html.twig' %}
+
+{% block title %}Detail hlášení - Admin{% endblock %}
+
+{% block body %}
+<div class="page">
+    <div class="page__header">
+        {% include 'components/page-header.html.twig' with {
+            'breadcrumbs': [
+                {'text': 'Administrace', 'url': path('admin_dashboard')},
+                {'text': 'Hlášení', 'url': path('admin_reports')},
+                {'text': 'Detail'}
+            ]
+        } %}
+    </div>
+
+    <div class="page__content">
+        <!-- React app mount point -->
+        <div data-app="admin-report-detail" data-report-id="{{ reportId }}"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    {{ encore_entry_script_tags('admin-report-detail') }}
+{% endblock %}

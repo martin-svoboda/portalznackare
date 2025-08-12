@@ -179,7 +179,7 @@ const App = () => {
             setHead(result.head || {});
             setPredmety(result.predmety || []);
             setUseky(result.useky || []);
-            log.info(`Načten detail příkazu ${prikazId}`);
+            log.info(`Načten detail příkazu ${prikazId}`, result);
         } catch (error) {
             setError(error.message);
             log.error('Chyba při načítání detailu příkazu', error);
@@ -192,34 +192,30 @@ const App = () => {
     const isLeader = useMemo(() => {
         if (!currentUser.intAdr || !head) return false;
         return [1, 2, 3].some(i =>
-            head[`INT_ADR_${i}`] === currentUser.intAdr && head[`Je_Vedouci${i}`] === "1"
+            head[`INT_ADR_${i}`] == currentUser.intAdr && head[`Je_Vedouci${i}`] === "1"
         );
     }, [currentUser.intAdr, head]);
 
     // Extrakce členů týmu z hlavičky
-    const teamMembers = useMemo(() => {
-        if (!head) return [];
-        const members = [];
-        for (let i = 1; i <= 3; i++) {
-            const intAdr = head[`INT_ADR_${i}`];
-            if (intAdr) {
-                members.push({
-                    intAdr,
-                    isLeader: head[`Je_Vedouci${i}`] === "1",
-                    name: head[`Jmeno_${i}`] || `Člen ${i}`
-                });
-            }
-        }
-        return members;
-    }, [head]);
-
-    // LoadReports functionality moved to ProvedeniPrikazu component
+    // const teamMembers = useMemo(() => {
+    //     if (!head) return [];
+    //     const members = [];
+    //     for (let i = 1; i <= 3; i++) {
+    //         const intAdr = head[`INT_ADR_${i}`];
+    //         if (intAdr) {
+    //             members.push({
+    //                 intAdr,
+    //                 isLeader: head[`Je_Vedouci${i}`] === "1",
+    //                 name: head[`Jmeno_${i}`] || `Člen ${i}`
+    //             });
+    //         }
+    //     }
+    //     return members;
+    // }, [head]);
 
     useEffect(() => {
         loadPrikazData();
     }, [loadPrikazData]);
-    
-    // LoadReports functionality moved to ProvedeniPrikazu component
 
     // Aktualizace prvků v Twig šabloně
     useEffect(() => {
@@ -490,7 +486,7 @@ const App = () => {
                     </div>
                 )}
 
-                {/* Provedení příkazu */}
+                {/* Hlášení příkazu */}
                 <div className="card">
                     <div className="card__content">
                         <ProvedeniPrikazu 

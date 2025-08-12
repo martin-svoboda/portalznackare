@@ -5,34 +5,79 @@ namespace App\Service;
 use App\Entity\User;
 use Exception;
 use Symfony\Component\HttpKernel\KernelInterface;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 
 class InsyzService
 {
-    private ?array $testData = null;
 
     public function __construct(
         private MssqlConnector $connector,
         private KernelInterface $kernel,
-        private ApiCacheService $cacheService
+        private ApiCacheService $cacheService,
+        private InsyzAuditLogger $insyzAuditLogger,
+        private TokenStorageInterface $tokenStorage
     ) {
     }
 
+    /**
+     * Centralizované volání MSSQL procedur s automatickým audit logováním
+     */
     public function connect(string $procedure, array $args, bool $multiple = false): array
     {
-        if ($multiple) {
-            return $this->connector->callProcedureMultiple($procedure, $args);
-        }
+        $startTime = microtime(true);
+        $intAdr = $this->getCurrentUserIntAdr();
 
-        return $this->connector->callProcedure($procedure, $args);
+        try {
+            if ($multiple) {
+                $result = $this->connector->callProcedureMultiple($procedure, $args);
+            } else {
+                $result = $this->connector->callProcedure($procedure, $args);
+            }
+            
+            // Automatické logování úspěšného volání
+            $this->logInsyzCall($procedure, $procedure, $args, $result, null, $startTime, $intAdr);
+            return $result;
+            
+        } catch (\Exception $e) {
+            // Automatické logování chyby
+            $this->logInsyzCall($procedure, $procedure, $args, null, $e->getMessage(), $startTime, $intAdr);
+            throw $e;
+        }
     }
+
+	/**
+	 * Univerzální metoda pro načítání test dat s automatickým logováním
+	 */
+	public function getTestData(string $endpoint, array $params): array {
+		$startTime = microtime(true);
+		$intAdr = $this->getCurrentUserIntAdr();
+		
+		// Používat správnou mock data hierarchii
+		$file = $this->kernel->getProjectDir() . '/var/mock-data/api/insyz/' . $endpoint . '.json';
+		
+		if (file_exists($file)) {
+			$result = json_decode(file_get_contents($file), true) ?: [];
+			$error = null;
+		} else {
+			$result = [];
+			$error = "Mock data file not found: " . $endpoint . '.json';
+		}
+
+		$this->logInsyzCall($endpoint, 'TEST_DATA', $params, $result, $error, $startTime, $intAdr);
+		
+		return $result;
+	}
 
     public function loginUser(string $email, string $hash): int
     {
         if ($this->useTestData()) {
-            // Pro testovací data používat MockMSSQLService logiku
+            // Test login logic
             if ($email === 'test@test.com' && $hash === 'test123') {
-                return 4133; // Test INT_ADR
+                $intAdr = 4133;
+                $this->getTestData('login', ['@Email' => $email, '@WEBPwdHash' => '[HIDDEN]']);
+                return $intAdr;
             }
+            
             throw new Exception('Chyba přihlášení, zkontrolujte údaje a zkuste to znovu.');
         }
 
@@ -51,8 +96,7 @@ class InsyzService
     public function getUser(int $intAdr): array
     {
         if ($this->useTestData()) {
-            $data = $this->getTestData();
-            return $data['user'] ?? [];
+            return $this->getTestData('user/' . $intAdr, [$intAdr]);
         }
 
         return $this->cacheService->getCachedUserData($intAdr, function($intAdr) {
@@ -62,17 +106,10 @@ class InsyzService
 
     public function getPrikazy(int $intAdr, ?int $year = null): array
     {
+        $yearParam = $year ?? date('Y');
+        
         if ($this->useTestData()) {
-            $data = $this->getTestData();
-            if ($year) {
-                return $data['prikazy'][$year] ?? [];
-            }
-            // Pokud není rok zadán, vrátíme všechny roky
-            $allPrikazy = [];
-            foreach ($data['prikazy'] as $yearData) {
-                $allPrikazy = array_merge($allPrikazy, $yearData);
-            }
-            return $allPrikazy;
+            return $this->getTestData('prikazy/' . $intAdr . '-' . $yearParam, [$intAdr, $yearParam]);
         }
 
         return $this->cacheService->getCachedPrikazy($intAdr, $year, function($intAdr, $year) {
@@ -83,23 +120,52 @@ class InsyzService
     public function getPrikaz(int $intAdr, int $id): array
     {
         if ($this->useTestData()) {
-            $data = $this->getTestData();
-            $detail = $data['detaily'][$id] ?? null;
-            
-            if (!$detail) {
+            $result = $this->getTestData('prikaz/' . $id, [$id]);
+            if (empty($result)) {
                 throw new Exception('Chybí detail pro ID ' . $id);
             }
             
-            return $detail;
+            // Ověřit, že uživatel má oprávnění k příkazu
+            $head = $result['head'] ?? [];
+            if (empty($head)) {
+                throw new Exception('U tohoto příkazu se nenačetla žádná data v hlavičce.');
+            }
+            
+            // Hledání hodnoty INT_ADR v hlavičce
+            $found = array_filter(array_keys($head), fn($key) => str_starts_with($key, 'INT_ADR'));
+            $match = false;
+
+            foreach ($found as $key) {
+                if ((int) $head[$key] === $intAdr) {
+                    $match = true;
+                    break;
+                }
+            }
+
+            if (!$match) {
+                throw new Exception('Tento příkaz vám nebyl přidělen a nemáte oprávnění k jeho nahlížení.');
+            }
+            
+            return $result;
         }
 
         return $this->cacheService->getCachedPrikaz($intAdr, $id, function($intAdr, $prikazId) {
             $result = $this->connect("trasy.ZP_Detail", [$prikazId], true);
+            
+            // Zkontrolovat skutečnou strukturu
+            if (!is_array($result) || empty($result)) {
+                throw new Exception('MSSQL procedura nevrátila žádná data pro příkaz ' . $prikazId);
+            }
 
-            $head = $result[0][0] ?? [];
+            // Bezpečný přístup k vnořené struktuře
+            if (!isset($result[0]) || !is_array($result[0]) || !isset($result[0][0])) {
+                throw new Exception('U tohoto příkazu se nenačetla žádná data v hlavičce.');
+            }
+
+            $head = $result[0][0];
 
             if (empty($head)) {
-                throw new Exception('U tohoto příkazu se nenačetla žádná data.');
+                throw new Exception('U tohoto příkazu se nenačetla žádná data v hlavičce.');
             }
 
             // Hledání hodnoty INT_ADR v hlavičce
@@ -127,33 +193,25 @@ class InsyzService
 
     public function getSazby(?string $datum = null): array
     {
+        $datumParam = $datum ? date('Y-m-d', strtotime($datum)) : date('Y-m-d');
+        
         if ($this->useTestData()) {
-            $file = $this->kernel->getProjectDir() . '/var/mock-data/api/insyz/sazby/sazby.json';
-            if (file_exists($file)) {
-                return json_decode(file_get_contents($file), true) ?: [];
-            }
-            return [];
+            return $this->getTestData('sazby/sazby', [$datumParam]);
         }
 
         return $this->cacheService->getCachedSazby($datum, function($datum) {
-            try {
-                // Příprava data ve formátu YYYY-MM-DD (poziční parametr)
-                $datumProvedeni = $datum ? date('Y-m-d', strtotime($datum)) : date('Y-m-d');
-                
-                // Volat proceduru s multiple recordsets (jako ZP_Detail)
-                $result = $this->connect("trasy.ZP_Sazby", [$datumProvedeni], true);
-                
-                // Zkontrolovat, zda procedura vrátila nějaká data
-                if (empty($result) || !is_array($result)) {
-                    throw new Exception('MSSQL procedura trasy.ZP_Sazby nevrátila žádná data pro datum: ' . $datumProvedeni);
-                }
-                
-                // Vrátit všechny recordsety jak jsou
-                return $result;
-                
-            } catch (Exception $e) {
-                throw new Exception('Chyba při načítání sazeb z INSYZ: ' . $e->getMessage());
+            // Příprava data ve formátu YYYY-MM-DD (poziční parametr)
+            $datumProvedeni = $datum ? date('Y-m-d', strtotime($datum)) : date('Y-m-d');
+            
+            // Volat proceduru s multiple recordsets (jako ZP_Detail)
+            $result = $this->connect("trasy.ZP_Sazby", [$datumProvedeni], true);
+            
+            // Zkontrolovat, zda procedura vrátila nějaká data
+            if (empty($result) || !is_array($result)) {
+                throw new Exception('MSSQL procedura trasy.ZP_Sazby nevrátila žádná data pro datum: ' . $datumProvedeni);
             }
+            
+            return $result;
         });
     }
 
@@ -174,7 +232,7 @@ class InsyzService
 
         if ($this->useTestData()) {
             // V testovacím režimu pouze simulujeme úspěšné odeslání
-            return [
+            $result = [
                 'success' => true,
                 'message' => 'Test mode: Hlášení bylo simulovaně odesláno do INSYZ',
                 'xml_length' => strlen($xmlData),
@@ -182,6 +240,9 @@ class InsyzService
                 'user' => $uzivatel,
                 'timestamp' => date('Y-m-d H:i:s')
             ];
+            
+            $this->getTestData('submit', ['@Data_XML' => '[XML_TRUNCATED]', '@Uzivatel' => $uzivatel]);
+            return $result;
         }
 
         // Volání stored procedure trasy.ZP_Zapis_XML s pojmenovanými parametry
@@ -191,22 +252,92 @@ class InsyzService
         ]);
     }
 
-    private function getTestData(): array
-    {
-        if ($this->testData === null) {
-            $file = $this->kernel->getProjectDir() . '/var/testdata.json';
-            if (file_exists($file)) {
-                $this->testData = json_decode(file_get_contents($file), true);
-            } else {
-                $this->testData = [];
-            }
-        }
-
-        return $this->testData;
-    }
 
     private function useTestData(): bool
     {
         return $_ENV['USE_TEST_DATA'] === 'true';
+    }
+
+    /**
+     * Získat INT_ADR aktuálně přihlášeného uživatele
+     */
+    private function getCurrentUserIntAdr(): ?int
+    {
+        $token = $this->tokenStorage->getToken();
+        if ($token && $token->getUser() instanceof User) {
+            return $token->getUser()->getIntAdr();
+        }
+        return null;
+    }
+
+    /**
+     * Centrální INSYZ audit logging - jeden log pro každé volání
+     */
+    private function logInsyzCall(string $endpoint, string $procedure, array $params, ?array $result = null, ?string $error = null, ?float $startTime = null, ?int $intAdr = null): void
+    {
+        $this->insyzAuditLogger->logMssqlProcedureCall(
+            endpoint: $endpoint,
+            procedure: $procedure,
+            params: $params,
+            startTime: $startTime ?? microtime(true),
+            intAdr: $intAdr,
+            result: $result ? $this->createResultSummary($result) : null,
+            error: $error
+        );
+    }
+
+    /**
+     * Create compact result summary for audit logging
+     */
+    private function createResultSummary(array $result): array
+    {
+        if (empty($result)) {
+            return ['records' => 0, 'data' => 'empty'];
+        }
+
+        $recordCount = count($result);
+        $summary = ['records' => $recordCount];
+
+        // Mock data má strukturu {head: {}, predmety: [], useky: []}
+        // Nebude to mít $result[0] jako obyčejný array 
+        if (isset($result['head'])) {
+            $summary['structure'] = 'mock_data';
+            $summary['sections'] = array_keys($result);
+            return $summary;
+        }
+
+        // Pro MSSQL data (array of arrays)
+        if ($recordCount > 0 && is_array($result[0])) {
+            $summary['columns'] = array_keys($result[0]);
+            
+            // For small results, include sample data
+            if ($recordCount <= 3) {
+                $summary['sample_data'] = array_map([$this, 'truncateRecord'], array_slice($result, 0, 3));
+            } else {
+                $summary['first_record_sample'] = $this->truncateRecord($result[0]);
+            }
+        } else {
+            $summary['structure'] = 'unknown';
+        }
+
+        return $summary;
+    }
+
+    /**
+     * Truncate record data to prevent audit log bloat
+     */
+    private function truncateRecord(array $record): array
+    {
+        $truncated = [];
+        
+        foreach ($record as $key => $value) {
+            if (is_string($value) && strlen($value) > 50) {
+                $truncated[$key] = substr($value, 0, 50) . '...[TRUNCATED]';
+            } else {
+                $truncated[$key] = $value;
+            }
+        }
+        
+        return $truncated;
     }
 }

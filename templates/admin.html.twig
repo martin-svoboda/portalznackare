@@ -68,6 +68,11 @@
                     Správa uživatelů
                 </a>
                 
+                <a href="{{ path('admin_reports') }}" class="nav-link {{ app.request.attributes.get('_route') == 'admin_reports' ? 'active' : '' }}">
+                    {{ tabler_icon('clipboard-list') }}
+                    Správa hlášení
+                </a>
+                
                 <a href="{{ path('admin_audit_logs') }}" class="nav-link {{ app.request.attributes.get('_route') == 'admin_audit_logs' ? 'active' : '' }}">
                     {{ tabler_icon('file-search') }}
                     Audit logy

@@ -129,6 +129,115 @@ class AdminController extends AbstractController
         return $this->render('admin/insyz-monitoring.html.twig', ['logs' => $logs]);
     }
 
+    #[Route('/hlaseni', name: 'admin_reports')]
+    public function reports(): Response
+    {
+        return $this->render('admin/reports.html.twig');
+    }
+
+    #[Route('/hlaseni/{id}', name: 'admin_report_detail', requirements: ['id' => '\d+'])]
+    public function reportDetail(int $id): Response
+    {
+        return $this->render('admin/report-detail.html.twig', [
+            'reportId' => $id
+        ]);
+    }
+
+    #[Route('/api/reports', name: 'admin_api_reports', methods: ['GET'])]
+    public function apiReports(): Response
+    {
+        $reports = $this->entityManager->getRepository(Report::class)
+            ->createQueryBuilder('r')
+            ->orderBy('r.dateUpdated', 'DESC')
+            ->getQuery()
+            ->getResult();
+
+        $data = [];
+        foreach ($reports as $report) {
+            $data[] = [
+                'id' => $report->getId(),
+                'cisloZp' => $report->getCisloZp(),
+                'znackari' => $report->getTeamMembers(),
+                'state' => $report->getState()->value,
+                'dateCreated' => $report->getDateCreated()->format('c'),
+                'dateUpdated' => $report->getDateUpdated()->format('c'),
+                'dateSend' => $report->getDateSend() ? $report->getDateSend()->format('c') : null,
+            ];
+        }
+
+        return $this->json($data);
+    }
+
+    #[Route('/api/reports/{id}', name: 'admin_api_report_detail', methods: ['GET'])]
+    public function apiReportDetail(int $id): Response
+    {
+        $report = $this->entityManager->getRepository(Report::class)->find($id);
+        
+        if (!$report) {
+            return $this->json(['error' => 'Hlášení nenalezeno'], 404);
+        }
+
+        return $this->json([
+            'id' => $report->getId(),
+            'cisloZp' => $report->getCisloZp(),
+            'znackari' => $report->getTeamMembers(),
+            'state' => $report->getState()->value,
+            'dateCreated' => $report->getDateCreated()->format('c'),
+            'dateUpdated' => $report->getDateUpdated()->format('c'),
+            'dateSend' => $report->getDateSend() ? $report->getDateSend()->format('c') : null,
+            'dataA' => $report->getDataA(),
+            'dataB' => $report->getDataB(),
+            'calculation' => $report->getCalculation(),
+            'history' => $report->getHistory(),
+        ]);
+    }
+
+    #[Route('/api/reports/{id}/state', name: 'admin_api_report_state', methods: ['POST'])]
+    public function apiChangeReportState(Request $request, int $id): Response
+    {
+        $report = $this->entityManager->getRepository(Report::class)->find($id);
+        
+        if (!$report) {
+            return $this->json(['error' => 'Hlášení nenalezeno'], 404);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        $newState = $data['state'] ?? null;
+
+        if (!$newState) {
+            return $this->json(['error' => 'Chybí stav'], 400);
+        }
+
+        try {
+            $reportState = match ($newState) {
+                'draft' => \App\Enum\ReportStateEnum::DRAFT,
+                'send' => \App\Enum\ReportStateEnum::SEND,
+                'submitted' => \App\Enum\ReportStateEnum::SUBMITTED,
+                'approved' => \App\Enum\ReportStateEnum::APPROVED,
+                'rejected' => \App\Enum\ReportStateEnum::REJECTED,
+                default => throw new \InvalidArgumentException('Neplatný stav')
+            };
+
+            $oldState = $report->getState()->value;
+            $report->setState($reportState);
+
+            // Přidat do historie
+            $report->addHistoryEntry(
+                'admin_state_changed',
+                $this->getUser()->getIntAdr(),
+                "Admin změnil stav z '{$oldState}' na '{$newState}'",
+                ['from' => $oldState, 'to' => $newState]
+            );
+
+            $this->entityManager->flush();
+
+            return $this->json(['success' => true]);
+
+        } catch (\Exception $e) {
+            return $this->json(['error' => 'Chyba při změně stavu: ' . $e->getMessage()], 400);
+        }
+    }
+
     #[Route('/system-nastaveni', name: 'admin_system_options')]
     #[IsGranted('ROLE_SUPER_ADMIN')]
     public function systemOptions(Request $request): Response

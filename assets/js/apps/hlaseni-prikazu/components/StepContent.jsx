@@ -3,14 +3,14 @@ import {
     IconDeviceFloppy,
     IconSend,
     IconReportMoney,
-    IconRoute,
-    IconInfoCircle
+    IconRoute
 } from '@tabler/icons-react';
 import { Loader } from '../../../components/shared/Loader';
 import ErrorBoundary from '../../../components/shared/ErrorBoundary';
 import { PartAForm } from './PartAForm';
 import { PartBForm } from './PartBForm';
 import { CompensationSummary } from './CompensationSummary';
+import { PartBSummary } from './PartBSummary';
 import { AdvancedFileUpload } from './AdvancedFileUpload';
 import { generateUsageType, generateEntityId } from '../utils/fileUsageUtils';
 import { getAttachmentsAsArray, setAttachmentsFromArray } from '../utils/attachmentUtils';
@@ -289,79 +289,9 @@ export const StepContent = ({
                 </div>
 
                 {/* Summary Part B */}
-                <div className="card">
-                    <div className="card__header">
-                        <div className="flex items-center gap-2">
-                            <IconInfoCircle size={20}/>
-                            <h4 className="card__title">
-                                Souhrn části B - {head?.Druh_ZP === "O" ? "Stavy TIM" : "Hlášení o činnosti"}
-                            </h4>
-                        </div>
-                    </div>
-                    <div className="card__content">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                {head?.Druh_ZP === "O" ? (
-                                    <>
-                                        <div className="flex justify-between">
-                                            <span className="text-sm text-gray-600">Počet TIM:</span>
-                                            <span className="text-sm">{Object.keys(formData.Stavy_Tim).length}</span>
-                                        </div>
-                                        {formData.Obnovene_Useky && (() => {
-                                            const renewedSections = Object.values(formData.Obnovene_Useky || {})
-                                                .filter(usek => usek.Usek_Obnoven);
-                                            const totalRenewedKm = renewedSections
-                                                .reduce((sum, usek) => sum + (usek.Usek_Obnoven_Km || 0), 0);
-                                            
-                                            if (renewedSections.length > 0) {
-                                                return (
-                                                    <>
-                                                        <div className="flex justify-between">
-                                                            <span className="text-sm text-gray-600">Obnovené úseky:</span>
-                                                            <span className="text-sm">{renewedSections.length}</span>
-                                                        </div>
-                                                        <div className="flex justify-between">
-                                                            <span className="text-sm text-gray-600">Obnoveno celkem:</span>
-                                                            <span className="text-sm font-medium">{totalRenewedKm.toFixed(1)} km</span>
-                                                        </div>
-                                                    </>
-                                                );
-                                            }
-                                            return null;
-                                        })()}
-                                    </>
-                                ) : (
-                                    <div className="flex justify-between">
-                                        <span className="text-sm text-gray-600">Hlášení vyplněno:</span>
-                                        <span className="text-sm">{formData.Koment_Usek?.trim().length > 0 ? "Ano" : "Ne"}</span>
-                                    </div>
-                                )}
-                                <div className="flex justify-between">
-                                    <span className="text-sm text-gray-600">Stav části B:</span>
-                                    <span className={`inline-block px-2 py-1 text-xs rounded ${formData.Cast_B_Dokoncena ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                        {formData.Cast_B_Dokoncena ? "Dokončeno" : "Nedokončeno"}
-                                    </span>
-                                </div>
-                            </div>
-                            <div>
-                                {formData.Koment_Usek && (
-                                    <div>
-                                        <p className="text-sm text-gray-600 mb-1">
-                                            {head?.Druh_ZP === "O" ? "Poznámka k trase:" : "Hlášení o činnosti:"}
-                                        </p>
-                                        <p className="text-sm">{formData.Koment_Usek}</p>
-                                    </div>
-                                )}
-                                {formData.Prilohy_Usek && formData.Prilohy_Usek.length > 0 && (
-                                    <div className="mt-2">
-                                        <p className="text-sm text-gray-600 mb-1">Počet příloh:</p>
-                                        <p className="text-sm">{formData.Prilohy_Usek.length}</p>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <ErrorBoundary sectionName="Souhrn části B">
+                    <PartBSummary formData={formData} />
+                </ErrorBoundary>
 
                 {/* Complete compensation summary */}
                 <div className="card">

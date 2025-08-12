@@ -162,12 +162,14 @@ const MemberCompensationDetail = ({
 export const CompensationSummary = ({
                                         formData,
                                         tariffRates,
+                                        calculation,
                                         compact = false,
                                         tariffRatesLoading = false,
                                         tariffRatesError = null,
                                         currentUser,
                                         isLeader,
                                         teamMembers,
+                                        readOnly = false,
                                     }) => {
     // ALL HOOKS MUST BE AT THE TOP - React Error #310 fix
 
@@ -184,7 +186,12 @@ export const CompensationSummary = ({
     // Calculate compensation using proper calculator functions
     const compensation = useMemo(() => {
         try {
-
+            // V readOnly módu použít předaná uložená data
+            if (readOnly && calculation) {
+                return calculation;
+            }
+            
+            // V editovatelném módu počítat dynamicky
             if (!tariffRates) {
                 return null;
             }
@@ -211,7 +218,7 @@ export const CompensationSummary = ({
             log.error('Error in compensation calculation', error);
             return null;
         }
-    }, [formData, tariffRates, isLeader, teamMembers, currentUser, calculateForAllMembers, calculateForSingleUser]);
+    }, [readOnly, calculation, formData, tariffRates, isLeader, teamMembers, currentUser, calculateForAllMembers, calculateForSingleUser]);
 
 
     // Determine which members to show based on permissions

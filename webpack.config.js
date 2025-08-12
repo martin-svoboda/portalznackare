@@ -18,7 +18,9 @@ Encore
     .addEntry('app-hlaseni-prikazu', './assets/js/apps/hlaseni-prikazu/index.jsx')
     .addEntry('insyz-tester', './assets/js/apps/insyz-tester/index.jsx')
     
-    // Admin apps entries - odstraněny, používáme klasické Twig šablony
+    // Admin apps entries
+    .addEntry('admin-reports-list', './assets/js/apps/admin-reports-list/index.jsx')
+    .addEntry('admin-report-detail', './assets/js/apps/admin-report-detail/index.jsx')
     
     // Globální systémy
     .addEntry('toast-system', './assets/js/toast-system.js')

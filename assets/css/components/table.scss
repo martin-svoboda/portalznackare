@@ -5,23 +5,19 @@
 .table {
   @apply w-full border-collapse;
 
-  &--bordered {
-    @apply border border-gray-200;
-
-    th, td {
-      @apply border border-gray-200;
-    }
+  th, td {
+    @apply p-2 border-b border-gray-200 dark:border-gray-800;
   }
 
   &--striped {
     tbody tr:nth-child(even) {
-      @apply bg-gray-50;
+      @apply bg-gray-600 bg-opacity-5;
     }
   }
 
   &--hover {
     tbody tr:hover {
-      @apply bg-gray-50;
+      @apply bg-blue-700 bg-opacity-10;
     }
   }
 
@@ -38,28 +34,8 @@
   }
 
   // Table header
-  &__header {
-    @apply bg-gray-50 border-b border-gray-200;
-  }
-
-  &__head {
+  thead {
     @apply text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-4 py-3;
-
-    &--center {
-      @apply text-center;
-    }
-
-    &--right {
-      @apply text-right;
-    }
-
-    &--sortable {
-      @apply cursor-pointer hover:text-gray-700 select-none;
-    }
-
-    &--sorted {
-      @apply text-gray-900;
-    }
   }
 
   // Table body
@@ -104,57 +80,8 @@
   }
 
   // Table footer
-  &__footer {
+  tfoot {
     @apply bg-gray-50 border-t border-gray-200;
-  }
-
-  &__foot {
-    @apply px-4 py-3 text-sm font-medium text-gray-700;
-  }
-}
-
-// Data table (se vším všudy)
-.data-table {
-  @apply bg-white shadow-sm border border-gray-200 rounded-lg overflow-hidden;
-
-  &__header {
-    @apply px-6 py-4 border-b border-gray-200 bg-white;
-  }
-
-  &__title {
-    @apply text-lg font-medium text-gray-900;
-  }
-
-  &__description {
-    @apply mt-1 text-sm text-gray-600;
-  }
-
-  &__actions {
-    @apply mt-4 flex items-center justify-between;
-  }
-
-  &__search {
-    @apply flex-1 max-w-lg;
-  }
-
-  &__filters {
-    @apply flex items-center space-x-3;
-  }
-
-  &__content {
-    @apply overflow-x-auto;
-  }
-
-  &__footer {
-    @apply px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between;
-  }
-
-  &__pagination {
-    @apply flex items-center space-x-2;
-  }
-
-  &__info {
-    @apply text-sm text-gray-600;
   }
 }
 
@@ -185,166 +112,6 @@
           @apply inline-block font-medium text-gray-600 min-w-[120px];
         }
       }
-    }
-  }
-}
-
-// Table with actions
-.action-table {
-  .table__cell {
-    &--actions {
-      @apply w-16 text-right;
-    }
-  }
-
-  &__actions {
-    @apply flex items-center justify-end space-x-2;
-  }
-
-  &__action {
-    @apply p-1 text-gray-400 hover:text-gray-600 rounded;
-
-    &--primary {
-      @apply text-blue-600 hover:text-blue-800;
-    }
-
-    &--danger {
-      @apply text-red-600 hover:text-red-800;
-    }
-  }
-}
-
-// Table with selection
-.selectable-table {
-  .table__head {
-    &--select {
-      @apply w-12;
-    }
-  }
-
-  .table__cell {
-    &--select {
-      @apply w-12;
-    }
-  }
-
-  &__checkbox {
-    @apply h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded;
-  }
-
-  &__bulk-actions {
-    @apply px-6 py-3 bg-blue-50 border-b border-gray-200 flex items-center justify-between;
-  }
-
-  &__selected-count {
-    @apply text-sm text-blue-700 font-medium;
-  }
-
-  &__bulk-buttons {
-    @apply flex items-center space-x-3;
-  }
-}
-
-// Loading table
-.loading-table {
-  &__skeleton {
-    @apply animate-pulse;
-  }
-
-  &__skeleton-row {
-    .table__cell {
-      @apply py-4;
-    }
-  }
-
-  &__skeleton-text {
-    @apply h-4 bg-gray-200 rounded;
-
-    &--short {
-      @apply w-1/4;
-    }
-
-    &--medium {
-      @apply w-1/2;
-    }
-
-    &--long {
-      @apply w-3/4;
-    }
-  }
-}
-
-// Empty table
-.empty-table {
-  @apply text-center py-12;
-
-  &__icon {
-    @apply w-12 h-12 text-gray-400 mx-auto mb-4;
-  }
-
-  &__title {
-    @apply text-lg font-medium text-gray-900 mb-2;
-  }
-
-  &__message {
-    @apply text-gray-600 mb-4;
-  }
-
-  &__action {
-    @apply inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700;
-  }
-}
-
-// Statistics table (pro dashboard)
-.stats-table {
-  .table__cell {
-    &--metric {
-      @apply font-semibold text-lg;
-    }
-
-    &--trend {
-      @apply font-medium;
-
-      &.trend--up {
-        @apply text-green-600;
-      }
-
-      &.trend--down {
-        @apply text-red-600;
-      }
-
-      &.trend--neutral {
-        @apply text-gray-600;
-      }
-    }
-  }
-
-  &__trend-icon {
-    @apply w-4 h-4 inline-block mr-1;
-  }
-}
-
-// Sortable column headers
-.sortable-header {
-  @apply cursor-pointer select-none hover:bg-gray-100 transition-colors relative;
-
-  &__content {
-    @apply flex items-center justify-between;
-  }
-
-  &__label {
-    @apply flex items-center;
-  }
-
-  &__icon {
-    @apply w-4 h-4 text-gray-400;
-
-    &--asc {
-      @apply text-gray-600 transform rotate-180;
-    }
-
-    &--desc {
-      @apply text-gray-600;
     }
   }
 }

@@ -122,11 +122,7 @@
 
 // Tabs
 .tabs {
-  @apply border-b border-gray-200;
-
-  &__list {
-    @apply flex space-x-8;
-  }
+  @apply flex space-x-8 border-b border-gray-200 dark:border-gray-800;
 
   &__item {
     @apply relative;

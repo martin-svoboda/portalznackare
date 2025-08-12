@@ -71,17 +71,23 @@ class UserRepository extends ServiceEntityRepository
         $user = $this->findByIntAdr($intAdr);
         
         if (!$user) {
-            // Create new user
+            // Create new user - flush je nutný pro nové entity
             $user = User::createFromInsyzData($insyzData);
-            $this->save($user);
+            $this->save($user, true);
         } else {
             // Update existing user
             $user->updateFromInsyzData($insyzData);
+            
+            // ✅ OPRAVA: Skutečně zkontroluj změny před flush
+            $em = $this->getEntityManager();
+            $uow = $em->getUnitOfWork();
+            $uow->computeChangeSets();
+            
+            // Flush jen když jsou skutečné změny
+            if ($uow->isEntityScheduled($user) && !empty($uow->getEntityChangeSet($user))) {
+                $this->save($user, true);
+            }
         }
-        
-        // Update last login
-        $user->setLastLoginAt(new \DateTimeImmutable());
-        $this->save($user, true);
         
         return $user;
     }

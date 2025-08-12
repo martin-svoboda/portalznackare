@@ -64,49 +64,9 @@ class AuthApiController extends AbstractController
         ], Response::HTTP_OK, [], ['groups' => ['user:read']]);
     }
 
-    /**
-     * Zkontrolovat status přihlášení
-     */
-    #[Route('/status', methods: ['GET'], name: 'status')]
-    public function status(): JsonResponse
-    {
-        $user = $this->getUser();
-        
-        return $this->json([
-            'authenticated' => $user !== null,
-            'user_identifier' => $user ? $user->getUserIdentifier() : null,
-            'roles' => $user ? $user->getRoles() : [],
-            'timestamp' => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
-        ]);
-    }
+    // ✅ OPRAVA: Odebráno - konflikt s AuthController::status()
+    // Použij místo toho /api/auth/me pro detailní info o uživateli
 
-    /**
-     * Odhlásit uživatele (vymaže session/cookies)
-     */
-    #[Route('/logout', methods: ['POST'], name: 'logout')]
-    #[IsGranted('ROLE_USER')]
-    public function logout(): JsonResponse
-    {
-        $user = $this->getUser();
-        
-        // Audit log před odhlášením
-        if ($user && method_exists($user, 'getIntAdr')) {
-            $dbUser = $this->userRepository->findByIntAdr($user->getIntAdr());
-            if ($dbUser) {
-                $this->auditLogger->logByIntAdr(
-                    $user->getIntAdr(),
-                    'user_logout_api',
-                    'User',
-                    (string) $dbUser->getId()
-                );
-            }
-        }
-
-        // Symfony logout se řeší automaticky přes security.yaml
-        // Tento endpoint slouží jen pro API response
-        return $this->json([
-            'message' => 'Logout successful',
-            'redirect_url' => '/',
-        ]);
-    }
+    // ✅ OPRAVA: Logout se řeší přes AuthController
+    // pro konzistenci s ostatními auth operacemi
 }

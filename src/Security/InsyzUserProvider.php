@@ -27,6 +27,8 @@ class InsyzUserProvider implements UserProviderInterface
         if (is_numeric($identifier)) {
             $user = $this->userRepository->findByIntAdr((int)$identifier);
             if ($user && $user->isActive()) {
+                // Just return the user - don't log every request as login
+                
                 return $user;
             }
         }
@@ -36,6 +38,7 @@ class InsyzUserProvider implements UserProviderInterface
             // Loading by email would require special INSYZ endpoint
             $user = $this->userRepository->findByEmail($identifier);
             if ($user && $user->isActive()) {
+                // Just return the user - don't log every request as login
                 return $user;
             }
             throw new UserNotFoundException('Loading by email from INSYZ not implemented yet');
@@ -57,9 +60,7 @@ class InsyzUserProvider implements UserProviderInterface
             // Find or create user in database
             $user = $this->userRepository->findOrCreateFromInsyzData($userData);
             
-            // Log login
-            $this->auditLogger->logLogin($user);
-            
+            // Login will be logged in InsyzAuthenticator during actual authentication
             return $user;
             
         } catch (\Exception $e) {
@@ -71,6 +72,14 @@ class InsyzUserProvider implements UserProviderInterface
     {
         if (!$user instanceof User) {
             throw new \InvalidArgumentException(sprintf('Instances of "%s" are not supported.', get_class($user)));
+        }
+
+        // ✅ OPRAVA: Refresh jen pokud je user starý (5 minut)
+        $lastUpdate = $user->getUpdatedAt();
+        $refreshThreshold = new \DateTimeImmutable('-5 minutes');
+        
+        if ($lastUpdate > $refreshThreshold) {
+            return $user; // User je aktuální, nerefresh
         }
 
         return $this->loadUserByIdentifier((string)$user->getIntAdr());

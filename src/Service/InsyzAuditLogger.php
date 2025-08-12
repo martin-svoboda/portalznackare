@@ -167,6 +167,7 @@ class InsyzAuditLogger
      * Log MSSQL procedure call specifically
      */
     public function logMssqlProcedureCall(
+        string $endpoint,
         string $procedure,
         array $params,
         float $startTime,
@@ -180,7 +181,7 @@ class InsyzAuditLogger
         }
 
         $this->logApiCall(
-            endpoint: "mssql://{$procedure}",
+            endpoint: $endpoint,
             method: 'CALL',
             user: $user,
             intAdr: $intAdr,

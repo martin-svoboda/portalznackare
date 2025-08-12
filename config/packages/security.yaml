@@ -14,26 +14,16 @@ security:
             
         # API endpoints firewall - MUSÍ být před main!
         api:
-            pattern: ^/api
-            stateless: false
+            pattern: ^/api(?!/auth/login)       # ✅ OPRAVA: Exclude login endpoint from API firewall
+            stateless: true
             provider: insyz_provider
-            context: shared_context
             entry_point: App\Security\ApiAuthenticationEntryPoint
             custom_authenticator: App\Security\InsyzAuthenticator
-            remember_me:
-                secret: '%kernel.secret%'
-                lifetime: 604800 # 1 week
-                path: /
-                domain: ~
-            logout:
-                path: /api/auth/logout
-                target: /
                 
         main:
             pattern: ^/
             lazy: true
             provider: insyz_provider
-            context: shared_context
             custom_authenticator: App\Security\InsyzAuthenticator
             remember_me:
                 secret: '%kernel.secret%'

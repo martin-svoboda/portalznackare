@@ -3,6 +3,8 @@
 namespace App\Security;
 
 use App\Service\InsyzService;
+use App\Service\AuditLogger;
+use App\Repository\UserRepository;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -20,20 +22,16 @@ class InsyzAuthenticator extends AbstractAuthenticator
 {
     public function __construct(
         private InsyzService $insyzService,
-        private InsyzUserProvider $userProvider
+        private InsyzUserProvider $userProvider,
+        private AuditLogger $auditLogger,
+        private UserRepository $userRepository
     ) {}
 
     public function supports(Request $request): ?bool
     {
-        // Debug log
-        error_log("InsyzAuthenticator::supports called for: " . $request->getPathInfo() . " method: " . $request->getMethod());
-        
         // Podporujeme pouze POST na /api/auth/login pro autentizaci
         // Pro ostatní API endpointy používá Symfony automaticky session storage
-        $supports = $request->getPathInfo() === '/api/auth/login' && $request->isMethod('POST');
-        error_log("InsyzAuthenticator::supports returning: " . ($supports ? 'true' : 'false'));
-        
-        return $supports;
+        return $request->getPathInfo() === '/api/auth/login' && $request->isMethod('POST');
     }
 
     public function authenticate(Request $request): Passport
@@ -77,6 +75,18 @@ class InsyzAuthenticator extends AbstractAuthenticator
     public function onAuthenticationSuccess(Request $request, TokenInterface $token, string $firewallName): ?Response
     {
         $user = $token->getUser();
+        
+        // Update last login and log successful authentication
+        if ($user instanceof \App\Entity\User) {
+            // ✅ OPRAVA: Update bez okamžitého flush
+            $user->setLastLoginAt(new \DateTimeImmutable());
+            $this->userRepository->save($user, false); // Bez flush!
+            
+            // Flush se stane automaticky na konci requestu
+            
+            // Log login (this is the REAL login)
+            $this->auditLogger->logLogin($user);
+        }
         
         // Pro JSON požadavky vrať JSON odpověď
         if ($request->getContentType() === 'json') {
