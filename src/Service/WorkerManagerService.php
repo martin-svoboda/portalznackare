@@ -5,6 +5,7 @@ namespace App\Service;
 use Psr\Log\LoggerInterface;
 use Exception;
 use Symfony\Component\Process\Process;
+use App\Utils\Logger;
 
 /**
  * Service pro správu on-demand messenger worker procesů
@@ -112,10 +113,15 @@ class WorkerManagerService
      */
     private function isWorkerRunning(): bool
     {
-        $output = [];
-        exec("pgrep -f 'messenger:consume async'", $output, $returnCode);
-        
-        return $returnCode === 0 && !empty($output);
+        try {
+            $process = new Process(['pgrep', '-f', 'messenger:consume async']);
+            $process->run();
+            
+            return $process->isSuccessful() && !empty($process->getOutput());
+        } catch (\Exception $e) {
+            Logger::error('Worker check failed: ' . $e->getMessage());
+            return false;
+        }
     }
 
     /**
@@ -124,13 +130,23 @@ class WorkerManagerService
     public function cleanupStuckWorkers(): int
     {
         try {
-            // Najít procesy starší než 5 minut
-            $output = [];
-            exec("ps -eo pid,etime,cmd | grep 'messenger:consume async' | grep -v grep", $output);
+            // Najít procesy starší než 5 minut pomocí Symfony Process
+            $process = new Process(['ps', '-eo', 'pid,etime,cmd']);
+            $process->run();
+            
+            if (!$process->isSuccessful()) {
+                Logger::error('Failed to get process list');
+                return 0;
+            }
+            
+            $output = explode("\n", $process->getOutput());
+            $messengerLines = array_filter($output, function($line) {
+                return strpos($line, 'messenger:consume async') !== false;
+            });
             
             $killedCount = 0;
             
-            foreach ($output as $line) {
+            foreach ($messengerLines as $line) {
                 if ($this->isProcessStuck($line)) {
                     $pid = $this->extractPidFromLine($line);
                     if ($pid && $this->killProcess($pid)) {
@@ -150,9 +166,7 @@ class WorkerManagerService
             return $killedCount;
 
         } catch (Exception $e) {
-            $this->logger->error('Chyba při cleanup stuck procesů', [
-                'exception' => $e->getMessage()
-            ]);
+            Logger::error('Chyba při cleanup stuck procesů: ' . $e->getMessage());
             return 0;
         }
     }
@@ -193,14 +207,23 @@ class WorkerManagerService
      */
     private function killProcess(int $pid): bool
     {
-        exec("kill -TERM $pid", $output, $returnCode);
-        
-        if ($returnCode !== 0) {
-            // Pokud TERM nepomohl, zkusit KILL
-            exec("kill -KILL $pid", $output, $returnCode);
+        try {
+            // Zkusit TERM signal
+            $process = new Process(['kill', '-TERM', (string)$pid]);
+            $process->run();
+            
+            if (!$process->isSuccessful()) {
+                // Pokud TERM nepomohl, zkusit KILL
+                $killProcess = new Process(['kill', '-KILL', (string)$pid]);
+                $killProcess->run();
+                return $killProcess->isSuccessful();
+            }
+            
+            return true;
+        } catch (\Exception $e) {
+            Logger::error('Failed to kill process: ' . $e->getMessage());
+            return false;
         }
-        
-        return $returnCode === 0;
     }
 
     /**
@@ -223,16 +246,30 @@ class WorkerManagerService
      */
     public function getWorkerStats(): array
     {
-        $output = [];
-        exec("pgrep -f 'messenger:consume async'", $output, $returnCode);
-        
-        $runningProcesses = $returnCode === 0 ? count($output) : 0;
-        
-        return [
-            'running_workers' => $runningProcesses,
-            'last_cleanup' => new \DateTime(),
-            'php_binary' => $this->getPhpBinary(),
-            'project_root' => $this->projectRoot
-        ];
+        try {
+            $process = new Process(['pgrep', '-f', 'messenger:consume async']);
+            $process->run();
+            
+            $runningProcesses = 0;
+            if ($process->isSuccessful()) {
+                $output = explode("\n", trim($process->getOutput()));
+                $runningProcesses = count(array_filter($output));
+            }
+            
+            return [
+                'running_workers' => $runningProcesses,
+                'last_cleanup' => new \DateTime(),
+                'php_binary' => $this->getPhpBinary(),
+                'project_root' => $this->projectRoot
+            ];
+        } catch (\Exception $e) {
+            Logger::error('Worker stats failed: ' . $e->getMessage());
+            return [
+                'running_workers' => 0,
+                'last_cleanup' => new \DateTime(),
+                'php_binary' => $this->getPhpBinary(),
+                'project_root' => $this->projectRoot
+            ];
+        }
     }
 }
