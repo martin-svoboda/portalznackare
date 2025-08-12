@@ -391,7 +391,7 @@ export const useFormSaving = (formData, head, prikazId, tariffRates, isLeader, t
                     }
                     return {};
                 })(),
-                state: 'send' // Key difference: save with 'send' status for background processing
+                state: 'send' // Nastavit send hned - při chybě se změní zpět na draft
             };
 
             log.info(`Odesílání hlášení ke schválení pro příkaz ${prikazId}`, { 
@@ -482,11 +482,11 @@ export const useFormSaving = (formData, head, prikazId, tariffRates, isLeader, t
             
             showNotification(errorType, errorMessage);
             
-            // Uložit chybové informace do formData pro zobrazení v UI
+            // Uložit chybové informace do formData a vrátit stav na draft
             if (setFormData) {
                 setFormData(prev => ({
                     ...prev,
-                    status: 'rejected',
+                    status: 'draft', // Vrátit na draft aby šlo odeslat znovu
                     error_message: errorMessage,
                     error_code: error.errorCode || 'UNKNOWN_ERROR',
                     error_details: error.details

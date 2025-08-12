@@ -233,7 +233,7 @@ class WorkerManagerService
     {
         // Zkusit použít aktuální PHP binary
         $currentPhp = PHP_BINARY;
-        if ($currentPhp && is_executable($currentPhp)) {
+        if ($currentPhp && file_exists($currentPhp)) {
             return $currentPhp;
         }
         
