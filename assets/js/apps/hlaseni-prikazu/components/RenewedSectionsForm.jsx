@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {IconRoute, IconInfoCircle} from '@tabler/icons-react';
 import {renderHtmlContent, replaceTextWithIcons} from "../../../utils/htmlUtils";
 
@@ -8,15 +8,50 @@ export const RenewedSectionsForm = ({
                                         onObnoveneUsekyChange,
                                         disabled = false
                                     }) => {
+    
+    // Inicializace - doplnit Usek_Delka do existujících záznamů
+    useEffect(() => {
+        const needsUpdate = Object.keys(Obnovene_Useky).some(usekId => {
+            const record = Obnovene_Useky[usekId];
+            return typeof record.Usek_Delka === 'undefined';
+        });
+        
+        if (needsUpdate && useky.length > 0) {
+            const updated = { ...Obnovene_Useky };
+            let hasChanges = false;
+            
+            Object.keys(updated).forEach(usekId => {
+                const usek = useky.find(u => u.EvCi_Tra === usekId);
+                if (usek?.Delka_ZU && typeof updated[usekId].Usek_Delka === 'undefined') {
+                    updated[usekId].Usek_Delka = parseFloat(usek.Delka_ZU);
+                    hasChanges = true;
+                }
+            });
+            
+            if (hasChanges) {
+                onObnoveneUsekyChange(updated);
+            }
+        }
+    }, [useky, Obnovene_Useky, onObnoveneUsekyChange]);
+    
     // Helper pro zpracování změn obnovy úseků
     const handleSectionRenewalChange = (usekId, field, value) => {
         const updated = {...Obnovene_Useky};
 
+        // Najít úsek pro získání délky
+        const usek = useky.find(u => u.EvCi_Tra === usekId);
+
         if (!updated[usekId]) {
             updated[usekId] = {
                 Usek_Obnoven: false,
-                Usek_Obnoven_Km: 0
+                Usek_Obnoven_Km: 0,
+                Usek_Delka: usek?.Delka_ZU ? parseFloat(usek.Delka_ZU) : 0
             };
+        }
+
+        // Vždy aktualizovat délku úseku (pro případ změn v datech příkazu)
+        if (usek?.Delka_ZU) {
+            updated[usekId].Usek_Delka = parseFloat(usek.Delka_ZU);
         }
 
         updated[usekId][field] = value;
@@ -26,7 +61,7 @@ export const RenewedSectionsForm = ({
             updated[usekId].Usek_Obnoven_Km = 0;
         }
 
-        // Odebrat prázdné záznamy
+        // Odebrat prázdné záznamy (pokud není obnoven a není zadáno km)
         if (!updated[usekId].Usek_Obnoven && updated[usekId].Usek_Obnoven_Km === 0) {
             delete updated[usekId];
         }

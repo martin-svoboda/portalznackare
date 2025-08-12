@@ -65,7 +65,12 @@ class XmlGenerationService
         if (isset($reportData['cislo_zp'])) $result['cislo_zp'] = $reportData['cislo_zp'];
         if (isset($reportData['znackari'])) $result['znackari'] = $reportData['znackari'];
         
-        // NEPREPISOVAT obsah data_a - bude nahrazen kalkulacemi
+        // Přidat Datum_Provedeni z data_a (důležitý údaj)
+        if (isset($reportData['data_a']['Datum_Provedeni'])) {
+            $result['Datum_Provedeni'] = $reportData['data_a']['Datum_Provedeni'];
+        }
+        
+        // NEPREPISOVAT zbytek obsahu data_a - bude nahrazen kalkulacemi
 
 	    // Calculation → Vyuctovani (místo části A)
 	    if (isset($reportData['calculation'])) {
