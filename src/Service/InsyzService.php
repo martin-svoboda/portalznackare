@@ -128,35 +128,11 @@ class InsyzService
     public function getSazby(?string $datum = null): array
     {
         if ($this->useTestData()) {
-            // Pro testovací režim vrátíme mock data
-            return [
-                'jizdne' => 6,
-                'jizdneZvysene' => 8,
-                'tarifDobaOd1' => 0,
-                'tarifDobaDo1' => 4,
-                'tarifStravne1' => 0,
-                'tarifNahrada1' => 0,
-                'tarifDobaOd2' => 4,
-                'tarifDobaDo2' => 5,
-                'tarifStravne2' => 0,
-                'tarifNahrada2' => 150,
-                'tarifDobaOd3' => 5,
-                'tarifDobaDo3' => 6,
-                'tarifStravne3' => 0,
-                'tarifNahrada3' => 200,
-                'tarifDobaOd4' => 6,
-                'tarifDobaDo4' => 8,
-                'tarifStravne4' => 0,
-                'tarifNahrada4' => 250,
-                'tarifDobaOd5' => 8,
-                'tarifDobaDo5' => 12,
-                'tarifStravne5' => 200,
-                'tarifNahrada5' => 300,
-                'tarifDobaOd6' => 12,
-                'tarifDobaDo6' => 24,
-                'tarifStravne6' => 400,
-                'tarifNahrada6' => 400
-            ];
+            $file = $this->kernel->getProjectDir() . '/var/mock-data/api/insyz/sazby/sazby.json';
+            if (file_exists($file)) {
+                return json_decode(file_get_contents($file), true) ?: [];
+            }
+            return [];
         }
 
         return $this->cacheService->getCachedSazby($datum, function($datum) {

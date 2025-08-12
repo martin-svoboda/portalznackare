@@ -204,7 +204,7 @@ export const TravelGroupsForm = ({
 
     // Get team member name by INT_ADR
     const getTeamMemberName = (intAdr) => {
-        const member = (teamMembers || []).find(m => m.INT_ADR === intAdr);
+        const member = (teamMembers || []).find(m => m.INT_ADR == intAdr);
         return member?.name || member?.Znackar || `Člen ${intAdr}`;
     };
 
@@ -248,7 +248,7 @@ export const TravelGroupsForm = ({
     // Auto-set first driver to have higher rate when Zvysena_Sazba is true or when drivers change
     React.useEffect(() => {
         if (formData.Zvysena_Sazba && uniqueDrivers.length > 0) {
-            const hasValidMainDriver = formData.Hlavni_Ridic && uniqueDrivers.some(d => d.INT_ADR === formData.Hlavni_Ridic);
+            const hasValidMainDriver = formData.Hlavni_Ridic && uniqueDrivers.some(d => d.INT_ADR == formData.Hlavni_Ridic);
 
             // If no valid main driver is set, set the first one
             if (!hasValidMainDriver) {
@@ -265,7 +265,7 @@ export const TravelGroupsForm = ({
         
         travelGroups.forEach(group => {
             if (group.Ridic) {
-                const driver = (teamMembers || []).find(m => m.INT_ADR === group.Ridic);
+                const driver = (teamMembers || []).find(m => m.INT_ADR == group.Ridic);
                 if (driver && !driverMap.has(group.Ridic)) {
                     // Spočítat celkové kilometry pro tohoto řidiče napříč všemi skupinami
                     const totalKmForDriver = travelGroups
@@ -567,7 +567,7 @@ export const TravelGroupsForm = ({
                                                                 {group.Cestujci && group.Cestujci.length > 0 ? (
                                                                     <div className="space-y-2">
                                                                         {group.Cestujci.map(intAdr => {
-                                                                            const member = teamMembers?.find(m => m.INT_ADR === intAdr);
+                                                                            const member = teamMembers?.find(m => m.INT_ADR == intAdr);
                                                                             const currentValue = typeof segment.Naklady === 'object' ? (segment.Naklady[intAdr] || '') : '';
 
                                                                             return (
@@ -682,7 +682,7 @@ export const TravelGroupsForm = ({
                                             >
                                                 <option value="">Vyberte řidiče</option>
                                                 {(group.Cestujci || []).map(intAdr => {
-                                                    const member = teamMembers.find(m => m.INT_ADR === intAdr);
+                                                    const member = teamMembers.find(m => m.INT_ADR == intAdr);
                                                     return member ? (
                                                         <option key={intAdr} value={intAdr}>
                                                             {member.name || member.Znackar}{(member.isLeader || member.Je_Vedouci) ? " (vedoucí)" : ""}
@@ -721,7 +721,7 @@ export const TravelGroupsForm = ({
             {formData.Zvysena_Sazba && uniqueDrivers.length > 0 && (
                 <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                     <h5 className="font-medium text-sm mb-3">
-                        Přiřazení zvýšené sazby cestovného ({tariffRates?.jizdneZvysene || 8} Kč/km)
+                        Přiřazení zvýšené sazby cestovného ({tariffRates?.jizdneZvysene || 0} Kč/km)
                     </h5>
 
                     <div className="space-y-2">
@@ -733,7 +733,7 @@ export const TravelGroupsForm = ({
                                         type="radio"
                                         name="zvysena_sazba_driver"
                                         className="form__radio"
-                                        checked={formData.Hlavni_Ridic === driver.INT_ADR}
+                                        checked={formData.Hlavni_Ridic == driver.INT_ADR}
                                         onChange={() => handleHigherRateChange(driver.INT_ADR)}
                                         disabled={disabled}
                                     />
@@ -752,7 +752,7 @@ export const TravelGroupsForm = ({
                     </div>
 
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
-                        Standardní sazba: {tariffRates?.jizdne || 6} Kč/km • Hlavní řidič dostane zvýšenou sazbu na všechny své AUV jízdy
+                        Standardní sazba: {tariffRates?.jizdne || 0} Kč/km • Hlavní řidič dostane zvýšenou sazbu na všechny své AUV jízdy
                     </p>
                 </div>
             )}

@@ -2,6 +2,8 @@
 
 namespace App\Service;
 
+use App\Utils\Logger;
+
 /**
  * Service pro generování XML dat pro INSYZ API
  */
@@ -12,6 +14,8 @@ class XmlGenerationService
      */
     public function generateReportXml(array $reportData): string
     {
+        Logger::debug('XmlGeneration: Začínám generování XML pro report ID: ' . ($reportData['id_zp'] ?? 'unknown'));
+        
         $xml = new \DOMDocument('1.0', 'UTF-8');
         $xml->formatOutput = true;
         
@@ -30,6 +34,12 @@ class XmlGenerationService
         
         // Přestrukturovat data - odebrání cast_a a cast_b
         $restructuredData = $this->restructureReportData($reportData);
+        Logger::debug('XmlGeneration: Po restrukturalizaci, klíče: ' . implode(', ', array_keys($restructuredData)));
+        
+        // Debug kalkulací
+        if (isset($restructuredData['Vyuctovani'])) {
+            Logger::debug('XmlGeneration: Vyuctovani obsahuje ' . count($restructuredData['Vyuctovani']) . ' členů');
+        }
         
         // Odstranit id_zp a cislo_zp z těla, protože jsou už v atributech
         unset($restructuredData['id_zp'], $restructuredData['cislo_zp']);
@@ -37,12 +47,14 @@ class XmlGenerationService
         // Konvertovat celé pole na XML
         $this->arrayToXml($xml, $root, $restructuredData);
 
-	    // Pro MSSQL vrať bez deklarace
-        return $xml->saveXML($xml->documentElement);
+        $result = $xml->saveXML($xml->documentElement);
+        Logger::debug('XmlGeneration: Vygenerováno XML o délce ' . strlen($result) . ' znaků');
+        
+        return $result;
     }
     
     /**
-     * Přestrukturování dat - odebrání cast_a, cast_b wrapperů
+     * Přestrukturování dat - odebrání cast_a, nahrazení kalkulacemi
      */
     private function restructureReportData(array $reportData): array
     {
@@ -53,23 +65,18 @@ class XmlGenerationService
         if (isset($reportData['cislo_zp'])) $result['cislo_zp'] = $reportData['cislo_zp'];
         if (isset($reportData['znackari'])) $result['znackari'] = $reportData['znackari'];
         
-        // Přenést obsah data_a přímo do root
-        if (isset($reportData['data_a']) && is_array($reportData['data_a'])) {
-            foreach ($reportData['data_a'] as $key => $value) {
-                $result[$key] = $value;
-            }
-        }
-        
+        // NEPREPISOVAT obsah data_a - bude nahrazen kalkulacemi
+
+	    // Calculation → Vyuctovani (místo části A)
+	    if (isset($reportData['calculation'])) {
+		    $result['Vyuctovani'] = $reportData['calculation'];
+	    }
+
         // Přenést obsah data_b přímo do root
         if (isset($reportData['data_b']) && is_array($reportData['data_b'])) {
             foreach ($reportData['data_b'] as $key => $value) {
                 $result[$key] = $value;
             }
-        }
-        
-        // Calculation → Kalkulace
-        if (isset($reportData['calculation'])) {
-            $result['Kalkulace'] = $reportData['calculation'];
         }
         
         return $result;
@@ -84,17 +91,13 @@ class XmlGenerationService
             'Stavy_Tim' => ['element' => 'TIM', 'idField' => null], // klíč je ID
             'Predmety' => ['element' => 'Predmet', 'idField' => null], // klíč je ID
             'znackari' => ['element' => 'Znackar', 'idField' => 'INT_ADR'],
-            'Skupiny_Cest' => ['element' => 'Skupina_Cest', 'idField' => 'id'],
-            'Cesty' => ['element' => 'Cesta', 'idField' => 'id'],
-            'Noclezne' => ['element' => 'Nocleh', 'idField' => 'id'],
-            'Vedlejsi_Vydaje' => ['element' => 'Vydaj', 'idField' => 'id'],
             'Prilohy' => ['element' => 'Priloha', 'idField' => 'id'],
             'Prilohy_NP' => ['element' => 'Priloha', 'idField' => 'id'],
             'Prilohy_TIM' => ['element' => 'Priloha', 'idField' => 'id'],
             'Prilohy_Usek' => ['element' => 'Priloha', 'idField' => 'id'],
             'Prilohy_Mapa' => ['element' => 'Priloha', 'idField' => 'id'],
             'Obnovene_Useky' => ['element' => 'Usek', 'idField' => null], // klíč je ID
-            'Kalkulace' => ['element' => 'Znackar', 'idField' => null], // klíč je INT_ADR
+            'Vyuctovani' => ['element' => 'Znackar', 'idField' => null], // klíč je INT_ADR
         ];
     }
     
@@ -104,10 +107,7 @@ class XmlGenerationService
     private function getSpecialTransformations(): array
     {
         return [
-            'Cestujci' => 'transformCestujci',
             'Presmerovani_Vyplat' => 'transformPresmerovaniVyplat',
-            'Dny_Prace' => 'transformDnyPrace',
-            'Tarif' => 'transformTarif',
         ];
     }
     
@@ -159,10 +159,16 @@ class XmlGenerationService
             
             // Běžné pole nebo hodnota
             if (is_array($value)) {
-                $elementName = $this->sanitizeElementName($key);
-                $element = $xml->createElement($elementName);
-                $parent->appendChild($element);
-                $this->arrayToXml($xml, $element, $value, $key);
+                // Speciální handling pro numerické pole (arrays) - vytvoří opakující se elementy
+                if ($this->isNumericArray($value)) {
+                    $this->createRepeatingElements($xml, $parent, $key, $value);
+                } else {
+                    // Asociativní pole - vytvoř container element
+                    $elementName = $this->sanitizeElementName($key);
+                    $element = $xml->createElement($elementName);
+                    $parent->appendChild($element);
+                    $this->arrayToXml($xml, $element, $value, $key);
+                }
             } else {
                 $elementName = $this->sanitizeElementName($key);
                 $element = $xml->createElement($elementName);
@@ -243,20 +249,6 @@ class XmlGenerationService
         }, ARRAY_FILTER_USE_KEY);
     }
     
-    /**
-     * Transformace Cestujci pole: _0 -> INT_ADR
-     */
-    private function transformCestujci(\DOMDocument $xml, \DOMElement $parent, string $key, array $data): void
-    {
-        $element = $xml->createElement($key);
-        $parent->appendChild($element);
-        
-        foreach ($data as $index => $intAdr) {
-            $cestujciElement = $xml->createElement('INT_ADR');
-            $cestujciElement->appendChild($xml->createTextNode((string)$intAdr));
-            $element->appendChild($cestujciElement);
-        }
-    }
     
     /**
      * Transformace Presmerovani_Vyplat: _4457 -> <Vyplatit INT_ADR="4457">
@@ -277,35 +269,9 @@ class XmlGenerationService
         }
     }
     
-    /**
-     * Transformace Dny_Prace: _0 -> Den
-     */
-    private function transformDnyPrace(\DOMDocument $xml, \DOMElement $parent, string $key, array $data): void
-    {
-        $element = $xml->createElement($key);
-        $parent->appendChild($element);
-        
-        foreach ($data as $index => $den) {
-            if (is_array($den)) {
-                $denElement = $xml->createElement('Den');
-                $element->appendChild($denElement);
-                $this->arrayToXml($xml, $denElement, $den);
-            }
-        }
-    }
-    
-    /**
-     * Transformace Tarif: jako obyčejný element
-     */
-    private function transformTarif(\DOMDocument $xml, \DOMElement $parent, string $key, array $data): void
-    {
-        $element = $xml->createElement($key);
-        $parent->appendChild($element);
-        
-        $this->arrayToXml($xml, $element, $data);
-    }
     
     
+
     /**
      * Kontrola, zda je pole asociativní (má stringové klíče)
      */
@@ -315,5 +281,40 @@ class XmlGenerationService
             return false;
         }
         return array_keys($array) !== range(0, count($array) - 1);
+    }
+    
+    /**
+     * Kontrola, zda je pole numerické (má číselné klíče 0, 1, 2...)
+     */
+    private function isNumericArray(array $array): bool
+    {
+        if (empty($array)) {
+            return false;
+        }
+        return array_keys($array) === range(0, count($array) - 1);
+    }
+    
+    /**
+     * Vytvoří opakující se XML elementy pro numerické pole
+     * Místo <Key><_0>...</_0><_1>...</_1></Key>
+     * vytvoří <Key>...</Key><Key>...</Key>
+     */
+    private function createRepeatingElements(\DOMDocument $xml, \DOMElement $parent, string $key, array $items): void
+    {
+        $elementName = $this->sanitizeElementName($key);
+        
+        foreach ($items as $item) {
+            $element = $xml->createElement($elementName);
+            $parent->appendChild($element);
+            
+            if (is_array($item)) {
+                // Filtruj metadata a pokračuj rekurzivně
+                $filteredItem = $this->filterMetadata($item);
+                $this->arrayToXml($xml, $element, $filteredItem, $key);
+            } else {
+                // Jednoduchá hodnota
+                $element->appendChild($xml->createTextNode((string)$item));
+            }
+        }
     }
 }

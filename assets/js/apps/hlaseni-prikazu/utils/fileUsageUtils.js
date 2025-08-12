@@ -34,7 +34,7 @@ export const registerFileUsage = async (fileId, type, entityId, additionalData =
         }
 
         const result = await response.json();
-        console.log(`File usage registered: file ${fileId} used in ${type}:${entityId}`, result);
+        // File usage registered successfully
         return true;
     } catch (error) {
         console.error('Error registering file usage:', error);
@@ -69,7 +69,7 @@ export const unregisterFileUsage = async (fileId, type, entityId) => {
         }
 
         const result = await response.json();
-        console.log(`File usage unregistered: file ${fileId} removed from ${type}:${entityId}`, result);
+        // File usage unregistered successfully
         return true;
     } catch (error) {
         console.error('Error unregistering file usage:', error);
@@ -154,7 +154,7 @@ export const synchronizeFileUsage = async (oldFiles, newFiles, type, entityId, a
     // Soubory k registraci (jsou v nových, ale nejsou ve starých)
     const filesToRegister = (newFiles || []).filter(f => f.id && !oldIds.has(f.id));
     
-    console.log(`File usage sync: ${filesToUnregister.length} to unregister, ${filesToRegister.length} to register`);
+    // File usage synchronization
     
     // Provést operace
     const unregisterResults = await unregisterMultipleFileUsage(filesToUnregister, type, entityId);

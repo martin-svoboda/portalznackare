@@ -8,6 +8,7 @@ import {useStatusPolling} from './hooks/useStatusPolling';
 import {useStepNavigation} from './hooks/useStepNavigation';
 import {api} from '../../utils/api';
 import {log} from '../../utils/debug';
+import {parseTariffRatesFromAPI, calculateExecutionDate} from './utils/compensationCalculator';
 
 const App = () => {
     // Get prikaz ID and user from HTML data attributes
@@ -75,13 +76,13 @@ const App = () => {
         if (!user || !teamMembers?.length) return false;
         if (!['draft', 'rejected'].includes(status)) return false;
         
-        const userInTeam = teamMembers.find(member => member.INT_ADR === user.INT_ADR);
+        const userInTeam = teamMembers.find(member => member.INT_ADR == user.INT_ADR);
         return !!userInTeam; // User is in team
     };
 
     const checkUserIsLeader = (user, teamMembers) => {
         if (!user || !teamMembers?.length) return false;
-        const userInTeam = teamMembers.find(member => member.INT_ADR === user.INT_ADR);
+        const userInTeam = teamMembers.find(member => member.INT_ADR == user.INT_ADR);
         return userInTeam?.isLeader || false;
     };
 
@@ -140,6 +141,29 @@ const App = () => {
                 // Load saved form data if exists
                 if (reportData?.data_a) {
                     Object.assign(formData, reportData.data_a);
+                    // Konvertovat INT_ADR ze stringů na čísla (databáze je ukládá jako stringy v JSON)
+                    if (formData.Skupiny_Cest) {
+                        formData.Skupiny_Cest = formData.Skupiny_Cest.map(group => ({
+                            ...group,
+                            Cestujci: group.Cestujci?.map(id => typeof id === 'string' ? parseInt(id, 10) : id) || [],
+                            Ridic: typeof group.Ridic === 'string' ? parseInt(group.Ridic, 10) : group.Ridic
+                        }));
+                    }
+                    if (formData.Hlavni_Ridic && typeof formData.Hlavni_Ridic === 'string') {
+                        formData.Hlavni_Ridic = parseInt(formData.Hlavni_Ridic, 10);
+                    }
+                    if (formData.Noclezne) {
+                        formData.Noclezne = formData.Noclezne.map(item => ({
+                            ...item,
+                            Zaplatil: typeof item.Zaplatil === 'string' ? parseInt(item.Zaplatil, 10) : item.Zaplatil
+                        }));
+                    }
+                    if (formData.Vedlejsi_Vydaje) {
+                        formData.Vedlejsi_Vydaje = formData.Vedlejsi_Vydaje.map(item => ({
+                            ...item,
+                            Zaplatil: typeof item.Zaplatil === 'string' ? parseInt(item.Zaplatil, 10) : item.Zaplatil
+                        }));
+                    }
                 }
                 if (reportData?.data_b) {
                     Object.assign(formData, reportData.data_b);
@@ -163,29 +187,17 @@ const App = () => {
                     formData.Zvysena_Sazba = true;
                 }
 
-                // Load tariff rates
+                // Load tariff rates using shared parser
                 let tariffRates = null;
                 try {
-                    const priceResponse = await api.insyz.sazby();
-                    tariffRates = {
-                        jizdne: priceResponse.jizdne || 6,
-                        jizdneZvysene: priceResponse.jizdneZvysene || 8,
-                        tariffs: []
-                    };
-                    // Parse tariffs
-                    for (let i = 1; i <= 6; i++) {
-                        const dobaOd = priceResponse[`tarifDobaOd${i}`];
-                        const dobaDo = priceResponse[`tarifDobaDo${i}`];
-                        if (dobaOd !== undefined && dobaDo !== undefined) {
-                            tariffRates.tariffs.push({
-                                dobaOd,
-                                dobaDo,
-                                stravne: priceResponse[`tarifStravne${i}`] || 0,
-                                nahrada: priceResponse[`tarifNahrada${i}`] || 0
-                            });
-                        }
-                    }
-                    log.info('Ceník úspěšně načten');
+                    // Získat datum provedení z formData
+                    const executionDate = calculateExecutionDate(formData);
+                    const dateParam = executionDate ? executionDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+                    log.info('Načítám sazby pro datum:', dateParam);
+                    
+                    const priceResponse = await api.insyz.sazby(dateParam);
+                    tariffRates = parseTariffRatesFromAPI(priceResponse);
+                    log.info('Sazby úspěšně načteny', tariffRates);
                 } catch (error) {
                     log.error('Chyba při načítání ceníku', error);
                 }
@@ -274,7 +286,7 @@ const App = () => {
         );
     }
 
-    console.log(appData)
+    // App rendering
     return (
         <div className="space-y-6">
             {/* Header */}

@@ -14,7 +14,9 @@ use App\Entity\Report;
 use App\Repository\ReportRepository;
 use App\Enum\ReportStateEnum;
 use App\Message\SendToInsyzMessage;
+use App\MessageHandler\SendToInsyzHandler;
 use App\Service\WorkerManagerService;
+use App\Utils\Logger;
 use Doctrine\ORM\EntityManagerInterface;
 
 #[Route('/api/portal')]
@@ -25,7 +27,8 @@ class PortalController extends AbstractController
         private ReportRepository $reportRepository,
         private EntityManagerInterface $entityManager,
         private MessageBusInterface $messageBus,
-        private WorkerManagerService $workerManager
+        private WorkerManagerService $workerManager,
+        private SendToInsyzHandler $insyzHandler
     ) {}
     #[Route('/post', methods: ['GET'])]
     public function getPost(Request $request): JsonResponse
@@ -142,8 +145,7 @@ class PortalController extends AbstractController
                 }
                 
                 if (!empty($missingFields)) {
-                    // Pro validační chyby nepotřebujeme report, jen logování
-                    error_log("Portal Report POST - Validation failed - missing fields: " . implode(', ', $missingFields));
+                    Logger::info("Portal Report POST - Validation failed - missing fields: " . implode(', ', $missingFields));
                     
                     return new JsonResponse([
                         'error' => "Chybí povinné pole: " . implode(', ', $missingFields)
@@ -226,7 +228,9 @@ class PortalController extends AbstractController
                 $this->entityManager->flush();
 
                 // Dispatch asynchronní zpracování pro INSYZ (pouze při odesílání)
+                Logger::debug("PortalController: state='$state', previousState='$previousState'");
                 if ($state === 'send' && $previousState !== 'send') {
+                    Logger::info("PortalController: Spouštím dispatch do INSYZ pro report ID: " . $report->getId());
                     $message = new SendToInsyzMessage(
                         $report->getId(),
                         [
@@ -241,9 +245,22 @@ class PortalController extends AbstractController
                     );
                     
                     $this->messageBus->dispatch($message);
+                    Logger::debug("PortalController: Message dispatched");
                     
-                    // Spustit on-demand worker pro okamžité zpracování
-                    $this->workerManager->startSingleTaskWorker();
+                    // Pokus o spuštění on-demand worker
+                    $workerStarted = $this->workerManager->startSingleTaskWorker();
+                    Logger::debug("PortalController: Worker started: " . ($workerStarted ? 'SUCCESS' : 'FAILED'));
+                    
+                    // LIGHTWEIGHT: Vždy použít fallback pro garantovanou spolehlivost
+                    // Worker v DDEV/containerech není 100% spolehlivý
+                    Logger::debug("PortalController: Using sync processing for reliability");
+                    try {
+                        // Přímo zavolat handler pro okamžité zpracování
+                        $this->insyzHandler->__invoke($message);
+                        Logger::info("PortalController: Report successfully processed for INSYZ");
+                    } catch (\Exception $e) {
+                        Logger::error("PortalController: Sync processing failed: " . $e->getMessage());
+                    }
                 }
 
                 return new JsonResponse([
@@ -266,7 +283,7 @@ class PortalController extends AbstractController
                 ]);
                 
             } catch (\Doctrine\DBAL\Exception\UniqueConstraintViolationException $e) {
-                error_log("Portal Report POST - Unique constraint violation: " . $e->getMessage());
+                Logger::error("Portal Report POST - Unique constraint violation: " . $e->getMessage());
                 
                 // History pro duplicate error (pokud máme report)
                 if (isset($report) && $report instanceof Report) {
@@ -280,7 +297,7 @@ class PortalController extends AbstractController
                         $this->entityManager->persist($report);
                         $this->entityManager->flush();
                     } catch (\Exception $historyError) {
-                        error_log("Failed to save history entry: " . $historyError->getMessage());
+                        Logger::error("Failed to save history entry: " . $historyError->getMessage());
                     }
                 }
                 
@@ -290,14 +307,14 @@ class PortalController extends AbstractController
                     'error_code' => 'DUPLICATE_REPORT'
                 ], Response::HTTP_CONFLICT);
             } catch (\Doctrine\DBAL\Exception\ConnectionException $e) {
-                error_log("Portal Report POST - Database connection error: " . $e->getMessage());
+                Logger::error("Portal Report POST - Database connection error: " . $e->getMessage());
                 return new JsonResponse([
                     'success' => false,
                     'error' => 'Chyba připojení k databázi. Zkuste to prosím znovu za chvíli.',
                     'error_code' => 'DATABASE_CONNECTION_ERROR'
                 ], Response::HTTP_SERVICE_UNAVAILABLE);
             } catch (\Doctrine\DBAL\Exception $e) {
-                error_log("Portal Report POST - Database error: " . $e->getMessage());
+                Logger::error("Portal Report POST - Database error: " . $e->getMessage());
                 return new JsonResponse([
                     'success' => false,
                     'error' => 'Chyba při ukládání do databáze. Zkontrolujte prosím data a zkuste znovu.',
@@ -305,15 +322,14 @@ class PortalController extends AbstractController
                     'details' => $e->getMessage()
                 ], Response::HTTP_INTERNAL_SERVER_ERROR);
             } catch (\InvalidArgumentException $e) {
-                error_log("Portal Report POST - Invalid argument: " . $e->getMessage());
+                Logger::error("Portal Report POST - Invalid argument: " . $e->getMessage());
                 return new JsonResponse([
                     'success' => false,
                     'error' => 'Neplatná data v hlášení: ' . $e->getMessage(),
                     'error_code' => 'INVALID_DATA'
                 ], Response::HTTP_BAD_REQUEST);
             } catch (\Exception $e) {
-                error_log("Portal Report POST - Unexpected error: " . $e->getMessage());
-                error_log("Portal Report POST - Exception trace: " . $e->getTraceAsString());
+                Logger::exception("Portal Report POST - Unexpected error", $e);
                 
                 // History pro neočekávané chyby (pokud máme report)
                 if (isset($report) && $report instanceof Report) {
@@ -327,7 +343,7 @@ class PortalController extends AbstractController
                         $this->entityManager->persist($report);
                         $this->entityManager->flush();
                     } catch (\Exception $historyError) {
-                        error_log("Failed to save history entry: " . $historyError->getMessage());
+                        Logger::error("Failed to save history entry: " . $historyError->getMessage());
                     }
                 }
                 

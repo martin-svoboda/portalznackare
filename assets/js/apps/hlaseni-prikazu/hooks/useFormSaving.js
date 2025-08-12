@@ -198,27 +198,15 @@ export const useFormSaving = (formData, head, prikazId, tariffRates, isLeader, t
                     Cast_B_Dokoncena: formData.Cast_B_Dokoncena
                 },
                 calculation: (() => {
-                    if (!tariffRates) return {};
-                    
-                    if (isLeader && teamMembers.length > 0) {
-                        // Vedoucí - výpočet pro všechny členy týmu
-                        return calculateCompensationForAllMembers(
+                    // Ukládat výpočty může jen vedoucí pro všechny členy
+                    if (isLeader && teamMembers.length > 0 && tariffRates) {
+                        const result = calculateCompensationForAllMembers(
                             formData,
                             tariffRates,
                             teamMembers
                         );
-                    } else if (currentUser) {
-                        // Člen - výpočet jen pro sebe
-                        const compensation = calculateCompensation(
-                            formData,
-                            tariffRates,
-                            currentUser.INT_ADR
-                        );
-                        
-                        // Vrátit ve formátu {INT_ADR: compensation} pro konzistenci
-                        return compensation ? { [currentUser.INT_ADR]: compensation } : {};
+                        return result;
                     }
-                    
                     return {};
                 })(),
                 state: final ? 'send' : 'draft'
@@ -392,27 +380,15 @@ export const useFormSaving = (formData, head, prikazId, tariffRates, isLeader, t
                     Cast_B_Dokoncena: formData.Cast_B_Dokoncena
                 },
                 calculation: (() => {
-                    if (!tariffRates) return {};
-                    
-                    if (isLeader && teamMembers.length > 0) {
-                        // Vedoucí - výpočet pro všechny členy týmu
-                        return calculateCompensationForAllMembers(
+                    // Ukládat výpočty může jen vedoucí pro všechny členy
+                    if (isLeader && teamMembers.length > 0 && tariffRates) {
+                        const result = calculateCompensationForAllMembers(
                             formData,
                             tariffRates,
                             teamMembers
                         );
-                    } else if (currentUser) {
-                        // Člen - výpočet jen pro sebe
-                        const compensation = calculateCompensation(
-                            formData,
-                            tariffRates,
-                            currentUser.INT_ADR
-                        );
-                        
-                        // Vrátit ve formátu {INT_ADR: compensation} pro konzistenci
-                        return compensation ? { [currentUser.INT_ADR]: compensation } : {};
+                        return result;
                     }
-                    
                     return {};
                 })(),
                 state: 'send' // Key difference: save with 'send' status for background processing

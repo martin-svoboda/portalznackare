@@ -31,6 +31,7 @@
 6. **Communication language** - Always respond to user in Czech, internal AI context can be any language
 7. **Snake_Case Czech parameters ONLY** - All data fields, form properties, and calculations in Czech Snake_Case format for INSYZ consistency
 8. **No spontaneous changes** - Any change must be discussed and approved by the user.
+9. **KISS principle** - Keep It Simple, Stupid. Always choose the simplest solution that works. No overengineering.
 
 ## Memory Guidelines
 - **Critical Security Rule:** Uvěřuj si veškeré informace buď v kódu a nebo u uživatele, nepracuj s výmysli a doměnkami a nezapisuj je do dokumentace

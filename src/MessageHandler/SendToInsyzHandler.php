@@ -7,6 +7,7 @@ use App\Repository\ReportRepository;
 use App\Enum\ReportStateEnum;
 use App\Service\InsyzService;
 use App\Service\XmlGenerationService;
+use App\Utils\Logger;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -27,10 +28,14 @@ class SendToInsyzHandler
 
     public function __invoke(SendToInsyzMessage $message): void
     {
+        Logger::debug("SendToInsyzHandler: Handler spuštěn!");
+        
         $reportId = $message->getReportId();
         $reportData = $message->getReportData();
         $environment = $message->getEnvironment();
 
+        Logger::debug("SendToInsyzHandler: reportId=$reportId, environment=$environment");
+        
         $this->logger->info('Starting INSYZ processing', [
             'report_id' => $reportId,
             'environment' => $environment

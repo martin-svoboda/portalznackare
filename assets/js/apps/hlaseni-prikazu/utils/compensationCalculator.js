@@ -1,31 +1,21 @@
+import { toISODateString } from '../../../utils/dateUtils.js';
+
 /**
- * Parse tariff rates from API response - 1:1 s původní aplikací
+ * Parse tariff rates from API response - zpracování ze sazebníku
  */
 export function parseTariffRatesFromAPI(apiData) {
     if (!apiData) return null;
     
-    // Vytvoření tarifů z API dat
-    const tariffs = [];
-    for (let i = 1; i <= 6; i++) {
-        const dobaOd = apiData[`tarifDobaOd${i}`];
-        const dobaDo = apiData[`tarifDobaDo${i}`];
-        const stravne = apiData[`tarifStravne${i}`];
-        const nahrada = apiData[`tarifNahrada${i}`];
-        
-        if (dobaOd !== undefined && dobaDo !== undefined) {
-            tariffs.push({
-                dobaOd,
-                dobaDo,
-                stravne: stravne || 0,
-                nahrada: nahrada || 0
-            });
-        }
-    }
+    // Pole "1" - Jízdné sazby
+    const jizdneData = apiData["1"] || [];
+    const zakladni = jizdneData.find(item => item.Druh_AUV === "AUVN");
+    const zvysena = jizdneData.find(item => item.Druh_AUV === "AUVV");
     
     return {
-        jizdne: apiData.jizdne || 6,
-        jizdneZvysene: apiData.jizdneZvysene || 8,
-        tariffs
+        jizdne: parseFloat(zakladni?.Sazba_Kc || 0),
+        jizdneZvysene: parseFloat(zvysena?.Sazba_Kc || 0),
+        stravneTariffs: apiData["0"] || [],
+        nahradyTariffs: apiData["2"] || []
     };
 }
 
@@ -132,10 +122,8 @@ export function calculateWorkDays(formData, userIntAdr) {
             dateObj = new Date();
         }
         
-        // Vytvořit ISO datetime string s lokálním časem (bez UTC konverze)
-        const dateFormatted = dateObj.toISOString().split('T')[0]; // yyyy-mm-dd
-        const startDateTime = `${dateFormatted}T${earliestTime}:00`; // přidat sekundy
-        const endDateTime = `${dateFormatted}T${latestTime}:00`;
+        // Formátovat datum pomocí globální utils
+        const dateFormatted = toISODateString(dateObj);
         
         // Spočítat hodiny - parsovat časy správně
         const [startHour, startMin] = earliestTime.split(':').map(Number);
@@ -143,11 +131,12 @@ export function calculateWorkDays(formData, userIntAdr) {
         const hoursWorked = (endHour + endMin/60) - (startHour + startMin/60);
         
         return {
-            Od: startDateTime,
-            Do: endDateTime,
-            Hodin: Math.max(0, hoursWorked)
+            Datum: dateFormatted,
+            Od: earliestTime,
+            Do: latestTime,
+            Cas: Math.round(Math.max(0, hoursWorked) * 100) / 100
         };
-    }).filter(day => day.Hodin > 0);
+    }).filter(day => day.Cas > 0);
 }
 
 /**
@@ -155,11 +144,27 @@ export function calculateWorkDays(formData, userIntAdr) {
  */
 export function calculateWorkHours(formData, userIntAdr) {
     const workDays = calculateWorkDays(formData, userIntAdr);
-    return workDays.reduce((total, day) => total + day.Hodin, 0);
+    return workDays.reduce((total, day) => total + day.Cas, 0);
 }
 
 /**
- * Najde správný tarif podle odpracovaných hodin
+ * Najde správný tarif podle odpracovaných hodin - porovnání s HH:mm formátem
+ */
+export function findTariffByWorkTime(workHours, tariffs) {
+    if (!tariffs || tariffs.length === 0) return null;
+    
+    // Převést hodiny na HH:mm formát pro porovnání s Trvani_Od/Do
+    const hours = Math.floor(workHours);
+    const minutes = Math.round((workHours - hours) * 60);
+    const workTimeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    
+    return tariffs.find(tariff => 
+        workTimeString >= tariff.Trvani_Od && workTimeString <= tariff.Trvani_Do
+    ) || null;
+}
+
+/**
+ * Najde správný tarif podle odpracovaných hodin - deprecated, použít findTariffByWorkTime
  */
 export function findApplicableTariff(workHours, tariffs) {
     return tariffs.find(tariff => 
@@ -168,7 +173,7 @@ export function findApplicableTariff(workHours, tariffs) {
 }
 
 /**
- * Výpočet dopravních nákladů pro konkrétního uživatele
+ * Výpočet dopravních nákladů pro konkrétního uživatele - jen celková částka
  * Auto jízdné: pouze řidiči skupiny
  * Veřejná doprava: všem cestujícím skupiny
  * Respektuje Hlavni_Ridic pro zvýšenou sazbu napříč všemi skupinami
@@ -188,7 +193,7 @@ export function calculateTransportCosts(formData, tariffRates, userIntAdr = null
         const isUserDriverOfGroup = group.Ridic === userIntAdr;
         
         // Zkontrolovat zda je uživatel hlavním řidičem (dostane zvýšenou sazbu na všechny AUV jízdy)
-        const isUserMainDriver = formData.Hlavni_Ridic === userIntAdr;
+        const isUserMainDriver = formData.Hlavni_Ridic == userIntAdr;
         
         group.Cesty?.forEach(segment => {
             if (!segment || !segment.Druh_Dopravy) return;
@@ -214,25 +219,82 @@ export function calculateTransportCosts(formData, tariffRates, userIntAdr = null
 }
 
 /**
+ * Výpočet detailů jízdného pro konkrétního uživatele
+ * Vrací pole objektů s detaily jednotlivých náhrad
+ */
+export function calculateTransportDetails(formData, tariffRates, userIntAdr = null) {
+    if (!userIntAdr || !formData.Skupiny_Cest) return [];
+    
+    const details = [];
+    
+    // Projít všechny skupiny kde uživatel cestuje
+    formData.Skupiny_Cest.forEach(group => {
+        // Zkontrolovat zda je uživatel cestujícím v této skupině
+        const isUserParticipant = group.Cestujci && group.Cestujci.includes(userIntAdr);
+        if (!isUserParticipant) return;
+        
+        // Zkontrolovat zda je uživatel řidičem této skupiny
+        const isUserDriverOfGroup = group.Ridic === userIntAdr;
+        
+        // Zkontrolovat zda je uživatel hlavním řidičem (dostane zvýšenou sazbu na všechny AUV jízdy)
+        const isUserMainDriver = formData.Hlavni_Ridic == userIntAdr;
+        
+        group.Cesty?.forEach(segment => {
+            if (!segment || !segment.Druh_Dopravy) return;
+            
+            if (segment.Druh_Dopravy === "AUV" || segment.Druh_Dopravy === "AUV-Z") {
+                // Auto jízdné - pouze řidiči skupiny
+                if (isUserDriverOfGroup && segment.Kilometry > 0) {
+                    const rate = isUserMainDriver ? tariffRates.jizdneZvysene : tariffRates.jizdne;
+                    const cost = Math.round(segment.Kilometry * rate * 100) / 100;
+                    
+                    details.push({
+                        Typ_Dopravy: isUserMainDriver ? "AUVV" : "AUVN",
+                        Km: String(segment.Kilometry),
+                        Kc: String(cost)
+                    });
+                }
+            } else if (segment.Druh_Dopravy === "V") {
+                // Veřejná doprava - pouze pokud má uživatel zadanou částku
+                if (typeof segment.Naklady === 'object' && segment.Naklady !== null) {
+                    const cost = segment.Naklady[userIntAdr] || 0;
+                    if (cost > 0) {
+                        details.push({
+                            Typ_Dopravy: "V",
+                            Km: "0",
+                            Kc: String(cost)
+                        });
+                    }
+                }
+            }
+            // Pěšky ("P") a kolo ("K") = 0 Kč pro všechny - nepřidávají se do detailů
+        });
+    });
+    
+    return details;
+}
+
+/**
  * Výpočet kompenzace pro konkrétního uživatele
  * Vrací data v Czech Snake_Case formátu s detailními dny práce
  */
 export function calculateCompensation(formData, tariffRates, userIntAdr = null) {
-    if (!tariffRates || !tariffRates.tariffs || !userIntAdr) return null;
+    if (!tariffRates || !userIntAdr) return null;
     
     // Spočítat pracovní dny a celkové hodiny pro uživatele
     const workDays = calculateWorkDays(formData, userIntAdr);
-    const totalWorkHours = workDays.reduce((total, day) => total + day.Hodin, 0);
+    const totalWorkHours = workDays.reduce((total, day) => total + day.Cas, 0);
     
-    // Najít příslušný tarif
-    const appliedTariff = findApplicableTariff(totalWorkHours, tariffRates.tariffs);
+    // Najít tarify pro stravné a náhrady odděleně
+    const stravneTariff = findTariffByWorkTime(totalWorkHours, tariffRates.stravneTariffs);
+    const nahradyTariff = findTariffByWorkTime(totalWorkHours, tariffRates.nahradyTariffs);
     
     // Spočítat dopravní náklady pro uživatele
     const transportCosts = calculateTransportCosts(formData, tariffRates, userIntAdr);
     
-    // Stravné a náhrada za práci podle tarifu
-    const mealAllowance = appliedTariff?.stravne || 0;
-    const workAllowance = appliedTariff?.nahrada || 0;
+    // Stravné a náhrada za práci podle příslušných tarifů
+    const mealAllowance = stravneTariff ? parseFloat(stravneTariff.Stravne || 0) : 0;
+    const workAllowance = nahradyTariff ? parseFloat(nahradyTariff.Nahrada || 0) : 0;
     
     // Ubytování - pouze pro toho kdo platil
     const accommodationCosts = (formData.Noclezne || [])
@@ -245,24 +307,83 @@ export function calculateCompensation(formData, tariffRates, userIntAdr = null) 
         .reduce((sum, exp) => sum + (exp.Castka || 0), 0);
     
     // Zkontrolovat zda má uživatel zvýšenou sazbu v nějaké skupině
-    const hasHigherRate = formData.Hlavni_Ridic === userIntAdr;
+    const hasHigherRate = formData.Hlavni_Ridic == userIntAdr;
     
     const total = transportCosts + mealAllowance + workAllowance + accommodationCosts + additionalExpenses;
     
-    return {
+    // Připravit detaily jízdného z existujících dat
+    const jizdneDetails = [];
+    formData.Skupiny_Cest?.forEach(group => {
+        const isUserParticipant = group.Cestujci && group.Cestujci.includes(userIntAdr);
+        if (!isUserParticipant) return;
+        
+        const isUserDriverOfGroup = group.Ridic === userIntAdr;
+        
+        group.Cesty?.forEach(segment => {
+            if (!segment || !segment.Druh_Dopravy) return;
+            
+            if (segment.Druh_Dopravy === "AUV" || segment.Druh_Dopravy === "AUV-Z") {
+                if (isUserDriverOfGroup && segment.Kilometry > 0) {
+                    const rate = hasHigherRate ? tariffRates.jizdneZvysene : tariffRates.jizdne;
+                    const cost = Math.round(segment.Kilometry * rate * 100) / 100;
+                    
+                    jizdneDetails.push({
+                        Typ_Dopravy: hasHigherRate ? "AUVV" : "AUVN",
+                        Km: segment.Kilometry,
+                        Kc: cost
+                    });
+                }
+            } else if (segment.Druh_Dopravy === "V") {
+                if (typeof segment.Naklady === 'object' && segment.Naklady !== null) {
+                    const cost = segment.Naklady[userIntAdr] || 0;
+                    if (cost > 0) {
+                        jizdneDetails.push({
+                            Typ_Dopravy: "V",
+                            Km: 0,
+                            Kc: cost
+                        });
+                    }
+                }
+            }
+        });
+    });
+    
+    // Připravit detaily vedlejších výdajů z existujících dat
+    const vedlejsiVydajeDetails = (formData.Vedlejsi_Vydaje || [])
+        .filter(exp => exp.Zaplatil === userIntAdr && exp.Castka > 0)
+        .map(exp => ({
+            Popis: exp.Polozka || "Neurčeno",
+            Kc: exp.Castka || 0
+        }));
+    
+    // Připravit detaily nocležného z existujících dat
+    const noclezneDetails = (formData.Noclezne || [])
+        .filter(acc => acc.Zaplatil === userIntAdr && acc.Castka > 0)
+        .map(acc => ({
+            Misto: acc.Misto || "",
+            Zarizeni: acc.Zarizeni || "",
+            Kc: acc.Castka || 0
+        }));
+
+    const result = {
         INT_ADR: userIntAdr,
-        Jizdne: transportCosts,
+        Jizdne: jizdneDetails,
+        Jizdne_Celkem: Math.round(transportCosts * 100) / 100,
         Zvysena_Sazba: hasHigherRate,
-        Stravne: mealAllowance,
-        Nahrada_Prace: workAllowance,
-        Naklady_Ubytovani: accommodationCosts,
-        Vedlejsi_Vydaje: additionalExpenses,
-        Hodin_Celkem: totalWorkHours,
-        Dny_Prace: workDays,
-        Celkem: total, // Opraveno z 'celkem' na 'Celkem'
-        // Dodatečné info pro UI
-        Tarif: appliedTariff // Opraveno z 'appliedTariff' na 'Tarif'
+        Stravne: Math.round(mealAllowance * 100) / 100,
+        Nahrada_Prace: Math.round(workAllowance * 100) / 100,
+        Noclezne: noclezneDetails,
+        Noclezne_Celkem: Math.round(accommodationCosts * 100) / 100,
+        Vedlejsi_Vydaje: vedlejsiVydajeDetails,
+        Vedlejsi_Vydaje_Celkem: Math.round(additionalExpenses * 100) / 100,
+        Cas_Prace_Celkem: Math.round(totalWorkHours * 100) / 100,
+        Cas_Prace: workDays,
+        Celkem_Kc: Math.round(total * 100) / 100
     };
+    
+    // Calculation completed
+    
+    return result;
 }
 
 /**

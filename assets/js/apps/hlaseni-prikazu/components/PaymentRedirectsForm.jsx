@@ -48,7 +48,7 @@ export const PaymentRedirectsForm = ({
                 <div className="space-y-3">
                     {teamMembers.map((member) => {
                         // Skip current user - they can't redirect to themselves
-                        if (currentUser && member.INT_ADR === currentUser.INT_ADR) {
+                        if (currentUser && member.INT_ADR == currentUser.INT_ADR) {
                             return null;
                         }
 
@@ -68,7 +68,7 @@ export const PaymentRedirectsForm = ({
                                     >
                                         <option value="">-- Bez přesměrování --</option>
                                         {teamMembers
-                                            .filter(m => m.INT_ADR !== member.INT_ADR) // Can't redirect to self
+                                            .filter(m => m.INT_ADR != member.INT_ADR) // Can't redirect to self
                                             .map((targetMember) => (
                                                 <option key={targetMember.INT_ADR} value={targetMember.INT_ADR}>
                                                     {targetMember.name || targetMember.Znackar}
@@ -86,8 +86,8 @@ export const PaymentRedirectsForm = ({
                         <h4 className="font-medium text-blue-800 mb-2">Aktivní přesměrování:</h4>
                         <div className="space-y-1">
                             {Object.entries(Presmerovani_Vyplat || {}).map(([fromIntAdr, toIntAdr]) => {
-                                const fromMember = teamMembers.find(m => m.INT_ADR === fromIntAdr);
-                                const toMember = teamMembers.find(m => m.INT_ADR === toIntAdr);
+                                const fromMember = teamMembers.find(m => m.INT_ADR == fromIntAdr);
+                                const toMember = teamMembers.find(m => m.INT_ADR == toIntAdr);
                                 
                                 if (!fromMember || !toMember) return null;
                                 

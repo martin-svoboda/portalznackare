@@ -17,7 +17,7 @@ const MemberCompensationDetail = ({
                                   }) => {
     if (!memberCompensation) return null;
 
-    const workHours = memberCompensation.Hodin_Celkem || 0;
+    const workHours = memberCompensation.Cas_Prace_Celkem || 0;
 
     return (
         <div className="space-y-2">
@@ -38,16 +38,16 @@ const MemberCompensationDetail = ({
                         {tariffRates && (() => {
                             // Zkontrolovat zda je řidičem nějaké auto cesty
                             const isDriverOfAnyCar = formData.Skupiny_Cest?.some(group => 
-                                group.Ridic === member?.INT_ADR && 
+                                group.Ridic == member?.INT_ADR && 
                                 group.Cesty?.some(s => s.Druh_Dopravy === "AUV" || s.Druh_Dopravy === "AUV-Z")
                             );
                             
                             if (!isDriverOfAnyCar) return null;
                             
                             // Zjistit zda je člen hlavním řidičem (dostane zvýšenou sazbu)
-                            const hasHigherRate = formData.Hlavni_Ridic === member?.INT_ADR &&
+                            const hasHigherRate = formData.Hlavni_Ridic == member?.INT_ADR &&
                                 formData.Skupiny_Cest?.some(group => 
-                                    group.Ridic === member?.INT_ADR && 
+                                    group.Ridic == member?.INT_ADR && 
                                     group.Cesty?.some(s => s.Druh_Dopravy === "AUV" || s.Druh_Dopravy === "AUV-Z")
                                 );
                             const rate = hasHigherRate ? tariffRates.jizdneZvysene : tariffRates.jizdne;
@@ -58,12 +58,12 @@ const MemberCompensationDetail = ({
                             );
                         })()}
                     </span>
-                    <span className="text-sm">{formatCurrency(memberCompensation?.Jizdne || 0)}</span>
+                    <span className="text-sm">{formatCurrency(memberCompensation?.Jizdne_Celkem || 0)}</span>
                 </div>
                 {/* Badge zvýšené sazby pod názvem */}
-                {formData.Hlavni_Ridic === member?.INT_ADR &&
+                {formData.Hlavni_Ridic == member?.INT_ADR &&
                 formData.Skupiny_Cest?.some(group => 
-                    group.Ridic === member?.INT_ADR && 
+                    group.Ridic == member?.INT_ADR && 
                     group.Cesty?.some(s => s.Druh_Dopravy === "AUV" || s.Druh_Dopravy === "AUV-Z")
                 ) && (
                     <div className="ml-4">
@@ -76,7 +76,7 @@ const MemberCompensationDetail = ({
                 {(formData.Skupiny_Cest?.flatMap(group => {
                     // Check if member is involved in this group
                     const isParticipant = group.Cestujci?.includes(member?.INT_ADR);
-                    const isDriver = group.Ridic === member?.INT_ADR;
+                    const isDriver = group.Ridic == member?.INT_ADR;
                     
                     if (!isParticipant && !isDriver) {
                         return [];
@@ -131,20 +131,20 @@ const MemberCompensationDetail = ({
                 </div>
             </div>
 
-            {(memberCompensation?.Naklady_Ubytovani || 0) > 0 && (
+            {(memberCompensation?.Noclezne_Celkem || 0) > 0 && (
                 <div className="space-y-1">
                     <div className="flex justify-between">
                         <span className="text-sm font-medium">Ubytování</span>
-                        <span className="text-sm">{formatCurrency(memberCompensation?.Naklady_Ubytovani || 0)}</span>
+                        <span className="text-sm">{formatCurrency(memberCompensation?.Noclezne_Celkem || 0)}</span>
                     </div>
                 </div>
             )}
 
-            {(memberCompensation?.Vedlejsi_Vydaje || 0) > 0 && (
+            {(memberCompensation?.Vedlejsi_Vydaje_Celkem || 0) > 0 && (
                 <div className="space-y-1">
                     <div className="flex justify-between">
                         <span className="text-sm font-medium">Ostatní výdaje</span>
-                        <span className="text-sm">{formatCurrency(memberCompensation?.Vedlejsi_Vydaje || 0)}</span>
+                        <span className="text-sm">{formatCurrency(memberCompensation?.Vedlejsi_Vydaje_Celkem || 0)}</span>
                     </div>
                 </div>
             )}
@@ -152,7 +152,7 @@ const MemberCompensationDetail = ({
             <div className="flex justify-between">
                 <span className="font-semibold">Celkem</span>
                 <span className="font-semibold text-lg text-blue-600">
-                    {formatCurrency(memberCompensation?.Celkem || 0)}
+                    {formatCurrency(memberCompensation?.Celkem_Kc || 0)}
                 </span>
             </div>
         </div>
@@ -221,7 +221,7 @@ export const CompensationSummary = ({
         }
 
         return teamMembers.filter(member =>
-            member.INT_ADR === currentUser?.INT_ADR || isLeader
+            member.INT_ADR == currentUser?.INT_ADR || isLeader
         );
     }, [teamMembers, currentUser, isLeader]);
 

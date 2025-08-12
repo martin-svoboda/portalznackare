@@ -17,7 +17,9 @@ export const useTariffRates = (formData, reportLoaded) => {
     const loadTariffRates = useCallback(async () => {
         if (!reportLoaded) return;
 
-        const dateParam = calculateExecutionDate(formData).toISOString().split('T')[0];
+        const executionDate = calculateExecutionDate(formData);
+        log.info('Datum provedení pro sazby:', executionDate, 'z formData:', formData);
+        const dateParam = executionDate.toISOString().split('T')[0];
         setLoading(true);
         setError(null);
 
@@ -33,7 +35,9 @@ export const useTariffRates = (formData, reportLoaded) => {
                 log.error('Prázdné sazby');
                 setError('Sazby se načetly, ale neobsahují žádná data');
             } else {
-                log.info(`Sazby úspěšně načteny s ${parsedTariffRates.tariffs?.length || 0} tarify`);
+                const stravneCount = parsedTariffRates.stravneTariffs?.length || 0;
+                const nahradyCount = parsedTariffRates.nahradyTariffs?.length || 0;
+                log.info(`Sazby úspěšně načteny: ${stravneCount} stravné + ${nahradyCount} náhrady, jízdné: ${parsedTariffRates.jizdne}/${parsedTariffRates.jizdneZvysene}`);
             }
         } catch (err) {
             const errorMessage = 'Chyba při načítání sazeb';

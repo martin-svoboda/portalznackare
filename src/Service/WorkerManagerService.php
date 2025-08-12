@@ -4,6 +4,7 @@ namespace App\Service;
 
 use Psr\Log\LoggerInterface;
 use Exception;
+use Symfony\Component\Process\Process;
 
 /**
  * Service pro správu on-demand messenger worker procesů
@@ -32,55 +33,78 @@ class WorkerManagerService
 
             // Zkontrolovat jestli už worker neběží
             if ($this->isWorkerRunning()) {
-                $this->logger->info('Worker již běží, nespouštím nový');
                 return true;
             }
 
-            $command = $this->buildWorkerCommand();
+            // Použít Symfony Process místo exec()
+            $process = $this->createWorkerProcess();
             
-            $this->logger->info('Spouštím on-demand worker', [
-                'command' => $command,
-                'timeout' => '60s'
+            $this->logger->warning('Spouštím on-demand worker', [
+                'command' => $process->getCommandLine(),
+                'timeout' => 60
             ]);
 
-            // Spustit proces na pozadí s timeout
-            $result = exec($command, $output, $returnCode);
+            // Spustit proces na pozadí
+            $process->start();
 
-            if ($returnCode !== 0) {
-                $this->logger->error('Worker se nepodařilo spustit', [
-                    'return_code' => $returnCode,
+            // Krátké čekání aby se proces stihl nastartovat
+            usleep(200000); // 200ms
+            
+            $isRunning = $process->isRunning();
+            $exitCode = $process->getExitCode();
+            $errorOutput = $process->getErrorOutput();
+            $output = $process->getOutput();
+            
+            $this->logger->warning('Worker process status check', [
+                'is_running' => $isRunning,
+                'exit_code' => $exitCode,
+                'has_error_output' => !empty($errorOutput),
+                'has_output' => !empty($output),
+                'pid' => $process->getPid()
+            ]);
+            
+            if (!$isRunning) {
+                $this->logger->error('Worker se nepodařilo spustit nebo rychle skončil', [
+                    'exit_code' => $exitCode,
+                    'error_output' => $errorOutput,
                     'output' => $output
                 ]);
                 return false;
             }
 
-            $this->logger->info('Worker úspěšně spuštěn');
             return true;
 
         } catch (Exception $e) {
             $this->logger->error('Chyba při spouštění workeru', [
-                'exception' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'exception' => $e->getMessage()
             ]);
             return false;
         }
     }
 
     /**
-     * Sestaví command pro spuštění workeru s timeout ochranou
+     * Vytvoří Symfony Process pro worker
      */
-    private function buildWorkerCommand(): string
+    private function createWorkerProcess(): Process
     {
         $phpBinary = $this->getPhpBinary();
         $consolePath = $this->projectRoot . '/bin/console';
         
-        // Timeout 60s, limit 1 zpráva, výstup do /dev/null, běh na pozadí
-        return sprintf(
-            'cd %s && timeout 60 %s %s messenger:consume async --limit=1 --quiet > /dev/null 2>&1 &',
-            escapeshellarg($this->projectRoot),
-            escapeshellarg($phpBinary),
-            escapeshellarg($consolePath)
-        );
+        // Sestavit command jako array pro lepší bezpečnost
+        $command = [
+            $phpBinary,
+            $consolePath,
+            'messenger:consume',
+            'async',
+            '--limit=1',
+            '--time-limit=60',
+            '--quiet'
+        ];
+        
+        $process = new Process($command, $this->projectRoot);
+        $process->setTimeout(60);
+        
+        return $process;
     }
 
     /**
