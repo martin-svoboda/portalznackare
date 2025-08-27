@@ -382,6 +382,39 @@ curl -s "https://portalznackare.ddev.site/api/test/mssql-connection"
 # Test messenger worker
 php bin/console messenger:consume async --limit=1
 
+## Console Commands
+
+### User Management
+```bash
+# User management command
+php bin/console app:user:manage list                    # Seznam aktivních uživatelů
+php bin/console app:user:manage list --filter=admin     # Pouze admin uživatelé
+php bin/console app:user:manage sync 12345              # Synchronizace z INSYZ
+php bin/console app:user:manage role 12345 --role=ROLE_ADMIN --add  # Přidat roli
+php bin/console app:user:manage show 12345              # Detail uživatele
+php bin/console app:user:manage activate 12345          # Aktivovat účet
+
+# Test roles command  
+php bin/console app:test-user-roles                     # Test role systému
+```
+
+### File Management
+```bash
+# Cleanup temporary files
+php bin/console app:files:cleanup                       # Vyčistí expired temp soubory
+```
+
+### Development Commands
+```bash
+# Cache management
+php bin/console cache:pool:clear app.api_cache
+php bin/console cache:pool:clear app.long_cache
+php bin/console debug:cache-pool app.api_cache
+
+# Background jobs
+php bin/console messenger:consume async --limit=1
+```
+
 # Kontrola zaseknutých procesů
 ps aux | grep messenger:consume
 ```

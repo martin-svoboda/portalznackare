@@ -107,21 +107,32 @@ Od verze 2025-08-10 je k dispozici webové administrační rozhraní:
 
 ### Console Command
 ```bash
-# Seznam všech uživatelů
-ddev exec php bin/console app:user:manage
+# Seznam všech uživatelů (aktivní)
+php bin/console app:user:manage list
 
-# Přidat admina
-ddev exec php bin/console app:user:manage --add-admin 1234
+# Seznam s filtry
+php bin/console app:user:manage list --filter=admin
+php bin/console app:user:manage list --filter=recent
+php bin/console app:user:manage list --search="Jan"
 
-# Odebrat admina  
-ddev exec php bin/console app:user:manage --remove-admin 1234
+# Synchronizace uživatele z INSYZ
+php bin/console app:user:manage sync 12345
 
-# Aktivovat/deaktivovat
-ddev exec php bin/console app:user:manage --activate 1234
-ddev exec php bin/console app:user:manage --deactivate 1234
+# Správa rolí
+php bin/console app:user:manage role 12345 --role=ROLE_ADMIN --add
+php bin/console app:user:manage role user@example.com --role=ROLE_SUPER_ADMIN --add
+php bin/console app:user:manage role 12345 --role=ROLE_ADMIN      # odstranit
 
-# Info o uživateli
-ddev exec php bin/console app:user:manage --info 1234
+# Detailní info o uživateli
+php bin/console app:user:manage show 12345
+php bin/console app:user:manage show user@example.com
+
+# Aktivovat/deaktivovat účet
+php bin/console app:user:manage activate 12345
+php bin/console app:user:manage deactivate user@example.com
+
+# Nápověda
+php bin/console app:user:manage --help
 ```
 
 ### Admin API
@@ -217,4 +228,4 @@ AUDIT_RETENTION_DAYS=90
 **API dokumentace:** [../api/admin-api.md](../api/admin-api.md)  
 **Audit systém:** [audit-logging.md](audit-logging.md)  
 **Autentifikace:** [authentication.md](authentication.md)  
-**Aktualizováno:** 2025-08-10
+**Aktualizováno:** 2025-08-13

@@ -11,14 +11,6 @@ security:
         dev:
             pattern: ^/(_(profiler|wdt)|css|images|js)/
             security: false
-            
-        # API endpoints firewall - MUSÍ být před main!
-        api:
-            pattern: ^/api(?!/auth/login)       # ✅ OPRAVA: Exclude login endpoint from API firewall
-            stateless: true
-            provider: insyz_provider
-            entry_point: App\Security\ApiAuthenticationEntryPoint
-            custom_authenticator: App\Security\InsyzAuthenticator
                 
         main:
             pattern: ^/
@@ -30,6 +22,8 @@ security:
                 lifetime: 604800 # 1 week
                 path: /
                 domain: ~
+            # Pro API endpointy vrať JSON odpovědi místo redirectů
+            entry_point: App\Security\ApiAuthenticationEntryPoint
 
     # Easy way to control access for large sections of your site
     # Note: Only the *first* access control that matches will be used

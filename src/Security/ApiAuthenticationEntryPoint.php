@@ -3,6 +3,7 @@
 namespace App\Security;
 
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
@@ -12,12 +13,18 @@ class ApiAuthenticationEntryPoint implements AuthenticationEntryPointInterface
 {
     public function start(Request $request, AuthenticationException $authException = null): Response
     {
-        $data = [
-            'error' => true,
-            'message' => 'Authentication required',
-            'code' => 401
-        ];
+        // Pro API požadavky vrať JSON
+        if (str_starts_with($request->getPathInfo(), '/api/')) {
+            $data = [
+                'error' => true,
+                'message' => 'Authentication required',
+                'code' => 401
+            ];
 
-        return new JsonResponse($data, Response::HTTP_UNAUTHORIZED);
+            return new JsonResponse($data, Response::HTTP_UNAUTHORIZED);
+        }
+        
+        // Pro webové požadavky přesměruj na homepage
+        return new RedirectResponse('/');
     }
 }
