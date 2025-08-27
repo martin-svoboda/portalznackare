@@ -77,10 +77,18 @@ class XmlGenerationService
 		    $result['Vyuctovani'] = $reportData['calculation'];
 	    }
 
-        // Přenést obsah data_b přímo do root
+	    // Přidat Presmerovani_Vyplat z data_a (důležitý údaj)
+	    if (isset($reportData['data_a']['Presmerovani_Vyplat'])) {
+		    $result['Presmerovani_Vyplat'] = $reportData['data_a']['Presmerovani_Vyplat'];
+	    }
+
+        // Přenést obsah data_b přímo do root (kromě Cast_B_Dokoncena - není potřeba pro INSYZ)
         if (isset($reportData['data_b']) && is_array($reportData['data_b'])) {
             foreach ($reportData['data_b'] as $key => $value) {
-                $result[$key] = $value;
+                // Vyloučit Cast_B_Dokoncena - interní údaj pro aplikaci, není potřeba v INSYZ
+                if ($key !== 'Cast_B_Dokoncena') {
+                    $result[$key] = $value;
+                }
             }
         }
         

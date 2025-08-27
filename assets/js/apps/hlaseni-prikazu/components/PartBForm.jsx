@@ -255,7 +255,8 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
             return completion.completed;
         });
         
-        return allTimsCompleted && formData.Koment_Usek?.trim();
+        // Pouze všechny TIMy musí být dokončené, komentář k úseku je volitelný
+        return allTimsCompleted;
     };
 
     // Update Cast_B_Dokoncena status
@@ -264,7 +265,7 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
         if (formData.Cast_B_Dokoncena !== isComplete) {
             setFormData(prev => ({ ...prev, Cast_B_Dokoncena: isComplete }));
         }
-    }, [formData.Stavy_Tim, formData.Koment_Usek]);
+    }, [formData.Stavy_Tim]); // Koment_Usek už není podmínkou, takže ho nemusíme sledovat
 
     return (
         <div className="space-y-6">
