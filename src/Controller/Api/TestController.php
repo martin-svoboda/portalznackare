@@ -97,12 +97,12 @@ class TestController extends AbstractController
 	{
 		$data = json_decode($request->getContent(), true);
 		$email = $data['email'] ?? null;
-		$hash = $data['hash'] ?? null;
+		$password = $data['hash'] ?? $data['password'] ?? null;
 
-		if (!$email || !$hash) {
+		if (!$email || !$password) {
 			return new JsonResponse([
 				'status' => 'error',
-				'message' => 'Missing email or hash parameter'
+				'message' => 'Missing email or password parameter'
 			], 400);
 		}
 
@@ -114,12 +114,12 @@ class TestController extends AbstractController
 				'config' => [
 					'USE_TEST_DATA' => $useTestData,
 					'email' => $email,
-					'hash_length' => strlen($hash)
+					'password_length' => strlen($password)
 				]
 			];
 
 			// Test login through InsyzService
-			$intAdr = $this->insyzService->loginUser($email, $hash);
+			$intAdr = $this->insyzService->loginUser($email, $password);
 			
 			$result['login_result'] = [
 				'success' => true,
@@ -135,7 +135,7 @@ class TestController extends AbstractController
 				'config' => [
 					'USE_TEST_DATA' => $useTestData ?? 'unknown',
 					'email' => $email,
-					'hash_length' => strlen($hash)
+					'password_length' => strlen($password)
 				]
 			], 500);
 		}

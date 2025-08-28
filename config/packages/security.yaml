@@ -22,6 +22,9 @@ security:
                 lifetime: 604800 # 1 week
                 path: /
                 domain: ~
+            logout:
+                path: /api/auth/logout
+                target: /
             # Pro API endpointy vrať JSON odpovědi místo redirectů
             entry_point: App\Security\ApiAuthenticationEntryPoint
 

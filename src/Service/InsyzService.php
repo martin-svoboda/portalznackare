@@ -68,11 +68,17 @@ class InsyzService
 		return $result;
 	}
 
-    public function loginUser(string $email, string $hash): int
+    public function loginUser(string $email, string $password): int
     {
+        // Detekuj, zda password je už SHA1 hash (40 hex znaků) nebo plain text
+        $isAlreadyHash = (strlen($password) === 40 && ctype_xdigit($password));
+        
         if ($this->useTestData()) {
-            // Test login logic
-            if ($email === 'test@test.com' && $hash === 'test123') {
+            // Test login logic - akceptuj plain text "test123" nebo jeho SHA1 hash
+            $testPasswordHash = strtoupper(sha1('test123'));
+            
+            if ($email === 'test@test.com' && 
+                ($password === 'test123' || strtoupper($password) === $testPasswordHash)) {
                 $intAdr = 4133;
                 $this->getTestData('login', ['@Email' => $email, '@WEBPwdHash' => '[HIDDEN]']);
                 return $intAdr;
@@ -80,6 +86,9 @@ class InsyzService
             
             throw new Exception('Chyba přihlášení, zkontrolujte údaje a zkuste to znovu.');
         }
+
+        // Pokud už je hash, použij přímo. Jinak vytvoř hash z plain textu.
+        $hash = $isAlreadyHash ? strtoupper($password) : $this->createPasswordHash($password);
 
         $result = $this->connect("trasy.WEB_Login", [
             '@Email' => $email,
@@ -91,6 +100,16 @@ class InsyzService
         }
 
         throw new Exception('Chyba přihlášení, zkontrolujte údaje a zkuste to znovu.');
+    }
+
+    /**
+     * Vytvoří bezpečný hash hesla kompatibilní s MSSQL HASHBYTES('SHA1', @password)
+     */
+    public function createPasswordHash(string $password): string
+    {
+        // SHA1 hash - kompatibilní s MSSQL: HASHBYTES('SHA1', @password)
+        // Ve formátu UPPER CASE HEX, jak vrací MSSQL
+        return strtoupper(sha1($password));
     }
 
     public function getUser(int $intAdr): array

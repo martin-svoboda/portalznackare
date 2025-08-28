@@ -24,6 +24,7 @@ Encore
     
     // Globální systémy
     .addEntry('toast-system', './assets/js/toast-system.js')
+    .addEntry('login-form', './assets/js/login-form.js')
 
     .enableReactPreset()
     .enableTypeScriptLoader()
@@ -38,8 +39,7 @@ Encore
     .enablePostCssLoader()
 
     .configureBabelPresetEnv((config) => {
-        config.useBuiltIns = 'usage';
-        config.corejs = 3;
+        config.useBuiltIns = false; // Žádné polyfilly - moderní prohlížeče only
     })
 
     // Aliasy PŘED module.exports

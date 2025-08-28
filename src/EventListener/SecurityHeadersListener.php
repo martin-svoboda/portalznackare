@@ -65,14 +65,14 @@ class SecurityHeadersListener
 
     private function addWebSecurityHeaders(Response $response, Request $request): void
     {
-        // Pro webové stránky - CSP umožňující React a Tailwind
+        // Pro webové stránky - CSP umožňující React, Tailwind a mapové služby
         $cspPolicy = implode('; ', [
             "default-src 'self'",
             "script-src 'self' 'unsafe-inline'", // Potřeba pro React
-            "style-src 'self' 'unsafe-inline'",  // Potřeba pro Tailwind
-            "img-src 'self' data: https:",       // Obrázky + data URIs
+            "style-src 'self' 'unsafe-inline' unpkg.com", // Tailwind + Leaflet CSS
+            "img-src 'self' data: https: api.mapy.cz", // Obrázky + mapové dlaždice
             "font-src 'self'",
-            "connect-src 'self'",               // AJAX calls
+            "connect-src 'self' api.mapy.cz api.openrouteservice.org", // AJAX + mapové API
             "frame-ancestors 'self'",           // Pouze naše domény v iframe
             "base-uri 'self'",
             "form-action 'self'"

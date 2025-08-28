@@ -2,6 +2,13 @@
 
 {% block title %}Nástěnka - Portál značkaře{% endblock %}
 
+{% block javascripts %}
+    {{ parent() }}
+    {% if not app.user %}
+        {{ encore_entry_script_tags('login-form') }}
+    {% endif %}
+{% endblock %}
+
 {% block body %}
     {% if not app.user %}
         <div class="container max-w-md mx-auto mt-8">

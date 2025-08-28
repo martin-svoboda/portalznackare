@@ -27,7 +27,7 @@
     </div>
     
     <div class="card__content">
-        <form action="{{ action_url|default(path('api_auth_login')) }}" method="post" class="form">
+        <form action="{{ action_url|default(path('api_auth_login')) }}" method="post" class="form" data-secure-login="true">
             {% if description is defined and description %}
                 <p class="text text--muted mb-6">{{ description }}</p>
             {% else %}
