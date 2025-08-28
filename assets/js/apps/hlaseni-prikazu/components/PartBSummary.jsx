@@ -35,21 +35,13 @@ export const PartBSummary = ({
                                 {formData.Obnovene_Useky && (() => {
                                     const renewedSections = Object.values(formData.Obnovene_Useky || {})
                                         .filter(usek => usek.Usek_Obnoven);
-                                    const totalRenewedKm = renewedSections
-                                        .reduce((sum, usek) => sum + (usek.Usek_Obnoven_Km || 0), 0);
                                     
                                     if (renewedSections.length > 0) {
                                         return (
-                                            <>
-                                                <div className="flex justify-between">
-                                                    <span className="text-sm text-gray-600 dark:text-gray-400">Obnovené úseky:</span>
-                                                    <span className="text-sm">{renewedSections.length}</span>
-                                                </div>
-                                                <div className="flex justify-between">
-                                                    <span className="text-sm text-gray-600 dark:text-gray-400">Obnoveno celkem:</span>
-                                                    <span className="text-sm font-medium">{totalRenewedKm.toFixed(1)} km</span>
-                                                </div>
-                                            </>
+                                            <div className="flex justify-between">
+                                                <span className="text-sm text-gray-600 dark:text-gray-400">Obnovené úseky:</span>
+                                                <span className="text-sm">{renewedSections.length}</span>
+                                            </div>
                                         );
                                     }
                                     return null;

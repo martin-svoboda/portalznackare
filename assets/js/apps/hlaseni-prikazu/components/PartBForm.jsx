@@ -326,113 +326,6 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
 
                                             {isExpanded && (
                                                 <div className="space-y-6">
-                                                    {/* Structural comment */}
-                                                    <div>
-                                                        <label htmlFor={`structural-comment-${timGroup.EvCi_TIM}`} className="form__label mb-1 block font-medium">
-                                                            Komentář k nosnému prvku
-                                                        </label>
-                                                        <p className="text-xs text-gray-600 mb-2">
-                                                            Stav upevnění směrovek a tabulek, např. zarostlá nebo prasklá
-                                                            dřevěná lišta, silně zkorodovaný nebo uvolněný ocelový upevňovací pás, 
-                                                            deformovaný trubkový držák směrovky, viditelná rez apod.
-                                                        </p>
-                                                        <textarea
-                                                            id={`structural-comment-${timGroup.EvCi_TIM}`}
-                                                            name={`structural-comment-${timGroup.EvCi_TIM}`}
-                                                            className="form__textarea"
-                                                            placeholder="Popište stav nosného prvku..."
-                                                            value={timReport?.Koment_NP || ""}
-                                                            onChange={(e) => updateTimReport(timGroup.EvCi_TIM, {
-                                                                EvCi_TIM: timGroup.EvCi_TIM,
-                                                                Koment_NP: e.target.value,
-                                                                Prilohy_NP: timReport?.Prilohy_NP || [],
-                                                                Predmety: timReport?.Predmety || [],
-                                                                Prilohy_TIM: timReport?.Prilohy_TIM || []
-                                                            })}
-                                                            rows={3}
-                                                        />
-                                                        <div className="mt-3">
-                                                            <label className="form__label mb-2 block">Fotografické přílohy k nosnému prvku</label>
-                                                            <AdvancedFileUpload
-                                                                id={`structural-${timGroup.EvCi_TIM}`}
-                                                                files={getAttachmentsAsArray(timReport?.Prilohy_NP || {})}
-                                                                onFilesChange={(files) => updateTimReport(timGroup.EvCi_TIM, {
-                                                                    ...(timReport || {}),
-                                                                    EvCi_TIM: timGroup.EvCi_TIM,
-                                                                    Prilohy_NP: setAttachmentsFromArray(files)
-                                                                })}
-                                                                maxFiles={5}
-                                                                accept="image/jpeg,image/png,image/heic"
-                                                                maxSize={10}
-                                                                storagePath={storagePath}
-                                                            />
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Center rule */}
-                                                    <div>
-                                                        <label className="form__label mb-1 block font-medium">
-                                                            Umístění TIMu splňuje středové pravidlo
-                                                        </label>
-                                                        <p className="text-xs text-gray-600 mb-2">
-                                                            Všechny směrovky jsou viditelné ze středu křižovatky
-                                                        </p>
-                                                        <div className="flex gap-4">
-                                                            <label htmlFor={`centerRule-yes-${timGroup.EvCi_TIM}`} className="flex items-center">
-                                                                <input
-                                                                    id={`centerRule-yes-${timGroup.EvCi_TIM}`}
-                                                                    type="radio"
-                                                                    name={`centerRule-${timGroup.EvCi_TIM}`}
-                                                                    value="true"
-                                                                    checked={timReport?.Souhlasi_STP === true}
-                                                                    onChange={() => updateTimReport(timGroup.EvCi_TIM, {
-                                                                        ...(timReport || {}),
-                                                                        EvCi_TIM: timGroup.EvCi_TIM,
-                                                                        Souhlasi_STP: true
-                                                                    })}
-                                                                    className="form__radio mr-2"
-                                                                />
-                                                                ANO
-                                                            </label>
-                                                            <label htmlFor={`centerRule-no-${timGroup.EvCi_TIM}`} className="flex items-center">
-                                                                <input
-                                                                    id={`centerRule-no-${timGroup.EvCi_TIM}`}
-                                                                    type="radio"
-                                                                    name={`centerRule-${timGroup.EvCi_TIM}`}
-                                                                    value="false"
-                                                                    checked={timReport?.Souhlasi_STP === false}
-                                                                    onChange={() => updateTimReport(timGroup.EvCi_TIM, {
-                                                                        ...(timReport || {}),
-                                                                        EvCi_TIM: timGroup.EvCi_TIM,
-                                                                        Souhlasi_STP: false
-                                                                    })}
-                                                                    className="form__radio mr-2"
-                                                                />
-                                                                NE
-                                                            </label>
-                                                        </div>
-
-                                                        {timReport?.Souhlasi_STP === false && (
-                                                            <>
-                                                                <label htmlFor={`centerRule-comment-${timGroup.EvCi_TIM}`} className="form__label sr-only">
-                                                                    Komentář k nesplnění středového pravidla
-                                                                </label>
-                                                                <textarea
-                                                                    id={`centerRule-comment-${timGroup.EvCi_TIM}`}
-                                                                    name={`centerRule-comment-${timGroup.EvCi_TIM}`}
-                                                                    className="form__textarea mt-3"
-                                                                    placeholder="Komentář k nesplnění středového pravidla..."
-                                                                    value={timReport?.Koment_STP || ""}
-                                                                    onChange={(e) => updateTimReport(timGroup.EvCi_TIM, {
-                                                                        ...(timReport || {}),
-                                                                        EvCi_TIM: timGroup.EvCi_TIM,
-                                                                        Koment_STP: e.target.value
-                                                                    })}
-                                                                    rows={2}
-                                                                />
-                                                            </>
-                                                        )}
-                                                    </div>
 
                                                     {/* Tables and arrows */}
                                                     <div>
@@ -461,10 +354,10 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                             {timGroup.items.map((item, index) => {
                                                                 const itemStatus = getItemStatus(timGroup.EvCi_TIM, item);
                                                                 const isArrow = item.Druh_Predmetu_Naz?.toLowerCase().includes('směrovka');
-                                                                const needsAdditionalData = itemStatus?.Zachovalost === 1 || itemStatus?.Zachovalost === 2;
+                                                                const needsAdditionalData = itemStatus?.Zachovalost !== 4;
 
                                                                 return (
-                                                                    <div key={getItemIdentifier(item)} className="border-b border-gray-200 pb-3">
+                                                                    <div key={getItemIdentifier(item)} className="border-b border-gray-200 dark:border-gray-600 pb-3">
                                                                         <div className="flex flex-col md:flex-row gap-4 md:items-center">
                                                                             {/* Item */}
                                                                             <div className="flex-[2]">
@@ -601,11 +494,121 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                             })}
                                                         </div>
 
+
+
                                                         {completion.completed && (
                                                             <div className="alert alert--success mt-4">
                                                                 Hlášení o obnově TZT pro tento TIM je kompletní.
                                                             </div>
                                                         )}
+                                                    </div>
+
+                                                    {/* Center rule */}
+                                                    <div className="border-b border-gray-200 dark:border-gray-600 pb-3">
+                                                        <label className="form__label mb-1 block font-medium">
+                                                            Umístění TIMu splňuje středové pravidlo
+                                                        </label>
+                                                        <p className="text-xs text-gray-600 mb-2">
+                                                            Všechny směrovky jsou viditelné ze středu křižovatky
+                                                        </p>
+                                                        <div className="flex gap-4">
+                                                            <label htmlFor={`centerRule-yes-${timGroup.EvCi_TIM}`} className="flex items-center">
+                                                                <input
+                                                                    id={`centerRule-yes-${timGroup.EvCi_TIM}`}
+                                                                    type="radio"
+                                                                    name={`centerRule-${timGroup.EvCi_TIM}`}
+                                                                    value="true"
+                                                                    checked={timReport?.Souhlasi_STP === true}
+                                                                    onChange={() => updateTimReport(timGroup.EvCi_TIM, {
+                                                                        ...(timReport || {}),
+                                                                        EvCi_TIM: timGroup.EvCi_TIM,
+                                                                        Souhlasi_STP: true
+                                                                    })}
+                                                                    className="form__radio mr-2"
+                                                                />
+                                                                ANO
+                                                            </label>
+                                                            <label htmlFor={`centerRule-no-${timGroup.EvCi_TIM}`} className="flex items-center">
+                                                                <input
+                                                                    id={`centerRule-no-${timGroup.EvCi_TIM}`}
+                                                                    type="radio"
+                                                                    name={`centerRule-${timGroup.EvCi_TIM}`}
+                                                                    value="false"
+                                                                    checked={timReport?.Souhlasi_STP === false}
+                                                                    onChange={() => updateTimReport(timGroup.EvCi_TIM, {
+                                                                        ...(timReport || {}),
+                                                                        EvCi_TIM: timGroup.EvCi_TIM,
+                                                                        Souhlasi_STP: false
+                                                                    })}
+                                                                    className="form__radio mr-2"
+                                                                />
+                                                                NE
+                                                            </label>
+                                                        </div>
+
+                                                        {timReport?.Souhlasi_STP === false && (
+                                                            <>
+                                                                <label htmlFor={`centerRule-comment-${timGroup.EvCi_TIM}`} className="form__label sr-only">
+                                                                    Komentář k nesplnění středového pravidla
+                                                                </label>
+                                                                <textarea
+                                                                    id={`centerRule-comment-${timGroup.EvCi_TIM}`}
+                                                                    name={`centerRule-comment-${timGroup.EvCi_TIM}`}
+                                                                    className="form__textarea mt-3"
+                                                                    placeholder="Komentář k nesplnění středového pravidla..."
+                                                                    value={timReport?.Koment_STP || ""}
+                                                                    onChange={(e) => updateTimReport(timGroup.EvCi_TIM, {
+                                                                        ...(timReport || {}),
+                                                                        EvCi_TIM: timGroup.EvCi_TIM,
+                                                                        Koment_STP: e.target.value
+                                                                    })}
+                                                                    rows={2}
+                                                                />
+                                                            </>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Structural comment */}
+                                                    <div className="border-b border-gray-200 dark:border-gray-600 pb-3">
+                                                        <label htmlFor={`structural-comment-${timGroup.EvCi_TIM}`} className="form__label mb-1 block font-medium">
+                                                            Komentář k nosnému prvku
+                                                        </label>
+                                                        <p className="text-xs text-gray-600 mb-2">
+                                                            Stav upevnění směrovek a tabulek, např. zarostlá nebo prasklá
+                                                            dřevěná lišta, silně zkorodovaný nebo uvolněný ocelový upevňovací pás,
+                                                            deformovaný trubkový držák směrovky, viditelná rez apod.
+                                                        </p>
+                                                        <textarea
+                                                            id={`structural-comment-${timGroup.EvCi_TIM}`}
+                                                            name={`structural-comment-${timGroup.EvCi_TIM}`}
+                                                            className="form__textarea"
+                                                            placeholder="Popište stav nosného prvku..."
+                                                            value={timReport?.Koment_NP || ""}
+                                                            onChange={(e) => updateTimReport(timGroup.EvCi_TIM, {
+                                                                EvCi_TIM: timGroup.EvCi_TIM,
+                                                                Koment_NP: e.target.value,
+                                                                Prilohy_NP: timReport?.Prilohy_NP || [],
+                                                                Predmety: timReport?.Predmety || [],
+                                                                Prilohy_TIM: timReport?.Prilohy_TIM || []
+                                                            })}
+                                                            rows={3}
+                                                        />
+                                                        <div className="mt-3">
+                                                            <label className="form__label mb-2 block">Fotografické přílohy k nosnému prvku</label>
+                                                            <AdvancedFileUpload
+                                                                id={`structural-${timGroup.EvCi_TIM}`}
+                                                                files={getAttachmentsAsArray(timReport?.Prilohy_NP || {})}
+                                                                onFilesChange={(files) => updateTimReport(timGroup.EvCi_TIM, {
+                                                                    ...(timReport || {}),
+                                                                    EvCi_TIM: timGroup.EvCi_TIM,
+                                                                    Prilohy_NP: setAttachmentsFromArray(files)
+                                                                })}
+                                                                maxFiles={5}
+                                                                accept="image/jpeg,image/png,image/heic"
+                                                                maxSize={10}
+                                                                storagePath={storagePath}
+                                                            />
+                                                        </div>
                                                     </div>
 
                                                     {/* General TIM comment */}

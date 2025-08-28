@@ -44,7 +44,6 @@ export const RenewedSectionsForm = ({
         if (!updated[usekId]) {
             updated[usekId] = {
                 Usek_Obnoven: false,
-                Usek_Obnoven_Km: 0,
                 Usek_Delka: usek?.Delka_ZU ? parseFloat(usek.Delka_ZU) : 0
             };
         }
@@ -56,13 +55,8 @@ export const RenewedSectionsForm = ({
 
         updated[usekId][field] = value;
 
-        // Při odškrtnutí vynulovat kilometry
-        if (field === 'Usek_Obnoven' && !value) {
-            updated[usekId].Usek_Obnoven_Km = 0;
-        }
-
-        // Odebrat prázdné záznamy (pokud není obnoven a není zadáno km)
-        if (!updated[usekId].Usek_Obnoven && updated[usekId].Usek_Obnoven_Km === 0) {
+        // Odebrat prázdné záznamy (pokud není označen jako obnoven)
+        if (!updated[usekId].Usek_Obnoven) {
             delete updated[usekId];
         }
 
@@ -98,14 +92,13 @@ export const RenewedSectionsForm = ({
                 </div>
             </div>
             <div className="card__content">
-                <p>Označte úseky, které jste během značkařské činnosti obnovili, a zadejte počet obnovených
-                    kilometrů.</p>
+                <p>Označte úseky, které jste během značkařské činnosti obnovili.</p>
 
                 {/* Responzivní grid tabulka */}
                 <div className="overflow-x-auto">
                     <div className="min-w-full">
                         {/* Hlavička pro desktop */}
-                        <div className="hidden md:grid md:grid-cols-12 gap-4 pb-2 border-b border-gray-300 dark:border-gray-600 mb-4">
+                        <div className="hidden md:grid md:grid-cols-9 gap-4 pb-2 border-b border-gray-300 dark:border-gray-600 mb-4">
                             <div className="col-span-5">
                                 <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">Úsek</span>
                             </div>
@@ -115,23 +108,19 @@ export const RenewedSectionsForm = ({
                             <div className="col-span-2">
                                 <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">Obnoven</span>
                             </div>
-                            <div className="col-span-3">
-                                <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">Obnoveno km</span>
-                            </div>
                         </div>
 
                         {/* Úseky */}
                         <div className="space-y-4">
                             {useky.map((usek, index) => {
                                 const usekData = Obnovene_Useky[usek.EvCi_Tra] || {
-                                    Usek_Obnoven: false,
-                                    Usek_Obnoven_Km: 0
+                                    Usek_Obnoven: false
                                 };
 
                                 return (
                                     <div key={usek.EvCi_Tra || index}
                                          className="border-b border-gray-200 dark:border-gray-700 pb-4">
-                                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+                                        <div className="grid grid-cols-1 md:grid-cols-9 gap-4 items-center">
                                             {/* Informace o úseku */}
                                             <div className="col-span-1 md:col-span-5">
                                                 <div className="md:hidden text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">
@@ -197,32 +186,6 @@ export const RenewedSectionsForm = ({
                                                 </label>
                                             </div>
 
-                                            {/* Obnovené kilometry */}
-                                            <div className="col-span-1 md:col-span-3">
-                                                <div className="md:hidden text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">
-                                                    Obnoveno km
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <input
-                                                        type="number"
-                                                        className="form__input"
-                                                        placeholder="0.0"
-                                                        min="0"
-                                                        step="0.1"
-                                                        value={usekData.Usek_Obnoven_Km || ''}
-                                                        onChange={(e) => {
-                                                            const value = e.target.value ? parseFloat(e.target.value) : 0;
-                                                            const clampedValue = Math.max(0, value);
-                                                            handleSectionRenewalChange(
-                                                                usek.EvCi_Tra,
-                                                                'Usek_Obnoven_Km',
-                                                                clampedValue
-                                                            );
-                                                        }}
-                                                        disabled={disabled || !usekData.Usek_Obnoven}
-                                                    />
-                                                </div>
-                                            </div>
                                         </div>
                                     </div>
                                 );
@@ -236,7 +199,6 @@ export const RenewedSectionsForm = ({
                     <strong>Pokyny:</strong>
                     <ul className="list-disc list-inside mt-1 space-y-1">
                         <li>Označte pouze úseky, kde skutečně proběhla obnova značení</li>
-                        <li>Zadejte přesnou délku obnoveného úseku v kilometrech</li>
                     </ul>
                 </div>
             </div>
