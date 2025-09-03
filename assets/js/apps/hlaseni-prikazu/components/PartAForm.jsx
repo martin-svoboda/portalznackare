@@ -189,10 +189,10 @@ export const PartAForm = ({
                             <div key={accommodation.id}>
                                 {index > 0 && <hr className="my-4" />}
                                 <div className="relative">
-                                    <div className="absolute top-0 right-0 z-10">
+                                    <div className="absolute top-5 right-0 z-10">
                                         <button
                                             type="button"
-                                            className="btn btn--icon btn--small btn--danger"
+                                            className="btn btn--icon btn--danger--light"
                                             onClick={() => removeAccommodation(accommodation.id)}
                                             title="Smazat nocležné"
                                             disabled={disabled}
@@ -201,9 +201,9 @@ export const PartAForm = ({
                                         </button>
                                     </div>
 
-                                    <div className="mr-10">
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                                            <div>
+                                    <div className="">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 md:pr-12">
+                                            <div className="mr-12 md:mr-0">
                                                 <label htmlFor={`accommodation-place-${accommodation.id}`} className="form__label">Místo</label>
                                                 <input
                                                     id={`accommodation-place-${accommodation.id}`}
@@ -213,6 +213,7 @@ export const PartAForm = ({
                                                     value={accommodation.Misto || ""}
                                                     onChange={(e) => updateAccommodation(accommodation.id, { Misto: e.target.value })}
                                                     disabled={disabled}
+                                                    required={true}
                                                 />
                                             </div>
                                             <div>
@@ -225,6 +226,7 @@ export const PartAForm = ({
                                                     value={accommodation.Zarizeni || ""}
                                                     onChange={(e) => updateAccommodation(accommodation.id, { Zarizeni: e.target.value })}
                                                     disabled={disabled}
+                                                    required={true}
                                                 />
                                             </div>
                                         </div>
@@ -242,6 +244,7 @@ export const PartAForm = ({
                                                     min="0"
                                                     step="0.01"
                                                     disabled={disabled}
+                                                    required={true}
                                                 />
                                             </div>
                                             <div>
@@ -253,6 +256,7 @@ export const PartAForm = ({
                                                     value={accommodation.Zaplatil || ""}
                                                     onChange={(e) => updateAccommodation(accommodation.id, { Zaplatil: e.target.value })}
                                                     disabled={disabled}
+                                                    required={true}
                                                 >
                                                     {computedTeamMembers.map(member => (
                                                         <option key={member.INT_ADR} value={member.INT_ADR}>
@@ -271,6 +275,7 @@ export const PartAForm = ({
                                                     value={toISODateString(accommodation.Datum)}
                                                     onChange={(e) => updateAccommodation(accommodation.id, { Datum: parseDate(e.target.value) })}
                                                     disabled={disabled}
+                                                    required={true}
                                                 />
                                             </div>
                                         </div>
@@ -285,6 +290,7 @@ export const PartAForm = ({
                                                 accept="image/jpeg,image/png,image/heic,application/pdf"
                                                 maxSize={10}
                                                 storagePath={storagePath}
+                                                disabled={disabled}
                                                 // File usage tracking
                                                 usageType={generateUsageType('accommodation', prikazId)}
                                                 entityId={generateEntityId(prikazId, accommodation.id)}
@@ -328,10 +334,10 @@ export const PartAForm = ({
                             <div key={expense.id}>
                                 {index > 0 && <hr className="my-4" />}
                                 <div className="relative">
-                                    <div className="absolute top-0 right-0 z-10">
+                                    <div className="absolute top-5 right-0 z-10">
                                         <button
                                             type="button"
-                                            className="btn btn--icon btn--small btn--danger"
+                                            className="btn btn--icon btn--danger--light"
                                             onClick={() => removeExpense(expense.id)}
                                             title="Smazat výdaj"
                                             disabled={disabled}
@@ -340,8 +346,8 @@ export const PartAForm = ({
                                         </button>
                                     </div>
 
-                                    <div className="mr-10">
-                                        <div className="mb-4">
+                                    <div className="">
+                                        <div className="mb-4 pr-12">
                                             <label htmlFor={`expense-description-${expense.id}`} className="form__label">Popis výdaje</label>
                                             <input
                                                 id={`expense-description-${expense.id}`}
@@ -351,6 +357,7 @@ export const PartAForm = ({
                                                 value={expense.Polozka || ""}
                                                 onChange={(e) => updateExpense(expense.id, { Polozka: e.target.value })}
                                                 disabled={disabled}
+                                                required={true}
                                             />
                                         </div>
 
@@ -367,6 +374,7 @@ export const PartAForm = ({
                                                     min="0"
                                                     step="0.01"
                                                     disabled={disabled}
+                                                    required={true}
                                                 />
                                             </div>
                                             <div>
@@ -378,6 +386,7 @@ export const PartAForm = ({
                                                     value={expense.Zaplatil || ""}
                                                     onChange={(e) => updateExpense(expense.id, { Zaplatil: e.target.value })}
                                                     disabled={disabled}
+                                                    required={true}
                                                 >
                                                     {computedTeamMembers.map(member => (
                                                         <option key={member.INT_ADR} value={member.INT_ADR}>
@@ -396,6 +405,7 @@ export const PartAForm = ({
                                                     value={toISODateString(expense.Datum)}
                                                     onChange={(e) => updateExpense(expense.id, { Datum: parseDate(e.target.value) })}
                                                     disabled={disabled}
+                                                    required={true}
                                                 />
                                             </div>
                                         </div>
@@ -410,6 +420,7 @@ export const PartAForm = ({
                                                 accept="image/jpeg,image/png,image/heic,application/pdf"
                                                 maxSize={10}
                                                 storagePath={storagePath}
+                                                disabled={disabled}
                                                 // File usage tracking
                                                 usageType={generateUsageType('expense', prikazId)}
                                                 entityId={generateEntityId(prikazId, expense.id)}

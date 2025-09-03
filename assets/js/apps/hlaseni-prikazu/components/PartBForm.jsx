@@ -354,7 +354,7 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                             {timGroup.items.map((item, index) => {
                                                                 const itemStatus = getItemStatus(timGroup.EvCi_TIM, item);
                                                                 const isArrow = item.Druh_Predmetu_Naz?.toLowerCase().includes('směrovka');
-                                                                const needsAdditionalData = itemStatus?.Zachovalost !== 4;
+                                                                const needsAdditionalData = itemStatus?.Zachovalost !== 4 && itemStatus?.Druh_Predmetu !== 'P'&& itemStatus?.Druh_Predmetu !== 'I';
 
                                                                 return (
                                                                     <div key={getItemIdentifier(item)} className="border-b border-gray-200 dark:border-gray-600 pb-3">
@@ -411,6 +411,8 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                                                         item,
                                                                                         { Zachovalost: parseInt(e.target.value) }
                                                                                     )}
+                                                                                    disabled={disabled}
+                                                                                    required={true}
                                                                                 >
                                                                                     <option value="">Vyberte stav</option>
                                                                                     {statusOptions.map(opt => (
@@ -448,6 +450,8 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                                                                     { Rok_Vyroby: year }
                                                                                                 );
                                                                                             }}
+                                                                                            disabled={disabled}
+                                                                                            required={true}
                                                                                         />
                                                                                     </>
                                                                                 ) : (
@@ -475,6 +479,8 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                                                                 item,
                                                                                                 { Smerovani: e.target.value }
                                                                                             )}
+                                                                                            disabled={disabled}
+                                                                                            required={true}
                                                                                         >
                                                                                             <option value="">L/P</option>
                                                                                             {arrowOrientationOptions.map(opt => (
@@ -494,13 +500,6 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                             })}
                                                         </div>
 
-
-
-                                                        {completion.completed && (
-                                                            <div className="alert alert--success mt-4">
-                                                                Hlášení o obnově TZT pro tento TIM je kompletní.
-                                                            </div>
-                                                        )}
                                                     </div>
 
                                                     {/* Center rule */}
@@ -525,6 +524,7 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                                         Souhlasi_STP: true
                                                                     })}
                                                                     className="form__radio mr-2"
+                                                                    disabled={disabled}
                                                                 />
                                                                 ANO
                                                             </label>
@@ -541,6 +541,7 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                                         Souhlasi_STP: false
                                                                     })}
                                                                     className="form__radio mr-2"
+                                                                    disabled={disabled}
                                                                 />
                                                                 NE
                                                             </label>
@@ -563,6 +564,7 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                                         Koment_STP: e.target.value
                                                                     })}
                                                                     rows={2}
+                                                                    disabled={disabled}
                                                                 />
                                                             </>
                                                         )}
@@ -592,6 +594,7 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                                 Prilohy_TIM: timReport?.Prilohy_TIM || []
                                                             })}
                                                             rows={3}
+                                                            disabled={disabled}
                                                         />
                                                         <div className="mt-3">
                                                             <label className="form__label mb-2 block">Fotografické přílohy k nosnému prvku</label>
@@ -607,6 +610,7 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                                 accept="image/jpeg,image/png,image/heic"
                                                                 maxSize={10}
                                                                 storagePath={storagePath}
+                                                                disabled={disabled}
                                                             />
                                                         </div>
                                                     </div>
@@ -626,6 +630,7 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                                 Koment_TIM: e.target.value
                                                             })}
                                                             rows={2}
+                                                            disabled={disabled}
                                                         />
                                                     </div>
 
@@ -646,6 +651,7 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                             accept="image/jpeg,image/png,image/heic"
                                                             maxSize={15}
                                                             storagePath={storagePath}
+                                                            disabled={disabled}
                                                         />
                                                     </div>
                                                 </div>
@@ -693,6 +699,7 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                         value={formData.Koment_Usek || ""}
                         onChange={(e) => setFormData(prev => ({ ...prev, Koment_Usek: e.target.value }))}
                         rows={4}
+                        disabled={disabled}
                     />
 
                     <div className="mb-4">
@@ -707,6 +714,7 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                             accept="image/jpeg,image/png,image/heic"
                             maxSize={15}
                             storagePath={storagePath}
+                            disabled={disabled}
                         />
                     </div>
 
@@ -728,6 +736,7 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                     checked={formData.Souhlasi_Mapa === "ano"}
                                     onChange={(e) => setFormData(prev => ({ ...prev, Souhlasi_Mapa: e.target.value }))}
                                     className="form__radio mr-2"
+                                    disabled={disabled}
                                 />
                                 ANO
                             </label>
@@ -740,6 +749,7 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                     checked={formData.Souhlasi_Mapa === "ne"}
                                     onChange={(e) => setFormData(prev => ({ ...prev, Souhlasi_Mapa: e.target.value }))}
                                     className="form__radio mr-2"
+                                    disabled={disabled}
                                 />
                                 NE
                             </label>
@@ -759,6 +769,7 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                         value={formData.Koment_Mapa || ""}
                                         onChange={(e) => setFormData(prev => ({ ...prev, Koment_Mapa: e.target.value }))}
                                         rows={3}
+                                        disabled={disabled}
                                     />
                                 </div>
                                 
@@ -774,6 +785,7 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                         accept="image/jpeg,image/png,image/heic"
                                         maxSize={15}
                                         storagePath={storagePath ? `${storagePath}/mapa-nesoulad` : null}
+                                        disabled={disabled}
                                     />
                                 </div>
                             </div>

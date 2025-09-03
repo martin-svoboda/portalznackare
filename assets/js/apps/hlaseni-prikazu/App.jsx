@@ -77,7 +77,8 @@ const App = () => {
         if (!['draft', 'rejected'].includes(status)) return false;
         
         const userInTeam = teamMembers.find(member => member.INT_ADR == user.INT_ADR);
-        return !!userInTeam; // User is in team
+        // return !!userInTeam; // User is in team
+        return userInTeam?.isLeader || false; // jen leader může editovat
     };
 
     const checkUserIsLeader = (user, teamMembers) => {

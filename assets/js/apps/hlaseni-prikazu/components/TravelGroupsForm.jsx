@@ -302,6 +302,7 @@ export const TravelGroupsForm = ({
                                     onClick={() => removeTravelGroup(group.id)}
                                     className="btn btn--icon btn--danger--light btn--sm"
                                     title="Odstranit skupinu"
+                                    disabled={disabled}
                                 >
                                     <IconTrash size={16}/>
                                 </button>
@@ -408,7 +409,7 @@ export const TravelGroupsForm = ({
 
                                             {/* PŮVODNÍ: Segment header - přesně stejný */}
                                             <div className="mb-4">
-                                                <div className="flex items-start gap-3 mb-4 flex-wrap">
+                                                <div className="flex items-start gap-3 mb-4 flex-col md:flex-row">
                                                     <div
                                                         className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center absolute -left-5 -top-1">
                                                         <TransportIcon size={18}/>
@@ -416,7 +417,7 @@ export const TravelGroupsForm = ({
                                                     <div className="w-24 pl-2">
                                                         <span className="font-medium">Cesta {index + 1}</span>
                                                     </div>
-                                                    <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                    <div className="flex-1 w-full grid grid-cols-1 md:grid-cols-3 gap-4">
                                                         <div className="md:col-span-2">
                                                             <label htmlFor={`segment-date-${segment.id}`}
                                                                    className="form__label sr-only">Datum
@@ -429,13 +430,14 @@ export const TravelGroupsForm = ({
                                                                 value={toISODateString(segment.Datum || calculateExecutionDate(formData))}
                                                                 onChange={(e) => updateSegmentField(group.id, segment.id, {Datum: parseDate(e.target.value)})}
                                                                 disabled={disabled}
+                                                                required={true}
                                                             />
                                                         </div>
                                                     </div>
                                                 </div>
 
                                                 {/* PŮVODNÍ: Start location - přesně stejný */}
-                                                <div className="flex items-start gap-3 mb-4 flex-wrap">
+                                                <div className="flex items-start gap-3 mb-4 flex-col md:flex-row">
                                                     <div
                                                         className="w-6 h-6 rounded-full bg-gray-400 text-white flex items-center justify-center absolute -left-3 text-xs">
                                                         <IconMapPin size={16}/>
@@ -443,7 +445,7 @@ export const TravelGroupsForm = ({
                                                     <div className="w-24">
                                                         <span>Odjezd z</span>
                                                     </div>
-                                                    <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                    <div className="flex-1 grid w-full grid-cols-1 md:grid-cols-3 gap-4">
                                                         <div className="md:col-span-2">
                                                             <label htmlFor={`start-place-${segment.id}`}
                                                                    className="form__label sr-only">Místo odjezdu</label>
@@ -456,6 +458,7 @@ export const TravelGroupsForm = ({
                                                                 value={segment.Misto_Odjezdu || ""}
                                                                 onChange={(e) => updateSegmentField(group.id, segment.id, {Misto_Odjezdu: e.target.value})}
                                                                 disabled={disabled}
+                                                                required={true}
                                                             />
                                                         </div>
                                                         <div className="flex items-center gap-2">
@@ -470,13 +473,14 @@ export const TravelGroupsForm = ({
                                                                 value={segment.Cas_Odjezdu || ""}
                                                                 onChange={(e) => updateSegmentField(group.id, segment.id, {Cas_Odjezdu: e.target.value})}
                                                                 disabled={disabled}
+                                                                required={true}
                                                             />
                                                         </div>
                                                     </div>
                                                 </div>
 
                                                 {/* PŮVODNÍ: End location - přesně stejný */}
-                                                <div className="flex items-start gap-3 mb-4 flex-wrap">
+                                                <div className="flex items-start gap-3 mb-4 flex-col md:flex-row">
                                                     <div
                                                         className="w-6 h-6 rounded-full bg-gray-400 text-white flex items-center justify-center absolute -left-3 text-xs">
                                                         <IconMapPin size={16}/>
@@ -484,7 +488,7 @@ export const TravelGroupsForm = ({
                                                     <div className="w-24">
                                                         <span>Příjezd do</span>
                                                     </div>
-                                                    <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                    <div className="flex-1 w-full grid grid-cols-1 md:grid-cols-3 gap-4">
                                                         <div className="md:col-span-2">
                                                             <label htmlFor={`end-place-${segment.id}`}
                                                                    className="form__label sr-only">Místo
@@ -498,6 +502,7 @@ export const TravelGroupsForm = ({
                                                                 value={segment.Misto_Prijezdu || ""}
                                                                 onChange={(e) => updateSegmentField(group.id, segment.id, {Misto_Prijezdu: e.target.value})}
                                                                 disabled={disabled}
+                                                                required={true}
                                                             />
                                                         </div>
                                                         <div className="flex items-center gap-2">
@@ -512,6 +517,7 @@ export const TravelGroupsForm = ({
                                                                 value={segment.Cas_Prijezdu || ""}
                                                                 onChange={(e) => updateSegmentField(group.id, segment.id, {Cas_Prijezdu: e.target.value})}
                                                                 disabled={disabled}
+                                                                required={true}
                                                             />
                                                         </div>
                                                     </div>
@@ -529,6 +535,7 @@ export const TravelGroupsForm = ({
                                                             value={segment.Druh_Dopravy || "AUV"}
                                                             onChange={(e) => updateSegmentField(group.id, segment.id, {Druh_Dopravy: e.target.value})}
                                                             disabled={disabled}
+                                                            required={true}
                                                         >
                                                             {druhDopravyOptions.map(opt => (
                                                                 <option key={opt.value} value={opt.value}>
@@ -556,6 +563,7 @@ export const TravelGroupsForm = ({
                                                                     min="0"
                                                                     step="0.1"
                                                                     disabled={disabled}
+                                                                    required={true}
                                                                 />
                                                             </>
                                                         )}
@@ -601,6 +609,7 @@ export const TravelGroupsForm = ({
                                                                                             min="0"
                                                                                             step="0.01"
                                                                                             disabled={disabled}
+                                                                                            required={true}
                                                                                         />
                                                                                 </div>
                                                                             );
@@ -630,6 +639,7 @@ export const TravelGroupsForm = ({
                                                             accept="image/jpeg,image/png,image/heic,application/pdf"
                                                             maxSize={10}
                                                             storagePath={storagePath}
+                                                            disabled={disabled}
                                                             // File usage tracking
                                                             usageType={generateUsageType('segment', prikazId)}
                                                             entityId={generateEntityId(prikazId, segment.id)}
@@ -677,8 +687,8 @@ export const TravelGroupsForm = ({
                                                 className="form__select"
                                                 value={group.Ridic || ""}
                                                 onChange={(e) => updateGroupField(group.id, {Ridic: e.target.value})}
-                                                required
                                                 disabled={disabled}
+                                                required={true}
                                             >
                                                 <option value="">Vyberte řidiče</option>
                                                 {(group.Cestujci || []).map(intAdr => {
@@ -705,7 +715,7 @@ export const TravelGroupsForm = ({
                                                 value={group.SPZ || ""}
                                                 maxLength={10}
                                                 onChange={(e) => updateGroupField(group.id, {SPZ: e.target.value})}
-                                                required
+                                                required={true}
                                                 disabled={disabled}
                                             />
                                         </div>
@@ -759,10 +769,14 @@ export const TravelGroupsForm = ({
 
             {/* NOVÉ: Tlačítko pro přidání skupiny - vždy dole */}
             <div className="text-center">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
+                    Různé skupiny cest je vhodné použít v případě, kdy se cesty značkařů ve skupině liší. Můžete tak například nastavit v jedné skupině společné cesty a v druhé samostatnou cestu řidiče před vyzvednutím druhého značkaře.
+                </p>
                 <button
                     type="button"
                     onClick={addTravelGroup}
                     className={`btn ${travelGroups.length === 0 ? 'btn--primary' : 'btn--secondary'}`}
+                    disabled={disabled}
                 >
                     <IconPlus size={16} className="mr-2"/>
                     {travelGroups.length === 0 ? 'Přidat skupinu cest' : 'Přidat další skupinu cest'}
