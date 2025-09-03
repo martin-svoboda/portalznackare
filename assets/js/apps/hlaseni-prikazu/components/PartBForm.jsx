@@ -354,7 +354,7 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                             {timGroup.items.map((item, index) => {
                                                                 const itemStatus = getItemStatus(timGroup.EvCi_TIM, item);
                                                                 const isArrow = item.Druh_Predmetu_Naz?.toLowerCase().includes('směrovka');
-                                                                const needsAdditionalData = itemStatus?.Zachovalost !== 4 && itemStatus?.Druh_Predmetu !== 'P'&& itemStatus?.Druh_Predmetu !== 'I';
+                                                                const needsAdditionalData = itemStatus?.Zachovalost !== 4 && item?.Druh_Predmetu !== 'P' && item?.Druh_Predmetu !== 'I';
 
                                                                 return (
                                                                     <div key={getItemIdentifier(item)} className="border-b border-gray-200 dark:border-gray-600 pb-3">
