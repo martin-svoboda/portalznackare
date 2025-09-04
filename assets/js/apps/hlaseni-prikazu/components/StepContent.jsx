@@ -248,43 +248,26 @@ export const StepContent = ({
                         <div className="flex items-center gap-2">
                             <IconRoute size={20}/>
                             <h4 className="card__title">Souhrn části A - Vyúčtování</h4>
+                            <span className={`badge ${formData.Cast_A_Dokoncena ? 'badge--success' : 'badge--danger'}`}>
+                                        {formData.Cast_A_Dokoncena ? "Dokončeno" : "Nedokončeno"}
+                                    </span>
                         </div>
                     </div>
                     <div className="card__content">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <div className="flex justify-between">
-                                    <span className="text-sm text-gray-600">Datum provedení:</span>
-                                    <span className="text-sm">{calculateExecutionDate(formData).toLocaleDateString('cs-CZ')}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-sm text-gray-600">Počet segmentů dopravy:</span>
-                                    <span className="text-sm">{(formData.Skupiny_Cest?.reduce((total, group) => total + (group.Cesty?.length || 0), 0) || 0)}</span>
-                                </div>
-                                {formData.Hlavni_Ridic && (
-                                    <div className="flex justify-between">
-                                        <span className="text-sm text-gray-600">Řidič:</span>
-                                        <span className="text-sm">{formData.Hlavni_Ridic}</span>
-                                    </div>
-                                )}
-                            </div>
-                            <div className="space-y-2">
-                                <div className="flex justify-between">
-                                    <span className="text-sm text-gray-600">Ubytování:</span>
-                                    <span className="text-sm">{formData.Noclezne.length} nocí</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-sm text-gray-600">Dodatečné výdaje:</span>
-                                    <span className="text-sm">{formData.Vedlejsi_Vydaje.length} položek</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-sm text-gray-600">Stav části A:</span>
-                                    <span className={`inline-block px-2 py-1 text-xs rounded ${formData.Cast_A_Dokoncena ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                        {formData.Cast_A_Dokoncena ? "Dokončeno" : "Nedokončeno"}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
+                        <p>
+                            Datum provedení: <span className="font-bold">{calculateExecutionDate(formData).toLocaleDateString('cs-CZ')}</span>
+                        </p>
+                        <CompensationSummary
+                            formData={formData}
+                            tariffRates={tariffRates}
+                            tariffRatesLoading={tariffRatesLoading}
+                            tariffRatesError={tariffRatesError}
+                            compact={false}
+                            isLeader={isLeader}
+                            teamMembers={teamMembers}
+                            currentUser={currentUser}
+                            head={head}
+                        />
                     </div>
                 </div>
 
@@ -292,31 +275,6 @@ export const StepContent = ({
                 <ErrorBoundary sectionName="Souhrn části B">
                     <PartBSummary formData={formData} />
                 </ErrorBoundary>
-
-                {/* Complete compensation summary */}
-                <div className="card">
-                    <div className="card__header">
-                        <div className="flex items-center gap-2">
-                            <IconReportMoney size={20}/>
-                            <h4 className="card__title">Celkový výpočet náhrad</h4>
-                        </div>
-                    </div>
-                    <div className="card__content">
-                        <ErrorBoundary sectionName="Celkový výpočet náhrad">
-                            <CompensationSummary
-                                formData={formData}
-                                tariffRates={tariffRates}
-                                tariffRatesLoading={tariffRatesLoading}
-                                tariffRatesError={tariffRatesError}
-                                compact={false}
-                                isLeader={isLeader}
-                                teamMembers={teamMembers}
-                                currentUser={currentUser}
-                                head={head}
-                            />
-                        </ErrorBoundary>
-                    </div>
-                </div>
 
                 {/* Submission */}
                 <div className="card border-l-4 border-blue-500 bg-gray-50">

@@ -3,7 +3,7 @@ import {
     calculateCompensation,
     calculateCompensationForAllMembers
 } from '../utils/compensationCalculator';
-import { log } from '../../../utils/debug';
+import {log} from '../../../utils/debug';
 
 // Member compensation detail component for compact mode
 const MemberCompensationDetail = ({
@@ -19,78 +19,106 @@ const MemberCompensationDetail = ({
 
     const workHours = memberCompensation.Cas_Prace_Celkem || 0;
 
+    const textSize = compact ? "text-sm" : "text-base";
+    const smallTextSize = compact ? "text-xs" : "text-sm";
+    const blockStyle = compact ? "space-y-1" : "space-y-2 mb-2 border-b border-gray-200 dark:border-gray-700 pb-3";
+
+    console.log(memberCompensation);
+    console.log(formData);
+
     return (
         <div className="space-y-2">
             {showMemberName && (
-                <h5 className="font-bold text-sm text-gray-700">{member?.name || member?.Znackar || member?.INT_ADR}</h5>
+                <h5 className={`font-bold ${textSize}`}>{member?.name || member?.Znackar || member?.INT_ADR}</h5>
             )}
 
-            <div className="flex justify-between">
-                <span className="text-sm font-medium">Práce celkem</span>
-                <span className="text-sm">{workHours.toFixed(1)} h</span>
+            <div className={blockStyle}>
+                <div className="flex justify-between">
+                    <span className={`${textSize} font-medium`}>Práce celkem</span>
+                    <span className={textSize}>{workHours.toFixed(1)} h</span>
+                </div>
+                {!compact && (
+                    memberCompensation.Cas_Prace && memberCompensation.Cas_Prace.length > 0 ? 
+                        memberCompensation.Cas_Prace.map((den, index) => {
+                            if (!den ) return <span key={index} className="text-red-500">Žádný počátek a konec cesty - nelze vypočítat</span>;
+
+                            return (
+                                <div key={index}
+                                     className={`${smallTextSize} text-muted ml-4 flex justify-between`}>
+                                    <div>
+                                    <span>{den.Datum ? new Date(den.Datum).toLocaleDateString('cs-CZ') : <span className="text-red-500">chybí datum</span>}</span>
+                                    <span> od {den.Od || <span className="text-red-500">chybí čas</span>}</span>
+                                    <span> do {den.Do || <span className="text-red-500">chybí čas</span>}</span>
+                                    </div>
+                                    <span>{den.Cas} h</span>
+                                </div>
+                            );
+                        }) : 
+                        <span className={`${smallTextSize} text-red-500 ml-4`}>Žádný počátek a konec cesty - nelze vypočítat</span>
+                )}
             </div>
 
-            <div className="space-y-1">
+            <div className={blockStyle}>
                 <div className="flex justify-between">
-                    <span className="text-sm font-medium">
+                    <span className={`${textSize} font-medium`}>
                         Jízdné
                         {/* Zobrazit konkrétní použitou sazbu pouze pokud je řidičem nějaké auto cesty */}
                         {tariffRates && (() => {
                             // Zkontrolovat zda je řidičem nějaké auto cesty
-                            const isDriverOfAnyCar = formData.Skupiny_Cest?.some(group => 
-                                group.Ridic == member?.INT_ADR && 
+                            const isDriverOfAnyCar = formData.Skupiny_Cest?.some(group =>
+                                group.Ridic == member?.INT_ADR &&
                                 group.Cesty?.some(s => s.Druh_Dopravy === "AUV" || s.Druh_Dopravy === "AUV-Z")
                             );
-                            
+
                             if (!isDriverOfAnyCar) return null;
-                            
+
                             // Zjistit zda je člen hlavním řidičem (dostane zvýšenou sazbu)
                             const hasHigherRate = formData.Hlavni_Ridic == member?.INT_ADR &&
-                                formData.Skupiny_Cest?.some(group => 
-                                    group.Ridic == member?.INT_ADR && 
+                                formData.Skupiny_Cest?.some(group =>
+                                    group.Ridic == member?.INT_ADR &&
                                     group.Cesty?.some(s => s.Druh_Dopravy === "AUV" || s.Druh_Dopravy === "AUV-Z")
                                 );
                             const rate = hasHigherRate ? tariffRates.jizdneZvysene : tariffRates.jizdne;
                             return (
-                                <span className="text-xs text-gray-500 ml-1">
+                                <span className={`${smallTextSize} text-muted ml-1`}>
                                     ({rate || 0} Kč/km)
                                 </span>
                             );
                         })()}
                     </span>
-                    <span className="text-sm">{formatCurrency(memberCompensation?.Jizdne_Celkem || 0)}</span>
+                    <span className={textSize}>{formatCurrency(memberCompensation?.Jizdne_Celkem || 0)}</span>
                 </div>
                 {/* Badge zvýšené sazby pod názvem */}
                 {formData.Hlavni_Ridic == member?.INT_ADR &&
-                formData.Skupiny_Cest?.some(group => 
-                    group.Ridic == member?.INT_ADR && 
-                    group.Cesty?.some(s => s.Druh_Dopravy === "AUV" || s.Druh_Dopravy === "AUV-Z")
-                ) && (
-                    <div className="ml-4">
+                    formData.Skupiny_Cest?.some(group =>
+                        group.Ridic == member?.INT_ADR &&
+                        group.Cesty?.some(s => s.Druh_Dopravy === "AUV" || s.Druh_Dopravy === "AUV-Z")
+                    ) && (
+                        <div className="ml-4">
                         <span className="badge badge--warning badge--light">
                             Zvýšená sazba
                         </span>
-                    </div>
-                )}
+                        </div>
+                    )}
                 {/* Details for transport costs for this member */}
                 {(formData.Skupiny_Cest?.flatMap(group => {
                     // Check if member is involved in this group
                     const isParticipant = group.Cestujci?.includes(member?.INT_ADR);
                     const isDriver = group.Ridic == member?.INT_ADR;
-                    
+
                     if (!isParticipant && !isDriver) {
                         return [];
                     }
-                    
+
                     // Filter segments based on transport type and member role
                     return (group.Cesty || []).filter(segment => {
                         if (!segment || !segment.Druh_Dopravy) return false;
-                        
+
                         // Pro auto cesty - pouze pokud je řidičem
                         if (segment.Druh_Dopravy === "AUV" || segment.Druh_Dopravy === "AUV-Z") {
                             return isDriver;
                         }
-                        
+
                         // Pro ostatní cesty (V, P, K) - pokud je cestujícím
                         return isParticipant;
                     });
@@ -108,7 +136,7 @@ const MemberCompensationDetail = ({
 
                     if (detail) {
                         return (
-                            <div key={segment.id || index} className="text-xs text-gray-600 ml-4">
+                            <div key={segment.id || index} className={`${smallTextSize} text-muted ml-4`}>
                                 {detail}
                             </div>
                         );
@@ -117,41 +145,42 @@ const MemberCompensationDetail = ({
                 })}
             </div>
 
-            <div className="space-y-1">
+            <div className={blockStyle}>
                 <div className="flex justify-between">
-                    <span className="text-sm font-medium">Stravné</span>
-                    <span className="text-sm">{formatCurrency(memberCompensation?.Stravne || 0)}</span>
+                    <span className={`${textSize} font-medium`}>Stravné</span>
+                    <span className={textSize}>{formatCurrency(memberCompensation?.Stravne || 0)}</span>
                 </div>
             </div>
 
-            <div className="space-y-1">
+            <div className={blockStyle}>
                 <div className="flex justify-between">
-                    <span className="text-sm font-medium">Náhrada za práci</span>
-                    <span className="text-sm">{formatCurrency(memberCompensation?.Nahrada_Prace || 0)}</span>
+                    <span className={`${textSize} font-medium`}>Náhrada za práci</span>
+                    <span className={textSize}>{formatCurrency(memberCompensation?.Nahrada_Prace || 0)}</span>
                 </div>
             </div>
 
             {(memberCompensation?.Noclezne_Celkem || 0) > 0 && (
-                <div className="space-y-1">
+                <div className={blockStyle}>
                     <div className="flex justify-between">
-                        <span className="text-sm font-medium">Ubytování</span>
-                        <span className="text-sm">{formatCurrency(memberCompensation?.Noclezne_Celkem || 0)}</span>
+                        <span className={`${textSize} font-medium`}>Ubytování</span>
+                        <span className={textSize}>{formatCurrency(memberCompensation?.Noclezne_Celkem || 0)}</span>
                     </div>
                 </div>
             )}
 
             {(memberCompensation?.Vedlejsi_Vydaje_Celkem || 0) > 0 && (
-                <div className="space-y-1">
+                <div className={blockStyle}>
                     <div className="flex justify-between">
-                        <span className="text-sm font-medium">Ostatní výdaje</span>
-                        <span className="text-sm">{formatCurrency(memberCompensation?.Vedlejsi_Vydaje_Celkem || 0)}</span>
+                        <span className={`${textSize} font-medium`}>Ostatní výdaje</span>
+                        <span
+                            className={textSize}>{formatCurrency(memberCompensation?.Vedlejsi_Vydaje_Celkem || 0)}</span>
                     </div>
                 </div>
             )}
 
             <div className="flex justify-between">
-                <span className="font-semibold">Celkem</span>
-                <span className="font-semibold text-lg text-blue-600">
+                <span className={`font-semibold ${textSize}`}>Celkem</span>
+                <span className={`font-semibold ${compact ? 'text-base' : 'text-lg'} text-blue-500`}>
                     {formatCurrency(memberCompensation?.Celkem_Kc || 0)}
                 </span>
             </div>
@@ -190,7 +219,7 @@ export const CompensationSummary = ({
             if (readOnly && calculation) {
                 return calculation;
             }
-            
+
             // V editovatelném módu počítat dynamicky
             if (!tariffRates) {
                 return null;
@@ -311,7 +340,7 @@ export const CompensationSummary = ({
                         compact={compact}
                     />
                     {showMultipleMembers && index < membersToShow.length - 1 && (
-                        <hr className="my-4 border-gray-300"/>
+                        <hr className={`my-4 border-gray-300 ${ compact ? '' : 'border-b-2' }`}/>
                     )}
                 </div>
             ))}

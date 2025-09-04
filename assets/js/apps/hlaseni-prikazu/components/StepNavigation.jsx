@@ -25,13 +25,13 @@ export const StepNavigation = ({
             completed: partACompleted
         },
         {
-            label: head?.Druh_ZP === "O" ? 'Část B - Stavy TIM' : 'Část B - Hlášení o činnosti',
-            description: head?.Druh_ZP === "O" ? 'Stav informačních míst' : 'Hlášení značkařské činnosti',
+            label: 'Část B - Hlášení',
+            description: 'Hlášení značkařské činnosti',
             icon: <IconSignRight size={18}/>,
             completed: partBCompleted
         },
         {
-            label: 'Odeslání',
+            label: 'Souhrn',
             description: 'Kontrola a odeslání',
             icon: <IconSend size={18}/>,
             completed: status === 'send'
@@ -53,11 +53,6 @@ export const StepNavigation = ({
                         <div className="stepper__label">{step.label}</div>
                         <div className="stepper__description">
                             {step.description}
-                            {!step.completed && index < activeStep && (
-                                <span className="badge badge--danger badge--light">
-                                    Nedokončeno
-                                </span>
-                            )}
                         </div>
                     </div>
                 </div>
