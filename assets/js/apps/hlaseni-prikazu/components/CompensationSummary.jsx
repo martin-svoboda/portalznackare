@@ -25,6 +25,7 @@ const MemberCompensationDetail = ({
 
     console.log(memberCompensation);
     console.log(formData);
+    console.log(tariffRates);
 
     return (
         <div className="space-y-2">
@@ -38,23 +39,26 @@ const MemberCompensationDetail = ({
                     <span className={textSize}>{workHours.toFixed(1)} h</span>
                 </div>
                 {!compact && (
-                    memberCompensation.Cas_Prace && memberCompensation.Cas_Prace.length > 0 ? 
+                    memberCompensation.Cas_Prace && memberCompensation.Cas_Prace.length > 0 ?
                         memberCompensation.Cas_Prace.map((den, index) => {
-                            if (!den ) return <span key={index} className="text-red-500">Žádný počátek a konec cesty - nelze vypočítat</span>;
+                            if (!den) return <span key={index} className="text-red-500 font-bold">Žádný počátek a konec cesty - nelze vypočítat</span>;
 
                             return (
                                 <div key={index}
                                      className={`${smallTextSize} text-muted ml-4 flex justify-between`}>
                                     <div>
-                                    <span>{den.Datum ? new Date(den.Datum).toLocaleDateString('cs-CZ') : <span className="text-red-500">chybí datum</span>}</span>
-                                    <span> od {den.Od || <span className="text-red-500">chybí čas</span>}</span>
-                                    <span> do {den.Do || <span className="text-red-500">chybí čas</span>}</span>
+                                        <span><strong>{den.Datum ? new Date(den.Datum).toLocaleDateString('cs-CZ') :
+                                            <span className="text-red-500">chybí datum</span>}</strong></span>
+                                        <span> od <strong>{den.Od ||
+                                            <span className="text-red-500">chybí čas</span>}</strong></span>
+                                        <span> do <strong>{den.Do ||
+                                            <span className="text-red-500">chybí čas</span>}</strong></span>
                                     </div>
                                     <span>{den.Cas} h</span>
                                 </div>
                             );
-                        }) : 
-                        <span className={`${smallTextSize} text-red-500 ml-4`}>Žádný počátek a konec cesty - nelze vypočítat</span>
+                        }) :
+                        <span className={`${smallTextSize} text-red-500 ml-4 font-bold`}>Žádný počátek a konec cesty - nelze vypočítat</span>
                 )}
             </div>
 
@@ -106,39 +110,88 @@ const MemberCompensationDetail = ({
                     const isParticipant = group.Cestujci?.includes(member?.INT_ADR);
                     const isDriver = group.Ridic == member?.INT_ADR;
 
-                    if (!isParticipant && !isDriver) {
+                    // V kompaktním zobrazení - pouze cesty kde je řidič nebo cestující
+                    // V detailním zobrazení - všechny cesty kde je jakkoliv označen
+                    if (compact && !isParticipant && !isDriver) {
                         return [];
                     }
 
                     // Filter segments based on transport type and member role
-                    return (group.Cesty || []).filter(segment => {
-                        if (!segment || !segment.Druh_Dopravy) return false;
+                    return (group.Cesty || []).map(segment => {
+                        if (!segment || !segment.Druh_Dopravy) return null;
 
-                        // Pro auto cesty - pouze pokud je řidičem
+                        // Pro auto cesty - řidič nebo spolucestující (v nekompaktním zobrazení)
                         if (segment.Druh_Dopravy === "AUV" || segment.Druh_Dopravy === "AUV-Z") {
-                            return isDriver;
+                            if (!isDriver && compact) return null;  // V kompaktním zobrazení pouze řidič
+                            if (!isDriver && !isParticipant) return null;  // V nekompaktním musí být alespoň spolucestující
+                            return {...segment, isDriver: isDriver};
                         }
 
                         // Pro ostatní cesty (V, P, K) - pokud je cestujícím
-                        return isParticipant;
-                    });
+                        if (isParticipant) {
+                            return {...segment, isDriver: false};
+                        }
+
+                        return null;
+                    }).filter(Boolean);
                 }) || []).map((segment, index) => {
                     if (!segment || !segment.Druh_Dopravy) return null;
 
                     let detail = "";
+                    if (compact) {
+                        detail = `${segment.Misto_Odjezdu || '?'} – ${segment.Misto_Prijezdu || '?'}`;
+                    } else {
+                        const mistoOdjezdu = segment.Misto_Odjezdu ?
+                            `<strong>${segment.Misto_Odjezdu}</strong>` :
+                            '<span class="text-red-500 font-bold">chybí místo</span>';
+                        const casOdjezdu = segment.Cas_Odjezdu ?
+                            `<strong>${segment.Cas_Odjezdu}</strong>` :
+                            '<span class="text-red-500 font-bold">chybí čas</span>';
+                        const mistoPrijezdu = segment.Misto_Prijezdu ?
+                            `<strong>${segment.Misto_Prijezdu}</strong>` :
+                            '<span class="text-red-500 font-bold">chybí místo</span>';
+                        const casPrijezdu = segment.Cas_Prijezdu ?
+                            `<strong>${segment.Cas_Prijezdu}</strong>` :
+                            '<span class="text-red-500 font-bold">chybí čas</span>';
+
+                        detail = `Z ${mistoOdjezdu} v ${casOdjezdu} do ${mistoPrijezdu} v ${casPrijezdu}`;
+                    }
+
                     if (segment.Druh_Dopravy === "AUV" || segment.Druh_Dopravy === "AUV-Z") {
-                        if (segment.Kilometry > 0) {
-                            detail = `${segment.Misto_Odjezdu} - ${segment.Misto_Prijezdu}: Autem ${segment.Kilometry} km`;
+                        if (compact) {
+                            detail = `${detail}: Autem ${segment.Kilometry} km`;
+                        } else {
+                            const kilometry = segment.Kilometry ?
+                                `<strong>${segment.Kilometry || 0} km</strong>` :
+                                '<span class="text-red-500 font-bold">chybí kilometry</span>';
+                            detail = `${detail}: Autem ${kilometry} jako ${segment.isDriver ? "řidič" : "spolujezdec"}`;
                         }
-                    } else if (segment.Druh_Dopravy === "V" && segment.Naklady > 0) {
-                        detail = `${segment.Misto_Odjezdu} - ${segment.Misto_Prijezdu}: Jízdenky ${formatCurrency(segment.Naklady)}`;
+                    } else if (segment.Druh_Dopravy === "V") {
+                        detail = `${detail}: Jízdenky ${segment.Naklady > 0 ? formatCurrency(segment.Naklady) : "0"}`;
+
+                        if (!compact) {
+                            detail = `${detail} <span class="text-red-500 font-bold">bez nákaladů</span>`;
+                        }
+
+                        if (!compact) {
+                            const prilohy = segment.Prilohy && segment.Prilohy.length > 0 ?
+                                '<span class="text-green-600">(✓ doklad)</span>' :
+                                '<span class="text-orange-500">(⚠ chybí doklad)</span>'
+
+                            detail = `${detail} ${prilohy}`;
+                        }
+                    } else if (segment.Druh_Dopravy === "P") {
+                        detail = `${detail}: Pěšky`;
+                    } else if (segment.Druh_Dopravy === "K") {
+                        detail = `${detail}: Na kole`;
                     }
 
                     if (detail) {
                         return (
-                            <div key={segment.id || index} className={`${smallTextSize} text-muted ml-4`}>
-                                {detail}
-                            </div>
+                            <div key={segment.id || index}
+                                 className={`${smallTextSize} text-muted ml-4 ${segment.Druh_Dopravy === "AUV" && !segment.isDriver ? "opacity-65" : ""}`}
+                                 dangerouslySetInnerHTML={{__html: detail}}
+                            />
                         );
                     }
                     return null;
@@ -147,16 +200,60 @@ const MemberCompensationDetail = ({
 
             <div className={blockStyle}>
                 <div className="flex justify-between">
-                    <span className={`${textSize} font-medium`}>Stravné</span>
+                    <span className={`${textSize} font-medium`}>
+                        Stravné
+                    </span>
                     <span className={textSize}>{formatCurrency(memberCompensation?.Stravne || 0)}</span>
                 </div>
+                {!compact && memberCompensation?.Cas_Prace_Celkem > 0 && (
+                    <div className={`${smallTextSize} text-muted ml-4`}>
+                        Celkem <strong>{memberCompensation.Cas_Prace_Celkem || 0} hodin</strong> práce:
+                        {!compact && tariffRates && memberCompensation?.Stravne && (() => {
+                            // Najít tarif podle uplatněné výše stravného
+                            const tarif = tariffRates.stravneTariffs.find(t =>
+                                parseFloat(t.Stravne) === memberCompensation.Stravne
+                            );
+
+                            if (tarif) {
+                                return (
+                                    <span className={`${smallTextSize} text-muted ml-1`}>
+                                        {`Uplatněn tarif za ${tarif.Trvani_Od} – ${tarif.Trvani_Do} hodin`}
+                                    </span>
+                                );
+                            }
+                            return <span className="text-red-500 font-bold">Chybý údaje k výpočtu</span>;
+                        })()}
+                    </div>
+                )}
             </div>
 
             <div className={blockStyle}>
                 <div className="flex justify-between">
-                    <span className={`${textSize} font-medium`}>Náhrada za práci</span>
+                    <span className={`${textSize} font-medium`}>
+                        Náhrada za práci
+                    </span>
                     <span className={textSize}>{formatCurrency(memberCompensation?.Nahrada_Prace || 0)}</span>
                 </div>
+                {!compact && memberCompensation?.Cas_Prace_Celkem > 0 && (
+                    <div className={`${smallTextSize} text-muted ml-4`}>
+                        Celkem <strong>{memberCompensation.Cas_Prace_Celkem || 0} hodin</strong> práce:
+                        {!compact && tariffRates && memberCompensation?.Stravne && (() => {
+                            // Najít tarif podle uplatněné výše stravného
+                            const tarif = tariffRates.nahradyTariffs.find(t =>
+                                parseFloat(t.Nahrada) === memberCompensation.Nahrada_Prace
+                            );
+
+                            if (tarif) {
+                                return (
+                                    <span className={`${smallTextSize} text-muted ml-1`}>
+                                        {`Uplatněn tarif za ${tarif.Trvani_Od} – ${tarif.Trvani_Do} hodin`}
+                                    </span>
+                                );
+                            }
+                            return <span className="text-red-500 font-bold">Chybý údaje k výpočtu</span>;
+                        })()}
+                    </div>
+                )}
             </div>
 
             {(memberCompensation?.Noclezne_Celkem || 0) > 0 && (
@@ -165,6 +262,30 @@ const MemberCompensationDetail = ({
                         <span className={`${textSize} font-medium`}>Ubytování</span>
                         <span className={textSize}>{formatCurrency(memberCompensation?.Noclezne_Celkem || 0)}</span>
                     </div>
+                    {!compact && formData?.Noclezne && formData.Noclezne.length > 0 && (
+                        <div className="space-y-1">
+                            {formData.Noclezne.filter(noc => noc.Zaplatil == member?.INT_ADR).map((noc, index) => (
+                                <div key={noc.id || index} className={`${smallTextSize} text-muted ml-4`}>
+                                    <div dangerouslySetInnerHTML={{
+                                        __html: `
+                                        ${noc.Datum ? new Date(noc.Datum).toLocaleDateString('cs-CZ') : '<span class="text-red-500 font-bold">chybí datum</span>'}:
+                                        ${noc.Zarizeni || '<span class="text-red-500 font-bold">chybí zařízení</span>'} 
+                                        v ${noc.Misto || '<span class="text-red-500 font-bold">chybí místo</span>'}
+                                        za <strong>${formatCurrency(noc.Castka || 0)}</strong>
+                                        ${noc.Prilohy && noc.Prilohy.length > 0 ?
+                                            `<span class="text-green-600">(✓ doklad)</span>` :
+                                            '<span class="text-orange-500">(⚠ chybí doklad)</span>'}
+                                    `
+                                    }}/>
+                                </div>
+                            ))}
+                            {formData.Noclezne.filter(noc => noc.Zaplatil == member?.INT_ADR).length === 0 && (
+                                <div className={`${smallTextSize} text-red-500 ml-4`}>
+                                    Žádné ubytování nebylo zaplaceno tímto členem
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -175,6 +296,29 @@ const MemberCompensationDetail = ({
                         <span
                             className={textSize}>{formatCurrency(memberCompensation?.Vedlejsi_Vydaje_Celkem || 0)}</span>
                     </div>
+                    {!compact && formData?.Vedlejsi_Vydaje && formData.Vedlejsi_Vydaje.length > 0 && (
+                        <div className="space-y-1">
+                            {formData.Vedlejsi_Vydaje.filter(vydaj => vydaj.Zaplatil == member?.INT_ADR).map((vydaj, index) => (
+                                <div key={vydaj.id || index} className={`${smallTextSize} text-muted ml-4`}>
+                                    <div dangerouslySetInnerHTML={{
+                                        __html: `
+                                        ${vydaj.Datum ? new Date(vydaj.Datum).toLocaleDateString('cs-CZ') : '<span class="text-red-500 font-bold">chybí datum</span>'}:
+                                        ${vydaj.Polozka || '<span class="text-red-500 font-bold">chybí popis položky</span>'}
+                                        za <strong>${formatCurrency(vydaj.Castka || 0)}</strong>
+                                        ${vydaj.Prilohy && vydaj.Prilohy.length > 0 ?
+                                            `<span class="text-green-600">(✓ doklad)</span>` :
+                                            '<span class="text-orange-500">(⚠ chybí doklad)</span>'}
+                                    `
+                                    }}/>
+                                </div>
+                            ))}
+                            {formData.Vedlejsi_Vydaje.filter(vydaj => vydaj.Zaplatil == member?.INT_ADR).length === 0 && (
+                                <div className={`${smallTextSize} text-red-500 ml-4`}>
+                                    Žádné ostatní výdaje nebyly zaplaceny tímto členem
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -340,7 +484,7 @@ export const CompensationSummary = ({
                         compact={compact}
                     />
                     {showMultipleMembers && index < membersToShow.length - 1 && (
-                        <hr className={`my-4 border-gray-300 ${ compact ? '' : 'border-b-2' }`}/>
+                        <hr className={`my-4 border-gray-300 ${compact ? '' : 'border-b-2'}`}/>
                     )}
                 </div>
             ))}
