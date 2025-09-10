@@ -18,6 +18,7 @@ use App\MessageHandler\SendToInsyzHandler;
 use App\Service\WorkerManagerService;
 use App\Utils\Logger;
 use Doctrine\ORM\EntityManagerInterface;
+use App\Service\AttachmentLookupService;
 
 #[Route('/api/portal')]
 class PortalController extends AbstractController
@@ -28,7 +29,8 @@ class PortalController extends AbstractController
         private EntityManagerInterface $entityManager,
         private MessageBusInterface $messageBus,
         private WorkerManagerService $workerManager,
-        private SendToInsyzHandler $insyzHandler
+        private SendToInsyzHandler $insyzHandler,
+        private AttachmentLookupService $attachmentService
     ) {}
     #[Route('/post', methods: ['GET'])]
     public function getPost(Request $request): JsonResponse
@@ -101,8 +103,8 @@ class PortalController extends AbstractController
                         'cislo_zp' => $report->getCisloZp(),
                         'int_adr' => $report->getIntAdr(),
                         'znackari' => $report->getTeamMembers(),
-                        'data_a' => $report->getDataA(),
-                        'data_b' => $report->getDataB(),
+                        'data_a' => $report->getEnrichedDataA($this->attachmentService),
+                        'data_b' => $report->getEnrichedDataB($this->attachmentService),
                         'calculation' => $report->getCalculation(),
                         'state' => $report->getState()->value,
                         'date_send' => $report->getDateSend()?->format('Y-m-d H:i:s'),
@@ -231,13 +233,54 @@ class PortalController extends AbstractController
                 Logger::debug("PortalController: state='$state', previousState='$previousState'");
                 if ($state === 'send' && $previousState !== 'send') {
                     Logger::info("PortalController: Spouštím dispatch do INSYZ pro report ID: " . $report->getId());
+                    
+                    // Debug data před odesláním
+                    $dataA = $report->getDataA();
+                    try {
+                        $debugFile = __DIR__ . '/../../var/debug-portal-controller.txt';
+                        $debugContent = "=== PORTAL CONTROLLER DEBUG ===\n";
+                        $debugContent .= "Timestamp: " . date('Y-m-d H:i:s') . "\n";
+                        $debugContent .= "Report ID: " . $report->getId() . "\n\n";
+                        
+                        // Raw SQL query pro porovnání
+                        $conn = $this->entityManager->getConnection();
+                        $sql = "SELECT data_a FROM reports WHERE id = :id";
+                        $stmt = $conn->prepare($sql);
+                        $result = $stmt->executeQuery(['id' => $report->getId()]);
+                        $rawData = $result->fetchOne();
+                        $rawDataA = json_decode($rawData, true);
+                        
+                        $debugContent .= "=== RAW DATABASE DATA ===\n";
+                        if (isset($rawDataA['Noclezne'])) {
+                            foreach ($rawDataA['Noclezne'] as $idx => $item) {
+                                $debugContent .= "RAW Noclezne[$idx]: Prilohy=" . json_encode($item['Prilohy'] ?? null) . "\n";
+                            }
+                        }
+                        
+                        $debugContent .= "\n=== ENTITY DATA ===\n";
+                        if (isset($dataA['Noclezne'])) {
+                            foreach ($dataA['Noclezne'] as $idx => $item) {
+                                $debugContent .= "ENTITY Noclezne[$idx]: Prilohy=" . json_encode($item['Prilohy'] ?? null) . "\n";
+                            }
+                        }
+                        if (isset($dataA['Vedlejsi_Vydaje'])) {
+                            foreach ($dataA['Vedlejsi_Vydaje'] as $idx => $item) {
+                                $debugContent .= "ENTITY Vedlejsi_Vydaje[$idx]: Prilohy=" . json_encode($item['Prilohy'] ?? null) . "\n";
+                            }
+                        }
+                        @file_put_contents($debugFile, $debugContent);
+                    } catch (\Exception $e) {
+                        // Ignore debug errors
+                        @file_put_contents($debugFile, "ERROR: " . $e->getMessage());
+                    }
+                    
                     $message = new SendToInsyzMessage(
                         $report->getId(),
                         [
                             'id_zp' => $report->getIdZp(),
                             'cislo_zp' => $report->getCisloZp(),
                             'znackari' => $report->getTeamMembers(),
-                            'data_a' => $report->getDataA(),
+                            'data_a' => $dataA,
                             'data_b' => $report->getDataB(),
                             'calculation' => $report->getCalculation()
                         ],
@@ -272,8 +315,8 @@ class PortalController extends AbstractController
                         'cislo_zp' => $report->getCisloZp(),
                         'int_adr' => $report->getIntAdr(),
                         'znackari' => $report->getTeamMembers(),
-                        'data_a' => $report->getDataA(),
-                        'data_b' => $report->getDataB(),
+                        'data_a' => $report->getEnrichedDataA($this->attachmentService),
+                        'data_b' => $report->getEnrichedDataB($this->attachmentService),
                         'calculation' => $report->getCalculation(),
                         'state' => $report->getState()->value,
                         'date_send' => $report->getDateSend()?->format('Y-m-d H:i:s'),

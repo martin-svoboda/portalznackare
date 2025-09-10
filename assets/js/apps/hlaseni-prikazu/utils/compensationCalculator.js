@@ -328,6 +328,7 @@ export function calculateCompensation(formData, tariffRates, userIntAdr = null) 
                     const cost = Math.round(segment.Kilometry * rate * 100) / 100;
                     
                     jizdneDetails.push({
+                        id: segment.id,
                         Typ_Dopravy: hasHigherRate ? "AUVV" : "AUVN",
                         Km: segment.Kilometry,
                         Kc: cost
@@ -338,6 +339,7 @@ export function calculateCompensation(formData, tariffRates, userIntAdr = null) 
                     const cost = segment.Naklady[userIntAdr] || 0;
                     if (cost > 0) {
                         jizdneDetails.push({
+                            id: segment.id,
                             Typ_Dopravy: "V",
                             Km: 0,
                             Kc: cost
@@ -352,6 +354,7 @@ export function calculateCompensation(formData, tariffRates, userIntAdr = null) 
     const vedlejsiVydajeDetails = (formData.Vedlejsi_Vydaje || [])
         .filter(exp => exp.Zaplatil === userIntAdr && exp.Castka > 0)
         .map(exp => ({
+            id: exp.id,
             Popis: exp.Polozka || "Neurčeno",
             Kc: exp.Castka || 0
         }));
@@ -360,6 +363,7 @@ export function calculateCompensation(formData, tariffRates, userIntAdr = null) 
     const noclezneDetails = (formData.Noclezne || [])
         .filter(acc => acc.Zaplatil === userIntAdr && acc.Castka > 0)
         .map(acc => ({
+            id: acc.id,
             Misto: acc.Misto || "",
             Zarizeni: acc.Zarizeni || "",
             Kc: acc.Castka || 0

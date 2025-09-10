@@ -39,6 +39,8 @@ export const TimDetailForm = ({
     onTimReportUpdate,
     onItemStatusUpdate,
     storagePath,
+    prikazId,
+    reportId,
     disabled = false
 }) => {
     if (!timGroup) {
@@ -129,7 +131,11 @@ export const TimDetailForm = ({
                                 accept="image/jpeg,image/png,image/heic"
                                 disabled={disabled}
                                 maxSize={15}
-                                storagePath={storagePath ? `${storagePath}/tim-${timGroup.EvCi_TIM}/structural` : null}
+                                storagePath={storagePath}
+                                // File usage tracking
+                                usageType="reports"
+                                entityId={reportId}
+                                fieldName="TIM_Detail/Prilohy_NP"
                             />
                         </div>
                     </div>
@@ -244,7 +250,11 @@ export const TimDetailForm = ({
                                             accept="image/jpeg,image/png,image/heic"
                                             disabled={disabled}
                                             maxSize={15}
-                                            storagePath={storagePath ? `${storagePath}/tim-${timGroup.EvCi_TIM}/item-${index + 1}` : null}
+                                            storagePath={storagePath}
+                                            // File usage tracking
+                                            usageType="reports"
+                                            entityId={reportId}
+                                            fieldName="TIM_detail/Prilohy"
                                         />
                                     </div>
                                 </div>

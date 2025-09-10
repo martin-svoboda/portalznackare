@@ -169,25 +169,23 @@ export const synchronizeFileUsage = async (oldFiles, newFiles, type, entityId, a
 };
 
 /**
- * Helper pro generování usage type na základě hlášení příkazu
- * @param {string} section Sekce hlášení ('segment', 'accommodation', 'expense', 'tim', 'route')
+ * Helper pro generování usage type - vždy 'reports' pro hlášení příkazu
+ * @param {string} section Sekce hlášení (ignoruje se - všechno je 'reports')
  * @param {number} reportId ID hlášení
  * @returns {string} Usage type string
  */
 export const generateUsageType = (section, reportId) => {
-    return `report_${section}`;
+    return 'reports'; // Všechny soubory v hlášení patří do tabulky 'reports'
 };
 
 /**
  * Helper pro generování entity ID na základě kontextu
  * @param {number} reportId ID hlášení
- * @param {string|number} itemId ID konkrétní položky (segment, accommodation, expense, tim)
+ * @param {string|number} itemId ID konkrétní položky (ignorováno - používáme jen reportId)
  * @returns {number} Entity ID
  */
 export const generateEntityId = (reportId, itemId = null) => {
-    if (itemId) {
-        // Pro sub-entity použijeme kombinaci report ID a item ID
-        return parseInt(reportId) * 1000000 + parseInt(itemId.toString().slice(-6));
-    }
+    // Všechny soubory v hlášení používají jen reportId
+    // itemId byl problematický (UUID -> NaN)
     return parseInt(reportId);
 };

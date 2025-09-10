@@ -13,7 +13,8 @@ const MemberCompensationDetail = ({
                                       tariffRates,
                                       formatCurrency,
                                       showMemberName = false,
-                                      compact = false
+                                      compact = false,
+                                      teamMembers = []
                                   }) => {
     if (!memberCompensation) return null;
 
@@ -124,7 +125,7 @@ const MemberCompensationDetail = ({
                         if (segment.Druh_Dopravy === "AUV" || segment.Druh_Dopravy === "AUV-Z") {
                             if (!isDriver && compact) return null;  // V kompaktním zobrazení pouze řidič
                             if (!isDriver && !isParticipant) return null;  // V nekompaktním musí být alespoň spolucestující
-                            return {...segment, isDriver: isDriver};
+                            return {...segment, isDriver: isDriver, SPZ: group.SPZ};
                         }
 
                         // Pro ostatní cesty (V, P, K) - pokud je cestujícím
@@ -153,8 +154,11 @@ const MemberCompensationDetail = ({
                         const casPrijezdu = segment.Cas_Prijezdu ?
                             `<strong>${segment.Cas_Prijezdu}</strong>` :
                             '<span class="text-red-500 font-bold">chybí čas</span>';
+                        const datum = segment.Datum ?
+                            `<strong>${new Date(segment.Datum).toLocaleDateString('cs-CZ')}</strong>` :
+                            '<span class="text-red-500 font-bold">chybí datum</span>';
 
-                        detail = `Z ${mistoOdjezdu} v ${casOdjezdu} do ${mistoPrijezdu} v ${casPrijezdu}`;
+                        detail = `${datum} z ${mistoOdjezdu} v ${casOdjezdu} do ${mistoPrijezdu} v ${casPrijezdu}`;
                     }
 
                     if (segment.Druh_Dopravy === "AUV" || segment.Druh_Dopravy === "AUV-Z") {
@@ -164,7 +168,12 @@ const MemberCompensationDetail = ({
                             const kilometry = segment.Kilometry ?
                                 `<strong>${segment.Kilometry || 0} km</strong>` :
                                 '<span class="text-red-500 font-bold">chybí kilometry</span>';
-                            detail = `${detail}: Autem ${kilometry} jako ${segment.isDriver ? "řidič" : "spolujezdec"}`;
+                            const ridic = segment.isDriver ?
+                                `řidič SPZ: <strong>${segment.SPZ ||
+                                <span className="text-red-500 font-bold">chybí</span>}</strong>` :
+                                'spolujezdec';
+
+                            detail = `${detail}: Autem ${kilometry} jako ${ridic}`;
                         }
                     } else if (segment.Druh_Dopravy === "V") {
                         detail = `${detail}: Jízdenky ${segment.Naklady > 0 ? formatCurrency(segment.Naklady) : "0"}`;
@@ -322,11 +331,23 @@ const MemberCompensationDetail = ({
                 </div>
             )}
 
-            <div className="flex justify-between">
-                <span className={`font-semibold ${textSize}`}>Celkem</span>
-                <span className={`font-semibold ${compact ? 'text-base' : 'text-lg'} text-blue-500`}>
+            <div className={blockStyle}>
+                <div className="flex justify-between">
+                    <span className={`font-semibold ${textSize}`}>Celkem</span>
+                    <span className={`font-semibold ${compact ? 'text-base' : 'text-lg'} text-blue-500`}>
                     {formatCurrency(memberCompensation?.Celkem_Kc || 0)}
                 </span>
+                </div>
+                { formData.Presmerovani_Vyplat && member && formData.Presmerovani_Vyplat[member.INT_ADR] !== undefined && (
+                    <div className={`${smallTextSize} text-muted ml-4`}>
+                        Přesměrovat na <strong>{(() => {
+                            const targetIntAdr = formData.Presmerovani_Vyplat[member.INT_ADR];
+                            // Najít jméno značkaře podle INT_ADR
+                            const targetMember = teamMembers?.find(m => m.INT_ADR == targetIntAdr);
+                            return targetMember?.name || targetMember?.Znackar || targetIntAdr;
+                        })()}</strong>
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -482,6 +503,7 @@ export const CompensationSummary = ({
                         formatCurrency={formatCurrency}
                         showMemberName={showMultipleMembers}
                         compact={compact}
+                        teamMembers={teamMembers}
                     />
                     {showMultipleMembers && index < membersToShow.length - 1 && (
                         <hr className={`my-4 border-gray-300 ${compact ? '' : 'border-b-2'}`}/>

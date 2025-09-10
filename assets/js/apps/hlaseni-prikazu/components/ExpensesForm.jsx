@@ -18,6 +18,8 @@ export const ExpensesForm = ({
     expenses,
     onExpensesChange,
     storagePath,
+    prikazId,
+    reportId,
     disabled = false
 }) => {
     const handleAddExpense = () => {
@@ -133,7 +135,11 @@ export const ExpensesForm = ({
                                         accept="image/jpeg,image/png,image/heic,application/pdf"
                                         disabled={disabled}
                                         maxSize={15}
-                                        storagePath={storagePath ? `${storagePath}/expense-${index + 1}` : null}
+                                        storagePath={storagePath}
+                                        // File usage tracking
+                                        usageType="reports"
+                                        entityId={reportId}
+                                        fieldName="Vedlejsi_Vydaje2/Prilohy"
                                     />
                                 </div>
                             </div>

@@ -99,7 +99,7 @@ const groupItemsByTIM = (predmety) => {
     return Object.values(groups);
 };
 
-export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikazId, disabled = false }) => {
+export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikazId, reportId, disabled = false }) => {
     // Generate storage path for this report
     const generateStoragePath = () => {
         if (!prikazId) return null;
@@ -611,6 +611,9 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                                 maxSize={10}
                                                                 storagePath={storagePath}
                                                                 disabled={disabled}
+                                                                usageType="reports"
+                                                                entityId={reportId}
+                                                                fieldName={`Stavy_Tim/${timGroup.EvCi_TIM}/Prilohy_NP`}
                                                             />
                                                         </div>
                                                     </div>
@@ -652,6 +655,9 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                             maxSize={15}
                                                             storagePath={storagePath}
                                                             disabled={disabled}
+                                                            usageType="reports"
+                                                            entityId={reportId}
+                                                            fieldName={`Stavy_Tim/${timGroup.EvCi_TIM}/Prilohy_TIM`}
                                                         />
                                                     </div>
                                                 </div>
@@ -715,6 +721,9 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                             maxSize={15}
                             storagePath={storagePath}
                             disabled={disabled}
+                            usageType="reports"
+                            entityId={reportId}
+                            fieldName="Prilohy_Usek"
                         />
                     </div>
 
@@ -784,8 +793,11 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                         maxFiles={5}
                                         accept="image/jpeg,image/png,image/heic"
                                         maxSize={15}
-                                        storagePath={storagePath ? `${storagePath}/mapa-nesoulad` : null}
+                                        storagePath={storagePath}
                                         disabled={disabled}
+                                        usageType="reports"
+                                        entityId={reportId}
+                                        fieldName="Prilohy_Mapa"
                                     />
                                 </div>
                             </div>

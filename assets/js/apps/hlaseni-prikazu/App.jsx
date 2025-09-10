@@ -6,6 +6,7 @@ import {StepContent} from './components/StepContent';
 import {useFormSaving} from './hooks/useFormSaving';
 import {useStatusPolling} from './hooks/useStatusPolling';
 import {useStepNavigation} from './hooks/useStepNavigation';
+import {useFieldIdCounter} from './hooks/useFieldIdCounter';
 import {api} from '../../utils/api';
 import {log} from '../../utils/debug';
 import {parseTariffRatesFromAPI, calculateExecutionDate} from './utils/compensationCalculator';
@@ -22,32 +23,7 @@ const App = () => {
         head: null,
         predmety: [],
         useky: [],
-        formData: {
-            Skupiny_Cest: [{
-                id: crypto.randomUUID(),
-                Cestujci: [],
-                Ridic: null,
-                SPZ: "",
-                Cesty: [{
-                    id: crypto.randomUUID(),
-                    Datum: new Date(),
-                    Cas_Odjezdu: "",
-                    Cas_Prijezdu: "",
-                    Misto_Odjezdu: "",
-                    Misto_Prijezdu: "",
-                    Druh_Dopravy: "AUV",
-                    Kilometry: undefined,
-                    Naklady: undefined,
-                    Prilohy: {}
-                }]
-            }],
-            Noclezne: [],
-            Vedlejsi_Vydaje: [],
-            Stavy_Tim: {},
-            Cast_A_Dokoncena: false,
-            Cast_B_Dokoncena: false,
-            status: "draft"
-        },
+        formData: null, // Will be initialized after counter is ready
         teamMembers: [],
         canEdit: false,
         tariffRates: null,
@@ -58,6 +34,37 @@ const App = () => {
 
     // Step navigation with URL sync
     const {activeStep, changeStep} = useStepNavigation();
+    
+    // Field ID counter for stable form field identification
+    const {initializeFromAllData, getNextId, resetCounter} = useFieldIdCounter();
+    
+    // Helper to create default form data with proper IDs
+    const createDefaultFormData = () => ({
+        Skupiny_Cest: [{
+            id: getNextId(),
+            Cestujci: [],
+            Ridic: null,
+            SPZ: "",
+            Cesty: [{
+                id: getNextId(),
+                Datum: new Date(),
+                Cas_Odjezdu: "",
+                Cas_Prijezdu: "",
+                Misto_Odjezdu: "",
+                Misto_Prijezdu: "",
+                Druh_Dopravy: "AUV",
+                Kilometry: undefined,
+                Naklady: undefined,
+                Prilohy: {}
+            }]
+        }],
+        Noclezne: [],
+        Vedlejsi_Vydaje: [],
+        Stavy_Tim: {},
+        Cast_A_Dokoncena: false,
+        Cast_B_Dokoncena: false,
+        status: "draft"
+    });
 
     // Utility functions
     const extractTeamMembers = (head) => {
@@ -111,7 +118,36 @@ const App = () => {
                         log.info('Načteno existující hlášení', reportData);
                     }
                 } catch (error) {
-                    log.info('Hlášení ještě neexistuje, bude vytvořeno nové');
+                    // Při chybě načítání NEVYTVÁŘET nový report, zobrazit chybu
+                    log.error('Chyba při načítání reportu', error);
+                    setAppData(prev => ({...prev, loading: false, error: 'Chyba při načítání dat hlášení'}));
+                    return;
+                }
+
+                // Vytvořit nový report POUZE když skutečně neexistuje (ne při chybách)
+                if (!reportData || !reportData.id) {
+                    try {
+                        // Vytvořit prázdný report pomocí API
+                        const defaultData = createDefaultFormData();
+                        
+                        const response = await api.prikazy.saveReport({
+                            id_zp: prikazId,
+                            cislo_zp: orderData.head?.Cislo_ZP || '',
+                            data_a: defaultData,
+                            data_b: {},
+                            calculation: {},
+                            znackari: [],
+                            status: 'draft'
+                        });
+                        
+                        reportData = response.data || response;
+                        log.info('Vytvořen nový prázdný report', reportData);
+                        log.info('Report ID pro file upload:', reportData?.id);
+                    } catch (error) {
+                        log.error('Chyba při vytváření nového reportu', error);
+                        setAppData(prev => ({...prev, loading: false, error: 'Chyba při vytváření hlášení'}));
+                        return;
+                    }
                 }
 
                 // Determine team members - prioritize report data over head data
@@ -136,12 +172,12 @@ const App = () => {
                 );
                 const isLeader = checkUserIsLeader(currentUser, teamMembers);
 
-                // Příprava form dat - začneme s defaultními hodnotami z appData
-                let formData = { ...appData.formData };
-                
-                // Load saved form data if exists
-                if (reportData?.data_a) {
-                    Object.assign(formData, reportData.data_a);
+                // Load saved form data if exists, otherwise create defaults
+                let formData;
+                if (reportData?.data_a && Object.keys(reportData.data_a).length > 0) {
+                    // Initialize counter from existing data before creating defaults
+                    initializeFromAllData(reportData.data_a);
+                    formData = { ...reportData.data_a };
                     // Konvertovat INT_ADR ze stringů na čísla (databáze je ukládá jako stringy v JSON)
                     if (formData.Skupiny_Cest) {
                         formData.Skupiny_Cest = formData.Skupiny_Cest.map(group => ({
@@ -165,6 +201,9 @@ const App = () => {
                             Zaplatil: typeof item.Zaplatil === 'string' ? parseInt(item.Zaplatil, 10) : item.Zaplatil
                         }));
                     }
+                } else {
+                    // No saved data - create default form data with new IDs
+                    formData = createDefaultFormData();
                 }
                 if (reportData?.data_b) {
                     Object.assign(formData, reportData.data_b);
@@ -216,6 +255,7 @@ const App = () => {
                     isLeader,
                     tariffRates,
                     reportExists: !!reportData,
+                    reportId: reportData?.id,
                     currentUser,
                     polling
                 }));
@@ -224,7 +264,9 @@ const App = () => {
                     canEdit,
                     isLeader,
                     teamMembersCount: teamMembers.length,
-                    reportExists: !!reportData
+                    reportExists: !!reportData,
+                    reportId: reportData?.id,
+                    reportDataStructure: Object.keys(reportData || {})
                 });
 
             } catch (error) {
@@ -244,7 +286,7 @@ const App = () => {
             ...prev,
             formData: typeof updater === 'function' ? updater(prev.formData) : updater
         })),
-        !appData.loading && appData.formData.status === 'send'
+        !appData.loading && appData.formData?.status === 'send'
     );
 
 
@@ -287,6 +329,26 @@ const App = () => {
         );
     }
 
+    if (!appData.formData) {
+        return (
+            <div className="card">
+                <Loader/>
+            </div>
+        );
+    }
+
+    if (appData.error) {
+        return (
+            <div className="card">
+                <div className="card__content">
+                    <div className="alert alert--error">
+                        <strong>Chyba:</strong> {appData.error}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     // App rendering
     return (
         <div className="space-y-6">
@@ -301,11 +363,11 @@ const App = () => {
             <StepNavigation
                 activeStep={activeStep}
                 onStepChange={changeStep}
-                partACompleted={appData.formData.Cast_A_Dokoncena}
-                partBCompleted={appData.formData.Cast_B_Dokoncena}
+                partACompleted={appData.formData?.Cast_A_Dokoncena}
+                partBCompleted={appData.formData?.Cast_B_Dokoncena}
                 head={appData.head}
                 saving={saving}
-                status={appData.formData.status}
+                status={appData.formData?.status}
             />
 
             {/* Step Content */}
@@ -318,6 +380,8 @@ const App = () => {
                 onSubmit={() => submitForApproval(setFormData)}
                 saving={saving}
                 prikazId={prikazId}
+                reportId={appData.reportId}
+                getNextId={getNextId}
             />
         </div>
     );

@@ -13,7 +13,6 @@ import {
 } from '../utils/attachmentUtils';
 import { calculateExecutionDate } from '../utils/compensationCalculator';
 import { toISODateString } from '../../../utils/dateUtils';
-import { generateUsageType, generateEntityId } from '../utils/fileUsageUtils';
 
 
 export const PartAForm = ({ 
@@ -22,12 +21,14 @@ export const PartAForm = ({
     tariffRates, 
     head, 
     prikazId, 
+    reportId,
     fileUploadService,
     currentUser, 
     teamMembers = [],
     isLeader = false, 
     canEditOthers = false,
-    disabled = false 
+    disabled = false,
+    getNextId
 }) => {
     // Team members - use prop if provided, otherwise calculate from head data (original logic)
     const computedTeamMembers = useMemo(() => {
@@ -89,7 +90,7 @@ export const PartAForm = ({
     // Accommodation functions (from original)
     const addAccommodation = () => {
         const newAccommodation = {
-            id: crypto.randomUUID(),
+            id: getNextId(),
             Misto: "",
             Zarizeni: "",
             Datum: calculateExecutionDate(formData),
@@ -123,7 +124,7 @@ export const PartAForm = ({
     // Expense functions (from original)
     const addExpense = () => {
         const newExpense = {
-            id: crypto.randomUUID(),
+            id: getNextId(),
             Polozka: "",
             Castka: 0,
             Zaplatil: computedTeamMembers[0]?.INT_ADR || "",
@@ -171,7 +172,9 @@ export const PartAForm = ({
                 tariffRates={tariffRates}
                 head={head}
                 teamMembers={computedTeamMembers}
+                getNextId={getNextId}
                 prikazId={prikazId}
+                reportId={reportId}
                 fileUploadService={fileUploadService}
                 currentUser={currentUser}
                 disabled={disabled}
@@ -292,13 +295,9 @@ export const PartAForm = ({
                                                 storagePath={storagePath}
                                                 disabled={disabled}
                                                 // File usage tracking
-                                                usageType={generateUsageType('accommodation', prikazId)}
-                                                entityId={generateEntityId(prikazId, accommodation.id)}
-                                                usageData={{
-                                                    section: 'accommodation',
-                                                    accommodationId: accommodation.id,
-                                                    reportId: prikazId
-                                                }}
+                                                usageType="reports"
+                                                entityId={reportId}
+                                                fieldName={`Noclezne/${accommodation.id}/Prilohy`}
                                             />
                                         </div>
                                     </div>
@@ -422,13 +421,9 @@ export const PartAForm = ({
                                                 storagePath={storagePath}
                                                 disabled={disabled}
                                                 // File usage tracking
-                                                usageType={generateUsageType('expense', prikazId)}
-                                                entityId={generateEntityId(prikazId, expense.id)}
-                                                usageData={{
-                                                    section: 'expense',
-                                                    expenseId: expense.id,
-                                                    reportId: prikazId
-                                                }}
+                                                usageType="reports"
+                                                entityId={reportId}
+                                                fieldName={`Vedlejsi_Vydaje/${expense.id}/Prilohy`}
                                             />
                                         </div>
                                     </div>

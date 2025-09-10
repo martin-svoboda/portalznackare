@@ -19,6 +19,7 @@ export const AccommodationForm = ({
     accommodations,
     onAccommodationsChange,
     storagePath,
+    reportId,
     disabled = false
 }) => {
     const handleAddAccommodation = () => {
@@ -89,7 +90,7 @@ export const AccommodationForm = ({
                                             type="date"
                                             className="form__input"
                                             value={accommodation.Datum ? accommodation.Datum.toISOString().split('T')[0] : ''}
-                                            onChange={(e) => handleUpdateAccommodation(accommodation.id, { Datum: new Date(e.target.value) }))
+                                            onChange={(e) => handleUpdateAccommodation(accommodation.id, { Datum: new Date(e.target.value) })}
                                             disabled={disabled}
                                             required
                                         />
@@ -147,7 +148,10 @@ export const AccommodationForm = ({
                                         accept="image/jpeg,image/png,image/heic,application/pdf"
                                         disabled={disabled}
                                         maxSize={15}
-                                        storagePath={storagePath ? `${storagePath}/accommodation-${index + 1}` : null}
+                                        storagePath={storagePath}
+                                        usageType="reports"
+                                        entityId={reportId}
+                                        fieldName="Noclezne2/Prilohy"
                                     />
                                 </div>
                             </div>

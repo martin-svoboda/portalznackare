@@ -4,6 +4,7 @@ namespace App\Entity;
 
 use App\Enum\ReportStateEnum;
 use App\Repository\ReportRepository;
+use App\Service\AttachmentLookupService;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Annotation\Groups;
@@ -170,6 +171,102 @@ class Report
     {
         $this->dataB = $dataB;
         return $this;
+    }
+    
+    /**
+     * Vrátí data_a obohacená o kompletní data příloh
+     * @param AttachmentLookupService $attachmentService
+     * @return array
+     */
+    public function getEnrichedDataA($attachmentService): array
+    {
+        $data = $this->dataA;
+        
+        // Obohatit Skupiny_Cest->Cesty->Prilohy
+        if (isset($data['Skupiny_Cest']) && is_array($data['Skupiny_Cest'])) {
+            foreach ($data['Skupiny_Cest'] as &$group) {
+                if (isset($group['Cesty']) && is_array($group['Cesty'])) {
+                    foreach ($group['Cesty'] as &$segment) {
+                        if (!empty($segment['Prilohy']) && is_array($segment['Prilohy'])) {
+                            $segment['Prilohy'] = $this->enrichAttachments($segment['Prilohy'], $attachmentService);
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Obohatit Noclezne->Prilohy
+        if (isset($data['Noclezne']) && is_array($data['Noclezne'])) {
+            foreach ($data['Noclezne'] as &$item) {
+                if (!empty($item['Prilohy']) && is_array($item['Prilohy'])) {
+                    $item['Prilohy'] = $this->enrichAttachments($item['Prilohy'], $attachmentService);
+                }
+            }
+        }
+        
+        // Obohatit Vedlejsi_Vydaje->Prilohy
+        if (isset($data['Vedlejsi_Vydaje']) && is_array($data['Vedlejsi_Vydaje'])) {
+            foreach ($data['Vedlejsi_Vydaje'] as &$item) {
+                if (!empty($item['Prilohy']) && is_array($item['Prilohy'])) {
+                    $item['Prilohy'] = $this->enrichAttachments($item['Prilohy'], $attachmentService);
+                }
+            }
+        }
+        
+        return $data;
+    }
+    
+    /**
+     * Vrátí data_b obohacená o kompletní data příloh
+     * @param AttachmentLookupService $attachmentService
+     * @return array
+     */
+    public function getEnrichedDataB($attachmentService): array
+    {
+        $data = $this->dataB;
+        
+        // Obohatit Stavy_Tim
+        if (isset($data['Stavy_Tim']) && is_array($data['Stavy_Tim'])) {
+            foreach ($data['Stavy_Tim'] as &$tim) {
+                // Prilohy_NP
+                if (!empty($tim['Prilohy_NP']) && is_array($tim['Prilohy_NP'])) {
+                    $tim['Prilohy_NP'] = $this->enrichAttachments($tim['Prilohy_NP'], $attachmentService);
+                }
+                // Prilohy_TIM
+                if (!empty($tim['Prilohy_TIM']) && is_array($tim['Prilohy_TIM'])) {
+                    $tim['Prilohy_TIM'] = $this->enrichAttachments($tim['Prilohy_TIM'], $attachmentService);
+                }
+            }
+        }
+        
+        // Prilohy_Usek
+        if (!empty($data['Prilohy_Usek']) && is_array($data['Prilohy_Usek'])) {
+            $data['Prilohy_Usek'] = $this->enrichAttachments($data['Prilohy_Usek'], $attachmentService);
+        }
+        
+        // Prilohy_Mapa
+        if (!empty($data['Prilohy_Mapa']) && is_array($data['Prilohy_Mapa'])) {
+            $data['Prilohy_Mapa'] = $this->enrichAttachments($data['Prilohy_Mapa'], $attachmentService);
+        }
+        
+        return $data;
+    }
+    
+    /**
+     * Helper metoda pro obohacení příloh
+     * @param array $attachments - pole ID nebo již obohacených objektů
+     * @param AttachmentLookupService $attachmentService
+     * @return array
+     */
+    private function enrichAttachments(array $attachments, $attachmentService): array
+    {
+        // Pokud první prvek je číslo, jsou to ID - načíst data
+        if (!empty($attachments) && is_numeric($attachments[0])) {
+            return $attachmentService->getAttachmentsByIds($attachments);
+        }
+        
+        // Jinak vrátit jak jsou (už jsou obohacené nebo prázdné)
+        return $attachments;
     }
 
     public function getCalculation(): array

@@ -13,7 +13,7 @@ import {
     extractTeamMembers,
     calculateExecutionDate
 } from '../utils/compensationCalculator';
-import { convertAttachmentsObjectToArray } from '../utils/attachmentUtils';
+import { convertAttachmentsToIds } from '../utils/attachmentUtils';
 
 // Helper functions for date/time formatting
 const formatDateOnly = (date) => {
@@ -73,7 +73,7 @@ const serializeTravelSegment = (segment) => {
                 cleanSegment.Naklady = filteredNaklady;
             }
         }
-        cleanSegment.Prilohy = convertAttachmentsObjectToArray(segment.Prilohy || {});
+        cleanSegment.Prilohy = convertAttachmentsToIds(segment.Prilohy || {});
     }
     // For "P" (walking) and "K" (bike) - no additional fields needed
 
@@ -98,7 +98,7 @@ const serializeAccommodation = (accommodation) => {
         Datum: formatDateOnly(accommodation.Datum),
         Castka: accommodation.Castka || 0,
         Zaplatil: accommodation.Zaplatil || "",
-        Prilohy: convertAttachmentsObjectToArray(accommodation.Prilohy || {})
+        Prilohy: convertAttachmentsToIds(accommodation.Prilohy || {})
     };
 };
 
@@ -109,7 +109,7 @@ const serializeExpense = (expense) => {
         Castka: expense.Castka || 0,
         Zaplatil: expense.Zaplatil || "",
         Datum: formatDateOnly(expense.Datum),
-        Prilohy: convertAttachmentsObjectToArray(expense.Prilohy || {})
+        Prilohy: convertAttachmentsToIds(expense.Prilohy || {})
     };
 };
 
@@ -168,8 +168,8 @@ export const useFormSaving = (formData, head, prikazId, tariffRates, isLeader, t
                         Object.entries(formData.Stavy_Tim || {}).forEach(([timId, timReport]) => {
                             serializedStavyTim[timId] = {
                                 ...timReport,
-                                Prilohy_NP: convertAttachmentsObjectToArray(timReport.Prilohy_NP || {}),
-                                Prilohy_TIM: convertAttachmentsObjectToArray(timReport.Prilohy_TIM || {}),
+                                Prilohy_NP: convertAttachmentsToIds(timReport.Prilohy_NP || {}),
+                                Prilohy_TIM: convertAttachmentsToIds(timReport.Prilohy_TIM || {}),
                                 // Serialize Predmety attachments if they exist
                                 Predmety: (() => {
                                     if (!timReport.Predmety || typeof timReport.Predmety !== 'object') {
@@ -180,7 +180,6 @@ export const useFormSaving = (formData, head, prikazId, tariffRates, isLeader, t
                                     Object.entries(timReport.Predmety).forEach(([predmetId, predmet]) => {
                                         serializedPredmety[predmetId] = {
                                             ...predmet,
-                                            Prilohy: convertAttachmentsObjectToArray(predmet.Prilohy || {})
                                         };
                                     });
                                     return serializedPredmety;
@@ -190,11 +189,11 @@ export const useFormSaving = (formData, head, prikazId, tariffRates, isLeader, t
                         return serializedStavyTim;
                     })(),
                     Koment_Usek: formData.Koment_Usek,
-                    Prilohy_Usek: convertAttachmentsObjectToArray(formData.Prilohy_Usek || {}),
+                    Prilohy_Usek: convertAttachmentsToIds(formData.Prilohy_Usek || {}),
                     Obnovene_Useky: formData.Obnovene_Useky || {},
                     Souhlasi_Mapa: formData.Souhlasi_Mapa,
                     Koment_Mapa: formData.Koment_Mapa,
-                    Prilohy_Mapa: convertAttachmentsObjectToArray(formData.Prilohy_Mapa || {}),
+                    Prilohy_Mapa: convertAttachmentsToIds(formData.Prilohy_Mapa || {}),
                     Cast_B_Dokoncena: formData.Cast_B_Dokoncena
                 },
                 calculation: (() => {
@@ -350,8 +349,8 @@ export const useFormSaving = (formData, head, prikazId, tariffRates, isLeader, t
                         Object.entries(formData.Stavy_Tim || {}).forEach(([timId, timReport]) => {
                             serializedStavyTim[timId] = {
                                 ...timReport,
-                                Prilohy_NP: convertAttachmentsObjectToArray(timReport.Prilohy_NP || {}),
-                                Prilohy_TIM: convertAttachmentsObjectToArray(timReport.Prilohy_TIM || {}),
+                                Prilohy_NP: convertAttachmentsToIds(timReport.Prilohy_NP || {}),
+                                Prilohy_TIM: convertAttachmentsToIds(timReport.Prilohy_TIM || {}),
                                 // Serialize Predmety attachments if they exist
                                 Predmety: (() => {
                                     if (!timReport.Predmety || typeof timReport.Predmety !== 'object') {
@@ -361,8 +360,7 @@ export const useFormSaving = (formData, head, prikazId, tariffRates, isLeader, t
                                     const serializedPredmety = {};
                                     Object.entries(timReport.Predmety).forEach(([predmetId, predmet]) => {
                                         serializedPredmety[predmetId] = {
-                                            ...predmet,
-                                            Prilohy: convertAttachmentsObjectToArray(predmet.Prilohy || {})
+                                            ...predmet
                                         };
                                     });
                                     return serializedPredmety;
@@ -372,11 +370,11 @@ export const useFormSaving = (formData, head, prikazId, tariffRates, isLeader, t
                         return serializedStavyTim;
                     })(),
                     Koment_Usek: formData.Koment_Usek,
-                    Prilohy_Usek: convertAttachmentsObjectToArray(formData.Prilohy_Usek || {}),
+                    Prilohy_Usek: convertAttachmentsToIds(formData.Prilohy_Usek || {}),
                     Obnovene_Useky: formData.Obnovene_Useky || {},
                     Souhlasi_Mapa: formData.Souhlasi_Mapa,
                     Koment_Mapa: formData.Koment_Mapa,
-                    Prilohy_Mapa: convertAttachmentsObjectToArray(formData.Prilohy_Mapa || {}),
+                    Prilohy_Mapa: convertAttachmentsToIds(formData.Prilohy_Mapa || {}),
                     Cast_B_Dokoncena: formData.Cast_B_Dokoncena
                 },
                 calculation: (() => {

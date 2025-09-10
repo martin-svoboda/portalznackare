@@ -44,6 +44,33 @@ export const convertAttachmentsObjectToArray = (attachmentsObject) => {
     return Object.values(attachmentsObject);
 };
 
+// Konverze object na pole ID (nová efektivní metoda)
+export const convertAttachmentsToIds = (attachmentsObject) => {
+    if (Array.isArray(attachmentsObject)) {
+        // Pokud je už pole, zkontroluj jestli obsahuje objekty nebo ID
+        if (attachmentsObject.length === 0) {
+            return [];
+        }
+        
+        // Pokud první prvek je číslo, je to už pole ID
+        if (typeof attachmentsObject[0] === 'number') {
+            return attachmentsObject.filter(id => id != null);
+        }
+        
+        // Pokud první prvek je objekt, extrahuj ID
+        return attachmentsObject.map(att => att?.id).filter(id => id != null);
+    }
+    
+    if (!attachmentsObject || typeof attachmentsObject !== 'object') {
+        return [];
+    }
+    
+    // Z objektu extrahuj pouze ID
+    return Object.values(attachmentsObject)
+        .map(att => att?.id)
+        .filter(id => id != null);
+};
+
 // Přidání nové přílohy do objektu
 export const addAttachmentToObject = (attachmentsObject, newAttachment) => {
     const attachmentId = newAttachment.id || generateAttachmentId();

@@ -3,17 +3,27 @@
 namespace App\Service;
 
 use App\Utils\Logger;
+use Symfony\Component\HttpFoundation\RequestStack;
 
 /**
  * Service pro generování XML dat pro INSYZ API
  */
 class XmlGenerationService
 {
+    private array $currentReportData = [];
+    
+    public function __construct(
+        private RequestStack $requestStack,
+        private AttachmentLookupService $attachmentLookup
+    ) {}
     /**
      * Generuje XML z dat hlášení pro INSYZ API
      */
     public function generateReportXml(array $reportData): string
     {
+        // Store reportData for lookup operations
+        $this->currentReportData = $reportData;
+        
         Logger::debug('XmlGeneration: Začínám generování XML pro report ID: ' . ($reportData['id_zp'] ?? 'unknown'));
         
         $xml = new \DOMDocument('1.0', 'UTF-8');
@@ -121,6 +131,11 @@ class XmlGenerationService
     {
         return [
             'Presmerovani_Vyplat' => 'transformPresmerovaniVyplat',
+            'Prilohy' => 'transformAttachmentsToSimpleUrls',
+            'Prilohy_NP' => 'transformAttachmentsToSimpleUrls',  
+            'Prilohy_TIM' => 'transformAttachmentsToSimpleUrls',
+            'Prilohy_Usek' => 'transformAttachmentsToSimpleUrls',
+            'Prilohy_Mapa' => 'transformAttachmentsToSimpleUrls',
         ];
     }
     
@@ -140,6 +155,10 @@ class XmlGenerationService
             
             // Speciální transformace
             if (isset($specialTransformations[$key]) && is_array($value)) {
+                // Přeskočit prázdné pole pro přílohy
+                if (empty($value)) {
+                    continue;
+                }
                 $method = $specialTransformations[$key];
                 $this->$method($xml, $parent, $key, $value);
                 continue;
@@ -176,10 +195,21 @@ class XmlGenerationService
                 if ($this->isNumericArray($value)) {
                     $this->createRepeatingElements($xml, $parent, $key, $value);
                 } else {
+                    // Přeskočit prázdná asociativní pole
+                    if (empty($value)) {
+                        continue;
+                    }
+                    
                     // Asociativní pole - vytvoř container element
                     $elementName = $this->sanitizeElementName($key);
                     $element = $xml->createElement($elementName);
                     $parent->appendChild($element);
+                    
+                    // Speciální handling pro elementy s ID - přidat přílohy
+                    if (isset($value['id'])) {
+                        $this->processElementWithAttachments($xml, $element, $value, $key);
+                    }
+                    
                     $this->arrayToXml($xml, $element, $value, $key);
                 }
             } else {
@@ -318,9 +348,24 @@ class XmlGenerationService
         
         foreach ($items as $item) {
             $element = $xml->createElement($elementName);
+            
+            // Speciální případ pro elementy ve Vyuctovani - přidat ID značkaře
+            if ($parent->nodeName === 'Znackar' && in_array($elementName, ['Jizdne', 'Noclezne', 'Vedlejsi_Vydaje', 'Cas_Prace'])) {
+                // Získat ID značkaře z parent elementu
+                $znackarId = $parent->getAttribute('id');
+                if ($znackarId) {
+                    $element->setAttribute('id', $znackarId);
+                }
+            }
+            
             $parent->appendChild($element);
             
             if (is_array($item)) {
+                // Speciální handling pro elementy s přílohami
+                if (isset($item['id']) && in_array($elementName, ['Jizdne', 'Noclezne', 'Vedlejsi_Vydaje'])) {
+                    $this->processElementWithAttachments($xml, $element, $item, $elementName);
+                }
+                
                 // Filtruj metadata a pokračuj rekurzivně
                 $filteredItem = $this->filterMetadata($item);
                 $this->arrayToXml($xml, $element, $filteredItem, $key);
@@ -329,5 +374,201 @@ class XmlGenerationService
                 $element->appendChild($xml->createTextNode((string)$item));
             }
         }
+    }
+    
+    /**
+     * Transformace příloh na jednoduché URL s atributy
+     * Nyní podporuje jak původní objekty tak pole ID
+     */
+    private function transformAttachmentsToSimpleUrls(\DOMDocument $xml, \DOMElement $parent, string $key, array $attachments): void
+    {
+        // Přeskočit prázdné pole úplně
+        if (empty($attachments)) {
+            return;
+        }
+        
+        $baseUrl = $this->getBaseUrl();
+        
+        // Pokud je první prvek číslo, jsou to ID - lookup z databáze
+        if (is_numeric($attachments[0])) {
+            Logger::debug("XmlGeneration: Loading attachments by IDs", ['ids' => $attachments, 'key' => $key]);
+            $attachmentData = $this->attachmentLookup->getAttachmentsByIds($attachments);
+            Logger::debug("XmlGeneration: Loaded attachment data", ['count' => count($attachmentData), 'data' => $attachmentData]);
+        } else {
+            // Původní formát - objekty s daty
+            Logger::debug("XmlGeneration: Using original attachment objects", ['count' => count($attachments), 'key' => $key]);
+            $attachmentData = $attachments;
+        }
+        
+        // Pokud po lookup nemáme žádné platné přílohy, nepřidávat element
+        if (empty($attachmentData)) {
+            Logger::debug("XmlGeneration: No valid attachment data found for key: " . $key);
+            return;
+        }
+        
+        $container = $xml->createElement($key);
+        $parent->appendChild($container);
+        
+        foreach ($attachmentData as $attachment) {
+            if (!is_array($attachment) || !isset($attachment['id'])) {
+                continue; // Přeskočit neplatné přílohy
+            }
+            
+            $element = $xml->createElement('Priloha');
+            $element->setAttribute('id', (string)$attachment['id']);
+            $element->setAttribute('type', $attachment['fileType'] ?? '');
+            $element->setAttribute('size', (string)($attachment['fileSize'] ?? ''));
+            
+            $fullUrl = $baseUrl . ($attachment['url'] ?? '');
+            $element->appendChild($xml->createTextNode($fullUrl));
+            
+            $container->appendChild($element);
+        }
+    }
+    
+    /**
+     * Zpracuje element s ID a přidá přílohy pokud existují
+     */
+    private function processElementWithAttachments(\DOMDocument $xml, \DOMElement $element, array $value, string $parentKey): void
+    {
+        
+        Logger::debug("XmlGeneration: Processing element with attachments", [
+            'parentKey' => $parentKey,
+            'element_id' => $value['id'] ?? 'no_id',
+            'has_data_a' => isset($this->currentReportData['data_a'])
+        ]);
+        
+        $attachments = null;
+        
+        // Rozlišit podle kontextu
+        if ($parentKey === 'Noclezne') {
+            $attachments = $this->findAttachmentsByItemId('Noclezne', $value['id']);
+        } elseif ($parentKey === 'Vedlejsi_Vydaje') {
+            $attachments = $this->findAttachmentsByItemId('Vedlejsi_Vydaje', $value['id']);
+        } elseif ($parentKey === 'Jizdne') {
+            $attachments = $this->findAttachmentsBySegmentId($value['id']);
+        }
+        
+        Logger::debug("XmlGeneration: Found attachments for element", [
+            'parentKey' => $parentKey,
+            'attachments' => $attachments,
+            'count' => $attachments ? count($attachments) : 0
+        ]);
+        
+        // Přidat přílohy přímo do elementu (bez kontejneru <Prilohy>)
+        if ($attachments && !empty($attachments)) {
+            $this->addAttachmentsDirectly($xml, $element, $attachments);
+        }
+    }
+    
+    /**
+     * Najde přílohy segmentu podle ID napříč všemi skupinami cest
+     */
+    private function findAttachmentsBySegmentId(string $segmentId): ?array
+    {
+        foreach ($this->currentReportData['data_a']['Skupiny_Cest'] ?? [] as $group) {
+            foreach ($group['Cesty'] ?? [] as $segment) {
+                if (isset($segment['id']) && $segment['id'] === $segmentId) {
+                    $attachmentIds = $segment['Prilohy'] ?? null;
+                    return $attachmentIds ? $this->resolveAttachmentIds($attachmentIds) : null;
+                }
+            }
+        }
+        return null;
+    }
+    
+    /**
+     * Najde přílohy položky podle ID v části A
+     */
+    private function findAttachmentsByItemId(string $type, string $id): ?array  
+    {
+        
+        $partAItems = $this->currentReportData['data_a'][$type] ?? [];
+        
+        Logger::debug("XmlGeneration: Looking for attachments", [
+            'type' => $type,
+            'id' => $id,
+            'items_count' => count($partAItems)
+        ]);
+        
+        foreach ($partAItems as $idx => $item) {
+            if (isset($item['id']) && $item['id'] === $id) {
+                $attachmentIds = $item['Prilohy'] ?? null;
+                Logger::debug("XmlGeneration: Found item with attachments", [
+                    'item_id' => $id,
+                    'attachment_ids' => $attachmentIds
+                ]);
+                return $attachmentIds ? $this->resolveAttachmentIds($attachmentIds) : null;
+            }
+        }
+        Logger::debug("XmlGeneration: No attachments found for item", ['type' => $type, 'id' => $id]);
+        return null;
+    }
+    
+    /**
+     * Převede ID příloh na plná data
+     */
+    private function resolveAttachmentIds(array $attachmentIds): array
+    {
+        
+        Logger::debug("XmlGeneration: Resolving attachment IDs", [
+            'ids' => $attachmentIds,
+            'first_element' => $attachmentIds[0] ?? null,
+            'is_numeric' => !empty($attachmentIds) ? is_numeric($attachmentIds[0]) : false
+        ]);
+        
+        // Pokud je první prvek číslo, jsou to ID
+        if (!empty($attachmentIds) && is_numeric($attachmentIds[0])) {
+            $resolved = $this->attachmentLookup->getAttachmentsByIds($attachmentIds);
+            Logger::debug("XmlGeneration: Resolved attachments from IDs", [
+                'input_ids' => $attachmentIds,
+                'resolved_count' => count($resolved)
+            ]);
+            return $resolved;
+        }
+        
+        // Jinak je to původní formát s objekty
+        Logger::debug("XmlGeneration: Using original attachment format");
+        return $attachmentIds;
+    }
+    
+    /**
+     * Přidá přílohy přímo do elementu bez kontejneru
+     */
+    private function addAttachmentsDirectly(\DOMDocument $xml, \DOMElement $parent, array $attachments): void
+    {
+        
+        $baseUrl = $this->getBaseUrl();
+        
+        foreach ($attachments as $idx => $attachment) {
+            
+            if (!is_array($attachment) || !isset($attachment['id'])) {
+                continue;
+            }
+            
+            $element = $xml->createElement('Priloha');
+            $element->setAttribute('id', (string)$attachment['id']);
+            $element->setAttribute('type', $attachment['fileType'] ?? '');
+            $element->setAttribute('size', (string)($attachment['fileSize'] ?? ''));
+            
+            $fullUrl = $baseUrl . ($attachment['url'] ?? '');
+            $element->appendChild($xml->createTextNode($fullUrl));
+            
+            $parent->appendChild($element);
+        }
+    }
+    
+    /**
+     * Získání base URL z HTTP requestu
+     */
+    private function getBaseUrl(): string 
+    {
+        $request = $this->requestStack->getCurrentRequest();
+        if ($request) {
+            return $request->getSchemeAndHttpHost();
+        }
+        
+        // Fallback pro CLI prostředí
+        return 'http://localhost';
     }
 }

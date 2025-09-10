@@ -14,7 +14,6 @@ import {
     IconPhotoCancel
 } from '@tabler/icons-react';
 import {showErrorToast, showSuccessToast, showWarningToast} from '../../../utils/notifications.js';
-import {registerMultipleFileUsage, unregisterFileUsage} from '../utils/fileUsageUtils.js';
 
 export const AdvancedFileUpload = ({
                                        id,
@@ -27,9 +26,9 @@ export const AdvancedFileUpload = ({
                                        storagePath = null,
                                        isPublic = false, // New parameter for public/private files
                                        // Usage tracking props
-                                       usageType = null, // e.g., 'report_segment'
-                                       entityId = null,  // e.g., report ID or segment ID
-                                       usageData = null  // Additional metadata
+                                       usageType = null, // e.g., 'reports', 'pages' - database entity type
+                                       entityId = null,  // e.g., 123 - database record ID
+                                       fieldName = null  // e.g., 'Prilohy_NP', 'Prilohy_TIM' - specific field name
                                    }) => {
     const [isDragOver, setIsDragOver] = useState(false);
     const [previewFile, setPreviewFile] = useState(null);
@@ -154,14 +153,31 @@ export const AdvancedFileUpload = ({
     const handleFileSelect = async (newFiles) => {
         if (disabled) return;
 
+        const totalNewFiles = Array.from(newFiles);
+        
+        // Pre-upload duplicate check (layer 1)
+        const filesToUpload = [];
+        for (const file of totalNewFiles) {
+            const isDuplicate = files.some(existingFile => existingFile.fileName === file.name);
+            if (isDuplicate) {
+                const confirmed = window.confirm(`Soubor se stejným názvem "${file.name}" již byl přidán, opravdu chcete přidat i tento?`);
+                if (!confirmed) {
+                    continue; // Skip this file
+                }
+            }
+            filesToUpload.push(file);
+        }
+        
+        if (filesToUpload.length === 0) {
+            return; // No files to upload
+        }
+
         setUploading(true);
         setUploadProgress(0);
 
-        const totalNewFiles = Array.from(newFiles);
-
         // Basic validation first
         const validFiles = [];
-        for (const file of totalNewFiles) {
+        for (const file of filesToUpload) {
             // File size validation
             if (file.size > maxSize * 1024 * 1024) {
                 showErrorToast(`Soubor ${file.name} překračuje maximální velikost ${maxSize}MB`);
@@ -209,6 +225,24 @@ export const AdvancedFileUpload = ({
             // Add is_public parameter
             formData.append('is_public', isPublic.toString());
 
+            // Add entity type and ID for usage tracking
+            if (usageType && entityId) {
+                console.log('USAGE DEBUG - Sending to backend:', {
+                    entity_type: usageType,
+                    entity_id: entityId,
+                    field_name: fieldName
+                });
+                formData.append('entity_type', usageType);
+                formData.append('entity_id', entityId.toString());
+                if (fieldName) {
+                    formData.append('field_name', fieldName);
+                }
+            } else {
+                console.warn('USAGE DEBUG - Missing usage tracking params:', {
+                    usageType, entityId, fieldName
+                });
+            }
+
             // Add options
             formData.append('options', JSON.stringify({
                 create_thumbnail: true,
@@ -253,26 +287,14 @@ export const AdvancedFileUpload = ({
                     uploadedAt: new Date(file.uploadedAt)
                 }));
 
-                onFilesChange([...files, ...processedFiles]);
+                // Post-upload ID duplicate check (layer 3)
+                const existingIds = files.map(f => f.id);
+                const newFiles = processedFiles.filter(pf => !existingIds.includes(pf.id));
+                
+                onFilesChange([...files, ...newFiles]);
 
-                // Registrovat file usage pokud jsou zadány tracking parametry
-                if (usageType && entityId && processedFiles.length > 0) {
-                    try {
-                        await registerMultipleFileUsage(
-                            processedFiles, 
-                            usageType, 
-                            entityId, 
-                            {
-                                ...usageData,
-                                section: id, // ID komponenty pro identifikaci sekce
-                                uploadContext: 'direct_upload'
-                            }
-                        );
-                    } catch (error) {
-                        console.error('Failed to register file usage:', error);
-                        // Neblokujeme upload kvůli chybě usage trackingu
-                    }
-                }
+                // Usage tracking je nyní řešeno na backend při uploadu s entity_type a entity_id parametry
+                // Odstraněno duplicitní frontend tracking
 
                 // Zobrazit success toast pro úspěšně nahrané soubory
                 if (processedFiles.length > 0) {
@@ -292,6 +314,12 @@ export const AdvancedFileUpload = ({
         } finally {
             setUploading(false);
             setUploadProgress(0);
+            
+            // Clear file input to allow selecting the same file again
+            const fileInput = document.getElementById(`file-input-${componentInstanceId}`);
+            if (fileInput) {
+                fileInput.value = '';
+            }
         }
     };
 
@@ -332,7 +360,9 @@ export const AdvancedFileUpload = ({
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        force: !disabled  // If not disabled = force delete (can edit)
+                        entity_type: usageType,    // e.g., 'reports'
+                        entity_id: entityId,       // e.g., 123456
+                        field_name: fieldName      // e.g., 'Prilohy_NP'
                     })
                 });
 
@@ -343,15 +373,7 @@ export const AdvancedFileUpload = ({
                     throw new Error(`${errorMessage}${errorDetails}`);
                 }
 
-                // Unregister file usage pokud jsou zadány tracking parametry
-                if (usageType && entityId) {
-                    try {
-                        await unregisterFileUsage(fileToRemove.id, usageType, entityId);
-                    } catch (error) {
-                        console.error('Failed to unregister file usage:', error);
-                        // Neblokujeme delete kvůli chybě usage trackingu
-                    }
-                }
+                // Usage tracking se automaticky aktualizuje na backend při mazání souboru
             }
 
             // Clean up URLs if they're blob URLs

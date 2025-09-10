@@ -12,7 +12,6 @@ import { PartBForm } from './PartBForm';
 import { CompensationSummary } from './CompensationSummary';
 import { PartBSummary } from './PartBSummary';
 import { AdvancedFileUpload } from './AdvancedFileUpload';
-import { generateUsageType, generateEntityId } from '../utils/fileUsageUtils';
 import { getAttachmentsAsArray, setAttachmentsFromArray } from '../utils/attachmentUtils';
 import { calculateExecutionDate } from '../utils/compensationCalculator';
 
@@ -30,10 +29,23 @@ export const StepContent = ({
     onSave,
     onSubmit,
     saving,
-    prikazId
+    prikazId,
+    reportId,
+    getNextId
 }) => {
     // Rozbalení dat z jednoho objektu
     const formData = data.formData;
+    
+    // Early return if formData is not ready
+    if (!formData) {
+        return (
+            <div className="card">
+                <div className="card__content">
+                    <div className="loader">Loading...</div>
+                </div>
+            </div>
+        );
+    }
     const head = data.head;
     const useky = data.useky;
     const predmety = data.predmety;
@@ -79,6 +91,8 @@ export const StepContent = ({
                         isLeader={isLeader}
                         canEditOthers={canEditOthers}
                         prikazId={prikazId}
+                        getNextId={getNextId}
+                        reportId={reportId}
                         disabled={disabled}
                     />
                     
@@ -150,6 +164,7 @@ export const StepContent = ({
                         useky={useky}
                         predmety={predmety}
                         prikazId={prikazId}
+                        reportId={reportId}
                         disabled={disabled}
                     />
                 ) : (
@@ -198,12 +213,8 @@ export const StepContent = ({
                                 maxSize={15}
                                 storagePath={storagePath}
                                 // File usage tracking
-                                usageType={generateUsageType('route', prikazId)}
-                                entityId={generateEntityId(prikazId)}
-                                usageData={{
-                                    section: 'route_report',
-                                    reportId: prikazId
-                                }}
+                                usageType="reports"
+                                entityId={reportId}
                             />
                         </div>
                     </div>

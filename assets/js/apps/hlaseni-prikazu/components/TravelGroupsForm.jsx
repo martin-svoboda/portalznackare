@@ -20,7 +20,6 @@ import {
     setAttachmentsFromArray 
 } from '../utils/attachmentUtils';
 import { calculateExecutionDate } from '../utils/compensationCalculator';
-import { generateUsageType, generateEntityId } from '../utils/fileUsageUtils';
 import { toISODateString } from '../../../utils/dateUtils';
 
 const druhDopravyOptions = [
@@ -36,8 +35,8 @@ const getTransportIcon = (Druh_Dopravy) => {
     return option?.icon || IconCar;
 };
 
-const createEmptyTravelSegment = () => ({
-    id: crypto.randomUUID(),
+const createEmptyTravelSegment = (getNextId) => ({
+    id: getNextId(),
     Datum: new Date(),
     Cas_Odjezdu: "",
     Cas_Prijezdu: "",
@@ -56,9 +55,11 @@ export const TravelGroupsForm = ({
                                      head,
                                      teamMembers,
                                      prikazId,
+                                     reportId,
                                      fileUploadService,
                                      currentUser,
-                                     disabled = false
+                                     disabled = false,
+                                     getNextId
                                  }) => {
     
     // Generate storage path for this report
@@ -86,11 +87,11 @@ export const TravelGroupsForm = ({
         const defaultDriver = (teamMembers || []).length === 1 ? teamMembers[0]?.INT_ADR : null;
 
         const newGroup = {
-            id: crypto.randomUUID(),
+            id: getNextId(),
             Cestujci: (teamMembers || []).map(m => m.INT_ADR), // defaultně všichni
             Ridic: defaultDriver,
             SPZ: "",
-            Cesty: [createEmptyTravelSegment()]
+            Cesty: [createEmptyTravelSegment(getNextId)]
         };
 
         setFormData(prev => ({
@@ -122,7 +123,7 @@ export const TravelGroupsForm = ({
 
         const lastSegment = group.Cesty[group.Cesty.length - 1];
         const newSegment = {
-            ...createEmptyTravelSegment(),
+            ...createEmptyTravelSegment(getNextId),
             Datum: calculateExecutionDate(formData),
             Misto_Odjezdu: lastSegment?.Misto_Prijezdu || "",
         };
@@ -161,7 +162,7 @@ export const TravelGroupsForm = ({
 
         const newSegment = {
             ...segmentToDuplicate,
-            id: crypto.randomUUID(),
+            id: getNextId(),
             // Prohodit místa pro zpáteční cestu
             Misto_Odjezdu: segmentToDuplicate.Misto_Prijezdu,
             Misto_Prijezdu: segmentToDuplicate.Misto_Odjezdu,
@@ -641,14 +642,9 @@ export const TravelGroupsForm = ({
                                                             storagePath={storagePath}
                                                             disabled={disabled}
                                                             // File usage tracking
-                                                            usageType={generateUsageType('segment', prikazId)}
-                                                            entityId={generateEntityId(prikazId, segment.id)}
-                                                            usageData={{
-                                                                section: 'travel_segment',
-                                                                groupId: group.id,
-                                                                segmentId: segment.id,
-                                                                reportId: prikazId
-                                                            }}
+                                                            usageType="reports"
+                                                            entityId={reportId}
+                                                            fieldName={`Cesty/${segment.id}/Prilohy`}
                                                         />
                                                     </div>
                                                 )}

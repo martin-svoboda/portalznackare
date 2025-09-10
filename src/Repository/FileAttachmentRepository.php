@@ -47,6 +47,20 @@ class FileAttachmentRepository extends ServiceEntityRepository
     }
 
     /**
+     * Find file by hash and original name (for smart deduplication)
+     */
+    public function findByHashAndOriginalName(string $hash, string $originalName): ?FileAttachment
+    {
+        return $this->createQueryBuilder('f')
+            ->andWhere('f.hash = :hash')
+            ->andWhere('f.originalName = :original_name')
+            ->setParameter('hash', $hash)
+            ->setParameter('original_name', $originalName)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    /**
      * Find files by storage path (excluding soft-deleted)
      */
     public function findByStoragePath(string $storagePath): array

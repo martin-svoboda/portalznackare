@@ -12,6 +12,7 @@ use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\UrlHelper;
 use Symfony\Component\String\Slugger\SluggerInterface;
+use Doctrine\ORM\EntityManagerInterface;
 
 class FileUploadService
 {
@@ -23,7 +24,8 @@ class FileUploadService
         private FileAttachmentRepository $repository,
         private SluggerInterface $slugger,
         private ParameterBagInterface $params,
-        private UrlHelper $urlHelper
+        private UrlHelper $urlHelper,
+        private EntityManagerInterface $entityManager
     ) {
         $this->uploadDir = $params->get('kernel.project_dir') . '/public/uploads';
         $this->publicPath = '/uploads';
@@ -62,10 +64,26 @@ class FileUploadService
         $hash = sha1_file($tempPath);
         error_log("FileUploadService::uploadFile - File hash: " . $hash);
         
-        // Check if file already exists
-        $existingFile = $this->repository->findByHash($hash);
+        // Check if file already exists (smart deduplication: hash + original name)
+        $existingFile = $this->repository->findByHashAndOriginalName($hash, $originalName);
         if ($existingFile && !($options['force_new'] ?? false)) {
-            error_log("FileUploadService::uploadFile - Soubor už existuje, vracím existující");
+            error_log("FileUploadService::uploadFile - Soubor už existuje (hash + název), vracím existující");
+            
+            // Update usage_info if entity provided
+            if (!empty($options['entity_type']) && !empty($options['entity_id'])) {
+                $entityType = $options['entity_type'];
+                $entityId = (int)$options['entity_id'];
+                $fieldName = $options['field_name'] ?? null;
+                
+                // Check if file is already used in this specific field (backend duplicate protection)
+                if ($fieldName && $this->isUsedInField($existingFile, $entityType, $entityId, $fieldName)) {
+                    throw new \Exception("Soubor již existuje v tomto poli");
+                }
+                
+                $this->addUsage($existingFile, $entityType, $entityId, $fieldName);
+                $this->repository->save($existingFile, true);
+            }
+            
             return $existingFile;
         }
 
@@ -94,8 +112,9 @@ class FileUploadService
             error_log("FileUploadService::uploadFile - Adresář už existuje");
         }
 
-        // Generate stored filename
-        $storedName = sprintf('%s-%s.%s', $safeFilename, uniqid(), $extension);
+        // Generate deterministic filename using hash prefix
+        $hashPrefix = substr($hash, 0, 8);
+        $storedName = sprintf('%s-%s.%s', $safeFilename, $hashPrefix, $extension);
         error_log("FileUploadService::uploadFile - Stored name: " . $storedName);
         
         // Move uploaded file
@@ -165,20 +184,81 @@ class FileUploadService
 
         $attachment->setMetadata($metadata);
 
+        // Set thumbnail_path if thumbnail was created
+        if (!empty($metadata['thumbnail'])) {
+            $thumbnailPath = $relativePath . '/' . $metadata['thumbnail'];
+            $attachment->setThumbnailPath($thumbnailPath);
+        }
+
+        // Set initial usage_info if entity provided
+        if (!empty($options['entity_type']) && !empty($options['entity_id'])) {
+            $entityType = $options['entity_type'];
+            $entityId = (int)$options['entity_id'];
+            $fieldName = $options['field_name'] ?? null;
+            
+            $uploadDebug = [
+                'timestamp' => date('Y-m-d H:i:s'),
+                'method' => 'uploadFile',
+                'action' => 'adding_usage',
+                'params' => ['entityType' => $entityType, 'entityId' => $entityId, 'fieldName' => $fieldName]
+            ];
+            file_put_contents($this->params->get('kernel.project_dir') . '/var/debug-file-usage.txt', json_encode($uploadDebug) . "\n", FILE_APPEND);
+            
+            $this->addUsage($attachment, $entityType, $entityId, $fieldName);
+            
+            $uploadDebug2 = [
+                'timestamp' => date('Y-m-d H:i:s'),
+                'method' => 'uploadFile', 
+                'action' => 'usage_added',
+                'final_usage_info' => $attachment->getUsageInfo()
+            ];
+            file_put_contents($this->params->get('kernel.project_dir') . '/var/debug-file-usage.txt', json_encode($uploadDebug2) . "\n", FILE_APPEND);
+        } else {
+            $uploadDebug = [
+                'timestamp' => date('Y-m-d H:i:s'),
+                'method' => 'uploadFile',
+                'action' => 'no_usage_tracking',
+                'reason' => 'missing entity_type or entity_id',
+                'options' => [
+                    'entity_type' => $options['entity_type'] ?? null,
+                    'entity_id' => $options['entity_id'] ?? null,
+                    'field_name' => $options['field_name'] ?? null
+                ]
+            ];
+            file_put_contents($this->params->get('kernel.project_dir') . '/var/debug-file-usage.txt', json_encode($uploadDebug) . "\n", FILE_APPEND);
+        }
+
         try {
-            error_log("FileUploadService::uploadFile - Ukládám do databáze, attachment data:");
-            error_log("  - Hash: " . $attachment->getHash());
-            error_log("  - Original name: " . $attachment->getOriginalName());
-            error_log("  - Stored name: " . $attachment->getStoredName());
-            error_log("  - Path: " . $attachment->getPath());
-            error_log("  - Storage path: " . $attachment->getStoragePath());
-            error_log("  - Size: " . $attachment->getSize());
-            error_log("  - MIME type: " . $attachment->getMimeType());
-            error_log("  - Uploaded by: " . ($attachment->getUploadedBy() ?: 'null'));
+            $saveDebug = [
+                'timestamp' => date('Y-m-d H:i:s'),
+                'method' => 'uploadFile',
+                'action' => 'before_save',
+                'usage_info_before_save' => $attachment->getUsageInfo(),
+                'attachment_data' => [
+                    'hash' => $attachment->getHash(),
+                    'original_name' => $attachment->getOriginalName(),
+                    'stored_name' => $attachment->getStoredName(),
+                    'path' => $attachment->getPath(),
+                    'storage_path' => $attachment->getStoragePath(),
+                    'size' => $attachment->getSize(),
+                    'mime_type' => $attachment->getMimeType(),
+                    'uploaded_by' => $attachment->getUploadedBy()
+                ]
+            ];
+            file_put_contents($this->params->get('kernel.project_dir') . '/var/debug-file-usage.txt', json_encode($saveDebug) . "\n", FILE_APPEND);
             
             $this->repository->save($attachment, true);
             
             $savedId = $attachment->getId();
+            
+            $saveDebug2 = [
+                'timestamp' => date('Y-m-d H:i:s'),
+                'method' => 'uploadFile',
+                'action' => 'after_save',
+                'saved_id' => $savedId,
+                'usage_info_after_save' => $attachment->getUsageInfo()
+            ];
+            file_put_contents($this->params->get('kernel.project_dir') . '/var/debug-file-usage.txt', json_encode($saveDebug2) . "\n", FILE_APPEND);
             error_log("FileUploadService::uploadFile - Úspěšně uloženo s ID: " . ($savedId ?: 'NULL'));
             
             if (!$savedId) {
@@ -561,14 +641,15 @@ class FileUploadService
     /**
      * Add usage tracking to a file
      */
-    public function addFileUsage(int $fileId, string $type, int $id, ?array $additionalData = null): ?FileAttachment
+    public function addFileUsage(int $fileId, string $type, int $id, ?array $additionalData = null, ?string $fieldName = null): ?FileAttachment
     {
         $file = $this->repository->find($fileId);
         if (!$file) {
             return null;
         }
 
-        $file->addUsage($type, $id, $additionalData);
+        // Use new field-specific usage tracking
+        $this->addUsage($file, $type, $id, $fieldName);
         $file->setIsTemporary(false); // Make permanent when used
         
         $this->repository->save($file, true);
@@ -578,23 +659,179 @@ class FileUploadService
     /**
      * Remove usage tracking from a file
      */
-    public function removeFileUsage(int $fileId, string $type, int $id): ?FileAttachment
+    public function removeFileUsage(int $fileId, string $entityType, int $entityId, ?string $fieldName = null): ?FileAttachment
     {
         $file = $this->repository->find($fileId);
         if (!$file) {
             return null;
         }
 
-        $file->removeUsage($type, $id);
-        
-        // If no more usages, make temporary again
-        if ($file->getUsageCount() === 0) {
-            $file->setIsTemporary(true);
-            $file->setExpiresAt(new \DateTimeImmutable('+24 hours'));
-        }
+        // Remove usage using field-specific or legacy format
+        $this->removeUsage($file, $entityType, $entityId, $fieldName);
         
         $this->repository->save($file, true);
         return $file;
+    }
+
+    /**
+     * Remove usage from file using new simplified format {"reports": [123, 456]}
+     */
+    private function removeUsage(FileAttachment $attachment, string $entityType, int $entityId, ?string $fieldName = null): void
+    {
+        $usageInfo = $attachment->getUsageInfo() ?? [];
+        
+        if (!isset($usageInfo[$entityType])) {
+            return;
+        }
+        
+        if ($fieldName) {
+            // Field-specific usage removal: {"reports": {"123": ["Prilohy_NP", "Prilohy_TIM"]}}
+            if (isset($usageInfo[$entityType][$entityId])) {
+                $usageInfo[$entityType][$entityId] = array_values(
+                    array_filter($usageInfo[$entityType][$entityId], fn($field) => $field !== $fieldName)
+                );
+                
+                // If no fields left for this entity, remove entity
+                if (empty($usageInfo[$entityType][$entityId])) {
+                    unset($usageInfo[$entityType][$entityId]);
+                }
+                
+                // If no entities left for this type, remove type
+                if (empty($usageInfo[$entityType])) {
+                    unset($usageInfo[$entityType]);
+                }
+            }
+        } else {
+            // Legacy usage removal: {"reports": [123, 456]}
+            $usageInfo[$entityType] = array_values(
+                array_filter($usageInfo[$entityType], fn($id) => $id !== $entityId)
+            );
+            
+            // If array is empty, remove the entity type
+            if (empty($usageInfo[$entityType])) {
+                unset($usageInfo[$entityType]);
+            }
+        }
+        
+        $attachment->setUsageInfo($usageInfo);
+    }
+
+    /**
+     * Check if file should be auto force deleted (1 hour grace period + single usage)
+     */
+    public function shouldAutoForceDelete(FileAttachment $file): bool
+    {
+        // Check if file was uploaded recently (1 hour grace period)
+        $uploadedRecently = $file->getCreatedAt() > new \DateTimeImmutable('-1 hour');
+        
+        return $uploadedRecently;
+    }
+
+    /**
+     * Check if physical file exists on filesystem
+     */
+    public function physicalFileExists(FileAttachment $file): bool
+    {
+        $fullPath = $this->uploadDir . '/' . $file->getPath();
+        return file_exists($fullPath);
+    }
+
+    /**
+     * Remove orphaned file record from database
+     */
+    public function removeFromDatabase(FileAttachment $file): void
+    {
+        $this->entityManager->remove($file);
+        $this->entityManager->flush();
+    }
+
+    /**
+     * Clean up orphaned reference from entity (when file doesn't exist in DB)
+     */
+    public function cleanupOrphanedReference(int $fileId, string $entityType, int $entityId): bool
+    {
+        if ($entityType === 'reports') {
+            return $this->cleanupReportFileReference($fileId, $entityId);
+        }
+        
+        // Add other entity types here when needed
+        // if ($entityType === 'pages') { ... }
+        
+        return false;
+    }
+
+    /**
+     * Clean up all entity references when file is being completely deleted
+     */
+    public function cleanupAllEntityReferences(FileAttachment $file): void
+    {
+        $usageInfo = $file->getUsageInfo() ?? [];
+        
+        foreach ($usageInfo as $entityType => $entityIds) {
+            foreach ($entityIds as $entityId) {
+                $this->cleanupOrphanedReference($file->getId(), $entityType, $entityId);
+            }
+        }
+    }
+
+    /**
+     * Remove file reference from report data
+     */
+    private function cleanupReportFileReference(int $fileId, int $reportId): bool
+    {
+        try {
+            // Find report in database
+            $report = $this->entityManager->getRepository(\App\Entity\Report::class)->find($reportId);
+            if (!$report) {
+                return false;
+            }
+
+            // Clean up file references from report data (data_a, data_b)
+            $dataA = $report->getDataA() ?? [];
+            $dataB = $report->getDataB() ?? [];
+            
+            $cleaned = false;
+            
+            // Remove file ID from all attachment arrays in data_a and data_b
+            $dataA = $this->removeFileIdFromData($dataA, $fileId, $cleaned);
+            $dataB = $this->removeFileIdFromData($dataB, $fileId, $cleaned);
+            
+            if ($cleaned) {
+                $report->setDataA($dataA);
+                $report->setDataB($dataB);
+                $this->entityManager->flush();
+                return true;
+            }
+            
+            return false;
+        } catch (\Exception $e) {
+            error_log("Failed to cleanup report file reference: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Recursively remove file ID from nested data structure
+     */
+    private function removeFileIdFromData(array $data, int $fileId, bool &$cleaned): array
+    {
+        foreach ($data as $key => $value) {
+            if (is_array($value)) {
+                if ($key === 'Prilohy' || str_ends_with($key, '_Prilohy')) {
+                    // This is an attachments array - remove our file ID
+                    if (isset($value[$fileId])) {
+                        unset($value[$fileId]);
+                        $cleaned = true;
+                    }
+                    $data[$key] = $value;
+                } else {
+                    // Recursive search in nested arrays
+                    $data[$key] = $this->removeFileIdFromData($value, $fileId, $cleaned);
+                }
+            }
+        }
+        
+        return $data;
     }
 
     /**
@@ -602,88 +839,6 @@ class FileUploadService
      * This method should be called before physically deleting a file
      * to notify all systems that reference the file
      */
-    public function cleanupFileReferences(FileAttachment $file): array
-    {
-        $cleanupResults = [];
-        
-        if (!$file->getUsageInfo()) {
-            return $cleanupResults;
-        }
-        
-        foreach ($file->getUsageInfo() as $usageKey => $usage) {
-            $type = $usage['type'] ?? '';
-            $entityId = $usage['id'] ?? 0;
-            $data = $usage['data'] ?? [];
-            
-            try {
-                switch ($type) {
-                    case 'report_segment':
-                    case 'report_accommodation':
-                    case 'report_expense':
-                    case 'report_tim':
-                    case 'report_route':
-                        $result = $this->cleanupReportFileReference($file, $type, $entityId, $data);
-                        $cleanupResults[] = [
-                            'type' => $type,
-                            'entityId' => $entityId,
-                            'success' => $result,
-                            'message' => $result ? 'Reference removed' : 'Failed to remove reference'
-                        ];
-                        break;
-                    
-                    default:
-                        $cleanupResults[] = [
-                            'type' => $type,
-                            'entityId' => $entityId,
-                            'success' => false,
-                            'message' => "Unknown usage type: {$type}"
-                        ];
-                        break;
-                }
-            } catch (\Exception $e) {
-                $cleanupResults[] = [
-                    'type' => $type,
-                    'entityId' => $entityId,
-                    'success' => false,
-                    'message' => "Error: " . $e->getMessage()
-                ];
-            }
-        }
-        
-        return $cleanupResults;
-    }
-    
-    /**
-     * Remove file reference from report data
-     */
-    private function cleanupReportFileReference(FileAttachment $file, string $type, int $entityId, array $data): bool
-    {
-        // For now, we'll log this and let manual cleanup handle it
-        // In the future, this could directly update report data in database
-        
-        $reportId = $data['reportId'] ?? 0;
-        $section = $data['section'] ?? 'unknown';
-        
-        error_log(sprintf(
-            "File cleanup notification: File %d (%s) was deleted from admin. " .
-            "It was used in report %d, section %s (entity %d). " .
-            "Manual cleanup may be required to remove orphaned references.",
-            $file->getId(),
-            $file->getOriginalName(),
-            $reportId,
-            $section,
-            $entityId
-        ));
-        
-        // TODO: Implement automatic cleanup of report JSON data
-        // This would require:
-        // 1. Loading the report from database
-        // 2. Parsing JSON data structure
-        // 3. Finding and removing file references
-        // 4. Saving updated report
-        
-        return true; // Return true for logging only
-    }
     
     /**
      * Get files that may have orphaned references
@@ -714,5 +869,73 @@ class FileUploadService
         }
         
         return $orphanedReferences;
+    }
+
+    /**
+     * Add entity usage to usage_info (universal for any entity type)
+     */
+    private function addUsage(FileAttachment $attachment, string $entityType, int $entityId, ?string $fieldName = null): void
+    {
+        $debugData = [];
+        $debugData['timestamp'] = date('Y-m-d H:i:s');
+        $debugData['method'] = 'addUsage';
+        $debugData['input'] = ['entityType' => $entityType, 'entityId' => $entityId, 'fieldName' => $fieldName];
+        
+        $usageInfo = $attachment->getUsageInfo() ?? [];
+        $debugData['current_usage_info'] = $usageInfo;
+        
+        // Initialize entity type array if doesn't exist
+        if (!isset($usageInfo[$entityType])) {
+            $usageInfo[$entityType] = [];
+        }
+        
+        if ($fieldName) {
+            // Field-specific usage tracking: {"reports": {"123": ["Prilohy_NP", "Prilohy_TIM"]}}
+            if (!isset($usageInfo[$entityType][$entityId])) {
+                $usageInfo[$entityType][$entityId] = [];
+            }
+            
+            // Add field name if not already present
+            if (!in_array($fieldName, $usageInfo[$entityType][$entityId])) {
+                $usageInfo[$entityType][$entityId][] = $fieldName;
+                $debugData['action'] = "Added fieldName '$fieldName' to entityId $entityId";
+            } else {
+                $debugData['action'] = "FieldName '$fieldName' already exists for entityId $entityId";
+            }
+        } else {
+            // Legacy usage tracking: {"reports": [123, 456]} (BC compatibility)
+            if (!in_array($entityId, $usageInfo[$entityType])) {
+                $usageInfo[$entityType][] = $entityId;
+                $debugData['action'] = "Added entityId $entityId (legacy format)";
+            } else {
+                $debugData['action'] = "EntityId $entityId already exists (legacy format)";
+            }
+        }
+        
+        $debugData['new_usage_info'] = $usageInfo;
+        $attachment->setUsageInfo($usageInfo);
+        
+        file_put_contents($this->params->get('kernel.project_dir') . '/var/debug-file-usage.txt', json_encode($debugData) . "\n", FILE_APPEND);
+    }
+    
+    /**
+     * Check if file is already used in specific field of entity
+     */
+    private function isUsedInField(FileAttachment $attachment, string $entityType, int $entityId, ?string $fieldName = null): bool
+    {
+        $usageInfo = $attachment->getUsageInfo() ?? [];
+        
+        if (!isset($usageInfo[$entityType])) {
+            return false;
+        }
+        
+        if ($fieldName) {
+            // Check field-specific usage: {"reports": {"123": ["Prilohy_NP"]}}
+            return isset($usageInfo[$entityType][$entityId]) && 
+                   in_array($fieldName, $usageInfo[$entityType][$entityId]);
+        } else {
+            // Check legacy usage: {"reports": [123, 456]}
+            return in_array($entityId, $usageInfo[$entityType]);
+        }
     }
 }

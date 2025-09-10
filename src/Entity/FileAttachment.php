@@ -64,6 +64,10 @@ class FileAttachment
     #[Groups(['file:read'])]
     private ?array $metadata = null;
 
+    #[ORM\Column(type: 'string', length: 500, nullable: true)]
+    #[Groups(['file:read'])]
+    private ?string $thumbnailPath = null;
+
     #[ORM\Column(type: 'datetime_immutable')]
     #[Groups(['file:read', 'report:read'])]
     private \DateTimeImmutable $createdAt;
@@ -204,6 +208,15 @@ class FileAttachment
 
     public function setUsageInfo(?array $usageInfo): self
     {
+        $entityDebug = [
+            'timestamp' => date('Y-m-d H:i:s'),
+            'method' => 'FileAttachment::setUsageInfo',
+            'file_id' => $this->getId(),
+            'old_usage_info' => $this->usageInfo,
+            'new_usage_info' => $usageInfo
+        ];
+        file_put_contents(__DIR__ . '/../../var/debug-file-usage.txt', json_encode($entityDebug) . "\n", FILE_APPEND);
+        
         $this->usageInfo = $usageInfo;
         return $this;
     }
@@ -249,7 +262,12 @@ class FileAttachment
 
     public function getUsageCount(): int
     {
-        return $this->usageInfo ? count($this->usageInfo) : 0;
+        if (!$this->usageInfo) {
+            return 0;
+        }
+        
+        // Count total IDs across all entity types: {"reports": [123, 456], "pages": [789]}
+        return array_sum(array_map('count', $this->usageInfo));
     }
 
     public function getUploadedBy(): ?int
@@ -396,6 +414,17 @@ class FileAttachment
     public function setIsPublic(bool $isPublic): self
     {
         $this->isPublic = $isPublic;
+        return $this;
+    }
+
+    public function getThumbnailPath(): ?string
+    {
+        return $this->thumbnailPath;
+    }
+
+    public function setThumbnailPath(?string $thumbnailPath): self
+    {
+        $this->thumbnailPath = $thumbnailPath;
         return $this;
     }
 }

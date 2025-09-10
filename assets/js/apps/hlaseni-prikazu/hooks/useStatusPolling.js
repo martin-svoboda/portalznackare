@@ -35,7 +35,7 @@ export const useStatusPolling = (prikazId, formData, setFormData, isActive = fal
             
             if (result && result.state) {
                 const currentState = result.state;
-                const previousState = formData.status;
+                const previousState = formData?.status;
                 
                 // Aktualizuj stav pouze pokud se změnil
                 if (currentState !== previousState) {
@@ -108,7 +108,7 @@ export const useStatusPolling = (prikazId, formData, setFormData, isActive = fal
                 showNotification('warning', 'Nelze ověřit stav zpracování. Obnovte stránku pro kontrolu.');
             }
         }
-    }, [prikazId, isActive, formData.status, setFormData, MAX_POLL_ATTEMPTS]);
+    }, [prikazId, isActive, formData?.status, setFormData, MAX_POLL_ATTEMPTS]);
 
     // Spustit polling
     const startPolling = useCallback(() => {
@@ -154,13 +154,13 @@ export const useStatusPolling = (prikazId, formData, setFormData, isActive = fal
 
     // Automaticky spustit polling pokud je status 'send'
     useEffect(() => {
-        const currentStatus = formData.status;
+        const currentStatus = formData?.status;
         if (currentStatus === 'send' && isActive && !isPolling) {
             startPolling();
         } else if (currentStatus !== 'send' && isPolling) {
             stopPolling();
         }
-    }, [formData.status, isActive, isPolling, startPolling, stopPolling]);
+    }, [formData?.status, isActive, isPolling, startPolling, stopPolling]);
 
     // Zastavit polling při unmount
     useEffect(() => {

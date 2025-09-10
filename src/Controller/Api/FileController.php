@@ -61,6 +61,36 @@ class FileController extends AbstractController
             if ($request->request->has('is_public')) {
                 $options['is_public'] = $request->request->getBoolean('is_public');
             }
+            
+            // Add entity type and ID for usage tracking
+            $controllerDebug = [
+                'timestamp' => date('Y-m-d H:i:s'),
+                'method' => 'FileController::upload',
+                'has_entity_type' => $request->request->has('entity_type'),
+                'has_entity_id' => $request->request->has('entity_id'),
+                'has_field_name' => $request->request->has('field_name'),
+                'entity_type_value' => $request->request->get('entity_type'),
+                'entity_id_value' => $request->request->get('entity_id'),
+                'field_name_value' => $request->request->get('field_name')
+            ];
+            file_put_contents($this->getParameter('kernel.project_dir') . '/var/debug-file-usage.txt', json_encode($controllerDebug) . "\n", FILE_APPEND);
+            
+            if ($request->request->has('entity_type')) {
+                $options['entity_type'] = $request->request->get('entity_type');
+            }
+            if ($request->request->has('entity_id')) {
+                $options['entity_id'] = (int)$request->request->get('entity_id');
+            }
+            if ($request->request->has('field_name')) {
+                $options['field_name'] = $request->request->get('field_name');
+            }
+            
+            $controllerDebug2 = [
+                'timestamp' => date('Y-m-d H:i:s'),
+                'method' => 'FileController::upload',
+                'final_options' => $options
+            ];
+            file_put_contents($this->getParameter('kernel.project_dir') . '/var/debug-file-usage.txt', json_encode($controllerDebug2) . "\n", FILE_APPEND);
 
             $uploadedFiles = [];
             $errors = [];
@@ -197,8 +227,25 @@ class FileController extends AbstractController
         $file = $this->fileUploadService->getFile($id, $user);
         
         if (!$file) {
+            // Případ 2&3: Soubor není v databázi - ale možná máme entity context pro cleanup
+            $requestData = json_decode($request->getContent(), true) ?? [];
+            $entityType = $requestData['entity_type'] ?? null;
+            $entityId = $requestData['entity_id'] ?? null;
+            
+            if ($entityType && $entityId) {
+                // Cleanup orphaned reference from entity
+                $cleanupResult = $this->fileUploadService->cleanupOrphanedReference($id, $entityType, (int)$entityId);
+                
+                if ($cleanupResult) {
+                    return new JsonResponse([
+                        'success' => true,
+                        'message' => 'Neexistující soubor byl odebrán z formuláře'
+                    ]);
+                }
+            }
+            
             return new JsonResponse([
-                'error' => 'Soubor nenalezen'
+                'error' => 'Soubor nebyl nalezen v databázi'
             ], Response::HTTP_NOT_FOUND);
         }
 
@@ -210,24 +257,85 @@ class FileController extends AbstractController
         }
 
         try {
-            // Get force parameter from request body or query params
             $requestData = json_decode($request->getContent(), true) ?? [];
             $forceDelete = $requestData['force'] ?? $request->query->getBoolean('force', false);
+            $entityType = $requestData['entity_type'] ?? null;
+            $entityId = $requestData['entity_id'] ?? null;
+            $fieldName = $requestData['field_name'] ?? null;
             
-            // Clean up references before deleting
-            $cleanupResults = $this->fileUploadService->cleanupFileReferences($file);
+            // Validate admin force delete permission
+            if ($forceDelete && !$this->isGranted('ROLE_ADMIN')) {
+                return new JsonResponse([
+                    'error' => 'Pouze administrátor může vynutit smazání souboru'
+                ], Response::HTTP_FORBIDDEN);
+            }
             
-            $this->fileUploadService->deleteFile($file, $forceDelete);
-            
-            $response = [
-                'success' => true,
-                'message' => 'Soubor byl úspěšně smazán'
-            ];
-            
-            // Add cleanup info if there were references
-            if (!empty($cleanupResults)) {
-                $response['cleanup'] = $cleanupResults;
-                $response['message'] .= sprintf(' (%d odkazů bylo vyčištěno)', count($cleanupResults));
+            if ($entityType && $entityId) {
+                // Případ 1: Check if physical file exists
+                $physicalFileExists = $this->fileUploadService->physicalFileExists($file);
+                
+                if (!$physicalFileExists) {
+                    // Orphaned file - remove usage and clean up DB if no more usage
+                    $file = $this->fileUploadService->removeFileUsage($file->getId(), $entityType, (int)$entityId, $fieldName);
+                    
+                    if (!$file) {
+                        return new JsonResponse([
+                            'error' => 'Chyba při odebírání použití souboru'
+                        ], Response::HTTP_INTERNAL_SERVER_ERROR);
+                    }
+                    
+                    if ($file->getUsageCount() === 0) {
+                        // No more usage - clean up all references and remove DB record
+                        $this->fileUploadService->cleanupAllEntityReferences($file);
+                        $this->fileUploadService->removeFromDatabase($file);
+                        $message = 'Odkaz na neexistující soubor byl odstraněn';
+                    } else {
+                        $message = 'Použití souboru bylo odebráno';
+                    }
+                    
+                    $response = [
+                        'success' => true,
+                        'message' => $message
+                    ];
+                } else {
+                    // Normal case - physical file exists
+                    $file = $this->fileUploadService->removeFileUsage($file->getId(), $entityType, (int)$entityId, $fieldName);
+                    
+                    if (!$file) {
+                        return new JsonResponse([
+                            'error' => 'Chyba při odebírání použití souboru'
+                        ], Response::HTTP_INTERNAL_SERVER_ERROR);
+                    }
+                    
+                    // Check if file has remaining usage
+                    if ($file->getUsageCount() > 0) {
+                        $response = [
+                            'success' => true,
+                            'message' => 'Použití souboru bylo odebráno'
+                        ];
+                    } else {
+                        // No more usage - decide force vs soft delete
+                        if ($forceDelete || $this->fileUploadService->shouldAutoForceDelete($file)) {
+                            $this->fileUploadService->physicallyDeleteFile($file);
+                            $message = 'Soubor byl fyzicky smazán';
+                        } else {
+                            $this->fileUploadService->softDeleteFile($file);
+                            $message = 'Soubor byl přesunut do koše';
+                        }
+                        
+                        $response = [
+                            'success' => true,
+                            'message' => $message
+                        ];
+                    }
+                }
+            } else {
+                // Fallback - delete entire file (legacy behavior)
+                $this->fileUploadService->deleteFile($file, $forceDelete);
+                $response = [
+                    'success' => true,
+                    'message' => 'Soubor byl úspěšně smazán'
+                ];
             }
             
             return new JsonResponse($response);
@@ -269,7 +377,8 @@ class FileController extends AbstractController
             (int)$data['fileId'],
             $data['type'],
             (int)$data['id'],
-            $data['data'] ?? null
+            $data['data'] ?? null,
+            $data['field_name'] ?? null
         );
 
         if (!$file) {
@@ -309,7 +418,8 @@ class FileController extends AbstractController
         $file = $this->fileUploadService->removeFileUsage(
             (int)$data['fileId'],
             $data['type'],
-            (int)$data['id']
+            (int)$data['id'],
+            $data['field_name'] ?? null
         );
 
         if (!$file) {

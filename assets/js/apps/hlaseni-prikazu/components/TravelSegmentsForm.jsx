@@ -23,6 +23,8 @@ export const TravelSegmentsForm = ({
     segments,
     onSegmentsChange,
     storagePath,
+    prikazId,
+    reportId,
     disabled = false,
     isDraft = false
 }) => {
@@ -101,6 +103,8 @@ export const TravelSegmentsForm = ({
                         onMoveDown={handleMoveDown}
                         canRemove={segments.length > 1}
                         storagePath={storagePath}
+                        prikazId={prikazId}
+                        reportId={reportId}
                         disabled={disabled}
                         isDraft={isDraft}
                     />
