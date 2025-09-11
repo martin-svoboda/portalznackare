@@ -542,7 +542,7 @@ export const AdvancedFileUpload = ({
                                 {isImage(file.fileType) ? (
                                     <div className="flex-shrink-0 w-20 h-20">
                                         <img
-                                            src={file.url}
+                                            src={file.thumbnailUrl || file.url}
                                             alt={file.fileName}
                                             className=""
                                             style={{
@@ -692,69 +692,25 @@ export const AdvancedFileUpload = ({
                 </div>
             )}
 
-            {/* Preview Modal */}
-            {previewFile && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75">
-                    <div className="bg-white dark:bg-gray-900 rounded-lg p-4 max-w-4xl w-full mx-4 max-h-[90vh] overflow-auto">
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-lg font-semibold">{previewFile.fileName}</h3>
-                            <button
-                                onClick={() => setPreviewFile(null)}
-                                className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-                            >
-                                <IconX size={20}/>
-                            </button>
-                        </div>
-
-                        <div className="text-center">
-                            {isImage(previewFile.fileType) ? (
-                                <div>
-                                    <img
-                                        src={previewFile.url}
-                                        alt={previewFile.fileName}
-                                        className="max-w-full max-h-96 mx-auto rounded"
-                                        style={{
-                                            transition: 'transform 0.3s ease'
-                                        }}
-                                    />
-                                    {!disabled && (
-                                        <div className="flex gap-2 justify-center mt-4">
-                                            <button
-                                                onClick={async () => {
-                                                    try {
-                                                        await removeFile(previewFile.id);
-                                                        setPreviewFile(null); // Zavřít modal pouze pokud se mazání podařilo
-                                                    } catch (error) {
-                                                        // Modal zůstane otevřený pokud mazání selhalo
-                                                        console.error('Failed to delete file from preview:', error);
-                                                    }
-                                                }}
-                                                className="btn btn--danger"
-                                            >
-                                                <IconTrash size={16}/>
-                                                Smazat
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-                            ) : (
-                                <div className="p-8">
-                                    <IconFile size={64} className="mx-auto mb-4"/>
-                                    <p>PDF náhled není dostupný v této verzi</p>
-                                    <a
-                                        href={previewFile.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="btn btn--primary"
-                                    >
-                                        Otevřít PDF
-                                    </a>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* Preview Modal - nahrazeno UnifiedImageModal */}
+            <UnifiedImageModal
+                file={previewFile}
+                isOpen={!!previewFile}
+                onClose={() => setPreviewFile(null)}
+                onSave={handleEditorSave}
+                onDelete={async (fileId) => {
+                    try {
+                        await removeFile(fileId);
+                        setPreviewFile(null);
+                    } catch (error) {
+                        console.error('Failed to delete file from preview:', error);
+                    }
+                }}
+                mode="preview"
+                usageType={usageType}
+                entityId={entityId}
+                fieldName={fieldName}
+            />
 
             {/* Image Editor Modal */}
             <UnifiedImageModal

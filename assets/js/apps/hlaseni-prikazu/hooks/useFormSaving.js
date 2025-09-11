@@ -127,7 +127,7 @@ export const useFormSaving = (formData, head, prikazId, tariffRates, isLeader, t
     const [saving, setSaving] = useState(false);
 
     // Handle save operation
-    const handleSave = useCallback(async (final = false) => {
+    const handleSave = useCallback(async (final = false, silent = false) => {
         // Ochrana proti přepsání dat před jejich načtením
         if (!reportLoaded) {
             log.error('Pokus o uložení před načtením existujících dat - blokováno');
@@ -213,7 +213,11 @@ export const useFormSaving = (formData, head, prikazId, tariffRates, isLeader, t
 
             log.info(`Ukládání hlášení pro příkaz ${prikazId}`, { final, dataSize: JSON.stringify(data).length });
 
-            await api.prikazy.saveReport(data);
+            // Pro automatické ukládání potlačit notifikace
+            await api.prikazy.saveReport(data, silent ? {
+                showSuccess: false,
+                showError: true // Chyby vždy zobrazit
+            } : undefined);
 
             log.info(final ? 'Hlášení odesláno' : 'Hlášení uloženo');
 
@@ -290,9 +294,11 @@ export const useFormSaving = (formData, head, prikazId, tariffRates, isLeader, t
         reportLoaded
     ]);
 
-    // Save as draft
-    const saveDraft = useCallback(() => {
-        return handleSave(false);
+    // Save as draft - s podporou pro automatické ukládání
+    const saveDraft = useCallback(async (isAutoSave = false) => {
+        // Pro automatické ukládání použít silent mode (bez notifikací)
+        const success = await handleSave(false, isAutoSave);
+        return success;
     }, [handleSave]);
 
     // Submit final report (old method - still used for final submission after validation)

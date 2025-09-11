@@ -6,6 +6,8 @@ use App\Entity\FileAttachment;
 use App\Repository\FileAttachmentRepository;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Imagine\Gd\Imagine;
+use Imagine\Image\Box;
+use Imagine\Image\ImageInterface;
 
 /**
  * Služba pro zpracování obrázků - rotace, oříznutí, atd.
@@ -156,8 +158,9 @@ class ImageProcessingService
         $newFile->setIsPublic($originalFile->isPublic());
         $newFile->setUploadedBy($originalFile->getUploadedBy());
 
-        // Vytvořit novou cestu
-        $storagePath = $this->generateStoragePath();
+        // Použít stejnou storage path jako původní soubor (jen adresář, ne celý path)
+        $originalPath = $originalFile->getPath(); // např. reports/2025/c/ta/52715/IMG-5094-13fe661a.jpg
+        $storagePath = dirname($originalPath);    // např. reports/2025/c/ta/52715
         $newPath = $storagePath . '/' . $newFile->getStoredName();
         $newFile->setPath($newPath);
         $newFile->setStoragePath($storagePath);
@@ -172,18 +175,22 @@ class ImageProcessingService
         $newFile->setSize(filesize($fullPath));
         $newFile->setHash(sha1_file($fullPath));
 
-        // Aktualizovat metadata s informací o editaci
-        $metadata = $originalFile->getMetadata() ? json_decode($originalFile->getMetadata(), true) : [];
-        $metadata['edited'] = true;
-        $metadata['copy_of'] = $originalFile->getId(); // Změna z original_file_id na copy_of
-        $metadata['edit_history'] = $metadata['edit_history'] ?? [];
-        $metadata['edit_history'][] = [
+        // Základní metadata
+        $metadata = [
+            'edited' => true,
+            'copy_of' => $originalFile->getId(),
             'operations' => $operations,
             'timestamp' => date('c')
         ];
-        $newFile->setMetadata(json_encode($metadata));
-        
-        // Nastavit isTemporary na false (kopie jsou permanentní)
+
+        // Přidat rozměry obrázku
+        $imageSize = getimagesize($fullPath);
+        if ($imageSize) {
+            $metadata['width'] = $imageSize[0];
+            $metadata['height'] = $imageSize[1];
+        }
+
+        $newFile->setMetadata($metadata);
         $newFile->setIsTemporary(false);
 
         // Vygenerovat thumbnail pomocí FileUploadService
@@ -204,9 +211,9 @@ class ImageProcessingService
                 $newFile->setThumbnailPath($relativeThumbnailPath);
                 
                 // Přidat info o thumbnail do metadata
-                $metadata = json_decode($newFile->getMetadata(), true);
+                $metadata = $newFile->getMetadata() ?? [];
                 $metadata['thumbnail'] = basename($thumbnailPath);
-                $newFile->setMetadata(json_encode($metadata));
+                $newFile->setMetadata($metadata);
             }
         } catch (\Exception $e) {
             // Thumbnail není kritický, pokračujeme bez něj
@@ -259,21 +266,29 @@ class ImageProcessingService
         $file->setSize(filesize($filePath));
 
         // Aktualizovat metadata s informací o editaci
-        $metadata = $file->getMetadata() ? json_decode($file->getMetadata(), true) : [];
+        $metadata = $file->getMetadata() ?? [];
         $metadata['edited'] = true;
         $metadata['edit_history'] = $metadata['edit_history'] ?? [];
         $metadata['edit_history'][] = [
             'operations' => $operations,
             'timestamp' => date('c')
         ];
-        $file->setMetadata(json_encode($metadata));
+
+        // Aktualizovat rozměry obrázku v metadata
+        $imageSize = getimagesize($filePath);
+        if ($imageSize) {
+            $metadata['width'] = $imageSize[0];
+            $metadata['height'] = $imageSize[1];
+        }
+
+        $file->setMetadata($metadata);
 
         // Regenerovat thumbnail pokud existuje
         if ($file->getThumbnailPath()) {
             $this->regenerateThumbnail($file);
         }
 
-        // Uložit změny do databáze
+        // Uložit změny do databáze (thumbnail path zůstává stejný, jen se přepsal obsah)
         $this->repository->save($file, true);
         
         imagedestroy($image);
@@ -304,8 +319,32 @@ class ImageProcessingService
      */
     private function regenerateThumbnail(FileAttachment $file): void
     {
-        // TODO: Implementovat regeneraci thumbnail
-        // Bude potřeba rozšířit FileUploadService o metodu pro regeneraci thumbnail
+        try {
+            $filePath = $this->uploadDir . '/' . $file->getPath();
+            $existingThumbnailPath = $this->uploadDir . '/' . $file->getThumbnailPath();
+            
+            // Načíst obrázek pomocí Imagine
+            $imagine = new \Imagine\Gd\Imagine();
+            $imageForThumbnail = $imagine->open($filePath);
+            
+            // Vytvořit thumbnail přímo na místě existujícího
+            $image = $imageForThumbnail->thumbnail(
+                new Box(300, 300), 
+                ImageInterface::THUMBNAIL_OUTBOUND
+            );
+            
+            // Uložit thumbnail na stejnou cestu (přepsat)
+            $image->save($existingThumbnailPath, ['quality' => 80]);
+            
+            // Aktualizovat pouze metadata info (path zůstává stejný)
+            $metadata = $file->getMetadata() ?? [];
+            $metadata['thumbnail'] = basename($existingThumbnailPath);
+            $file->setMetadata($metadata);
+            
+        } catch (\Exception $e) {
+            // Thumbnail není kritický, pokračujeme bez něj
+            error_log("ImageProcessingService::regenerateThumbnail - Nepodařilo se regenerovat thumbnail: " . $e->getMessage());
+        }
     }
 
     /**

@@ -549,9 +549,12 @@ class FileController extends AbstractController
                 'message' => 'Soubor byl úspěšně upraven',
                 'file' => [
                     'id' => $editedFile->getId(),
-                    'name' => $editedFile->getOriginalName(),
-                    'size' => $editedFile->getSize(),
+                    'fileName' => $editedFile->getOriginalName(),
+                    'fileSize' => $editedFile->getSize(),
+                    'fileType' => $editedFile->getMimeType(),
                     'url' => '/uploads/' . $editedFile->getPath(),
+                    'thumbnailUrl' => $editedFile->getThumbnailPath() ? '/uploads/' . $editedFile->getThumbnailPath() : null,
+                    'uploadedAt' => $editedFile->getCreatedAt() ? $editedFile->getCreatedAt()->format('c') : (new \DateTime())->format('c'),
                     'isEdited' => true,
                     'isNewFile' => $saveMode === 'copy', // Indikátor pro frontend
                     'operations' => $operations,

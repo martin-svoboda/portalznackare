@@ -7,6 +7,7 @@ import {useFormSaving} from './hooks/useFormSaving';
 import {useStatusPolling} from './hooks/useStatusPolling';
 import {useStepNavigation} from './hooks/useStepNavigation';
 import {useFieldIdCounter} from './hooks/useFieldIdCounter';
+import {useAutoSave} from './hooks/useAutoSave';
 import {api} from '../../utils/api';
 import {log} from '../../utils/debug';
 import {parseTariffRatesFromAPI, calculateExecutionDate} from './utils/compensationCalculator';
@@ -319,6 +320,20 @@ const App = () => {
                 : updaterOrValue
         }));
     };
+
+    // Automatické ukládání - aktivní pouze pro draft stavy a editovatelné hlášení
+    useAutoSave(
+        appData.formData,
+        () => saveDraft(true), // isAutoSave = true pro toast notifikace
+        {
+            enabled: appData.canEdit && 
+                     appData.formData?.status === 'draft' && 
+                     !appData.loading &&
+                     !saving,
+            delay: 2000, // 2 sekundy po poslední změně
+            skipInitial: true // Neukládat při prvním načtení
+        }
+    );
 
 
     if (appData.loading) {
