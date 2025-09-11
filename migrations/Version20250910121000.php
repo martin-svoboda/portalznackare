@@ -64,35 +64,13 @@ final class Version20250910121000 extends AbstractMigration
         $this->addSql('CREATE INDEX IF NOT EXISTS idx_file_temporary ON file_attachments (is_temporary, expires_at)');
         $this->addSql('CREATE INDEX IF NOT EXISTS idx_file_deleted ON file_attachments (deleted_at, physically_deleted)');
         
-        // Clean up invalid uploaded_by values first, then add constraint
-        $this->addSql('
-            UPDATE file_attachments 
-            SET uploaded_by = NULL 
-            WHERE uploaded_by IS NOT NULL 
-              AND uploaded_by NOT IN (SELECT id FROM users)
-        ');
-        
-        // Add foreign key constraint for uploaded_by (assuming users table exists)
-        $this->addSql('
-            DO $$ 
-            BEGIN
-                IF NOT EXISTS (
-                    SELECT 1 FROM pg_constraint 
-                    WHERE conname = \'fk_file_uploaded_by\'
-                ) THEN
-                    ALTER TABLE file_attachments 
-                    ADD CONSTRAINT FK_file_uploaded_by 
-                    FOREIGN KEY (uploaded_by) 
-                    REFERENCES users (id) 
-                    ON DELETE SET NULL;
-                END IF;
-            END $$;
-        ');
+        // No foreign key constraint for uploaded_by
+        // The field stores int_adr from INSYZ system, not local user ID
     }
 
     public function down(Schema $schema): void
     {
-        $this->addSql('ALTER TABLE file_attachments DROP CONSTRAINT IF EXISTS FK_file_uploaded_by');
+        // No foreign key to drop
         $this->addSql('DROP INDEX IF EXISTS idx_file_usage_info');
         $this->addSql('DROP INDEX IF EXISTS idx_file_uploaded_by');
         $this->addSql('DROP INDEX IF EXISTS idx_file_metadata');
