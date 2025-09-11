@@ -565,7 +565,7 @@ class FileUploadService
     /**
      * Physically delete file from disk and database
      */
-    private function physicallyDeleteFile(FileAttachment $attachment): void
+    public function physicallyDeleteFile(FileAttachment $attachment): void
     {
         $fullPath = $this->uploadDir . '/' . $attachment->getPath();
         

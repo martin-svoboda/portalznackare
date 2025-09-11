@@ -419,7 +419,10 @@ class XmlGenerationService
             $element->setAttribute('type', $attachment['fileType'] ?? '');
             $element->setAttribute('size', (string)($attachment['fileSize'] ?? ''));
             
-            $fullUrl = $baseUrl . ($attachment['url'] ?? '');
+            // URL už obsahuje kompletní cestu včetně domény z AttachmentLookupService
+            $url = $attachment['url'] ?? '';
+            // Přidat baseUrl pouze pokud URL nezačíná http
+            $fullUrl = strpos($url, 'http') === 0 ? $url : $baseUrl . $url;
             $element->appendChild($xml->createTextNode($fullUrl));
             
             $container->appendChild($element);
@@ -551,7 +554,10 @@ class XmlGenerationService
             $element->setAttribute('type', $attachment['fileType'] ?? '');
             $element->setAttribute('size', (string)($attachment['fileSize'] ?? ''));
             
-            $fullUrl = $baseUrl . ($attachment['url'] ?? '');
+            // URL už obsahuje kompletní cestu včetně domény z AttachmentLookupService
+            $url = $attachment['url'] ?? '';
+            // Přidat baseUrl pouze pokud URL nezačíná http
+            $fullUrl = strpos($url, 'http') === 0 ? $url : $baseUrl . $url;
             $element->appendChild($xml->createTextNode($fullUrl));
             
             $parent->appendChild($element);
