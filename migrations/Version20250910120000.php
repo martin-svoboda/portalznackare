@@ -22,17 +22,8 @@ final class Version20250910120000 extends AbstractMigration
         // Skip if column already exists (added by Version20250910121000)
         $this->addSql('ALTER TABLE file_attachments ADD COLUMN IF NOT EXISTS thumbnail_path VARCHAR(500) DEFAULT NULL');
         
-        // Update existing records to populate thumbnail_path from metadata
-        $this->addSql("
-            UPDATE file_attachments 
-            SET thumbnail_path = CASE 
-                WHEN metadata->>'thumbnail' IS NOT NULL 
-                THEN CONCAT(storage_path, '/', metadata->>'thumbnail')
-                ELSE NULL 
-            END
-            WHERE metadata IS NOT NULL AND metadata->>'thumbnail' IS NOT NULL
-              AND thumbnail_path IS NULL
-        ");
+        // Skip metadata update - metadata column might not exist yet
+        // This will be handled in Version20250910121000 if needed
     }
 
     public function down(Schema $schema): void

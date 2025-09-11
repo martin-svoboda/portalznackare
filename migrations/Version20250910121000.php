@@ -43,6 +43,19 @@ final class Version20250910121000 extends AbstractMigration
         // Update existing records to populate storage_path from path
         $this->addSql('UPDATE file_attachments SET storage_path = path WHERE storage_path = \'\'');
         
+        // Update thumbnail_path from metadata if metadata exists
+        $this->addSql("
+            UPDATE file_attachments 
+            SET thumbnail_path = CASE 
+                WHEN metadata->>'thumbnail' IS NOT NULL 
+                THEN CONCAT(storage_path, '/', metadata->>'thumbnail')
+                ELSE NULL 
+            END
+            WHERE metadata IS NOT NULL 
+              AND metadata->>'thumbnail' IS NOT NULL
+              AND thumbnail_path IS NULL
+        ");
+        
         // Add indexes for better performance
         // Note: GIN indexes work only with JSONB, not JSON. Using standard btree for JSON columns
         $this->addSql('CREATE INDEX IF NOT EXISTS idx_file_usage_info ON file_attachments USING btree ((usage_info::text))');
