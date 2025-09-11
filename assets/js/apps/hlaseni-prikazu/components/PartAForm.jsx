@@ -4,7 +4,7 @@ import {
     IconTrash
 } from '@tabler/icons-react';
 import { PaymentRedirectsForm } from './PaymentRedirectsForm';
-import { AdvancedFileUpload } from './AdvancedFileUpload';
+import { AdvancedFileUpload } from '../../../components/shared/forms/AdvancedFileUpload';
 import { TravelGroupsForm } from './TravelGroupsForm';
 import ErrorBoundary from '../../../components/shared/ErrorBoundary';
 import { 

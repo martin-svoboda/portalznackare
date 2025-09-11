@@ -4,6 +4,7 @@ namespace App\Controller\Api;
 
 use App\Entity\User;
 use App\Service\FileUploadService;
+use App\Service\ImageProcessingService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\File\Exception\FileException;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -18,6 +19,7 @@ class FileController extends AbstractController
 {
     public function __construct(
         private FileUploadService $fileUploadService,
+        private ImageProcessingService $imageProcessingService,
         private ValidatorInterface $validator
     ) {
     }
@@ -472,6 +474,96 @@ class FileController extends AbstractController
             
             return new JsonResponse([
                 'error' => 'Chyba při načítání orphaned odkazů',
+                'details' => $e->getMessage()
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    #[Route('/{id}/edit', methods: ['PUT'])]
+    public function edit(int $id, Request $request): JsonResponse
+    {
+        try {
+            $user = $this->getUser();
+            if (!$user instanceof User) {
+                return new JsonResponse([
+                    'error' => 'Neautorizovaný přístup'
+                ], Response::HTTP_UNAUTHORIZED);
+            }
+
+            // Najít soubor
+            $file = $this->fileUploadService->getFile($id, $user);
+            if (!$file) {
+                return new JsonResponse([
+                    'error' => 'Soubor nebyl nalezen'
+                ], Response::HTTP_NOT_FOUND);
+            }
+
+            // Kontrola oprávnění - pouze vlastník nebo admin
+            if ((int)$file->getUploadedBy() !== (int)$user->getIntAdr() && !$this->isGranted('ROLE_ADMIN')) {
+                return new JsonResponse([
+                    'error' => 'Nemáte oprávnění editovat tento soubor'
+                ], Response::HTTP_FORBIDDEN);
+            }
+
+            // Pouze obrázky lze editovat
+            if (!str_starts_with($file->getMimeType(), 'image/')) {
+                return new JsonResponse([
+                    'error' => 'Lze editovat pouze obrázky'
+                ], Response::HTTP_BAD_REQUEST);
+            }
+
+            // Parse request data
+            $data = json_decode($request->getContent(), true);
+            if (!$data) {
+                return new JsonResponse([
+                    'error' => 'Neplatná data požadavku'
+                ], Response::HTTP_BAD_REQUEST);
+            }
+
+            $operations = $data['operations'] ?? [];
+            $saveMode = $data['saveMode'] ?? 'overwrite'; // 'overwrite' | 'copy'
+            
+            // Usage tracking parametry (stejné jako u upload/delete)
+            $entityType = $data['entity_type'] ?? null;
+            $entityId = $data['entity_id'] ?? null;
+            $fieldName = $data['field_name'] ?? null;
+
+            if (empty($operations)) {
+                return new JsonResponse([
+                    'error' => 'Žádné editační operace nebyly specifikovány'
+                ], Response::HTTP_BAD_REQUEST);
+            }
+
+            // Zpracovat operace s usage parametry
+            $editedFile = $this->imageProcessingService->processOperations(
+                $file, 
+                $operations, 
+                $saveMode,
+                $entityType,
+                $entityId,
+                $fieldName
+            );
+            
+            return new JsonResponse([
+                'success' => true,
+                'message' => 'Soubor byl úspěšně upraven',
+                'file' => [
+                    'id' => $editedFile->getId(),
+                    'name' => $editedFile->getOriginalName(),
+                    'size' => $editedFile->getSize(),
+                    'url' => '/uploads/' . $editedFile->getPath(),
+                    'isEdited' => true,
+                    'isNewFile' => $saveMode === 'copy', // Indikátor pro frontend
+                    'operations' => $operations,
+                    'saveMode' => $saveMode
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            error_log("FileController::edit - Chyba: " . $e->getMessage());
+            
+            return new JsonResponse([
+                'error' => 'Nepodařilo se editovat soubor',
                 'details' => $e->getMessage()
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }

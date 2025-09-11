@@ -7,7 +7,7 @@ import {
     IconAlertTriangle,
     IconMapPin
 } from '@tabler/icons-react';
-import { AdvancedFileUpload } from './AdvancedFileUpload';
+import { AdvancedFileUpload } from '../../../components/shared/forms/AdvancedFileUpload';
 import { RenewedSectionsForm } from './RenewedSectionsForm';
 import { renderHtmlContent, replaceTextWithIcons } from '../../../utils/htmlUtils';
 import { 

@@ -5,7 +5,7 @@ import {
     IconMapPin,
     IconAlertTriangle
 } from '@tabler/icons-react';
-import { AdvancedFileUpload } from './AdvancedFileUpload';
+import { AdvancedFileUpload } from '../../../components/shared/forms/AdvancedFileUpload';
 import { renderHtmlContent, replaceTextWithIcons } from '../../../utils/htmlUtils';
 
 const statusOptions = [

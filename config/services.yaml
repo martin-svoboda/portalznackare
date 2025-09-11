@@ -61,6 +61,9 @@ services:
         arguments:
             $logger: '@monolog.logger.api'
 
+    # Image processing service konfigurace
+    App\Service\ImageProcessingService: ~
+
     # MSSQL services konfigurace - clean without audit
     # App\Service\MssqlConnector: # uses default autowiring now
 

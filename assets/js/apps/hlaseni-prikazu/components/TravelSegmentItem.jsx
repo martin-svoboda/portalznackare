@@ -10,7 +10,7 @@ import {
     IconArrowDown,
     IconMapPin
 } from '@tabler/icons-react';
-import { AdvancedFileUpload } from './AdvancedFileUpload';
+import { AdvancedFileUpload } from '../../../components/shared/forms/AdvancedFileUpload';
 import { 
     getAttachmentsAsArray, 
     setAttachmentsFromArray 

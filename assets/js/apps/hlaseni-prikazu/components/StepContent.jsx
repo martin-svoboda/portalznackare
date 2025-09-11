@@ -11,7 +11,7 @@ import { PartAForm } from './PartAForm';
 import { PartBForm } from './PartBForm';
 import { CompensationSummary } from './CompensationSummary';
 import { PartBSummary } from './PartBSummary';
-import { AdvancedFileUpload } from './AdvancedFileUpload';
+import { AdvancedFileUpload } from '../../../components/shared/forms/AdvancedFileUpload';
 import { getAttachmentsAsArray, setAttachmentsFromArray } from '../utils/attachmentUtils';
 import { calculateExecutionDate } from '../utils/compensationCalculator';
 

@@ -5,15 +5,14 @@ import {
     IconTrash,
     IconPhoto,
     IconCamera,
-    IconRotateClockwise2,
-    IconRotate2,
     IconEye,
+    IconEdit,
     IconX,
-    IconCameraRotate,
     IconCheck,
     IconPhotoCancel
 } from '@tabler/icons-react';
 import {showErrorToast, showSuccessToast, showWarningToast} from '../../../utils/notifications.js';
+import UnifiedImageModal from '../UnifiedImageModal';
 
 export const AdvancedFileUpload = ({
                                        id,
@@ -38,6 +37,8 @@ export const AdvancedFileUpload = ({
     const [capturedPhoto, setCapturedPhoto] = useState(null);
     const [uploading, setUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
+    const [editorOpen, setEditorOpen] = useState(false);
+    const [fileToEdit, setFileToEdit] = useState(null);
 
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
@@ -323,20 +324,40 @@ export const AdvancedFileUpload = ({
         }
     };
 
-    // Image rotation
-    const rotateImage = (fileId, degrees) => {
-        const updatedFiles = files.map(f =>
-            f.id === fileId
-                ? {...f, rotation: (f.rotation || 0) + degrees}
+
+    // Image editor functions
+    const openEditor = (file) => {
+        if (!isImage(file.fileType)) return;
+        setFileToEdit(file);
+        setEditorOpen(true);
+    };
+
+    const handleEditorSave = (editedFile) => {
+        // Pro copy mode - kompletně nahradit původní soubor novým
+        // Pro overwrite mode - merge dat
+        const updatedFiles = files.map(f => 
+            f.id === fileToEdit.id 
+                ? (editedFile.isNewFile 
+                    ? { ...editedFile, rotation: 0, uploadedAt: new Date() } // Copy - nový soubor
+                    : { ...f, ...editedFile, url: editedFile.url || f.url, size: editedFile.size || f.size, isEdited: true }) // Overwrite - merge
                 : f
         );
         onFilesChange(updatedFiles);
-        
-        // Update preview file if it's currently being previewed
-        if (previewFile && previewFile.id === fileId) {
-            const updatedPreviewFile = updatedFiles.find(f => f.id === fileId);
-            setPreviewFile(updatedPreviewFile);
+
+        // Pokud je soubor aktuálně v náhledu, aktualizovat náhled
+        if (previewFile && previewFile.id === fileToEdit.id) {
+            setPreviewFile({
+                ...previewFile,
+                ...editedFile,
+                url: editedFile.url || previewFile.url,
+                isEdited: true
+            });
         }
+    };
+
+    const handleEditorClose = () => {
+        setEditorOpen(false);
+        setFileToEdit(null);
     };
 
     // File removal with server delete and confirmation
@@ -525,7 +546,6 @@ export const AdvancedFileUpload = ({
                                             alt={file.fileName}
                                             className=""
                                             style={{
-                                                transform: `rotate(${file.rotation || 0}deg)`,
                                                 transition: 'transform 0.3s ease'
                                             }}
                                         />
@@ -551,6 +571,11 @@ export const AdvancedFileUpload = ({
                                             • Otočeno {file.rotation}°
                                         </span>
                                     ) : ''}
+                                    {file.isEdited && (
+                                        <span className="ml-2 text-purple-600 font-medium">
+                                            • Upraveno
+                                        </span>
+                                    )}
                                 </p>
 
                                 {/* Action buttons */}
@@ -566,27 +591,18 @@ export const AdvancedFileUpload = ({
                                             <IconEye size={20}/>
                                         </button>
 
-                                        {/* Rotation buttons for images */}
+                                        {/* Edit button for images */}
                                         {isImage(file.fileType) && !disabled && (
-                                            <>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => rotateImage(file.id, -90)}
-                                                    className="p-1 text-green-500 hover:text-green-700 rounded"
-                                                    title="Otočit vlevo"
-                                                >
-                                                    <IconRotate2 size={20}/>
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => rotateImage(file.id, 90)}
-                                                    className="p-1 text-green-500 hover:text-green-700 rounded"
-                                                    title="Otočit vpravo"
-                                                >
-                                                    <IconRotateClockwise2 size={20}/>
-                                                </button>
-                                            </>
+                                            <button
+                                                type="button"
+                                                onClick={() => openEditor(file)}
+                                                className="p-1 text-purple-500 hover:text-purple-700 rounded"
+                                                title="Upravit obrázek"
+                                            >
+                                                <IconEdit size={20}/>
+                                            </button>
                                         )}
+
                                     </div>
 
                                     {/* Remove button */}
@@ -698,26 +714,11 @@ export const AdvancedFileUpload = ({
                                         alt={previewFile.fileName}
                                         className="max-w-full max-h-96 mx-auto rounded"
                                         style={{
-                                            transform: `rotate(${previewFile.rotation || 0}deg)`,
                                             transition: 'transform 0.3s ease'
                                         }}
                                     />
                                     {!disabled && (
                                         <div className="flex gap-2 justify-center mt-4">
-                                            <button
-                                                onClick={() => rotateImage(previewFile.id, -90)}
-                                                className="btn btn--success"
-                                            >
-                                                <IconRotate2 size={16}/>
-                                                Otočit vlevo
-                                            </button>
-                                            <button
-                                                onClick={() => rotateImage(previewFile.id, 90)}
-                                                className="btn btn--success"
-                                            >
-                                                <IconRotateClockwise2 size={16}/>
-                                                Otočit vpravo
-                                            </button>
                                             <button
                                                 onClick={async () => {
                                                     try {
@@ -754,6 +755,19 @@ export const AdvancedFileUpload = ({
                     </div>
                 </div>
             )}
+
+            {/* Image Editor Modal */}
+            <UnifiedImageModal
+                file={fileToEdit}
+                isOpen={editorOpen}
+                onClose={handleEditorClose}
+                onSave={handleEditorSave}
+                mode="edit"
+                // Předat usage tracking props stejně jako při upload/delete
+                usageType={usageType}
+                entityId={entityId}
+                fieldName={fieldName}
+            />
         </div>
     );
 };
