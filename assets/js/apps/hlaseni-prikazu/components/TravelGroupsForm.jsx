@@ -610,7 +610,6 @@ export const TravelGroupsForm = ({
                                                                                             min="0"
                                                                                             step="0.01"
                                                                                             disabled={disabled}
-                                                                                            required={true}
                                                                                         />
                                                                                 </div>
                                                                             );

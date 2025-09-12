@@ -24,10 +24,6 @@ const MemberCompensationDetail = ({
     const smallTextSize = compact ? "text-xs" : "text-sm";
     const blockStyle = compact ? "space-y-1" : "space-y-2 mb-2 border-b border-gray-200 dark:border-gray-700 pb-3";
 
-    console.log(memberCompensation);
-    console.log(formData);
-    console.log(tariffRates);
-
     return (
         <div className="space-y-2">
             {showMemberName && (
@@ -176,9 +172,10 @@ const MemberCompensationDetail = ({
                             detail = `${detail}: Autem ${kilometry} jako ${ridic}`;
                         }
                     } else if (segment.Druh_Dopravy === "V") {
-                        detail = `${detail}: Jízdenky ${segment.Naklady > 0 ? formatCurrency(segment.Naklady) : "0"}`;
+                        const naklady = member?.INT_ADR && segment.Naklady && segment.Naklady[member.INT_ADR] > 0 ? segment.Naklady[member.INT_ADR] : 0;
+                        detail = `${detail}: Jízdné <strong>${formatCurrency(naklady)}</strong>`;
 
-                        if (!compact) {
+                        if (!compact && naklady == 0) {
                             detail = `${detail} <span class="text-red-500 font-bold">bez nákaladů</span>`;
                         }
 

@@ -1,83 +1,235 @@
-import React from 'react';
-import { IconInfoCircle } from '@tabler/icons-react';
+import React, { useMemo } from 'react';
+import { 
+    IconMapPin,
+    IconFileText
+} from '@tabler/icons-react';
 
 /**
- * Komponenta pro zobrazení souhrnu části B hlášení
- * Znovupoužitelná v StepContent i admin rozhraní
- * Pracuje pouze s daty z reportu (bez head dat)
+ * Komponenta pro zobrazení kompletního souhrnu části B hlášení
+ * Zobrazuje detailní výpis všech hodnot z formuláře s validací
+ * TIM stavy v tabulkovém formátu stejně jako ve formuláři ale kompaktněji
  */
 export const PartBSummary = ({ 
     formData, 
-    title = "Souhrn části B" 
+    head = null,
+    predmety = null,
+    compact = false
 }) => {
     // Detekce typu na základě dat - pokud má Stavy_Tim, je to TIM příkaz
     const isTIMOrder = formData?.Stavy_Tim && Object.keys(formData.Stavy_Tim).length > 0;
     
+    // Seskupení předmětů podle TIM pro tabulkové zobrazení
+    const timGroups = useMemo(() => {
+        if (!predmety || predmety.length === 0) return {};
+        
+        const groups = {};
+        predmety.forEach(item => {
+            if (!item.EvCi_TIM) return;
+            if (!groups[item.EvCi_TIM]) {
+                groups[item.EvCi_TIM] = {
+                    EvCi_TIM: item.EvCi_TIM,
+                    Naz_TIM: item.Naz_TIM,
+                    items: []
+                };
+            }
+            groups[item.EvCi_TIM].items.push(item);
+        });
+        return groups;
+    }, [predmety]);
+    
+    const textSize = compact ? "text-sm" : "text-base";
+    const smallTextSize = compact ? "text-xs" : "text-sm";
+    const blockStyle = compact ? "space-y-1" : "space-y-2 mb-4 border-b border-gray-200 dark:border-gray-700 pb-4";
+    
+    const statusOptions = {
+        "1": "1 - Nová",
+        "2": "2 - Zachovalá", 
+        "3": "3 - Nevyhovující",
+        "4": "4 - Zcela chybí"
+    };
+    
     return (
-        <div className="card">
-            <div className="card__header">
-                <div className="flex items-center gap-2">
-                    <IconInfoCircle size={20} />
-                    <h4 className="card__title">
-                        {title} - {isTIMOrder ? "Stavy TIM" : "Hlášení o činnosti"}
-                    </h4>
-                </div>
-            </div>
-            <div className="card__content">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        {isTIMOrder ? (
-                            <>
-                                <div className="flex justify-between">
-                                    <span className="text-sm text-gray-600 dark:text-gray-400">Počet TIM:</span>
-                                    <span className="text-sm">{Object.keys(formData.Stavy_Tim).length}</span>
-                                </div>
-                                {formData.Obnovene_Useky && (() => {
-                                    const renewedSections = Object.values(formData.Obnovene_Useky || {})
-                                        .filter(usek => usek.Usek_Obnoven);
-                                    
-                                    if (renewedSections.length > 0) {
+        <div className="space-y-6">
+            {/* TIM položky - stavy předmětů v tabulkovém formátu */}
+            {isTIMOrder && Object.keys(timGroups).length > 0 && Object.values(timGroups).map(timGroup => {
+                const timReport = formData.Stavy_Tim?.[timGroup.EvCi_TIM];
+                const predmetyInTim = timReport?.Predmety || {};
+                
+                return (
+                    <div key={timGroup.EvCi_TIM} className={blockStyle}>
+                        <h4 className={`font-medium ${textSize} flex items-center`}>
+                            <IconMapPin size={16} className="mr-2" />
+                            {timGroup.Naz_TIM} (TIM {timGroup.EvCi_TIM})
+                        </h4>
+                        
+                        {/* Tabulka stavů předmětů - kompaktní verze formuláře */}
+                        <div className="overflow-x-auto">
+                            <table className="w-full border-collapse">
+                                <thead>
+                                    <tr className="border-b border-gray-300 dark:border-gray-600">
+                                        <th className={`${smallTextSize} font-semibold text-gray-600 dark:text-gray-400 text-left py-1 pr-4`}>Předmět</th>
+                                        <th className={`${smallTextSize} font-semibold text-gray-600 dark:text-gray-400 text-left py-1 pr-4`}>Stav</th>
+                                        <th className={`${smallTextSize} font-semibold text-gray-600 dark:text-gray-400 text-left py-1 pr-4`}>Rok výroby</th>
+                                        <th className={`${smallTextSize} font-semibold text-gray-600 dark:text-gray-400 text-left py-1`}>Orientace</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {timGroup.items.map(item => {
+                                        const itemId = item.ID_PREDMETY?.toString();
+                                        const itemStatus = predmetyInTim[itemId];
+                                        const isArrow = item.Predmet?.toLowerCase().includes('směrovka');
+                                        const needsAdditionalData = itemStatus?.Zachovalost && ['1', '2'].includes(itemStatus.Zachovalost?.toString());
+                                        
                                         return (
-                                            <div className="flex justify-between">
-                                                <span className="text-sm text-gray-600 dark:text-gray-400">Obnovené úseky:</span>
-                                                <span className="text-sm">{renewedSections.length}</span>
-                                            </div>
+                                            <tr key={itemId} className="border-b border-gray-200 dark:border-gray-700">
+                                                <td className={`${smallTextSize} py-2 pr-4 font-medium`}>
+                                                    {item.Predmet || 'Neznámý předmět'}
+                                                </td>
+                                                <td className={`${smallTextSize} py-2 pr-4`}>
+                                                    {itemStatus?.Zachovalost ? (
+                                                        <span>{statusOptions[itemStatus.Zachovalost] || itemStatus.Zachovalost}</span>
+                                                    ) : (
+                                                        <span dangerouslySetInnerHTML={{ __html: '<span class="text-red-500 font-bold">chybí stav</span>' }} />
+                                                    )}
+                                                </td>
+                                                <td className={`${smallTextSize} py-2 pr-4`}>
+                                                    {needsAdditionalData ? (
+                                                        itemStatus?.Rok_Vyroby ? (
+                                                            <span>{itemStatus.Rok_Vyroby}</span>
+                                                        ) : (
+                                                            <span dangerouslySetInnerHTML={{ __html: '<span class="text-red-500 font-bold">chybí rok</span>' }} />
+                                                        )
+                                                    ) : (
+                                                        <span className="text-gray-400">—</span>
+                                                    )}
+                                                </td>
+                                                <td className={`${smallTextSize} py-2`}>
+                                                    {needsAdditionalData && isArrow ? (
+                                                        itemStatus?.Smerovani ? (
+                                                            <span>{itemStatus.Smerovani === 'L' ? 'Levá (L)' : 'Pravá (P)'}</span>
+                                                        ) : (
+                                                            <span dangerouslySetInnerHTML={{ __html: '<span class="text-red-500 font-bold">chybí orientace</span>' }} />
+                                                        )
+                                                    ) : (
+                                                        <span className="text-gray-400">—</span>
+                                                    )}
+                                                </td>
+                                            </tr>
                                         );
-                                    }
-                                    return null;
-                                })()}
-                            </>
-                        ) : (
-                            <div className="flex justify-between">
-                                <span className="text-sm text-gray-600 dark:text-gray-400">Hlášení vyplněno:</span>
-                                <span className="text-sm">{formData.Koment_Usek?.trim().length > 0 ? "Ano" : "Ne"}</span>
-                            </div>
-                        )}
-                        <div className="flex justify-between">
-                            <span className="text-sm text-gray-600 dark:text-gray-400">Stav části B:</span>
-                            <span className={`inline-block px-2 py-1 text-xs rounded ${formData.Cast_B_Dokoncena ? 'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100' : 'bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100'}`}>
-                                {formData.Cast_B_Dokoncena ? "Dokončeno" : "Nedokončeno"}
-                            </span>
+                                    })}
+                                </tbody>
+                            </table>
                         </div>
-                    </div>
-                    <div>
-                        {formData.Koment_Usek && (
-                            <div>
-                                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                                    {isTIMOrder ? "Poznámka k trase:" : "Hlášení o činnosti:"}
-                                </p>
-                                <p className="text-sm">{formData.Koment_Usek}</p>
+
+                        {/* Středové pravidlo */}
+                        <div className={`${smallTextSize} flex justify-between`}>
+                            <span className="font-medium">Splnění středového pravidla:</span>
+                            {timReport?.Souhlasi_STP !== undefined && timReport?.Souhlasi_STP !== null ? (
+                                <span>{timReport.Souhlasi_STP ? 'ANO' : 'NE'}</span>
+                            ) : (
+                                <span dangerouslySetInnerHTML={{ __html: '<span class="text-red-500 font-bold">neuvedeno</span>' }} />
+                            )}
+                        </div>
+
+                        {/* Komentáře k TIM */}
+                        {timReport?.Koment_STP && (
+                            <div className={`${smallTextSize}`}>
+                                <span className="font-medium">Komentář k středovému pravidlu:</span> {timReport.Koment_STP}
                             </div>
                         )}
-                        {formData.Prilohy_Usek && formData.Prilohy_Usek.length > 0 && (
-                            <div className="mt-2">
-                                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Počet příloh:</p>
-                                <p className="text-sm">{formData.Prilohy_Usek.length}</p>
+
+                        {timReport?.Koment_NP && (
+                            <div className={`${smallTextSize}`}>
+                                <span className="font-medium">Komentář k nosnému prvku:</span> {timReport.Koment_NP}
+                            </div>
+                        )}
+
+                        {timReport?.Koment_TIM && (
+                            <div className={`${smallTextSize}`}>
+                                <span className="font-medium">Obecný komentář k TIMu:</span> {timReport.Koment_TIM}
+                            </div>
+                        )}
+                        
+                        {/* Přílohy k TIM */}
+                        {timReport?.Prilohy_NP && Object.keys(timReport.Prilohy_NP).length > 0 && (
+                            <div className={`${smallTextSize}`}>
+                                <span className="font-medium">Přílohy k nosnému prvku:</span> {Object.keys(timReport.Prilohy_NP).length} souborů
+                            </div>
+                        )}
+                        
+                        {timReport?.Prilohy_TIM && Object.keys(timReport.Prilohy_TIM).length > 0 && (
+                            <div className={`${smallTextSize}`}>
+                                <span className="font-medium">Fotografie TIMu:</span> {Object.keys(timReport.Prilohy_TIM).length} souborů
                             </div>
                         )}
                     </div>
+                );
+            })}
+
+            {/* Obnovené úseky */}
+            {formData.Obnovene_Useky && Object.keys(formData.Obnovene_Useky).length > 0 && (
+                <div className={blockStyle}>
+                    <h4 className={`font-medium ${textSize}`}>Obnovené úseky</h4>
+                    {Object.entries(formData.Obnovene_Useky).map(([usekId, usek]) => (
+                        <div key={usekId} className={`${smallTextSize} flex justify-between`}>
+                            <span>Úsek {usekId}:</span>
+                            <span>{usek.Usek_Obnoven ? 'Obnoven' : 'Neobnoven'}</span>
+                        </div>
+                    ))}
                 </div>
+            )}
+
+            {/* Komentář k úseku */}
+            <div className={blockStyle}>
+                <h4 className={`font-medium ${textSize} flex items-center`}>
+                    <IconFileText size={16} className="mr-2" />
+                    Komentář ke značkařskému úseku
+                </h4>
+                <div className={`${smallTextSize}`}>
+                    {formData.Koment_Usek?.trim() ? (
+                        <div>
+                            <p className="mb-1">{formData.Koment_Usek}</p>
+                            <span className="text-gray-500">Délka: {formData.Koment_Usek.length} znaků</span>
+                        </div>
+                    ) : (
+                        <span dangerouslySetInnerHTML={{ __html: '<span class="text-red-500 font-bold">chybí hlášení o činnosti</span> - povinné pole' }} />
+                    )}
+                </div>
+                
+                {/* Přílohy k úseku */}
+                {formData.Prilohy_Usek && Object.keys(formData.Prilohy_Usek).length > 0 && (
+                    <div className={`${smallTextSize}`}>
+                        <span className="font-medium">Fotografické přílohy k úseku:</span> {Object.keys(formData.Prilohy_Usek).length} souborů
+                    </div>
+                )}
+            </div>
+
+            {/* Souhlas s mapou */}
+            <div className={compact ? "space-y-2" : "space-y-2"}>
+                <h4 className={`font-medium ${textSize}`}>Průběh značené trasy v terénu</h4>
+                <div className={`${smallTextSize} flex justify-between`}>
+                    <span>Souhlasí trasa s mapou:</span>
+                    {formData.Souhlasi_Mapa ? (
+                        <span>{formData.Souhlasi_Mapa === 'ano' ? 'ANO' : 'NE'}</span>
+                    ) : (
+                        <span dangerouslySetInnerHTML={{ __html: '<span class="text-red-500 font-bold">neuvedeno</span>' }} />
+                    )}
+                </div>
+
+                {formData.Koment_Mapa && (
+                    <div className={`${smallTextSize}`}>
+                        <span className="font-medium">Komentář k nesouladu:</span> {formData.Koment_Mapa}
+                    </div>
+                )}
+                
+                {/* Přílohy k nesouladu */}
+                {formData.Prilohy_Mapa && Object.keys(formData.Prilohy_Mapa).length > 0 && (
+                    <div className={`${smallTextSize}`}>
+                        <span className="font-medium">Přílohy k nesouladu:</span> {Object.keys(formData.Prilohy_Mapa).length} souborů
+                    </div>
+                )}
             </div>
         </div>
     );
 };
+

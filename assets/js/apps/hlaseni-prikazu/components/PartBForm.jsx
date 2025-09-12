@@ -200,9 +200,15 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
         const timData = timGroups.find(g => g.EvCi_TIM === timId);
         const timReport = formData.Stavy_Tim[timId];
 
-        if (!timData || !timReport) return { completed: false, total: 0, filled: 0 };
+        // Celkový počet je vždy z timData, i když nejsou data inicializována
+        if (!timData) return { completed: false, total: 0, filled: 0 };
+        
+        const totalItems = timData.items.length;
+        
+        // Pokud nejsou data inicializována, máme 0 vyplněných z celkového počtu
+        if (!timReport) return { completed: false, total: totalItems, filled: 0 };
 
-        const requiredFields = timData.items.length;
+        const requiredFields = totalItems;
         
         // Support both object and array structures during transition
         let predmetyToCheck = [];
@@ -220,7 +226,11 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
 
             // For states 1-2, additional data is needed
             const hasYear = status.Rok_Vyroby !== null && status.Rok_Vyroby !== undefined;
-            const hasOrientation = !status.ID_PREDMETY.includes('směrovka') || status.Smerovani;
+            
+            // Najdeme původní item aby mohli zkontrolovat jestli je to směrovka
+            const originalItem = timData.items.find(item => item.ID_PREDMETY?.toString() === status.ID_PREDMETY?.toString());
+            const isArrow = originalItem?.Predmet?.toLowerCase().includes('směrovka') || false;
+            const hasOrientation = !isArrow || status.Smerovani;
 
             return hasYear && hasOrientation;
         }).length;
@@ -248,24 +258,7 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
         return new Date(dateString);
     };
 
-    // Check if form is valid for Part B completion
-    const isPartBComplete = () => {
-        const allTimsCompleted = timGroups.every(timGroup => {
-            const completion = getTimCompletionStatus(timGroup.EvCi_TIM);
-            return completion.completed;
-        });
-        
-        // Pouze všechny TIMy musí být dokončené, komentář k úseku je volitelný
-        return allTimsCompleted;
-    };
-
-    // Update Cast_B_Dokoncena status
-    React.useEffect(() => {
-        const isComplete = isPartBComplete();
-        if (formData.Cast_B_Dokoncena !== isComplete) {
-            setFormData(prev => ({ ...prev, Cast_B_Dokoncena: isComplete }));
-        }
-    }, [formData.Stavy_Tim]); // Koment_Usek už není podmínkou, takže ho nemusíme sledovat
+    // Cast_B_Dokoncena status je nyní spravováno centralizovaně v useCompletionStatus hook
 
     return (
         <div className="space-y-6">

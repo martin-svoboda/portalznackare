@@ -14,6 +14,8 @@ import { PartBSummary } from './PartBSummary';
 import { AdvancedFileUpload } from '../../../components/shared/forms/AdvancedFileUpload';
 import { getAttachmentsAsArray, setAttachmentsFromArray } from '../utils/attachmentUtils';
 import { calculateExecutionDate } from '../utils/compensationCalculator';
+import { useCompletionStatus } from '../hooks/useCompletionStatus';
+import { ValidationMessages } from './ValidationMessages';
 
 // Import debug funkcí
 const isDebugMode = () => {
@@ -59,8 +61,15 @@ export const StepContent = ({
     const tariffRatesError = null;
     const fileUploadService = null;
     const polling = data.polling || null;
-    const canCompletePartA = formData.Skupiny_Cest?.length > 0 && formData.Skupiny_Cest.some(g => g.Cesty?.length > 0);
-    const canCompletePartB = Object.keys(formData.Stavy_Tim || {}).length > 0;
+    
+    // Použití centralizované validace
+    const { 
+        canCompletePartA, 
+        canCompletePartB,
+        partAValidation,
+        partBValidation,
+        getValidationMessages
+    } = useCompletionStatus(formData, head, predmety, setFormData);
     // Generate storage path for route attachments
     const storagePath = React.useMemo(() => {
         if (!prikazId) return null;
@@ -96,11 +105,11 @@ export const StepContent = ({
                         disabled={disabled}
                     />
                     
-                    {!canCompletePartA && (
-                        <div className="alert alert--warning mt-4">
-                            Vyplňte všechny povinné údaje
-                        </div>
-                    )}
+                    <ValidationMessages 
+                        validationResult={partAValidation}
+                        canComplete={canCompletePartA}
+                        className="mt-4"
+                    />
 
                     {/* Navigation */}
                     <div className="flex justify-end gap-2 mt-6">
@@ -220,6 +229,13 @@ export const StepContent = ({
                     </div>
                 )}
 
+                {/* Validační zprávy pro část B */}
+                <ValidationMessages 
+                    validationResult={partBValidation}
+                    canComplete={canCompletePartB}
+                    className="mt-6"
+                />
+
                 {/* Navigation */}
                 <div className="flex justify-between mt-6">
                     <button
@@ -260,14 +276,23 @@ export const StepContent = ({
                             <IconRoute size={20}/>
                             <h4 className="card__title">Souhrn části A - Vyúčtování</h4>
                             <span className={`badge ${formData.Cast_A_Dokoncena ? 'badge--success' : 'badge--danger'}`}>
-                                        {formData.Cast_A_Dokoncena ? "Dokončeno" : "Nedokončeno"}
-                                    </span>
+                                {formData.Cast_A_Dokoncena ? "Dokončeno" : "Nedokončeno"}
+                            </span>
                         </div>
                     </div>
                     <div className="card__content">
+
                         <p>
                             Datum provedení: <span className="font-bold">{calculateExecutionDate(formData).toLocaleDateString('cs-CZ')}</span>
                         </p>
+                        
+                        {/* Validační zprávy pro část A */}
+                        <ValidationMessages 
+                            validationResult={partAValidation}
+                            canComplete={canCompletePartA}
+                            partName="A"
+                        />
+                        
                         <CompensationSummary
                             formData={formData}
                             tariffRates={tariffRates}
@@ -283,9 +308,34 @@ export const StepContent = ({
                 </div>
 
                 {/* Summary Part B */}
-                <ErrorBoundary sectionName="Souhrn části B">
-                    <PartBSummary formData={formData} />
-                </ErrorBoundary>
+                <div className="card">
+                    <div className="card__header">
+                        <div className="flex items-center gap-2">
+                            <h4 className="card__title">Souhrn části B</h4>
+                            <span className={`badge ${formData.Cast_B_Dokoncena ? 'badge--success' : 'badge--danger'}`}>
+                                {formData.Cast_B_Dokoncena ? "Dokončeno" : "Nedokončeno"}
+                            </span>
+                        </div>
+                    </div>
+                    <div className="card__content">
+                        {/* Validační zprávy pro část B */}
+                        <ValidationMessages 
+                            validationResult={partBValidation}
+                            canComplete={canCompletePartB}
+                            partName="B"
+                        />
+                        
+                        <ErrorBoundary sectionName="Souhrn části B">
+                            <PartBSummary 
+                                formData={formData} 
+                                head={head}
+                                predmety={predmety}
+                                showValidation={true}
+                                compact={false}
+                            />
+                        </ErrorBoundary>
+                    </div>
+                </div>
 
                 {/* Submission */}
                 <div className="card border-l-4 border-blue-500 bg-gray-50">
