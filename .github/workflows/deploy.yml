@@ -97,7 +97,6 @@ jobs:
             --exclude="*.md" \
             --exclude="vendor" \
             --exclude="public/uploads" \
-            --exclude="public/build" \
             --exclude="var/sessions" \
             . $SSH_USER@$SSH_SERVER:$DEV_PATH
 
@@ -216,7 +215,6 @@ jobs:
             --exclude="*.md" \
             --exclude="vendor" \
             --exclude="public/uploads" \
-            --exclude="public/build" \
             --exclude="var/sessions" \
             . $SSH_USER@$SSH_SERVER:$PROD_PATH
 

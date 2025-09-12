@@ -48,12 +48,8 @@ export const PartBSummary = ({
         "4": "4 - Zcela chybí"
     };
     
-    // DEBUG: Test zda se načítá aktuální verze
-    console.log('PartBSummary v2 - TESTOVACI ZMENA - aktualizovano 12.9.2025');
-    
     return (
         <div className="space-y-6">
-            {/* DEBUG: PartBSummary v2 - TESTOVACI ZMENA */}
             {/* TIM položky - stavy předmětů v tabulkovém formátu */}
             {isTIMOrder && Object.keys(timGroups).length > 0 && Object.values(timGroups).map(timGroup => {
                 const timReport = formData.Stavy_Tim?.[timGroup.EvCi_TIM];
