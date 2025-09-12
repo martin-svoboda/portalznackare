@@ -59,7 +59,8 @@ export const PartBSummary = ({
                     <div key={timGroup.EvCi_TIM} className={blockStyle}>
                         <h4 className={`font-medium ${textSize} flex items-center`}>
                             <IconMapPin size={16} className="mr-2" />
-                            {timGroup.Naz_TIM} (TIM {timGroup.EvCi_TIM})
+                            <span dangerouslySetInnerHTML={{ __html: timGroup.Naz_TIM }} />
+                            <span> (TIM {timGroup.EvCi_TIM})</span>
                         </h4>
                         
                         {/* Tabulka stavů předmětů - kompaktní verze formuláře */}
@@ -83,7 +84,11 @@ export const PartBSummary = ({
                                         return (
                                             <tr key={itemId} className="border-b border-gray-200 dark:border-gray-700">
                                                 <td className={`${smallTextSize} py-2 pr-4 font-medium`}>
-                                                    {item.Predmet || 'Neznámý předmět'}
+                                                    {item.Predmet ? (
+                                                        <span dangerouslySetInnerHTML={{ __html: item.Predmet }} />
+                                                    ) : (
+                                                        'Neznámý předmět'
+                                                    )}
                                                 </td>
                                                 <td className={`${smallTextSize} py-2 pr-4`}>
                                                     {itemStatus?.Zachovalost ? (
