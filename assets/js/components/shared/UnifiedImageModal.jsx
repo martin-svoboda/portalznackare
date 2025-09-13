@@ -518,6 +518,13 @@ const UnifiedImageModal = ({
             switchToPreviewMode();
             return;
         }
+        
+        // Ověřit, že máme file s ID
+        if (!file || !file.id) {
+            log.error('UnifiedImageModal: Chybí file nebo file.id', { file });
+            showErrorToast('Nelze uložit - chybí informace o souboru');
+            return;
+        }
 
         // Pokud přeuložujeme soubor s crop operacemi, zobrazit varování
         if (mode === 'overwrite' && hasCropOperations()) {

@@ -30,15 +30,14 @@ export const AdvancedFileUpload = ({
                                        fieldName = null  // e.g., 'Prilohy_NP', 'Prilohy_TIM' - specific field name
                                    }) => {
     const [isDragOver, setIsDragOver] = useState(false);
-    const [previewFile, setPreviewFile] = useState(null);
+    const [selectedFile, setSelectedFile] = useState(null);
+    const [modalMode, setModalMode] = useState(null); // 'preview' | 'edit' | null
     const [cameraOpen, setCameraOpen] = useState(false);
     const [stream, setStream] = useState(null);
     const [facingMode, setFacingMode] = useState('environment');
     const [capturedPhoto, setCapturedPhoto] = useState(null);
     const [uploading, setUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
-    const [editorOpen, setEditorOpen] = useState(false);
-    const [fileToEdit, setFileToEdit] = useState(null);
 
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
@@ -325,18 +324,28 @@ export const AdvancedFileUpload = ({
     };
 
 
-    // Image editor functions
+    // Modal handlers
+    const openPreview = (file) => {
+        setSelectedFile(file);
+        setModalMode('preview');
+    };
+    
     const openEditor = (file) => {
         if (!isImage(file.fileType)) return;
-        setFileToEdit(file);
-        setEditorOpen(true);
+        setSelectedFile(file);
+        setModalMode('edit');
     };
 
-    const handleEditorSave = (editedFile) => {
+    const handleModalSave = (editedFile) => {
+        if (!selectedFile) {
+            console.error('handleModalSave: No selected file');
+            return;
+        }
+        
         // Pro copy mode - kompletně nahradit původní soubor novým
         // Pro overwrite mode - merge dat
         const updatedFiles = files.map(f => 
-            f.id === fileToEdit.id 
+            f.id === selectedFile.id 
                 ? (editedFile.isNewFile 
                     ? { ...editedFile, rotation: 0, uploadedAt: new Date() } // Copy - nový soubor
                     : { ...f, ...editedFile, url: editedFile.url || f.url, size: editedFile.size || f.size, isEdited: true }) // Overwrite - merge
@@ -344,20 +353,18 @@ export const AdvancedFileUpload = ({
         );
         onFilesChange(updatedFiles);
 
-        // Pokud je soubor aktuálně v náhledu, aktualizovat náhled
-        if (previewFile && previewFile.id === fileToEdit.id) {
-            setPreviewFile({
-                ...previewFile,
-                ...editedFile,
-                url: editedFile.url || previewFile.url,
-                isEdited: true
-            });
-        }
+        // Aktualizovat vybraný soubor
+        setSelectedFile({
+            ...selectedFile,
+            ...editedFile,
+            url: editedFile.url || selectedFile.url,
+            isEdited: true
+        });
     };
 
-    const handleEditorClose = () => {
-        setEditorOpen(false);
-        setFileToEdit(null);
+    const handleModalClose = () => {
+        setSelectedFile(null);
+        setModalMode(null);
     };
 
     // File removal with server delete and confirmation
@@ -536,7 +543,7 @@ export const AdvancedFileUpload = ({
                              className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                             <div
                                 className="flex-shrink-0"
-                                onClick={() => setPreviewFile(file)}
+                                onClick={() => openPreview(file)}
                             >
                                 {/* Preview for images or file icon */}
                                 {isImage(file.fileType) ? (
@@ -584,7 +591,7 @@ export const AdvancedFileUpload = ({
                                         {/* Preview button */}
                                         <button
                                             type="button"
-                                            onClick={() => setPreviewFile(file)}
+                                            onClick={() => openPreview(file)}
                                             className="p-1 text-blue-500 hover:text-blue-700 rounded"
                                             title="Náhled"
                                         >
@@ -692,34 +699,22 @@ export const AdvancedFileUpload = ({
                 </div>
             )}
 
-            {/* Preview Modal - nahrazeno UnifiedImageModal */}
+            {/* Unified Modal - jeden pro preview i edit */}
             <UnifiedImageModal
-                file={previewFile}
-                isOpen={!!previewFile}
-                onClose={() => setPreviewFile(null)}
-                onSave={handleEditorSave}
+                file={selectedFile}
+                isOpen={modalMode !== null}
+                onClose={handleModalClose}
+                onSave={handleModalSave}
                 onDelete={async (fileId) => {
                     try {
                         await removeFile(fileId);
-                        setPreviewFile(null);
+                        setSelectedFile(null);
+                        setModalMode(null);
                     } catch (error) {
-                        console.error('Failed to delete file from preview:', error);
+                        console.error('Failed to delete file:', error);
                     }
                 }}
-                mode="preview"
-                usageType={usageType}
-                entityId={entityId}
-                fieldName={fieldName}
-            />
-
-            {/* Image Editor Modal */}
-            <UnifiedImageModal
-                file={fileToEdit}
-                isOpen={editorOpen}
-                onClose={handleEditorClose}
-                onSave={handleEditorSave}
-                mode="edit"
-                // Předat usage tracking props stejně jako při upload/delete
+                mode={modalMode || 'preview'}
                 usageType={usageType}
                 entityId={entityId}
                 fieldName={fieldName}
