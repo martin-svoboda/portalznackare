@@ -16,7 +16,7 @@
 **Parametry:**
 - `INT_ADR` (int) - Interní adresa uživatele
 
-**Vrací:** Multidataset s detailem značkaře
+**Vrací:** Multidataset s detailem značkaře (všechny datasety)
 
 ### trasy.WEB_Zapis_Pwd
 **Parametry:**

@@ -119,7 +119,7 @@ class InsyzService
         }
 
         return $this->cacheService->getCachedUserData($intAdr, function($intAdr) {
-            return $this->connect("trasy.ZNACKAR_DETAIL", [$intAdr]);
+            return $this->connect("trasy.ZNACKAR_DETAIL", [$intAdr], true);
         });
     }
 
