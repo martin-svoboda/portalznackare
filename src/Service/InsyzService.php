@@ -359,4 +359,49 @@ class InsyzService
         
         return $truncated;
     }
+
+
+    /**
+     * Aktualizuje heslo uživatele
+     */
+    public function updatePassword(int $intAdr, string $passwordHash): array
+    {
+        if ($this->useTestData()) {
+            // V test módu pouze simuluj úspěch
+            $result = [
+                'success' => true,
+                'message' => 'Heslo bylo úspěšně aktualizováno (TEST MODE)',
+                'int_adr' => $intAdr
+            ];
+            $this->getTestData('web-zapis-pwd', ['@INT_ADR' => $intAdr, '@WEBPwdHash' => '[HIDDEN]']);
+            return $result;
+        }
+
+        // Zavolat proceduru pro aktualizaci hesla
+        $result = $this->connect("trasy.WEB_Zapis_Pwd", [
+            '@INT_ADR' => $intAdr,
+            '@WEBPwdHash' => strtoupper($passwordHash)
+        ]);
+
+        return $result;
+    }
+
+    /**
+     * Získá systémové parametry
+     */
+    public function getSystemParameters(): array
+    {
+        if ($this->useTestData()) {
+            return $this->getTestData('system-parameters', []);
+        }
+
+        // Volat proceduru bez parametrů
+        $result = $this->connect("trasy.WEB_SystemoveParametry", []);
+
+        if (empty($result) || !is_array($result)) {
+            throw new Exception('MSSQL procedura trasy.WEB_SystemoveParametry nevrátila žádná data');
+        }
+
+        return $result;
+    }
 }

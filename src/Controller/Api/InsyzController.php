@@ -367,20 +367,77 @@ class InsyzController extends AbstractController
         if (isset($data[0]) && is_array($data[0])) {
             $data = $data[0];
         }
-        
+
         // Pokud je response objekt s head/data strukturou
         if (isset($data['head']) && is_array($data['head'])) {
             $data = $data['head'];
         }
-        
+
         // Hledej hodnotu podle možných klíčů
         foreach ($possibleKeys as $key) {
             if (isset($data[$key])) {
                 return (string)$data[$key];
             }
         }
-        
+
         return null;
     }
-    
+
+
+    #[Route('/update-password', methods: ['POST'])]
+    public function updatePassword(Request $request): JsonResponse
+    {
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            return new JsonResponse([
+                'error' => 'Nepřihlášený uživatel'
+            ], Response::HTTP_UNAUTHORIZED);
+        }
+
+        $data = json_decode($request->getContent(), true);
+
+        if (!isset($data['password'])) {
+            return new JsonResponse([
+                'error' => 'Chybí parametr password'
+            ], Response::HTTP_BAD_REQUEST);
+        }
+
+        try {
+            $intAdr = (int) $user->getIntAdr();
+            $passwordHash = strtoupper(sha1($data['password']));
+
+            $result = $this->insyzService->updatePassword($intAdr, $passwordHash);
+
+            return new JsonResponse([
+                'success' => true,
+                'message' => 'Heslo bylo úspěšně aktualizováno',
+                'result' => $result
+            ]);
+
+        } catch (Exception $e) {
+            return new JsonResponse([
+                'error' => 'Chyba při aktualizaci hesla: ' . $e->getMessage()
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    #[Route('/system-parameters', methods: ['GET'])]
+    public function getSystemParameters(Request $request): JsonResponse
+    {
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            return new JsonResponse([
+                'error' => 'Nepřihlášený uživatel'
+            ], Response::HTTP_UNAUTHORIZED);
+        }
+
+        try {
+            $parameters = $this->insyzService->getSystemParameters();
+
+            return new JsonResponse($parameters);
+        } catch (Exception $e) {
+            return new JsonResponse(['error' => $e->getMessage()], 500);
+        }
+    }
+
 }

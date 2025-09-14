@@ -172,6 +172,86 @@ GET /api/insyz/sazby?date=2025-01-15
 
 ---
 
+### 📤 POST `/api/insyz/submit-report`
+
+Odeslání hlášení příkazu do INSYZ systému.
+
+**Autentifikace:** Vyžadováno
+
+**Request:**
+```json
+{
+    "xml_data": "<xml>...</xml>"
+}
+```
+
+**Response:**
+```json
+{
+    "success": true,
+    "message": "Hlášení bylo úspěšně odesláno do INSYZ",
+    "result": {...}
+}
+```
+
+**Chyby:**
+- `400` - Chybí parametr xml_data
+- `401` - Nepřihlášený uživatel
+- `500` - Chyba při odesílání hlášení do INSYZ
+
+---
+
+### ⚙️ GET `/api/insyz/system-parameters`
+
+Získání systémových parametrů z INSYZ.
+
+**Autentifikace:** Vyžadováno
+
+**Response:**
+```json
+[
+    {
+        "Nazev_parametru": "MIN_PASSWORD_LENGTH",
+        "Hodnota": "8",
+        "Popis": "Minimální délka hesla"
+    }
+]
+```
+
+**Chyby:**
+- `401` - Nepřihlášený uživatel
+- `500` - Chyba načítání parametrů
+
+---
+
+### 🔒 POST `/api/insyz/update-password`
+
+Aktualizace hesla uživatele v INSYZ.
+
+**Autentifikace:** Vyžadováno
+
+**Request:**
+```json
+{
+    "password": "noveHeslo123"
+}
+```
+
+**Response:**
+```json
+{
+    "success": true,
+    "message": "Heslo bylo úspěšně aktualizováno"
+}
+```
+
+**Chyby:**
+- `400` - Chybí parametr password
+- `401` - Nepřihlášený uživatel
+- `500` - Chyba při aktualizaci hesla
+
+---
+
 ## 🔧 Development endpointy
 
 ### 📤 POST `/api/insyz/export` 

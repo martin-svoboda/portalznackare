@@ -25,12 +25,14 @@ Private Files  → /uploads/path/token/filename.jpg (s hash tokenem)
 ## 📋 API Endpointy
 
 ### POST `/api/portal/files/upload`
+**Lokace:** `FileController.php:27`
 Upload jednoho nebo více souborů s automatickou deduplikací.
 
 **Form parametry:**
-- `files` - Soubor(y) k uploadu
+- `files[]` - Soubor(y) k uploadu
 - `path` - Storage path (např. `reports/2025/praha/1/123`)
 - `is_public` - Boolean pro public/private (default: false)
+- `options` - JSON s dodatečnými možnostmi (usage tracking)
 
 **Response:**
 ```json
@@ -41,15 +43,18 @@ Upload jednoho nebo více souborů s automatickou deduplikací.
         "fileName": "hlaseni.pdf",
         "url": "/uploads/path/to/file.pdf",
         "fileSize": 1048576,
-        "isPublic": false
+        "isPublic": false,
+        "fileType": "application/pdf"
     }]
 }
 ```
 
 ### GET `/api/portal/files/{id}`
-Načte metadata souboru.
+**Lokace:** `FileController.php:190`
+Načte metadata souboru s usage informacemi.
 
 ### DELETE `/api/portal/files/{id}`
+**Lokace:** `FileController.php:219`
 Smaže soubor s inteligentní soft/hard delete logikou.
 
 **Request Body:**
@@ -62,19 +67,38 @@ Smaže soubor s inteligentní soft/hard delete logikou.
 }
 ```
 
-**Response:**
+### PUT `/api/portal/files/{id}/edit`
+**Lokace:** `FileController.php:482`
+**FUNKČNÍ** - Editace obrázků s podporou rotace a crop operací.
+
+**Request Body:**
 ```json
 {
-    "success": true,
-    "message": "Soubor byl úspěšně smazán"
+    "operations": [
+        {"type": "rotate", "angle": 90},
+        {"type": "crop", "x": 100, "y": 50, "width": 800, "height": 600}
+    ],
+    "mode": "overwrite"  // nebo "copy"
 }
 ```
 
-### GET `/api/portal/files/{id}/download`
-Stažení souboru s kontrolou oprávnění.
+### POST `/api/portal/files/usage`
+**Lokace:** `FileController.php:360`
+Přidá usage tracking k souboru.
 
-### GET `/api/portal/files/usage/{id}`
-Zjistí, kde všude je soubor použitý.
+**Request Body:**
+```json
+{
+    "file_id": 123,
+    "entity_type": "report",
+    "entity_id": 456,
+    "field_name": "route_photos"
+}
+```
+
+### DELETE `/api/portal/files/usage`
+**Lokace:** `FileController.php:402`
+Odstraní usage tracking ze souboru.
 
 ## 🛠️ Backend Services
 
@@ -82,7 +106,12 @@ Zjistí, kde všude je soubor použitý.
 Hlavní služba pro upload souborů s hash-based deduplikací a automatickým generováním storage paths.
 
 ### FileAttachment Entity
-Database model pro ukládání metadat souborů včetně usage tracking a soft delete funkcí.
+Database model s tabulkou `file_attachments` (ne "attachments").
+
+**Klíčové vlastnosti:**
+- `usageInfo` - JSON sloupec pro tracking použití
+- Hash-based deduplication
+- Soft delete s `physically_deleted` flag
 
 ### FileServeController
 Controller pro serving souborů s podporou public/private přístupu a security tokenů.
@@ -90,290 +119,54 @@ Controller pro serving souborů s podporou public/private přístupu a security 
 
 ## ⚛️ React Frontend - AdvancedFileUpload
 
+### Refaktorovaná upload komponenta (2025-09-14)
+**Opravy provedené:**
+- Sloučení `previewFile` a `fileToEdit` do `selectedFile`
+- Jeden `UnifiedImageModal` místo dvou modálů
+- Přidán null check proti `Cannot read properties of null` chybě
+- Čistší kód bez duplicitních stavů
+
 ### Jednotná upload komponenta (nahrazuje SimpleFileUpload)
 
 ```jsx
-// assets/js/apps/hlaseni-prikazu/components/AdvancedFileUpload.jsx
-export const AdvancedFileUpload = ({ 
-    id, 
-    files = [], 
-    onFilesChange, 
-    maxFiles = 5, 
-    accept = "image/jpeg,image/png,image/heic,application/pdf",
-    disabled = false,    // Disabled stav pro readonly formuláře
-    storagePath = null,
-    isPublic = false,    // Public vs private files
-    // Usage tracking props
-    usageType = null,    // Type použití ('report', 'methodology', etc.)
-    entityId = null,     // ID entity kde se soubor používá
-    usageData = null     // Dodatečná data o použití
-}) => {
-    const [uploading, setUploading] = useState(false);
-    const [cameraOpen, setCameraOpen] = useState(false);
-    
-    /**
-     * Handle file upload s deduplication
-     */
-    const handleFileSelect = async (newFiles) => {
-        setUploading(true);
-        
-        const formData = new FormData();
-        Array.from(newFiles).forEach(file => {
-            formData.append('files[]', file);
-        });
-        
-        // Upload parametry
-        if (storagePath) formData.append('path', storagePath);
-        formData.append('is_public', isPublic.toString());
-        formData.append('options', JSON.stringify({
-            create_thumbnail: true,
-            optimize: true,
-            // Usage tracking data
-            usage_type: usageType,
-            entity_id: entityId,
-            usage_data: usageData
-        }));
-        
-        try {
-            const response = await fetch('/api/portal/files/upload', {
-                method: 'POST',
-                body: formData,
-                credentials: 'same-origin'  // Session auth
-            });
-            
-            const result = await response.json();
-            
-            if (result.files && result.files.length > 0) {
-                const processedFiles = result.files.map(file => ({
-                    ...file,
-                    rotation: 0,
-                    uploadedAt: new Date(file.uploadedAt)
-                }));
-                
-                onFilesChange([...files, ...processedFiles]);
-            }
-            
-            // Zobraz chyby pokud nějaké jsou
-            if (result.errors && result.errors.length > 0) {
-                result.errors.forEach(error => {
-                    alert(`${error.file}: ${error.error}`);
-                });
-            }
-        } catch (error) {
-            alert('Chyba při nahrávání souborů');
-        } finally {
-            setUploading(false);
+<AdvancedFileUpload
+id="test-upload"
+files={files}
+onFilesChange={setFiles}
+maxFiles={10}
+accept="image/jpeg,image/png,application/pdf"
+storagePath="reports/2025/test/1/123"  // Private path
+isPublic={false}
+// Usage tracking
+usageType="report"
+entityId={123}
+usageData={{ section: 'route_photos' }}
+/>
+```
+
+### UnifiedImageModal Komponenta
+**Lokace:** `assets/js/components/UnifiedImageModal.jsx`
+
+**Vlastnosti:**
+- Sloučený preview a edit modal
+- Podpora rotace a crop operací
+- Možnosti: 'preview' | 'edit' | null
+- ImageProcessingService integrace
+- Null check ochrana proti chybám
+
+```jsx
+<UnifiedImageModal
+    file={selectedFile}          // FileAttachment objekt
+    isOpen={modalMode !== null}
+    mode={modalMode}             // 'preview' nebo 'edit'
+    onClose={() => setModalMode(null)}
+    onSave={(editedFile) => {
+        if (editedFile?.id) {    // Null check!
+            handleEditorSave(editedFile);
         }
-    };
-    
-    /**
-     * Remove file s potvrzením, kontextovým mazáním a usage tracking
-     */
-    const removeFile = async (fileId, context = {}) => {
-        if (disabled) return;
-        
-        const fileToRemove = files.find(f => f.id === fileId);
-        if (!fileToRemove) return;
-        
-        // Potvrzovací dialog
-        const confirmed = window.confirm('Opravdu chcete smazat tento soubor?');
-        if (!confirmed) return;
-        
-        try {
-            // Pokud má file numeric ID, je ze serveru - smaž ho
-            if (typeof fileToRemove.id === 'number') {
-                // Nejdřív odregistruj usage pokud je nastaveno
-                if (usageType && entityId) {
-                    await unregisterFileUsage(fileToRemove.id, usageType, entityId);
-                }
-                
-                const response = await fetch(`/api/portal/files/${fileToRemove.id}`, {
-                    method: 'DELETE',
-                    credentials: 'same-origin',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ context })
-                });
-                
-                if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({}));
-                    throw new Error(errorData.error || 'Delete failed');
-                }
-            }
-            
-            const updatedFiles = files.filter(f => f.id !== fileId);
-            onFilesChange(updatedFiles);
-            showSuccessToast('Soubor byl úspěšně smazán');
-        } catch (error) {
-            console.error('Error deleting file:', error);
-            showErrorToast(error.message || 'Chyba při mazání souboru');
-        }
-    };
-    
-    /**
-     * Camera funkcionalita pro mobilní zařízení
-     */
-    const startCamera = async () => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: { 
-                    facingMode: 'environment',
-                    width: { ideal: 1920 },
-                    height: { ideal: 1080 }
-                }
-            });
-            setStream(stream);
-            setCameraOpen(true);
-        } catch (error) {
-            alert('Nepodařilo se spustit kameru. Zkontrolujte oprávnění.');
-        }
-    };
-    
-    return (
-        <div className="space-y-3">
-            {/* Drag & Drop upload area s disabled stavem */}
-            <div
-                className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors
-                    ${disabled ? 'border-gray-200 bg-gray-50 cursor-not-allowed' : 
-                        isDragOver ? 'border-blue-400 bg-blue-50' : 'border-gray-300 hover:border-gray-400 cursor-pointer'}`}
-                onDragOver={handleDragOver}
-                onDrop={handleDrop}
-                onClick={() => {
-                    if (!disabled) {
-                        document.getElementById(`file-input-${componentInstanceId}`).click();
-                    }
-                }}
-            >
-                <IconUpload size={32} className="mx-auto mb-2 text-gray-400" />
-                <p className="text-sm text-gray-600">
-                    {disabled ? 'Upload zakázán' : 'Klikněte nebo přetáhněte soubory sem'}
-                </p>
-                <p className="text-xs text-gray-400 mt-1">
-                    Maximálně {maxFiles} souborů • {accept.replace(/[^a-zA-Z,]/g, '').toUpperCase()}
-                </p>
-                
-                <input
-                    id={`file-input-${componentInstanceId}`}
-                    type="file"
-                    multiple
-                    accept={accept}
-                    className="hidden"
-                    onChange={(e) => handleFileSelect(e.target.files)}
-                    disabled={disabled}
-                />
-            </div>
-            
-            {/* Camera button - skrytý když disabled */}
-            {!disabled && (
-                <div className="flex gap-2 justify-center">
-                    <button
-                        type="button"
-                        onClick={startCamera}
-                        className="inline-flex items-center gap-2 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                    >
-                        <IconCamera size={16} />
-                        Fotoaparát
-                    </button>
-                </div>
-            )}
-            
-            {/* Upload progress */}
-            {uploading && (
-                <div className="bg-gray-200 rounded-full h-2">
-                    <div className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                         style={{ width: `${uploadProgress}%` }}></div>
-                </div>
-            )}
-            
-            {/* Seznam nahraných souborů */}
-            {files.length > 0 && (
-                <div className="space-y-2">
-                    {files.map((file) => (
-                        <div key={file.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                            {/* File icon */}
-                            <div className="flex-shrink-0">
-                                {file.fileType.startsWith('image/') ? (
-                                    <IconPhoto size={20} className="text-blue-500" />
-                                ) : (
-                                    <IconFile size={20} className="text-gray-500" />
-                                )}
-                            </div>
-                            
-                            {/* File info */}
-                            <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-gray-900 truncate">
-                                    {file.fileName}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                    {formatFileSize(file.fileSize)}
-                                    {file.uploadedAt && (
-                                        <span className="ml-2">
-                                            • {new Date(file.uploadedAt).toLocaleDateString('cs-CZ')}
-                                        </span>
-                                    )}
-                                </p>
-                            </div>
-                            
-                            {/* Image preview */}
-                            {file.fileType.startsWith('image/') && file.url && (
-                                <img 
-                                    src={file.url} 
-                                    alt={file.fileName}
-                                    className="w-12 h-12 object-cover rounded"
-                                    style={{
-                                        transform: `rotate(${file.rotation || 0}deg)`,
-                                        transition: 'transform 0.3s ease'
-                                    }}
-                                />
-                            )}
-                            
-                            {/* Action buttons */}
-                            <div className="flex gap-1">
-                                <button
-                                    onClick={() => setPreviewFile(file)}
-                                    className="p-1 text-blue-500 hover:text-blue-700"
-                                    title="Náhled"
-                                >
-                                    <IconEye size={16} />
-                                </button>
-                                
-                                {/* Rotation pro obrázky */}
-                                {file.fileType.startsWith('image/') && (
-                                    <>
-                                        <button
-                                            onClick={() => rotateImage(file.id, -90)}
-                                            className="p-1 text-green-500 hover:text-green-700"
-                                            title="Otočit vlevo"
-                                        >
-                                            <IconRotate2 size={16} />
-                                        </button>
-                                        <button
-                                            onClick={() => rotateImage(file.id, 90)}
-                                            className="p-1 text-green-500 hover:text-green-700"
-                                            title="Otočit vpravo"
-                                        >
-                                            <IconRotateClockwise size={16} />
-                                        </button>
-                                    </>
-                                )}
-                                
-                                <button
-                                    onClick={() => removeFile(file.id)}
-                                    className="p-1 text-red-500 hover:text-red-700"
-                                    title="Odstranit"
-                                >
-                                    <IconTrash size={16} />
-                                </button>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            )}
-            
-            {/* Camera modal - implementace... */}
-            {/* Preview modal - implementace... */}
-        </div>
-    );
-};
+    }}
+    onRotate={(fileId, angle) => rotateImage(fileId, angle)}
+/>
 ```
 
 ## 🔒 Security Features
@@ -482,32 +275,24 @@ public/uploads/
 8. Security URL generation (s/bez tokenu)
 ```
 
-### 2. **Usage Tracking**
+### 2. **Usage Tracking - JSON sloupec**
 ```php
-// Automatické přidání usage při uploadu
-$usageInfo = $request->request->get('options')['usage_info'] ?? null;
-if ($usageInfo) {
-    $file->addUsage(
-        $usageInfo['type'],
-        $usageInfo['entity_id'],
-        $usageInfo['data'] ?? []
-    );
-}
+// 🔴 SKUTEČNÁ IMPLEMENTACE: Vše v JSON sloupci usageInfo
+// Žádná tabulka file_usage neexistuje!
 
-// Manuální přidání usage tracking
-$file->addUsage('report', $reportId, ['section' => 'photos']);
+// Frontend posílá do FileController.php:67-88
+$usageData = [
+    'entity_type' => 'report',
+    'entity_id' => 123,
+    'field_name' => 'route_photos'
+];
 
-// File se stane permanent (není temporary)
-$file->setIsTemporary(false);
+// Backend ukládá do usageInfo JSON sloupce
+$fileAttachment->setUsageInfo($usageData);
 
-// Usage removal - když se report smaže
-$file->removeUsage('report', $reportId);
-
-// Pokud žádné usage, file se stane temporary
-if ($file->getUsageCount() === 0) {
-    $file->setIsTemporary(true);
-    $file->setExpiresAt(new DateTimeImmutable('+24 hours'));
-}
+// FileUploadService má metody:
+$fileUploadService->addFileUsage($fileId, $entityType, $entityId, $fieldName);
+$fileUploadService->removeFileUsage($fileId, $entityType, $entityId);
 
 // Cleanup orphaned references
 $cleanupResult = $fileUploadService->cleanupFileReferences($file);
@@ -779,8 +564,32 @@ import { generateUsageType, generateEntityId } from '../utils/fileUsageUtils';
 
 ---
 
-**Related Documentation:**  
-**API Reference:** [../api/portal-api.md](../api/portal-api.md)  
-**Frontend:** [../architecture.md](../architecture.md)  
-**Configuration:** [../configuration.md](../configuration.md)  
-**Aktualizováno:** 2025-08-07 - Přidán usage tracking, aktualizována delete logika, migrace na jednotnou AdvancedFileUpload komponentu
+## ✅ Aktuální Stav Systému (2025-09-14)
+
+**FUNKČNOST POTVRZENA:**
+- ✅ Všechny API endpointy existují a fungují
+- ✅ Upload souborů s deduplikací `FileController.php:27`
+- ✅ Editace obrázků `FileController.php:482` s ImageProcessingService
+- ✅ Usage tracking v JSON sloupci `usageInfo`
+- ✅ Databáze: `file_attachments` (ne "attachments")
+- ✅ Soft/hard delete logika
+- ✅ UnifiedImageModal refaktorizace dokončena
+
+**OPRAVENÉ CHYBY:**
+- 🔧 `null.id` chyba při editaci - přidán null check
+- 🔧 Sloučení dvou modálů do jednoho UnifiedImageModal
+- 🔧 Zjednodušení stavů v AdvancedFileUpload
+
+**DOKUMENTACE AKTUALIZOVÁNA:**
+- Správné názvy API endpointů s lokacemi
+- Popis UnifiedImageModal komponenty
+- Upřesnění databázové struktury (file_attachments)
+- Usage tracking implementace (JSON sloupec, ne tabulka)
+
+---
+
+**Related Documentation:**
+**API Reference:** [../api/portal-api.md](../api/portal-api.md)
+**Frontend:** [../architecture.md](../architecture.md)
+**Configuration:** [../configuration.md](../configuration.md)
+**Aktualizováno:** 2025-09-14 - Audit dokončen, dokumentace odpovídá skutečné implementaci

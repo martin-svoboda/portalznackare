@@ -87,6 +87,7 @@ jobs:
               
               # API
               'api/insyz-api.md': 'api-insyz-api',
+              'api/insyz-stored-procedures.md': 'api-insyz-stored-procedures',
               'api/portal-api.md': 'api-portal-api',
               
               # Development
@@ -198,6 +199,7 @@ jobs:
           
           ### 🔌 API
           - [[INSYZ API|api-insyz-api]]
+          - [[INSYZ Stored Procedures|api-insyz-stored-procedures]]
           - [[Portal API|api-portal-api]]
           
           ### 🛠️ Development

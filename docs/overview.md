@@ -22,6 +22,7 @@ Kompletní dokumentace webové aplikace pro správu turistického značení KČT
 
 ### 🔌 API Reference
 - [INSYZ API](api/insyz-api.md) - Endpointy pro KČT data
+- [INSYZ Stored Procedures](api/insyz-stored-procedures.md) - Reference všech INSYZ SP
 - [Portal API](api/portal-api.md) - Lokální funkcionalita
 - [Admin API](api/admin-api.md) - Administrační endpointy
 
