@@ -42,9 +42,8 @@
 }
 
 .profile-setting {
-    @apply flex justify-between items-center p-4 bg-gray-50 rounded-lg;
-    @apply dark:bg-gray-800;
-    
+    @apply flex justify-between items-center py-4 border-t border-gray-200 dark:border-gray-700;
+
     &__info {
         @apply flex-1;
     }
@@ -68,6 +67,12 @@
         
         .profile-setting__desc {
             @apply text-red-600 dark:text-red-500;
+        }
+    }
+
+    .form {
+        &__input, &__select {
+            @apply w-auto;
         }
     }
 }

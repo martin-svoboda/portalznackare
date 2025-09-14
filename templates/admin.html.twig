@@ -38,8 +38,8 @@
                     Uživatelské rozhraní
                 </a>
                 
-                <button class="btn-icon" onclick="toggleTheme()" aria-label="Přepnout tmavý/světlý režim">
-                    {{ tabler_icon('sun', 24) }}
+                <button class="btn-icon" onclick="toggleTheme()" aria-label="Přepnout režim zobrazení" id="theme-toggle">
+                    {{ tabler_icon('sun-moon', 24) }}
                 </button>
                 
                 {% if app.user %}
@@ -107,18 +107,63 @@
 
     <!-- Global JavaScript -->
     <script>
-        // Theme toggle function
-        function toggleTheme() {
-            const html = document.documentElement;
-            const isDark = html.classList.contains('dark');
-            
-            if (isDark) {
-                html.classList.remove('dark');
-                localStorage.setItem('theme', 'light');
-            } else {
-                html.classList.add('dark');
-                localStorage.setItem('theme', 'dark');
+        // Theme toggle - cycles through auto -> light -> dark -> auto...
+        async function toggleTheme() {
+            // Zjisti současný stav z globální proměnné nebo fallback
+            const currentTheme = window.currentThemeMode || '{{ user_theme_mode() }}';
+
+            let newTheme;
+            switch(currentTheme) {
+                case 'auto':
+                    newTheme = 'light';
+                    break;
+                case 'light':
+                    newTheme = 'dark';
+                    break;
+                case 'dark':
+                    newTheme = 'auto';
+                    break;
+                default:
+                    newTheme = 'auto';
             }
+
+            // Aplikuj nové téma
+            window.applyTheme(newTheme);
+            updateThemeIcon(newTheme);
+
+            // Ulož do user preferences přes API
+            try {
+                await fetch('/api/portal/user/preferences/theme_mode', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ value: newTheme })
+                });
+
+                // Aktualizuj současný theme mode pro další toggle
+                window.currentThemeMode = newTheme;
+
+                // Oznám React komponentám změnu
+                window.dispatchEvent(new CustomEvent('themeChanged', { detail: { theme: newTheme } }));
+            } catch (error) {
+                console.warn('Nepodařilo se uložit theme preference:', error);
+            }
+        }
+
+        // Update theme icon based on current state
+        function updateThemeIcon(theme) {
+            const toggleBtn = document.getElementById('theme-toggle');
+            if (!toggleBtn) return;
+
+            const iconMap = {
+                'auto': 'sun-moon',
+                'light': 'sun',
+                'dark': 'moon'
+            };
+
+            const iconName = iconMap[theme] || 'sun-moon';
+            toggleBtn.innerHTML = `<svg class="icon icon-tabler icon-tabler-${iconName}" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><use href="/images/tabler-sprite.svg#tabler-${iconName}"></use></svg>`;
         }
 
         // Navbar toggle function
@@ -127,10 +172,38 @@
             navbar.classList.toggle('active');
         }
 
-        // Initialize theme
-        const savedTheme = localStorage.getItem('theme') || 'light';
-        if (savedTheme === 'dark') {
-            document.documentElement.classList.add('dark');
+        // Helper funkce pro detekci systémového dark mode
+        function getSystemTheme() {
+            return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+
+        // Helper funkce pro aplikaci tématu
+        window.applyTheme = function(theme) {
+            const html = document.documentElement;
+            html.classList.remove('light', 'dark');
+
+            let finalTheme = theme;
+            if (theme === 'auto') {
+                finalTheme = getSystemTheme();
+            }
+
+            if (finalTheme === 'dark') {
+                html.classList.add('dark');
+            }
+        };
+
+        // Initialize theme from user preferences
+        const userTheme = '{{ user_theme_mode() }}';
+        window.currentThemeMode = userTheme; // Uchovej aktuální mode
+        window.applyTheme(userTheme);
+        updateThemeIcon(userTheme);
+
+        // Pokud je nastaveno 'auto', poslouchej změny systémového tématu
+        if (userTheme === 'auto') {
+            const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+            mediaQuery.addListener((e) => {
+                window.applyTheme('auto');
+            });
         }
 
         // Debug system for admin

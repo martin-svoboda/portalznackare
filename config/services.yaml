@@ -20,9 +20,6 @@ services:
             - '../src/Entity/'
             - '../src/Kernel.php'
 
-    App\Service\MockMSSQLService:
-        arguments:
-            $projectDir: '%kernel.project_dir%'
 
     App\Service\WorkerManagerService:
         arguments:
@@ -51,6 +48,11 @@ services:
         tags:
             - { name: twig.extension }
 
+    # Twig extension pro uživatelské preference
+    App\Twig\UserPreferenceExtension:
+        tags:
+            - { name: twig.extension }
+
     # Cache services konfigurace
     App\Service\ApiCacheService:
         arguments:
@@ -63,6 +65,7 @@ services:
 
     # Image processing service konfigurace
     App\Service\ImageProcessingService: ~
+
 
     # MSSQL services konfigurace - clean without audit
     # App\Service\MssqlConnector: # uses default autowiring now

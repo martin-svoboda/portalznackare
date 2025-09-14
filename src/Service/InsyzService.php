@@ -51,20 +51,28 @@ class InsyzService
 	public function getTestData(string $endpoint, array $params): array {
 		$startTime = microtime(true);
 		$intAdr = $this->getCurrentUserIntAdr();
-		
-		// Používat správnou mock data hierarchii
-		$file = $this->kernel->getProjectDir() . '/var/mock-data/api/insyz/' . $endpoint . '.json';
-		
-		if (file_exists($file)) {
-			$result = json_decode(file_get_contents($file), true) ?: [];
+
+		// Pro user a prikazy endpointy zkusit nejdřív konkrétní soubor
+		$specificFile = $this->kernel->getProjectDir() . '/var/mock-data/api/insyz/' . $endpoint . '.json';
+
+		if (file_exists($specificFile)) {
+			$result = json_decode(file_get_contents($specificFile), true) ?: [];
 			$error = null;
 		} else {
-			$result = [];
-			$error = "Mock data file not found: " . $endpoint . '.json';
+			// Fallback na složkovou strukturu s data.json
+			$genericFile = $this->kernel->getProjectDir() . '/var/mock-data/api/insyz/' . $endpoint . '/data.json';
+
+			if (file_exists($genericFile)) {
+				$result = json_decode(file_get_contents($genericFile), true) ?: [];
+				$error = null;
+			} else {
+				$result = [];
+				$error = "Mock data file not found: " . $endpoint . '.json nebo ' . $endpoint . '/data.json';
+			}
 		}
 
 		$this->logInsyzCall($endpoint, 'TEST_DATA', $params, $result, $error, $startTime, $intAdr);
-		
+
 		return $result;
 	}
 
@@ -112,15 +120,36 @@ class InsyzService
         return strtoupper(sha1($password));
     }
 
+    /**
+     * Získá kompletní multidataset uživatele z INSYZ
+     * Vrací pole datasetů: [0] = hlavička uživatele, [1+] = další sekce
+     */
     public function getUser(int $intAdr): array
     {
         if ($this->useTestData()) {
+            // Mock data už jsou ve správném formátu multidatasetu
             return $this->getTestData('user/' . $intAdr, [$intAdr]);
         }
 
         return $this->cacheService->getCachedUserData($intAdr, function($intAdr) {
             return $this->connect("trasy.ZNACKAR_DETAIL", [$intAdr], true);
         });
+    }
+
+    /**
+     * Získá pouze hlavičku uživatele (první dataset)
+     * Pro zpětnou kompatibilitu a jednoduché použití
+     */
+    public function getUserHeader(int $intAdr): array
+    {
+        $datasets = $this->getUser($intAdr);
+
+        // První dataset obsahuje hlavičku uživatele
+        if (!empty($datasets) && isset($datasets[0]) && isset($datasets[0][0])) {
+            return $datasets[0][0];
+        }
+
+        throw new Exception('Nepodařilo se načíst data uživatele pro INT_ADR: ' . $intAdr);
     }
 
     public function getPrikazy(int $intAdr, ?int $year = null): array

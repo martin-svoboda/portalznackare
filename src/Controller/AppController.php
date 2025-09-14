@@ -3,6 +3,8 @@
 namespace App\Controller;
 
 use App\Service\CzechVocativeService;
+use App\Service\InsyzService;
+use App\Entity\User;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
@@ -72,9 +74,40 @@ class AppController extends AbstractController
     }
 
     #[Route('/profil', name: 'app_profil')]
-    public function profil(): Response
+    public function profil(InsyzService $insyzService): Response
     {
-        return $this->render('pages/profil.html.twig');
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            return $this->redirectToRoute('app_index');
+        }
+
+        try {
+            // Získat multidataset z INSYZ
+            $insyzData = $insyzService->getUser($user->getIntAdr());
+
+            // Extrahovat hlavičku uživatele (první dataset)
+            $userHeader = $insyzData[0][0] ?? [];
+
+            // Extrahovat další datasety pro profil
+            $odpracovano = $insyzData[1] ?? [];
+            $kvalifikace = $insyzData[2] ?? [];
+            $seminare = $insyzData[3] ?? [];
+
+        } catch (\Exception $e) {
+            // V případě chyby použij základní data z databáze
+            $userHeader = [];
+            $odpracovano = [];
+            $kvalifikace = [];
+            $seminare = [];
+        }
+
+        return $this->render('pages/profil.html.twig', [
+            'user' => $user,
+            'insyz_data' => $userHeader,
+            'odpracovano' => $odpracovano,
+            'kvalifikace' => $kvalifikace,
+            'seminare' => $seminare
+        ]);
     }
 
     #[Route('/{slug}', name: 'app_catch_all', requirements: ['slug' => '^(?!napoveda).*'], priority: -10)]

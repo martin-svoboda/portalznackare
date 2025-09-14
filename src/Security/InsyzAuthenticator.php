@@ -4,6 +4,7 @@ namespace App\Security;
 
 use App\Service\InsyzService;
 use App\Service\AuditLogger;
+use App\Service\UserPreferenceService;
 use App\Repository\UserRepository;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -24,7 +25,8 @@ class InsyzAuthenticator extends AbstractAuthenticator
         private InsyzService $insyzService,
         private InsyzUserProvider $userProvider,
         private AuditLogger $auditLogger,
-        private UserRepository $userRepository
+        private UserRepository $userRepository,
+        private UserPreferenceService $userPreferenceService
     ) {}
 
     public function supports(Request $request): ?bool
@@ -81,9 +83,12 @@ class InsyzAuthenticator extends AbstractAuthenticator
             // ✅ OPRAVA: Update bez okamžitého flush
             $user->setLastLoginAt(new \DateTimeImmutable());
             $this->userRepository->save($user, false); // Bez flush!
-            
+
+            // Zajistit inicializaci všech preferencí při přihlášení
+            $this->userPreferenceService->ensureUserPreferences($user, $request);
+
             // Flush se stane automaticky na konci requestu
-            
+
             // Log login (this is the REAL login)
             $this->auditLogger->logLogin($user);
         }

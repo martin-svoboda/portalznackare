@@ -218,6 +218,8 @@ class User implements UserInterface
     public function setPreference(string $key, mixed $value): self
     {
         $this->preferences[$key] = $value;
+        // Explicitně označ pole jako změněné pro Doctrine
+        $this->preferences = [...$this->preferences];
         return $this;
     }
 

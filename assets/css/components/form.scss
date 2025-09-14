@@ -56,7 +56,7 @@
 
   // Input fields
   &__input {
-    @apply min-h-11 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 ;
+    @apply min-h-11 block w-full px-3 py-2 bg-gray-50 dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 ;
 
     &--small {
       @apply px-2 py-1 text-sm;
@@ -81,7 +81,7 @@
 
   // Textarea
   &__textarea {
-    @apply block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 resize-y;
+    @apply form__input block w-full;
 
     &--small {
       @apply text-sm min-h-[80px];
@@ -98,7 +98,7 @@
 
   // Select
   &__select {
-    @apply min-h-11 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white;
+    @apply form__input;
 
     &--small {
       @apply px-2 py-1 text-sm;

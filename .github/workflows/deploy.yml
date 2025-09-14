@@ -87,17 +87,13 @@ jobs:
             --exclude=".gitignore" \
             --exclude=".github" \
             --exclude="node_modules" \
-            --exclude="var/cache" \
-            --exclude="var/log" \
-            --exclude="var/testdata.json" \
-            --exclude="var/debug-*.txt" \
+            --exclude="var" \
             --exclude=".env.local*" \
             --exclude="README.md" \
             --exclude="Claude.md" \
             --exclude="*.md" \
             --exclude="vendor" \
             --exclude="public/uploads" \
-            --exclude="var/sessions" \
             . $SSH_USER@$SSH_SERVER:$DEV_PATH
 
           # Remote commands na DEV serveru

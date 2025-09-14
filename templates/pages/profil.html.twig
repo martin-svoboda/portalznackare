@@ -41,115 +41,185 @@
                 ]
             } %}
 
-            <div class="grid-layout grid-layout--gap-lg">
-                <!-- Základní informace -->
+            <div class="grid gap-6">
+                <!-- Základní informace z INSYZ -->
                 <div class="card">
                     <div class="card__header">
                         <h2 class="card__title">
                             {{ tabler_icon('user', 20, 'card__icon') }}
-                            Základní údaje
+                            Údaje značkaře (INSYZ)
                         </h2>
                     </div>
                     <div class="card__content">
-                        <div class="grid-layout grid-layout--cols-auto">
-                            <div class="profile-field">
-                                <label class="profile-field__label">Jméno:</label>
-                                <div class="profile-field__value">{{ app.user.jmeno }}</div>
-                            </div>
-                            <div class="profile-field">
-                                <label class="profile-field__label">Příjmení:</label>
-                                <div class="profile-field__value">{{ app.user.prijmeni }}</div>
-                            </div>
-                            <div class="profile-field">
-                                <label class="profile-field__label">Email:</label>
-                                <div class="profile-field__value">{{ app.user.email }}</div>
-                            </div>
-                            <div class="profile-field">
-                                <label class="profile-field__label">INT_ADR:</label>
-                                <div class="profile-field__value">{{ app.user.intAdr }}</div>
-                            </div>
-                        </div>
+                        {% if insyz_data %}
+                        <table class="table">
+                            <tbody>
+                                <tr>
+                                    <td><strong>Jméno:</strong></td>
+                                    <td>{{ insyz_data.Titul_Pred }} {{ insyz_data.Jmeno }} {{ insyz_data.Prijmeni }} {{ insyz_data.Titul_Za }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Email:</strong></td>
+                                    <td>{{ insyz_data.eMail }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Průkaz značkaře:</strong></td>
+                                    <td>{{ insyz_data.Prukaz_znackare }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Platnost do:</strong></td>
+                                    <td>{{ insyz_data.Plati_Do }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Kraj/Obvod:</strong></td>
+                                    <td>{{ insyz_data.Kraj }} / {{ insyz_data.Obvod }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Adresa:</strong></td>
+                                    <td>{{ insyz_data.Ulice_cp }}, {{ insyz_data.PSC }} {{ insyz_data.Misto }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Telefon:</strong></td>
+                                    <td>{{ insyz_data.Telefon_zakladni }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Dvojice:</strong></td>
+                                    <td>{{ insyz_data.Dvojice_jmeno }} ({{ insyz_data.Vedouci_dvojice == '1' ? 'vedoucí' : 'člen' }})</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Funkce:</strong></td>
+                                    <td>{{ insyz_data.Funkce_Ext ?: insyz_data.Funkce }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        {% else %}
+                        <p class="text--muted">Data značkaře nejsou dostupná.</p>
+                        {% endif %}
                     </div>
                 </div>
 
-                <!-- Oprávnění a role -->
+                <!-- Kvalifikace -->
+                {% if kvalifikace %}
                 <div class="card">
                     <div class="card__header">
                         <h2 class="card__title">
-                            {{ tabler_icon('lock', 20, 'card__icon') }}
-                            Oprávnění
+                            {{ tabler_icon('certificate', 20, 'card__icon') }}
+                            Kvalifikace
                         </h2>
                     </div>
                     <div class="card__content">
-                    
-                    <div style="display: flex; flex-wrap: gap: 0.5rem; margin-bottom: 1rem;">
-                        {% for role in app.user.roles %}
-                            <span style="background: var(--primary-color); color: white; padding: 0.25rem 0.75rem; border-radius: 1rem; font-size: 0.75rem; font-weight: 500;">
-                                {{ role|replace({'ROLE_': ''})|title }}
-                            </span>
-                        {% endfor %}
-                    </div>
-                    
-                    <div style="background: var(--gray-50); padding: 1rem; border-radius: var(--border-radius-sm);">
-                        <h4 style="margin: 0 0 0.5rem 0; color: var(--gray-900);">Vaše oprávnění zahrnují:</h4>
-                        <ul style="margin: 0; color: var(--gray-700); padding-left: 1.5rem;">
-                            <li>Správa přidělených příkazů značení</li>
-                            <li>Přístup k metodice a dokumentaci</li>
-                            <li>Odesílání hlášení o dokončených pracích</li>
-                            {% if 'ROLE_ADMIN' in app.user.roles %}
-                                <li style="color: var(--primary-color); font-weight: 500;">Administrátorský přístup</li>
-                            {% endif %}
-                        </ul>
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Kvalifikace</th>
+                                    <th>Místo</th>
+                                    <th>Datum</th>
+                                    <th>Zapsal</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for kval in kvalifikace %}
+                                <tr>
+                                    <td>{{ kval.Kvalifikace }} ({{ kval.Zkratka_Kval }})</td>
+                                    <td>{{ kval.Misto_Kval }}</td>
+                                    <td>{{ kval.Datum_Kval }}</td>
+                                    <td>{{ kval.Zapsal_Kval }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
+                {% endif %}
 
-                <!-- Statistiky -->
+                <!-- Odpracované hodiny -->
+                {% if odpracovano %}
                 <div class="card">
                     <div class="card__header">
                         <h2 class="card__title">
-                            {{ tabler_icon('chart-line', 20, 'card__icon') }}
-                            Moje statistiky
+                            {{ tabler_icon('clock', 20, 'card__icon') }}
+                            Odpracované hodiny
                         </h2>
                     </div>
                     <div class="card__content">
-                        <div class="profile-stats">
-                            <div class="profile-stats__item">
-                                <div class="profile-stats__value profile-stats__value--primary">15</div>
-                                <div class="profile-stats__label">Celkem příkazů</div>
-                            </div>
-                            <div class="profile-stats__item">
-                                <div class="profile-stats__value profile-stats__value--success">12</div>
-                                <div class="profile-stats__label">Dokončeno</div>
-                            </div>
-                            <div class="profile-stats__item">
-                                <div class="profile-stats__value profile-stats__value--warning">3</div>
-                                <div class="profile-stats__label">Aktivní</div>
-                            </div>
-                            <div class="profile-stats__item">
-                                <div class="profile-stats__value profile-stats__value--primary">148</div>
-                                <div class="profile-stats__label">Celkem km</div>
-                            </div>
-                        </div>
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Rok</th>
+                                    <th>Odpracováno (hod)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for odp in odpracovano %}
+                                <tr>
+                                    <td>{{ odp.Rok_Cin }}</td>
+                                    <td>{{ odp.Odpracovano|number_format(1, ',', ' ') }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
+                {% endif %}
 
-                <!-- Nastavení -->
+                <!-- Semináře -->
+                {% if seminare %}
+                <div class="card">
+                    <div class="card__header">
+                        <h2 class="card__title">
+                            {{ tabler_icon('school', 20, 'card__icon') }}
+                            Absolvované semináře
+                        </h2>
+                    </div>
+                    <div class="card__content">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Seminář</th>
+                                    <th>Místo</th>
+                                    <th>Datum</th>
+                                    <th>Zapsal</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for sem in seminare %}
+                                <tr>
+                                    <td>{{ sem.Seminar }}</td>
+                                    <td>{{ sem.Misto_Sem }}</td>
+                                    <td>{{ sem.Datum_Sem }}</td>
+                                    <td>{{ sem.Zapsal_Sem }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Uživatelské preference -->
                 <div class="card">
                     <div class="card__header">
                         <h2 class="card__title">
                             {{ tabler_icon('settings', 20, 'card__icon') }}
-                            Nastavení účtu
+                            Uživatelské preference
                         </h2>
                     </div>
                     <div class="card__content">
-                        <div class="grid-layout grid-layout--gap-md">
-                            <div class="profile-setting">
-                                <div class="profile-setting__info">
-                                    <h4 class="profile-setting__title">Tmavý režim</h4>
-                                    <p class="profile-setting__desc">Přepnout mezi světlým a tmavým tématem</p>
-                                </div>
-                                <button onclick="toggleTheme()" class="btn btn--primary">Přepnout</button>
-                            </div>
+                        <!-- React aplikace pro správu preferencí -->
+                        <div data-app="user-preferences"></div>
+                    </div>
+                </div>
+
+                <!-- Akce účtu -->
+                <div class="card">
+                    <div class="card__header">
+                        <h2 class="card__title">
+                            {{ tabler_icon('user-cog', 20, 'card__icon') }}
+                            Správa účtu
+                        </h2>
+                    </div>
+                    <div class="card__content">
+                        <div class="grid">
                             <div class="profile-setting">
                                 <div class="profile-setting__info">
                                     <h4 class="profile-setting__title">Změna hesla</h4>
@@ -169,5 +239,11 @@
                 </div>
             </div>
         </div>
+    {% endif %}
+{% endblock %}
+
+{% block javascripts %}
+    {% if app.user %}
+        {{ encore_entry_script_tags('user-preferences') }}
     {% endif %}
 {% endblock %}

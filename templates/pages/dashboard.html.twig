@@ -30,7 +30,7 @@
                 ]
             } %}
             
-            <div class="grid-layout grid-layout--auto-fit mb-8">
+            <div class="grid grid-auto-fit mb-8">
                 <div class="card">
                     <div class="card__header">
                         <h3 class="card__title">Rychlé akce</h3>
@@ -53,14 +53,6 @@
                     </div>
                 </div>
                 
-                {% include 'components/statistics-card.html.twig' with {
-                    stats: [
-                        { label: 'Aktivní příkazy', value: '3' },
-                        { label: 'Dokončené', value: '12' },
-                        { label: 'Celkem km', value: '148' }
-                    ]
-                } %}
-                
                 <div class="card">
                     <h3 class="card__title">Oznámení</h3>
                     <div>
@@ -75,7 +67,6 @@
                 </div>
                 <div class="card__content">
                     <p class="text text--muted">Zde se budou zobrazovat poslední změny a aktivity v systému.</p>
-                    <p class="text text--muted mt-4"><em>React aplikace pro správu příkazů bude implementována v další fázi.</em></p>
                 </div>
             </div>
         </div>

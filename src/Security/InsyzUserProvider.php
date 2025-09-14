@@ -46,20 +46,19 @@ class InsyzUserProvider implements UserProviderInterface
         
         // Load from INSYZ and sync to database
         try {
-            $userData = $this->insyzService->getUser((int)$identifier);
-            
-            if (!$userData || (is_array($userData) && empty($userData))) {
+            // getUser vrací multidataset - pole datasetů
+            $datasets = $this->insyzService->getUser((int)$identifier);
+
+            if (!$datasets || empty($datasets) || !isset($datasets[0]) || !isset($datasets[0][0])) {
                 throw new UserNotFoundException(sprintf('User with INT_ADR "%s" not found in INSYZ.', $identifier));
             }
-            
-            // If array of users, take the first one
-            if (is_array($userData) && isset($userData[0])) {
-                $userData = $userData[0];
-            }
-            
+
+            // První dataset obsahuje hlavičku uživatele
+            $userData = $datasets[0][0];
+
             // Find or create user in database
             $user = $this->userRepository->findOrCreateFromInsyzData($userData);
-            
+
             // Login will be logged in InsyzAuthenticator during actual authentication
             return $user;
             

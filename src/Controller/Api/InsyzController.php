@@ -350,21 +350,25 @@ class InsyzController extends AbstractController
                 'filename' => 'sazby-' . date('Y-m-d') . '.json'
             ];
         }
-        
-        // Default pro neznámé endpointy
+
+        // Default pro neznámé endpointy - vždy data.json
         $cleanPath = preg_replace('/\{[^}]+\}/', '', $basePath); // odstranit {parametry}
         $cleanPath = trim($cleanPath, '/');
-        
+
         return [
             'dir' => $cleanPath,
-            'filename' => 'data-' . date('Y-m-d-His') . '.json'
+            'filename' => 'data.json'
         ];
     }
     
     private function extractFromResponse(array $data, array $possibleKeys): ?string
     {
+        // Pro multidataset strukturu - první dataset, první záznam
+        if (isset($data[0]) && is_array($data[0]) && isset($data[0][0]) && is_array($data[0][0])) {
+            $data = $data[0][0];
+        }
         // Pokud je response array objektů, vezmi první
-        if (isset($data[0]) && is_array($data[0])) {
+        else if (isset($data[0]) && is_array($data[0])) {
             $data = $data[0];
         }
 

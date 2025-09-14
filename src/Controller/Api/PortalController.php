@@ -8,7 +8,6 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Messenger\MessageBusInterface;
-use App\Service\MockMSSQLService;
 use App\Entity\User;
 use App\Entity\Report;
 use App\Repository\ReportRepository;
@@ -16,6 +15,7 @@ use App\Enum\ReportStateEnum;
 use App\Message\SendToInsyzMessage;
 use App\MessageHandler\SendToInsyzHandler;
 use App\Service\WorkerManagerService;
+use App\Service\UserPreferenceService;
 use App\Utils\Logger;
 use Doctrine\ORM\EntityManagerInterface;
 use App\Service\AttachmentLookupService;
@@ -24,13 +24,13 @@ use App\Service\AttachmentLookupService;
 class PortalController extends AbstractController
 {
     public function __construct(
-        private MockMSSQLService $mssqlService,
         private ReportRepository $reportRepository,
         private EntityManagerInterface $entityManager,
         private MessageBusInterface $messageBus,
         private WorkerManagerService $workerManager,
         private SendToInsyzHandler $insyzHandler,
-        private AttachmentLookupService $attachmentService
+        private AttachmentLookupService $attachmentService,
+        private UserPreferenceService $userPreferenceService
     ) {}
     #[Route('/post', methods: ['GET'])]
     public function getPost(Request $request): JsonResponse
@@ -404,35 +404,103 @@ class PortalController extends AbstractController
         ], Response::HTTP_METHOD_NOT_ALLOWED);
     }
 
-
-    #[Route('/prikaz', name: 'api_portal_prikaz', methods: ['GET'])]
-    public function prikaz(Request $request): JsonResponse
+    /**
+     * Získání preferencí uživatele
+     */
+    #[Route('/user/preferences', name: 'api_portal_user_preferences', methods: ['GET'])]
+    public function getUserPreferences(): JsonResponse
     {
-        // Použít Symfony Security
         $user = $this->getUser();
         if (!$user instanceof User) {
-            return new JsonResponse([
-                'error' => 'Nepřihlášený uživatel'
-            ], Response::HTTP_UNAUTHORIZED);
-        }
-
-        $id = $request->query->get('id');
-        
-        if (!$id) {
-            return new JsonResponse([
-                'error' => 'Chybí parametr id'
-            ], Response::HTTP_BAD_REQUEST);
+            return new JsonResponse(['error' => 'Nepřihlášený uživatel'], Response::HTTP_UNAUTHORIZED);
         }
 
         try {
-            $intAdr = $user->getIntAdr();
-            $prikazData = $this->mssqlService->getPrikaz((int)$intAdr, (int)$id);
-            return new JsonResponse($prikazData);
-            
+            $preferences = $this->userPreferenceService->getUserPreferencesWithDefaults($user);
+
+            return new JsonResponse([
+                'preferences' => $preferences
+            ]);
         } catch (\Exception $e) {
             return new JsonResponse([
-                'error' => 'Chyba při načítání příkazu: ' . $e->getMessage()
+                'error' => 'Chyba při načítání preferencí: ' . $e->getMessage()
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
+
+    /**
+     * Aktualizace preferencí uživatele
+     */
+    #[Route('/user/preferences', name: 'api_portal_user_preferences_update', methods: ['PUT'])]
+    public function updateUserPreferences(Request $request): JsonResponse
+    {
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            return new JsonResponse(['error' => 'Nepřihlášený uživatel'], Response::HTTP_UNAUTHORIZED);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        if (!is_array($data) || !isset($data['preferences'])) {
+            return new JsonResponse(['error' => 'Chybí parametr preferences'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $errors = [];
+        $updated = 0;
+
+        foreach ($data['preferences'] as $key => $value) {
+            if ($this->userPreferenceService->updateUserPreference($user, $key, $value)) {
+                $updated++;
+            } else {
+                $errors[] = "Neplatná preference: {$key}";
+            }
+        }
+
+        if (!empty($errors) && $updated === 0) {
+            return new JsonResponse([
+                'error' => 'Žádná preference nebyla aktualizována',
+                'details' => $errors
+            ], Response::HTTP_BAD_REQUEST);
+        }
+
+        return new JsonResponse([
+            'success' => true,
+            'message' => "Aktualizováno {$updated} preferencí",
+            'errors' => $errors
+        ]);
+    }
+
+    /**
+     * Aktualizace jedné preference
+     */
+    #[Route('/user/preferences/{key}', name: 'api_portal_user_preference_single', methods: ['PUT'])]
+    public function updateSingleUserPreference(string $key, Request $request): JsonResponse
+    {
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            return new JsonResponse(['error' => 'Nepřihlášený uživatel'], Response::HTTP_UNAUTHORIZED);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        if (!isset($data['value'])) {
+            return new JsonResponse(['error' => 'Chybí parametr value'], Response::HTTP_BAD_REQUEST);
+        }
+
+        if ($this->userPreferenceService->updateUserPreference($user, $key, $data['value'])) {
+            // Ověř že se hodnota skutečně uložila
+            $updatedUser = $this->entityManager->getRepository(User::class)->find($user->getId());
+            $actualValue = $updatedUser->getPreference($key);
+
+            return new JsonResponse([
+                'success' => true,
+                'message' => "Preference {$key} byla aktualizována",
+                'actual_value' => $actualValue
+            ]);
+        }
+
+        return new JsonResponse([
+            'error' => "Neplatná preference {$key} nebo hodnota"
+        ], Response::HTTP_BAD_REQUEST);
+    }
+
+
 }

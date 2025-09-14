@@ -25,7 +25,10 @@ class UserRepository extends ServiceEntityRepository
 
     public function save(User $entity, bool $flush = false): void
     {
-        $this->getEntityManager()->persist($entity);
+        // Persist pouze pokud entity není už managed
+        if (!$this->getEntityManager()->contains($entity)) {
+            $this->getEntityManager()->persist($entity);
+        }
 
         if ($flush) {
             $this->getEntityManager()->flush();
@@ -77,12 +80,12 @@ class UserRepository extends ServiceEntityRepository
         } else {
             // Update existing user
             $user->updateFromInsyzData($insyzData);
-            
+
             // ✅ OPRAVA: Skutečně zkontroluj změny před flush
             $em = $this->getEntityManager();
             $uow = $em->getUnitOfWork();
             $uow->computeChangeSets();
-            
+
             // Flush jen když jsou skutečné změny
             if ($uow->isEntityScheduled($user) && !empty($uow->getEntityChangeSet($user))) {
                 $this->save($user, true);

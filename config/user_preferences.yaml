@@ -1,0 +1,28 @@
+preferences:
+  theme_mode:
+    type: string
+    default: 'auto'  # auto (systémové), light, dark
+    values: ['auto', 'light', 'dark']
+    description: 'Barevný režim aplikace'
+    label: 'Barevný režim'
+    disabled: false
+    options:
+      auto: 'Automaticky (systémové)'
+      light: 'Světlý režim'
+      dark: 'Tmavý režim'
+
+  notifications_enabled:
+    type: boolean
+    default: true
+    description: 'Zobrazovat notifikace v aplikaci'
+    label: 'Notifikace'
+    disabled: true
+
+  items_per_page:
+    type: integer
+    default: 20
+    min: 10
+    max: 100
+    description: 'Počet položek na stránku v tabulkách'
+    label: 'Položek na stránku'
+    disabled: true
