@@ -1,16 +1,16 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, {useEffect, useMemo, useState, useCallback} from 'react';
 import {
     MaterialReactTable,
     useMaterialReactTable,
 } from 'material-react-table';
-import { MRT_Localization_CS } from 'material-react-table/locales/cs';
-import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { PrikazStavBadge } from '../../components/prikazy/PrikazStavBadge';
-import { PrikazTypeIcon } from '../../components/prikazy/PrikazTypeIcon';
-import { IconCrown } from '@tabler/icons-react';
-import { replaceTextWithIcons } from '../../utils/htmlUtils';
-import { api } from '../../utils/api';
-import { log } from '../../utils/debug';
+import {MRT_Localization_CS} from 'material-react-table/locales/cs';
+import {createTheme, ThemeProvider} from '@mui/material/styles';
+import {PrikazStavBadge} from '../../components/prikazy/PrikazStavBadge';
+import {PrikazTypeIcon} from '../../components/prikazy/PrikazTypeIcon';
+import {IconCrown} from '@tabler/icons-react';
+import {renderHtmlContent, replaceTextWithIcons} from '../../utils/htmlUtils';
+import {api} from '../../utils/api';
+import {log} from '../../utils/debug';
 
 // Pomocné funkce
 const getCurrentYear = () => new Date().getFullYear();
@@ -30,7 +30,7 @@ const PrikazyApp = () => {
     const loadData = useCallback(async () => {
         setLoading(true);
         try {
-            const params = year ? { year } : undefined;
+            const params = year ? {year} : undefined;
             const result = await api.prikazy.list(params);
             setData(result || []);
             log.info(`Načteno ${result?.length || 0} příkazů`);
@@ -64,48 +64,48 @@ const PrikazyApp = () => {
             const bActive = isNezpracovany(b.Stav_ZP_Naz);
             return aActive === bActive ? 0 : aActive ? -1 : 1;
         });
-        
+
         if (showOnlyToProcess) {
             result = result.filter(row => isNezpracovany(row.Stav_ZP_Naz));
         }
-        
+
         return result;
     }, [data, showOnlyToProcess]);
 
     // Definice sloupců
     const columns = useMemo(() => [
-        { accessorKey: 'Cislo_ZP', header: 'Číslo ZP', size: 100 },
+        {accessorKey: 'Cislo_ZP', header: 'Číslo', size: 100},
         {
             accessorKey: 'Druh_ZP_Naz',
-            header: 'Druh ZP',
-            size: 120,
+            header: 'Druh',
+            size: window.innerWidth > 1280 ? 120 : 60,
             filterVariant: 'select',
-            Cell: ({ row }) => (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <PrikazTypeIcon type={row.original.Druh_ZP} size={28} />
-                    <span>{row.original.Druh_ZP_Naz}</span>
+            Cell: ({row}) => (
+                <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                    <PrikazTypeIcon type={row.original.Druh_ZP} size={28}/>
+                    <span className="hidden xl:block">{row.original.Druh_ZP_Naz}</span>
                 </div>
             ),
         },
         {
             accessorKey: 'Popis_ZP',
             header: 'Popis',
-            size: 300,
-            Cell: ({ row }) => replaceTextWithIcons(row.original.Popis_ZP, 14),
+            // size: 300,
+            Cell: ({row}) => replaceTextWithIcons(row.original.Popis_ZP, 14),
         },
         {
             accessorKey: 'Stav_ZP_Naz',
             header: 'Stav',
             size: 150,
             filterVariant: 'select',
-            Cell: ({ row }) => <PrikazStavBadge stav={row.original.Stav_ZP_Naz} />,
+            Cell: ({row}) => <PrikazStavBadge stav={row.original.Stav_ZP_Naz}/>,
         },
-        { accessorKey: 'Znackar', header: 'Značkař', size: 100, filterVariant: 'autocomplete' },
+        {accessorKey: 'Znackar', header: 'Značkař', size: 100, filterVariant: 'autocomplete'},
         {
             accessorKey: 'Je_Vedouci',
             header: 'Ved.',
             size: 40,
-            Cell: ({ cell }) =>
+            Cell: ({cell}) =>
                 cell.getValue() === '1' || cell.getValue() === 1 ? (
                     <div style={{
                         display: 'flex',
@@ -117,13 +117,13 @@ const PrikazyApp = () => {
                         backgroundColor: '#FFC107',
                         color: '#333'
                     }}>
-                        <IconCrown size={14} />
+                        <IconCrown size={14}/>
                     </div>
                 ) : null,
             enableColumnFilter: false,
-            meta: { align: 'center' }
+            meta: {align: 'center'}
         },
-        { accessorKey: 'Vyuctovani', header: 'Vyúč.', size: 50, filterVariant: 'select' },
+        {accessorKey: 'Vyuctovani', header: 'Vyúč.', size: 50, filterVariant: 'select'},
     ], []);
 
     const table = useMaterialReactTable({
@@ -131,15 +131,26 @@ const PrikazyApp = () => {
         data: sortedData,
         enableFacetedValues: true,
         enableColumnFilters: true,
+        enableColumnActions: false,
+        enableColumnOrdering: false,
+        enableHiding: false,
         enablePagination: data.length > 20,
         enableSorting: false,
         enableDensityToggle: false,
         enableFullScreenToggle: false,
         layoutMode: 'semantic',
-        state: { isLoading: loading },
+        state: {isLoading: loading},
         localization: MRT_Localization_CS,
         initialState: {
-            columnVisibility: { Znackar: false, Trida_OTZ: false }
+            columnVisibility: {
+                Trida_OTZ: false,
+                Druh_ZP_Naz: window.innerWidth > 768,
+                Popis_ZP: window.innerWidth > 460,
+                Stav_ZP_Naz: window.innerWidth > 768,
+                Znackar: false,
+                Je_Vedouci: window.innerWidth > 1280,
+                Vyuctovani: window.innerWidth > 1280,
+            }
         },
         muiTablePaperProps: {
             elevation: 0,
@@ -149,11 +160,14 @@ const PrikazyApp = () => {
                 border: 'none'
             }
         },
-        muiTableBodyRowProps: ({ row }) => ({
+        muiTopToolbarProps: {sx: {backgroundColor: 'transparent'}},
+        muiBottomToolbarProps: {sx: {backgroundColor: 'transparent'}},
+        muiTableHeadRowProps: {sx: {backgroundColor: 'transparent'}},
+        muiTableBodyRowProps: ({row}) => ({
             sx: {
                 cursor: 'pointer',
-                backgroundColor: isNezpracovany(row.original.Stav_ZP_Naz) 
-                    ? 'rgba(37, 99, 235, 0.07)' 
+                backgroundColor: isNezpracovany(row.original.Stav_ZP_Naz)
+                    ? 'rgba(37, 99, 235, 0.07)'
                     : 'transparent',
                 opacity: isNezpracovany(row.original.Stav_ZP_Naz) ? 1 : 0.7,
                 fontWeight: isNezpracovany(row.original.Stav_ZP_Naz) ? 600 : 'normal'
@@ -165,15 +179,15 @@ const PrikazyApp = () => {
             },
         }),
         renderTopToolbarCustomActions: () => (
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <div className="flex gap-3 items-center flex-wrap">
                 <select
                     size="sm"
+                    className="form__select"
                     style={{
-                        width: '110px',
+                        width: '115px',
                         padding: '4px 8px',
                         fontSize: '14px',
-                        borderRadius: '4px',
-                        border: '1px solid #ced4da'
+                        minHeight: '36px',
                     }}
                     value={year}
                     onChange={(e) => setYear(e.target.value)}
@@ -186,7 +200,7 @@ const PrikazyApp = () => {
                         </option>
                     ))}
                 </select>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}>
+                <label className="flex items-center gap-2 text-sm">
                     <input
                         type="checkbox"
                         checked={showOnlyToProcess}
@@ -196,15 +210,37 @@ const PrikazyApp = () => {
                 </label>
             </div>
         ),
+        renderDetailPanel: ({row}) => (
+            <div className="space-y-4">
+                <div className="flex flex-wrap gap-3 xl:hidden">
+                    <div className="flex items-center gap-2">
+                        <PrikazTypeIcon type={row.original.Druh_ZP} size={28}/>
+                        <span>{row.original.Druh_ZP_Naz}</span>
+                    </div>
+                    <PrikazStavBadge stav={row.original.Stav_ZP_Naz}/>
+                    <div>
+                        Vyúčtování: {row.original.Vyuctovani ? row.original.Vyuctovani : 'Není'}
+                    </div>
+                </div>
+                <div>
+                    {row.original.Popis_ZP && (
+                        <p className="text-sm"> {replaceTextWithIcons(row.original.Popis_ZP, 14)} </p>
+                    )}
+                    {row.original.Poznamka_ZP && (
+                        <p className="text-sm">{row.original.Poznamka_ZP}</p>
+                    )}
+                </div>
+            </div>
+        ),
     });
 
     const theme = useMemo(() => createTheme({
-        palette: { mode: isDarkMode ? 'dark' : 'light' },
+        palette: {mode: isDarkMode ? 'dark' : 'light'},
     }), [isDarkMode]);
 
     return (
         <ThemeProvider theme={theme}>
-            <MaterialReactTable table={table} />
+            <MaterialReactTable table={table}/>
         </ThemeProvider>
     );
 };

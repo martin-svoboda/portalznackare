@@ -46,6 +46,9 @@ export const PrikazUseky = ({ useky, soubeh }) => {
                                             {usek.Barva_Naz}
                                         </span>
                                         <span className="text-sm">
+                                            {usek.Druh_Presunu || usek.Druh_Presunu}
+                                        </span>
+                                        <span className="text-sm">
                                             {usek.Druh_Odbocky || usek.Druh_Znaceni}
                                         </span>
                                     </div>

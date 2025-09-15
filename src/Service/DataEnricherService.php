@@ -43,8 +43,9 @@ class DataEnricherService {
 	 */
 	public function enrichPrikazDetail( array $detail ): array {
 		// Obohatí hlavičku
-		if ( isset( $detail['head'] ) ) {
+		if ( isset( $detail['head'] ) && isset( $detail['head']['Popis_ZP'] ) ) {
 			// nic co by se dalo obohatit
+			$detail['head']['Popis_ZP'] = $this->replaceIconsInText( $detail['head']['Popis_ZP'] );
 		}
 
 		// Obohatí useky
@@ -53,7 +54,7 @@ class DataEnricherService {
 				// Značka úseku
 				$usek['Znacka_HTML'] = $this->znackaService->znacka(
 					$usek['Barva_Kod'] ?? null,
-					($usek['Druh_Odbocky_Kod'] ?? null) ?: ($usek['Druh_Znaceni_Kod'] ?? null) ?: null,
+					( $usek['Druh_Odbocky_Kod'] ?? null ) ?: ( $usek['Druh_Znaceni_Kod'] ?? null ) ?: null,
 					$usek['Druh_Presunu'] ?? null,
 					24
 				);
@@ -75,7 +76,7 @@ class DataEnricherService {
 				// Značka podle barvy
 				$predmet['Znacka_HTML'] = $this->znackaService->znacka(
 					$predmet['Barva_Kod'] ?? null,
-					($predmet['Druh_Odbocky_Kod'] ?? null) ?: ($predmet['Druh_Znaceni_Kod'] ?? null) ?: null,
+					( $predmet['Druh_Odbocky_Kod'] ?? null ) ?: ( $predmet['Druh_Znaceni_Kod'] ?? null ) ?: null,
 					$predmet['Druh_Presunu'] ?? null,
 					24
 				);

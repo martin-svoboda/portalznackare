@@ -351,7 +351,6 @@ const App = () => {
         state: {isLoading: loading},
         localization: MRT_Localization_CS,
         initialState: {
-            density: 'compact',
             expanded: {},
             columnVisibility: {
                 NP: window.innerWidth > 768,

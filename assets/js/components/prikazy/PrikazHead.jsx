@@ -2,6 +2,7 @@ import React from 'react';
 import { IconCrown } from '@tabler/icons-react';
 import { PrikazStavBadge } from './PrikazStavBadge';
 import { PrikazTypeIcon } from './PrikazTypeIcon';
+import {replaceTextWithIcons} from "@utils/htmlUtils";
 
 const formatKm = (km) => km ? parseFloat(km).toFixed(1) : '0';
 
@@ -87,13 +88,14 @@ export const PrikazHead = ({ head, simple = false }) => {
             </div>
             
             {/* Popis činnosti */}
-            {!simple && head.Poznamka_ZP && (
+            {!simple && ( head.Popis_ZP || head.Poznamka_ZP ) && (
                 <>
                     <div className="border-t border-gray-200 dark:border-gray-700 my-2"></div>
                     <div className="space-y-1">
                         <div className="text-base font-bold">Popis činnosti</div>
                         <div className="whitespace-pre-line">
-                            {head.Poznamka_ZP}
+                            {head.Popis_ZP && <p className="whitespace-pre-line">{replaceTextWithIcons(head.Popis_ZP, 14)}</p>}
+                            {head.Poznamka_ZP && <p className="whitespace-pre-line">{head.Poznamka_ZP}</p>}
                         </div>
                     </div>
                 </>
