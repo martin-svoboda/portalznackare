@@ -3,6 +3,7 @@ import {
     IconMapPin,
     IconFileText
 } from '@tabler/icons-react';
+import {replaceTextWithIcons} from "@utils/htmlUtils";
 
 /**
  * Komponenta pro zobrazení kompletního souhrnu části B hlášení
@@ -84,11 +85,14 @@ export const PartBSummary = ({
                                         return (
                                             <tr key={itemId} className="border-b border-gray-200 dark:border-gray-700">
                                                 <td className={`${smallTextSize} py-2 pr-4 font-medium`}>
-                                                    {item.Predmet ? (
-                                                        <span dangerouslySetInnerHTML={{ __html: item.Predmet }} />
-                                                    ) : (
-                                                        'Neznámý předmět'
-                                                    )}
+                                                    <div className="flex items-center gap-2">
+                                                                                        <span className="text-sm font-bold">
+                                                                                            {item.EvCi_TIM}{item.Predmet_Index}
+                                                                                        </span>
+                                                        <span className="text-sm font-medium">
+                                                                                            {replaceTextWithIcons(item.Radek1)}
+                                                                                        </span>
+                                                    </div>
                                                 </td>
                                                 <td className={`${smallTextSize} py-2 pr-4`}>
                                                     {itemStatus?.Zachovalost ? (
@@ -193,11 +197,10 @@ export const PartBSummary = ({
                 <div className={`${smallTextSize}`}>
                     {formData.Koment_Usek?.trim() ? (
                         <div>
-                            <p className="mb-1">{formData.Koment_Usek}</p>
-                            <span className="text-gray-500">Délka: {formData.Koment_Usek.length} znaků</span>
+                            <p>{formData.Koment_Usek}</p>
                         </div>
                     ) : (
-                        <span dangerouslySetInnerHTML={{ __html: '<span class="text-red-500 font-bold">chybí hlášení o činnosti</span> - povinné pole' }} />
+                        <span dangerouslySetInnerHTML={{ __html: '<span class="text-yellow-600 font-bold">Bez komentáře k úseku</span>' }} />
                     )}
                 </div>
                 
