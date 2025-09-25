@@ -34,7 +34,7 @@ export const PrikazHead = ({ head, simple = false }) => {
 
     return (
         <div className="space-y-4">
-            <div className="flex flex-wrap gap-8 items-start">
+            <div className="flex flex-wrap gap-8 items-start between">
                 {/* Ikona typu příkazu */}
                 <div className="flex flex-col gap-2">
                     <PrikazTypeIcon type={head.Druh_ZP} size={66} />
@@ -47,18 +47,6 @@ export const PrikazHead = ({ head, simple = false }) => {
                     </div>
                     {!simple && <PrikazStavBadge stav={head.Stav_ZP_Naz} />}
                 </div>
-                
-                {/* KKZ a ZO */}
-                {!simple && (
-                    <div className="flex flex-col gap-2">
-                        <div className="text-sm">
-                            KKZ: <span className="font-bold">{head.Nazev_KKZ}</span>
-                        </div>
-                        <div className="text-sm">
-                            ZO: <span className="font-bold">{head.Nazev_ZO}</span>
-                        </div>
-                    </div>
-                )}
                 
                 {/* Značkaři */}
                 <div className="flex flex-col gap-2">

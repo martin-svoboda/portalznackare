@@ -513,7 +513,7 @@ const App = () => {
                 {/* Informační místa na trase */}
                 <div className="card">
                     <div className="card__header ">
-                        <h3 className="card__title">Informační místa na trase</h3>
+                        <h3 className="card__title">Turistická informační místa</h3>
                     </div>
                     <div className="card__content">
                         {specialAlert ? (

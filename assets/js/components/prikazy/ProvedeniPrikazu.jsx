@@ -68,7 +68,7 @@ export const ProvedeniPrikazu = ({prikazId, head, currentUser, isLeader}) => {
                     onClick={() => handleHlaseni('create')}
                 >
                     <IconPlus size={16} className="mr-2"/>
-                    Podat hlášení
+                    Vyplnit hlášení
                 </button>
             );
         }

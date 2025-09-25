@@ -84,7 +84,7 @@
                                 </tr>
                                 <tr>
                                     <td><strong>Dvojice:</strong></td>
-                                    <td>{{ insyz_data.Dvojice_jmeno }} ({{ insyz_data.Vedouci_dvojice == '1' ? 'vedoucí' : 'člen' }})</td>
+                                    <td>{{ insyz_data.Dvojice_jmeno }}</td>
                                 </tr>
                                 <tr>
                                     <td><strong>Funkce:</strong></td>
@@ -132,68 +132,39 @@
                 </div>
                 {% endif %}
 
-                <!-- Odpracované hodiny -->
-                {% if odpracovano %}
-                <div class="card">
-                    <div class="card__header">
-                        <h2 class="card__title">
-                            {{ tabler_icon('clock', 20, 'card__icon') }}
-                            Odpracované hodiny
-                        </h2>
-                    </div>
-                    <div class="card__content">
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th>Rok</th>
-                                    <th>Odpracováno (hod)</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for odp in odpracovano %}
-                                <tr>
-                                    <td>{{ odp.Rok_Cin }}</td>
-                                    <td>{{ odp.Odpracovano|number_format(1, ',', ' ') }}</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                {% endif %}
 
                 <!-- Semináře -->
                 {% if seminare %}
-                <div class="card">
-                    <div class="card__header">
-                        <h2 class="card__title">
-                            {{ tabler_icon('school', 20, 'card__icon') }}
-                            Absolvované semináře
-                        </h2>
-                    </div>
-                    <div class="card__content">
-                        <table class="table">
-                            <thead>
+                    <div class="card">
+                        <div class="card__header">
+                            <h2 class="card__title">
+                                {{ tabler_icon('school', 20, 'card__icon') }}
+                                Absolvované semináře
+                            </h2>
+                        </div>
+                        <div class="card__content">
+                            <table class="table">
+                                <thead>
                                 <tr>
                                     <th>Seminář</th>
                                     <th>Místo</th>
                                     <th>Datum</th>
                                     <th>Zapsal</th>
                                 </tr>
-                            </thead>
-                            <tbody>
+                                </thead>
+                                <tbody>
                                 {% for sem in seminare %}
-                                <tr>
-                                    <td>{{ sem.Seminar }}</td>
-                                    <td>{{ sem.Misto_Sem }}</td>
-                                    <td>{{ sem.Datum_Sem }}</td>
-                                    <td>{{ sem.Zapsal_Sem }}</td>
-                                </tr>
+                                    <tr>
+                                        <td>{{ sem.Seminar }}</td>
+                                        <td>{{ sem.Misto_Sem }}</td>
+                                        <td>{{ sem.Datum_Sem }}</td>
+                                        <td>{{ sem.Zapsal_Sem }}</td>
+                                    </tr>
                                 {% endfor %}
-                            </tbody>
-                        </table>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                </div>
                 {% endif %}
 
                 <!-- Uživatelské preference -->
