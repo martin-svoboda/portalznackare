@@ -154,7 +154,7 @@ export const AdvancedFileUpload = ({
         if (disabled) return;
 
         const totalNewFiles = Array.from(newFiles);
-        
+
         // Pre-upload duplicate check (layer 1)
         const filesToUpload = [];
         for (const file of totalNewFiles) {
@@ -167,7 +167,7 @@ export const AdvancedFileUpload = ({
             }
             filesToUpload.push(file);
         }
-        
+
         if (filesToUpload.length === 0) {
             return; // No files to upload
         }
@@ -290,7 +290,7 @@ export const AdvancedFileUpload = ({
                 // Post-upload ID duplicate check (layer 3)
                 const existingIds = files.map(f => f.id);
                 const newFiles = processedFiles.filter(pf => !existingIds.includes(pf.id));
-                
+
                 onFilesChange([...files, ...newFiles]);
 
                 // Usage tracking je nyní řešeno na backend při uploadu s entity_type a entity_id parametry
@@ -314,7 +314,7 @@ export const AdvancedFileUpload = ({
         } finally {
             setUploading(false);
             setUploadProgress(0);
-            
+
             // Clear file input to allow selecting the same file again
             const fileInput = document.getElementById(`file-input-${componentInstanceId}`);
             if (fileInput) {
@@ -329,7 +329,7 @@ export const AdvancedFileUpload = ({
         setSelectedFile(file);
         setModalMode('preview');
     };
-    
+
     const openEditor = (file) => {
         if (!isImage(file.fileType)) return;
         setSelectedFile(file);
@@ -341,14 +341,14 @@ export const AdvancedFileUpload = ({
             console.error('handleModalSave: No selected file');
             return;
         }
-        
+
         // Pro copy mode - kompletně nahradit původní soubor novým
         // Pro overwrite mode - merge dat
-        const updatedFiles = files.map(f => 
-            f.id === selectedFile.id 
-                ? (editedFile.isNewFile 
-                    ? { ...editedFile, rotation: 0, uploadedAt: new Date() } // Copy - nový soubor
-                    : { ...f, ...editedFile, url: editedFile.url || f.url, size: editedFile.size || f.size, isEdited: true }) // Overwrite - merge
+        const updatedFiles = files.map(f =>
+            f.id === selectedFile.id
+                ? (editedFile.isNewFile
+                    ? {...editedFile, rotation: 0, uploadedAt: new Date()} // Copy - nový soubor
+                    : {...f, ...editedFile, url: editedFile.url || f.url, size: editedFile.size || f.size, isEdited: true}) // Overwrite - merge
                 : f
         );
         onFilesChange(updatedFiles);
@@ -476,54 +476,57 @@ export const AdvancedFileUpload = ({
 
     return (
         <div className="space-y-3">
-            {/* Upload area */}
-            <div
-                className={`
-                    border-2 border-dashed rounded-lg p-6 text-center transition-colors
+            <div className="flex gap-3">
+                {/* Upload area */}
+                <div
+                    className={`
+                    border-2 border-dashed rounded-lg transition-colors flex gap-4 items-center justify-center min-h-20 p-5 flex-1
                     ${disabled ? 'border-gray-200 bg-gray-50 cursor-not-allowed' :
-                    isDragOver ? 'border-blue-400 bg-blue-50' : 'border-gray-300 hover:border-gray-400 cursor-pointer'}
+                        isDragOver ? 'border-blue-400 bg-blue-50' : 'border-gray-300 hover:border-gray-400 cursor-pointer'}
                 `}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                onClick={() => {
-                    if (!disabled) {
-                        document.getElementById(`file-input-${componentInstanceId}`).click();
-                    }
-                }}
-            >
-                <IconUpload size={32} className="mx-auto mb-2 text-gray-400"/>
-                <p className="text-sm text-gray-600">
-                    {disabled ? 'Upload zakázán' : 'Klikněte nebo přetáhněte soubory sem'}
-                </p>
-                <p className="text-xs text-gray-400 mt-1">
-                    Maximálně {maxFiles} souborů • {accept.replace(/[^a-zA-Z,]/g, '').toUpperCase()}
-                </p>
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    onClick={() => {
+                        if (!disabled) {
+                            document.getElementById(`file-input-${componentInstanceId}`).click();
+                        }
+                    }}
+                >
+                    <IconUpload size={32} className="text-gray-400"/>
+                    <div className="flex flex-col justify-center">
+                        <div className="text-sm text-gray-600">
+                            {disabled ? 'Upload zakázán' : 'Klikněte nebo přetáhněte soubory sem'}
+                        </div>
+                        <div className="text-xs text-gray-400 mt-1">
+                            Maximálně {maxFiles} souborů
+                            • {accept.replace(/[^a-zA-Z,]/g, '').replace(/'image'/g, '').toUpperCase()}
+                        </div>
+                    </div>
 
-                <input
-                    id={`file-input-${componentInstanceId}`}
-                    type="file"
-                    multiple
-                    accept={accept}
-                    className="hidden"
-                    onChange={(e) => handleFileSelect(e.target.files)}
-                    disabled={disabled}
-                />
-            </div>
+                    <input
+                        id={`file-input-${componentInstanceId}`}
+                        type="file"
+                        multiple
+                        accept={accept}
+                        className="hidden"
+                        onChange={(e) => handleFileSelect(e.target.files)}
+                        disabled={disabled}
+                    />
+                </div>
 
-            {/* Camera and additional actions */}
-            {!disabled && (
-                <div className="flex gap-2 justify-center">
+                {/* Camera and additional actions */}
+                {!disabled && (
                     <button
                         type="button"
                         onClick={startCamera}
-                        className="inline-flex items-center gap-2 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                        className="border-2 rounded-lg transition-colors flex flex-col gap-1 items-center justify-center min-h-20 p-5 text-sm border-gray-300 hover:border-gray-400"
                     >
-                        <IconCamera size={16}/>
-                        Fotoaparát
+                        <IconCamera size={24} className="text-gray-400"/>
+                        Vyfotit
                     </button>
-                </div>
-            )}
+                )}
+            </div>
 
             {/* Upload progress */}
             {uploading && (
@@ -633,7 +636,8 @@ export const AdvancedFileUpload = ({
             {/* Camera Modal */}
             {cameraOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75">
-                    <div className="bg-white dark:bg-gray-900 rounded-lg p-4 max-w-4xl w-full mx-4 max-h-[90vh] overflow-auto">
+                    <div
+                        className="bg-white dark:bg-gray-900 rounded-lg p-4 max-w-4xl w-full mx-4 max-h-[90vh] overflow-auto">
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="text-lg font-semibold">Fotoaparát</h3>
                             <button

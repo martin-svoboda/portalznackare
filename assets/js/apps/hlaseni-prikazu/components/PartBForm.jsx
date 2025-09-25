@@ -140,8 +140,8 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
     const updateItemStatus = (timId, item, status) => {
         const timReport = formData.Stavy_Tim[timId] || {
             EvCi_TIM: timId,
-            Koment_NP: "",
-            Prilohy_NP: {},
+            //Koment_NP: "",
+            //Prilohy_NP: {},
             Predmety: {},
             Prilohy_TIM: {}
         };
@@ -564,6 +564,7 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                     </div>
 
                                                     {/* Structural comment */}
+                                                    {/*
                                                     <div className="border-b border-gray-200 dark:border-gray-600 pb-3">
                                                         <label htmlFor={`structural-comment-${timGroup.EvCi_TIM}`} className="form__label mb-1 block font-medium">
                                                             Komentář k nosnému prvku
@@ -610,12 +611,18 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                             />
                                                         </div>
                                                     </div>
+                                                    */}
 
                                                     {/* General TIM comment */}
                                                     <div>
                                                         <label className="form__label mb-1 block font-medium">
-                                                            Obecný komentář k TIMu
+                                                            Komentář k TIMu
                                                         </label>
+                                                        <p className="text-xs text-gray-600 mb-2">
+                                                            Stav upevnění směrovek a tabulek, např. zarostlá nebo prasklá
+                                                            dřevěná lišta, silně zkorodovaný nebo uvolněný ocelový upevňovací pás,
+                                                            deformovaný trubkový držák směrovky, viditelná rez apod.
+                                                        </p>
                                                         <textarea
                                                             className="form__textarea"
                                                             placeholder="Dodatečné poznámky k tomuto TIMu..."

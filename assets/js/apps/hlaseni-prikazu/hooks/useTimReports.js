@@ -35,8 +35,8 @@ export const useTimReports = (Stavy_Tim, setFormData) => {
     const updateItemStatus = useCallback((timId, item, status) => {
         const timReport = Stavy_Tim[timId] || {
             EvCi_TIM: timId,
-            Koment_NP: "",
-            Prilohy_NP: [],
+            //Koment_NP: "",
+            //Prilohy_NP: [],
             Predmety: [],
             Prilohy_TIM: []
         };
@@ -103,8 +103,8 @@ export const useTimReports = (Stavy_Tim, setFormData) => {
     const getTimReport = useCallback((timId) => {
         return Stavy_Tim[timId] || {
             EvCi_TIM: timId,
-            Koment_NP: "",
-            Prilohy_NP: [],
+            //Koment_NP: "",
+            //Prilohy_NP: [],
             Predmety: [],
             Prilohy_TIM: []
         };

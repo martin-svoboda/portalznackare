@@ -330,7 +330,7 @@ const App = () => {
                      appData.formData?.status === 'draft' && 
                      !appData.loading &&
                      !saving,
-            delay: 2000, // 2 sekundy po poslední změně
+            delay: 3000, // 3 sekundy po poslední změně
             skipInitial: true // Neukládat při prvním načtení
         }
     );
