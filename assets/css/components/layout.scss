@@ -107,6 +107,8 @@
 
 // Grid layouts
 .grid {
+  @apply gap-6;
+
   &--cols-2 {
     @apply grid-cols-1 md:grid-cols-2;
   }

@@ -1,0 +1,44 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Přihlášení - Portál značkaře{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    {{ encore_entry_script_tags('login-form') }}
+{% endblock %}
+
+{% block body %}
+    <div class="container max-w-md mx-auto mt-8">
+
+        {# Login formulář s podporou redirectu #}
+        {% include 'components/login-form.html.twig' with {
+            title: 'Přihlášení do portálu',
+            description: 'Pro přístup k funkcím aplikace se prosím přihlaste pomocí svých přihlašovacích údajů.',
+            action_url: path('api_auth_login')
+        } %}
+
+        {# Hidden input pro předání redirect URL do formuláře #}
+        {% if redirect_url %}
+            <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    const form = document.querySelector('form[data-secure-login="true"]');
+                    if (form) {
+                        const redirectInput = document.createElement('input');
+                        redirectInput.type = 'hidden';
+                        redirectInput.name = 'redirect_url';
+                        redirectInput.value = '{{ redirect_url|e('js') }}';
+                        form.appendChild(redirectInput);
+                    }
+                });
+            </script>
+        {% endif %}
+
+        {# Odkaz zpět na úvodní stránku #}
+        <div class="mt-6 text-center">
+            <a href="{{ path('app_index') }}" class="link link--muted">
+                {{ tabler_icon('arrow-left', 16) }}
+                Zpět na úvodní stránku
+            </a>
+        </div>
+    </div>
+{% endblock %}

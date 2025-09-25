@@ -76,18 +76,19 @@ class InsyzController extends AbstractController
 
         try {
             $prikazy = $this->insyzService->getPrikazy((int) $user->getIntAdr(), $year ? (int) $year : null);
-            
+
             // Obohatí data pouze pokud není raw parameter
             $raw = $request->query->get('raw');
             if (!$raw) {
                 $prikazy = $this->dataEnricher->enrichPrikazyList($prikazy);
             }
-            
+
             return new JsonResponse($prikazy);
         } catch (Exception $e) {
             return new JsonResponse(['message' => $e->getMessage()], 500);
         }
     }
+
 
     #[Route('/prikaz/{id}', methods: ['GET'], requirements: ['id' => '\d+'])]
     public function getPrikaz(int $id, Request $request): JsonResponse

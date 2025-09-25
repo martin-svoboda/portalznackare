@@ -8,20 +8,23 @@ import {createTheme, ThemeProvider} from '@mui/material/styles';
 import {PrikazStavBadge} from '../../components/prikazy/PrikazStavBadge';
 import {PrikazTypeIcon} from '../../components/prikazy/PrikazTypeIcon';
 import {IconCrown} from '@tabler/icons-react';
-import {renderHtmlContent, replaceTextWithIcons} from '../../utils/htmlUtils';
+import {replaceTextWithIcons} from '../../utils/htmlUtils';
 import {api} from '../../utils/api';
 import {log} from '../../utils/debug';
 
-// Pomocné funkce
 const getCurrentYear = () => new Date().getFullYear();
 const getAvailableYears = () => Array.from({length: 5}, (_, i) => `${getCurrentYear() - i}`);
 const isNezpracovany = (stav) => stav === 'Přidělený' || stav === 'Vystavený';
 
 const PrikazyApp = () => {
+    // Detekce dashboard módu z data atributu
+    const container = document.querySelector('[data-app="prikazy"]');
+    const isDashboardMode = container?.dataset?.dashboardMode === 'true';
+
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(true);
     const [year, setYear] = useState('');
-    const [showOnlyToProcess, setShowOnlyToProcess] = useState(false);
+    const [showOnlyToProcess, setShowOnlyToProcess] = useState(isDashboardMode);
     const [isDarkMode, setIsDarkMode] = useState(
         document.documentElement.classList.contains('dark')
     );
@@ -69,8 +72,12 @@ const PrikazyApp = () => {
             result = result.filter(row => isNezpracovany(row.Stav_ZP_Naz));
         }
 
+        if (isDashboardMode) {
+            result = result.slice(0, 5);
+        }
+
         return result;
-    }, [data, showOnlyToProcess]);
+    }, [data, showOnlyToProcess, isDashboardMode]);
 
     // Definice sloupců
     const columns = useMemo(() => [
@@ -130,12 +137,16 @@ const PrikazyApp = () => {
         columns,
         data: sortedData,
         enableFacetedValues: true,
-        enableColumnFilters: true,
+        enableColumnFilters: !isDashboardMode,
         enableColumnActions: false,
         enableColumnOrdering: false,
+        enableColumnResizing: false,
         enableHiding: false,
-        enablePagination: data.length > 20,
+        enablePagination: !isDashboardMode && data.length > 20,
         enableSorting: false,
+        enableRowActions: !isDashboardMode,
+        enableTopToolbar: !isDashboardMode,
+        enableBottomToolbar: !isDashboardMode,
         enableDensityToggle: false,
         enableFullScreenToggle: false,
         layoutMode: 'semantic',
@@ -178,7 +189,7 @@ const PrikazyApp = () => {
                 window.location.href = `/prikaz/${prikazId}`;
             },
         }),
-        renderTopToolbarCustomActions: () => (
+        renderTopToolbarCustomActions: isDashboardMode ? undefined : () => (
             <div className="flex gap-3 items-center flex-wrap">
                 <select
                     size="sm"

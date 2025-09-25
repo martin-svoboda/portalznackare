@@ -77,7 +77,7 @@ class InsyzAuthenticator extends AbstractAuthenticator
     public function onAuthenticationSuccess(Request $request, TokenInterface $token, string $firewallName): ?Response
     {
         $user = $token->getUser();
-        
+
         // Update last login and log successful authentication
         if ($user instanceof \App\Entity\User) {
             // ✅ OPRAVA: Update bez okamžitého flush
@@ -92,11 +92,16 @@ class InsyzAuthenticator extends AbstractAuthenticator
             // Log login (this is the REAL login)
             $this->auditLogger->logLogin($user);
         }
-        
+
         // Pro JSON požadavky vrať JSON odpověď
         if ($request->getContentType() === 'json') {
+            // Zkontroluj, zda byl předán redirect_url v JSON datech
+            $data = json_decode($request->getContent(), true);
+            $redirectUrl = $data['redirect_url'] ?? null;
+
             return new JsonResponse([
                 'success' => true,
+                'redirect_url' => $redirectUrl,
                 'user' => [
                     'INT_ADR' => $user->getIntAdr(),
                     'Jmeno' => $user->getJmeno(),
@@ -107,9 +112,31 @@ class InsyzAuthenticator extends AbstractAuthenticator
                 ]
             ]);
         }
-        
-        // Pro HTML formuláře přesměruj na dashboard
+
+        // Pro HTML formuláře zkontroluj redirect URL ze session
+        $session = $request->getSession();
+        $redirectUrl = $session->get('login_redirect_url');
+
+        if ($redirectUrl) {
+            // Vyčisti redirect URL ze session
+            $session->remove('login_redirect_url');
+
+            // Bezpečnostní kontrola - pouze interní URL
+            if ($this->isInternalUrl($redirectUrl)) {
+                return new RedirectResponse($redirectUrl);
+            }
+        }
+
+        // Výchozí redirect na úvodní stránku (nástěnka)
         return new RedirectResponse('/');
+    }
+
+    /**
+     * Kontroluje, zda je URL interní (začíná na / a neobsahuje //)
+     */
+    private function isInternalUrl(string $url): bool
+    {
+        return str_starts_with($url, '/') && !str_starts_with($url, '//');
     }
 
     public function onAuthenticationFailure(Request $request, AuthenticationException $exception): ?Response

@@ -13,30 +13,53 @@ use Symfony\Component\Security\Core\Security;
 class AppController extends AbstractController
 {
     #[Route('/', name: 'app_index')]
-    public function index(): Response
-    {
-        return $this->render('pages/index.html.twig');
-    }
-
-
-    #[Route('/nastenka', name: 'app_dashboard')]
-    public function dashboard(CzechVocativeService $vocativeService): Response
+    public function index(CzechVocativeService $vocativeService): Response
     {
         $user = $this->getUser();
         $greeting = '';
-        
+
         if ($user) {
             // Získáme jméno uživatele z security kontextu
             $firstName = $user->getJmeno() ?? '';
-            
+
             if (!empty($firstName)) {
                 $greeting = $vocativeService->createTimeBasedGreeting($firstName);
             }
         }
-        
-        return $this->render('pages/dashboard.html.twig', [
+
+        return $this->render('pages/index.html.twig', [
             'greeting' => $greeting
         ]);
+    }
+
+
+    #[Route('/prihlaseni', name: 'app_login')]
+    public function login(): Response
+    {
+        // Pokud je už uživatel přihlášený, přesměruj ho
+        if ($this->getUser()) {
+            return $this->redirectToRoute('app_dashboard');
+        }
+
+        // Získat redirect URL z query parametru
+        $redirectUrl = $this->container->get('request_stack')->getCurrentRequest()->query->get('redirect');
+
+        // Uložit redirect URL do session pro použití po přihlášení
+        if ($redirectUrl) {
+            $session = $this->container->get('request_stack')->getCurrentRequest()->getSession();
+            $session->set('login_redirect_url', $redirectUrl);
+        }
+
+        return $this->render('pages/login.html.twig', [
+            'redirect_url' => $redirectUrl
+        ]);
+    }
+
+    #[Route('/nastenka', name: 'app_dashboard')]
+    public function dashboard(): Response
+    {
+        // Přesměruj na úvodní stránku - nástěnka je teď na /
+        return $this->redirectToRoute('app_index');
     }
 
     #[Route('/prikazy', name: 'app_prikazy')]

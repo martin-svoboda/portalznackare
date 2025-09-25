@@ -1,66 +1,99 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Úvod - Portál značkaře{% endblock %}
+{% block title %}{% if app.user %}Nástěnka{% else %}Úvod{% endif %} - Portál značkaře{% endblock %}
 
 {% block body %}
-    <div class="container container--md">
-        <div class="page__header">
-            <h1 class="page-title">
-                Vítejte v Portálu značkaře!
-            </h1>
-        </div>
-        
-        <div class="card mb-8">
-            <div class="card__content">
-                <p class="text text--large mb-4">
-                    Portál značkaře je centrální místo pro správu turistických značek a příkazů KČT.
-                </p>
-                
-                <p class="text text--muted">
-                    Zde můžete spravovat své příkazy, přistupovat k metodice značení a stahovat potřebné dokumenty.
-                </p>
+    {% if not app.user %}
+        {# Obsah pro nepřihlášené uživatele #}
+        <div class="container container--md">
+            <div class="page__header">
+                <h1 class="page-title">
+                    Vítejte v Portálu značkaře!
+                </h1>
+            </div>
+
+            <div class="card mb-8">
+                <div class="card__content">
+                    <p class="text text--large mb-4">
+                        Portál značkaře je centrální místo pro správu turistických značek a příkazů KČT.
+                    </p>
+
+                    <p class="text text--muted">
+                        Zde můžete spravovat své příkazy, přistupovat k metodice značení a stahovat potřebné dokumenty.
+                    </p>
+                </div>
+            </div>
+
+            <div class="max-w-md mx-auto">
+                {% include 'components/login-form.html.twig' with {
+                    title: 'Přihlášení do portálu',
+                    description: 'Pro přístup k funkcím aplikace se prosím přihlaste pomocí svých přihlašovacích údajů.'
+                } %}
             </div>
         </div>
-
-        {% if not app.user %}
-            {% include 'components/alert.html.twig' with {
-                type: 'info',
-                title: 'Přihlášení',
-                message: 'Pro přístup k funkcím aplikace se prosím přihlaste pomocí svých přihlašovacích údajů.',
-                actions: [
-                    {
-                        text: 'Přihlásit se',
-                        url: path('app_dashboard'),
-                        class: 'btn btn--primary'
-                    }
-                ]
+    {% else %}
+        {# Obsah nástěnky pro přihlášené uživatele #}
+        <div class="container container--lg">
+            {% include 'components/page-header.html.twig' with {
+                title: greeting ? greeting ~ '!' : ('Vítej, ' ~ app.user.jmeno ~ '!'),
+                subtitle: 'Přehled tvých aktivit a rychlé akce.'
             } %}
-        {% else %}
-            <div class="grid grid--auto-fit">
-                {% include 'components/action-card.html.twig' with {
-                    title: 'Moje příkazy',
-                    description: 'Zobrazit a spravovat přidělené příkazy značení.',
-                    icon: 'clipboard-list',
-                    url: path('app_prikazy'),
-                    button_text: 'Zobrazit příkazy'
-                } %}
 
-                {% include 'components/action-card.html.twig' with {
-                    title: 'Nástěnka',
-                    description: 'Přehled aktivit a důležitých informací.',
-                    icon: 'dashboard',
-                    url: path('app_dashboard'),
-                    button_text: 'Otevřít nástěnku'
-                } %}
-
-                {% include 'components/action-card.html.twig' with {
-                    title: 'Metodika',
-                    description: 'Pravidla a postupy pro značení tras.',
-                    icon: 'book',
-                    url: path('app_metodika'),
-                    button_text: 'Zobrazit metodiku'
-                } %}
+            <div class="card mb-6">
+                <div class="card__header">
+                    <h3 class="card__title">Aktuální příkazy</h3>
+                </div>
+                <div class="card__content">
+                    <div data-app="prikazy"
+                         data-dashboard-mode="true"
+                         data-debug="{{ app.request.server.get('DEBUG_APPS') == 'true' ? 'true' : 'false' }}">
+                        {% include 'components/loader.html.twig' %}
+                    </div>
+                    <div class="text-center pt-4">
+                        <a href="{{ path('app_prikazy') }}" class="btn btn--primary">
+                            {{ tabler_icon('clipboard-list', 16) }}
+                            Zobrazit všechny příkazy
+                        </a>
+                    </div>
+                </div>
             </div>
-        {% endif %}
-    </div>
+
+            <div class="grid grid--cols-2 mb-8">
+                <div class="card">
+                    <div class="card__header">
+                        <h3 class="card__title">Widget pro obsah</h3>
+                    </div>
+                    <div class="card__content">
+                        <p class="text text--small text--muted">widget připravený pro obsah se souhrnem informací, graf...</p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card__header">
+                        <h3 class="card__title">Widget pro obsah</h3>
+                    </div>
+                    <div class="card__content">
+                        <p class="text text--small text--muted">widget připravený pro obsah se souhrnem informací, graf...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card__header">
+                    <h3 class="card__title">Poslední aktivita</h3>
+                </div>
+                <div class="card__content">
+                    <p class="text text--muted">Zde se budou zobrazovat poslední změny a aktivity v systému.</p>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    {{ encore_entry_script_tags('app-prikazy') }}
+    {% if not app.user %}
+        {{ encore_entry_script_tags('login-form') }}
+    {% endif %}
 {% endblock %}

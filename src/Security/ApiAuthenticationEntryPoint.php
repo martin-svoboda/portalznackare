@@ -23,8 +23,17 @@ class ApiAuthenticationEntryPoint implements AuthenticationEntryPointInterface
 
             return new JsonResponse($data, Response::HTTP_UNAUTHORIZED);
         }
-        
-        // Pro webové požadavky přesměruj na homepage
-        return new RedirectResponse('/');
+
+        // Pro webové požadavky přesměruj na login stránku s redirect parametrem
+        $currentUrl = $request->getRequestUri();
+
+        // Nevracet se zpět na login stránku nebo logout
+        if (str_contains($currentUrl, '/prihlaseni') || str_contains($currentUrl, '/logout')) {
+            return new RedirectResponse('/prihlaseni');
+        }
+
+        // Přesměruj na login s původní URL jako redirect parametrem
+        $loginUrl = '/prihlaseni?redirect=' . urlencode($currentUrl);
+        return new RedirectResponse($loginUrl);
     }
 }

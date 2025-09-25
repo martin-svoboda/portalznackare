@@ -60,35 +60,52 @@ function initSecureLoginForm() {
 async function performLogin(form, email, hashedPassword) {
     const submitButton = form.querySelector('button[type="submit"]');
     const originalText = submitButton.textContent;
-    
+
+    // Získat redirect URL z hidden inputu (pokud existuje)
+    const redirectInput = form.querySelector('input[name="redirect_url"]');
+    const redirectUrl = redirectInput ? redirectInput.value : null;
+
     try {
         // UI feedback
         submitButton.disabled = true;
         submitButton.textContent = 'Přihlašuji...';
-        
+
+        const requestBody = {
+            username: email,
+            password: hashedPassword // 🔒 Odesíláme hash, ne plain text
+        };
+
+        // Přidat redirect URL do požadavku, pokud existuje
+        if (redirectUrl) {
+            requestBody.redirect_url = redirectUrl;
+            logger.custom('Redirect URL included', { redirectUrl });
+        }
+
         const response = await fetch(form.action, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-Requested-With': 'XMLHttpRequest'
             },
-            body: JSON.stringify({
-                username: email,
-                password: hashedPassword // 🔒 Odesíláme hash, ne plain text
-            })
+            body: JSON.stringify(requestBody)
         });
-        
+
         const result = await response.json();
         logger.api('POST', form.action, null, result);
-        
+
         if (result.success) {
             logger.lifecycle('Login successful, redirecting...');
+
+            // Použít redirect URL z odpovědi, pokud existuje
+            const targetUrl = result.redirect_url || redirectUrl || '/';
+            logger.custom('Redirecting to', { targetUrl });
+
             // Úspěšné přihlášení - přesměruj
-            window.location.href = '/';
+            window.location.href = targetUrl;
         } else {
             throw new Error(result.message || 'Přihlášení se nezdařilo');
         }
-        
+
     } catch (error) {
         logger.error('Network error during login', error);
         throw error;

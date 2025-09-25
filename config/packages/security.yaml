@@ -31,25 +31,36 @@ security:
     # Easy way to control access for large sections of your site
     # Note: Only the *first* access control that matches will be used
     access_control:
+        # Public pages
+        - { path: ^/$, roles: PUBLIC_ACCESS }
+        - { path: ^/prihlaseni, roles: PUBLIC_ACCESS }
+
         # Public API endpoints
         - { path: ^/api/auth/login, roles: PUBLIC_ACCESS }
         - { path: ^/api/auth/status, roles: PUBLIC_ACCESS }
         - { path: ^/api/test/mssql-connection, roles: PUBLIC_ACCESS }
         - { path: ^/api/test/login-test, roles: PUBLIC_ACCESS }
-        
+
         # Admin pages - require ROLE_ADMIN
         - { path: ^/admin, roles: ROLE_ADMIN }
-        
+
         # Admin API endpoints - require ROLE_ADMIN
         - { path: ^/api/users, roles: ROLE_ADMIN }
         - { path: ^/api/audit-logs, roles: ROLE_ADMIN }
         - { path: ^/api/system-options, roles: ROLE_ADMIN }
-        
-        # User can manage own settings/preferences  
+
+        # User can manage own settings/preferences
         - { path: ^/api/users/\d+/(settings|preferences), roles: ROLE_USER }
-        
+
         # Protected API endpoints - general access
         - { path: ^/api, roles: ROLE_USER }
+
+        # Protected pages - require login
+        - { path: ^/prikazy, roles: ROLE_USER }
+        - { path: ^/prikaz/, roles: ROLE_USER }
+        - { path: ^/profil, roles: ROLE_USER }
+        - { path: ^/metodika, roles: ROLE_USER }
+        - { path: ^/downloads, roles: ROLE_USER }
 
 when@test:
     security:

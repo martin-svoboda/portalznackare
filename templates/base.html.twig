@@ -42,7 +42,7 @@
                         <span class="hidden md:block">{{ app.user.jmeno }} {{ app.user.prijmeni }}</span>
                     </a>
                 {% else %}
-                    <a href="{{ path('app_dashboard') }}" class="btn btn--primary">Přihlásit se</a>
+                    <a href="{{ path('app_login') }}" class="btn btn--primary">Přihlásit se</a>
                 {% endif %}
             </div>
         </header>
@@ -52,7 +52,7 @@
             <nav class="app-navbar" id="navbar">
                 <a href="{{ path('app_index') }}" class="nav-link {{ app.request.attributes.get('_route') == 'app_index' ? 'active' : '' }}">
                     {{ tabler_icon('home') }}
-                    Úvod
+                    {% if app.user %}Nástěnka{% else %}Úvod{% endif %}
                 </a>
                 
                 <a href="{{ path('app_metodika') }}" class="nav-link {{ app.request.attributes.get('_route') == 'app_metodika' ? 'active' : '' }}">
@@ -67,12 +67,7 @@
 
                 {% if app.user %}
                     <div class="nav-divider"></div>
-                    
-                    <a href="{{ path('app_dashboard') }}" class="nav-link {{ app.request.attributes.get('_route') == 'app_dashboard' ? 'active' : '' }}">
-                        {{ tabler_icon('dashboard') }}
-                        Moje nástěnka
-                    </a>
-                    
+
                     <a href="{{ path('app_prikazy') }}" class="nav-link {{ app.request.attributes.get('_route') starts with 'app_prikaz' ? 'active' : '' }}">
                         {{ tabler_icon('clipboard-list') }}
                         Příkazy
