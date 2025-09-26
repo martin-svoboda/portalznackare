@@ -95,6 +95,7 @@ const App = () => {
         return userInTeam?.isLeader || false;
     };
 
+    console.log(currentUser);
     // Load all data in single effect
     useEffect(() => {
         const loadAllData = async () => {

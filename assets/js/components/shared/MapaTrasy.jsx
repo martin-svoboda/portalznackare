@@ -297,7 +297,7 @@ export function MapaTrasy({ data: { title = '', points, route, druhPresunu = 'PZ
                             </Marker>
                         ))}
                         {route && routeCoords.length > 1 && (
-                            <Polyline positions={routeCoords} color="#2266cc" weight={5} />
+                            <Polyline positions={routeCoords} color="#ff57a0" weight={5} />
                         )}
                         <FitBounds points={validPoints} />
                     </MapContainer>
