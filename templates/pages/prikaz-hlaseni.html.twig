@@ -43,7 +43,7 @@
                 ]
             } %}
         {% else %}
-            <div data-app="hlaseni-prikazu" 
+            <div data-app="hlaseni-prikazu"
                  data-prikaz-id="{{ id }}"
                  data-user="{{ app.user ? {INT_ADR: app.user.intAdr, name: app.user.fullName}|json_encode|e('html_attr') : '{}' }}"
                  data-debug="{{ app.request.server.get('DEBUG_APPS') == 'true' ? 'true' : 'false' }}">

@@ -216,9 +216,17 @@ export const PartBSummary = ({
             <div className={compact ? "space-y-2" : "space-y-2"}>
                 <h4 className={`font-medium ${textSize}`}>Průběh značené trasy v terénu</h4>
                 <div className={`${smallTextSize} flex justify-between`}>
-                    <span>Souhlasí trasa s mapou:</span>
+                    <span>Souhlasí trasa s mapou KČT:</span>
                     {formData.Souhlasi_Mapa ? (
-                        <span>{formData.Souhlasi_Mapa === 'ano' ? 'ANO' : 'NE'}</span>
+                        <span>{formData.Souhlasi_Mapa}</span>
+                    ) : (
+                        <span dangerouslySetInnerHTML={{ __html: '<span class="text-red-500 font-bold">neuvedeno</span>' }} />
+                    )}
+                </div>
+                <div className={`${smallTextSize} flex justify-between`}>
+                    <span>Souhlasí trasa na Mapy.com:</span>
+                    {formData.Souhlasi_Mapy_com ? (
+                        <span>{formData.Souhlasi_Mapy_com}</span>
                     ) : (
                         <span dangerouslySetInnerHTML={{ __html: '<span class="text-red-500 font-bold">neuvedeno</span>' }} />
                     )}

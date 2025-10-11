@@ -144,7 +144,7 @@ const PrikazyApp = () => {
         enableHiding: false,
         enablePagination: !isDashboardMode && data.length > 20,
         enableSorting: false,
-        enableRowActions: !isDashboardMode,
+        enableRowActions: false,
         enableTopToolbar: !isDashboardMode,
         enableBottomToolbar: !isDashboardMode,
         enableDensityToggle: false,
@@ -221,7 +221,7 @@ const PrikazyApp = () => {
                 </label>
             </div>
         ),
-        renderDetailPanel: ({row}) => (
+        renderDetailPanel: window.innerWidth > 1280 ? false : ({row}) => (
             <div className="space-y-4">
                 <div className="flex flex-wrap gap-3 xl:hidden">
                     <div className="flex items-center gap-2">

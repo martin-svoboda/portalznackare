@@ -49,6 +49,7 @@ const createEmptyTravelSegment = (getNextId) => ({
 });
 
 export const TravelGroupsForm = ({
+                                     data,
                                      formData,
                                      setFormData,
                                      tariffRates,
@@ -61,7 +62,8 @@ export const TravelGroupsForm = ({
                                      disabled = false,
                                      getNextId
                                  }) => {
-    
+    const userDataHead = data.userDetails ? data.userDetails[0][0] : null;
+
     // Generate storage path for this report
     const storagePath = useMemo(() => {
         if (!prikazId) return null;
@@ -245,6 +247,30 @@ export const TravelGroupsForm = ({
             }));
         }
     }, []); // Run only once on mount
+
+    // Auto-fill SPZ when driver is set but SPZ is empty (for automatically assigned drivers)
+    React.useEffect(() => {
+        if (!userDataHead?.INT_ADR || !userDataHead?.RZ_Auta) return;
+
+        const needsSPZFill = formData.Skupiny_Cest?.some(group =>
+            group.Ridic &&
+            group.Ridic == userDataHead.INT_ADR &&
+            (!group.SPZ || group.SPZ.trim() === '')
+        );
+
+        if (needsSPZFill) {
+            setFormData(prev => ({
+                ...prev,
+                Skupiny_Cest: (prev.Skupiny_Cest || []).map(group => {
+                    // Only update if driver is current user and SPZ is empty
+                    if (group.Ridic == userDataHead.INT_ADR && (!group.SPZ || group.SPZ.trim() === '')) {
+                        return { ...group, SPZ: userDataHead.RZ_Auta };
+                    }
+                    return group;
+                })
+            }));
+        }
+    }, [userDataHead?.INT_ADR, userDataHead?.RZ_Auta, formData.Skupiny_Cest?.map(g => `${g.id}-${g.Ridic}-${g.SPZ}`).join(',')]); // Run when user data loads or driver/SPZ changes
 
     // Auto-set first driver to have higher rate when Zvysena_Sazba is true or when drivers change
     React.useEffect(() => {
@@ -681,7 +707,9 @@ export const TravelGroupsForm = ({
                                                 name={`driver-${group.id}`}
                                                 className="form__select"
                                                 value={group.Ridic || ""}
-                                                onChange={(e) => updateGroupField(group.id, {Ridic: e.target.value})}
+                                                onChange={(e) => {
+                                                    updateGroupField(group.id, { Ridic: parseInt(e.target.value) });
+                                                }}
                                                 disabled={disabled}
                                                 required={true}
                                             >

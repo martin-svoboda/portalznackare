@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, {useState, useMemo} from 'react';
 import {
     IconChevronDown,
     IconChevronUp,
@@ -7,26 +7,26 @@ import {
     IconAlertTriangle,
     IconMapPin
 } from '@tabler/icons-react';
-import { AdvancedFileUpload } from '../../../components/shared/forms/AdvancedFileUpload';
-import { RenewedSectionsForm } from './RenewedSectionsForm';
-import { renderHtmlContent, replaceTextWithIcons } from '../../../utils/htmlUtils';
-import { 
-    getAttachmentsAsArray, 
-    setAttachmentsFromArray 
+import {AdvancedFileUpload} from '../../../components/shared/forms/AdvancedFileUpload';
+import {RenewedSectionsForm} from './RenewedSectionsForm';
+import {renderHtmlContent, replaceTextWithIcons} from '../../../utils/htmlUtils';
+import {
+    getAttachmentsAsArray,
+    setAttachmentsFromArray
 } from '../utils/attachmentUtils';
-import { calculateExecutionDate } from '../utils/compensationCalculator';
-import { toISODateString } from '../../../utils/dateUtils';
+import {calculateExecutionDate} from '../utils/compensationCalculator';
+import {toISODateString} from '../../../utils/dateUtils';
 
 const statusOptions = [
-    { value: "1", label: "1 - Nová", color: "green" },
-    { value: "2", label: "2 - Zachovalá", color: "blue" },
-    { value: "3", label: "3 - Nevyhovující", color: "orange" },
-    { value: "4", label: "4 - Zcela chybí", color: "red" }
+    {value: "1", label: "1 - Nová", color: "green"},
+    {value: "2", label: "2 - Zachovalá", color: "blue"},
+    {value: "3", label: "3 - Nevyhovující", color: "orange"},
+    {value: "4", label: "4 - Zcela chybí", color: "red"}
 ];
 
 const arrowOrientationOptions = [
-    { value: "L", label: "Levá (L)" },
-    { value: "P", label: "Pravá (P)" }
+    {value: "L", label: "Levá (L)"},
+    {value: "P", label: "Pravá (P)"}
 ];
 
 // Helper function for generating safe identifiers
@@ -49,32 +49,32 @@ const getLegacyItemIdentifier = (item) => {
 // Export function to validate if all TIM items have status filled
 export const validateAllTimItemsCompleted = (predmety, Stavy_Tim) => {
     if (!predmety || predmety.length === 0) return true;
-    
+
     // Get all items that need status
     const allItems = predmety.filter(item => item.EvCi_TIM && item.Predmet_Index);
-    
+
     // Check if each item has a status
     return allItems.every(item => {
         const primaryId = getItemIdentifier(item);
         const legacyId = getLegacyItemIdentifier(item);
-        
+
         // Look for this item in any TIM report
         return Object.values(Stavy_Tim).some(timReport => {
             if (!timReport.Predmety) return false;
-            
+
             // Support both object and array structures during transition
             if (Array.isArray(timReport.Predmety)) {
                 // Legacy array structure
-                return timReport.Predmety.some(status => 
-                    status.ID_PREDMETY === primaryId || 
+                return timReport.Predmety.some(status =>
+                    status.ID_PREDMETY === primaryId ||
                     status.ID_PREDMETY === legacyId
                 );
             } else if (typeof timReport.Predmety === 'object') {
                 // New object structure with ID_PREDMETY as key
-                return timReport.Predmety[primaryId] !== undefined || 
-                       timReport.Predmety[legacyId] !== undefined;
+                return timReport.Predmety[primaryId] !== undefined ||
+                    timReport.Predmety[legacyId] !== undefined;
             }
-            
+
             return false;
         });
     });
@@ -99,23 +99,23 @@ const groupItemsByTIM = (predmety) => {
     return Object.values(groups);
 };
 
-export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikazId, reportId, disabled = false }) => {
+export const PartBForm = ({formData, setFormData, head, useky, predmety, prikazId, reportId, disabled = false}) => {
     // Generate storage path for this report
     const generateStoragePath = () => {
         if (!prikazId) return null;
-        
+
         // Validate and sanitize path components
         const year = calculateExecutionDate(formData).getFullYear();
         const kkz = head?.KKZ?.toString().trim() || 'unknown';
         const obvod = head?.ZO?.toString().trim() || 'unknown';
         const sanitizedPrikazId = prikazId?.toString().trim() || 'unknown';
-        
+
         // Validate year is reasonable
         const validYear = (year >= 2020 && year <= 2030) ? year : new Date().getFullYear();
-        
+
         return `reports/${validYear}/${kkz}/${obvod}/${sanitizedPrikazId}`;
     };
-    
+
     const storagePath = generateStoragePath();
     const [expandedTims, setExpandedTims] = useState(new Set());
 
@@ -134,7 +134,7 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                 ...updates
             }
         };
-        setFormData(prev => ({ ...prev, Stavy_Tim: newTimReports }));
+        setFormData(prev => ({...prev, Stavy_Tim: newTimReports}));
     };
 
     const updateItemStatus = (timId, item, status) => {
@@ -149,7 +149,7 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
         const primaryId = getItemIdentifier(item);
         const legacyId = getLegacyItemIdentifier(item);
 
-        const newPredmety = { ...(timReport.Predmety || {}) };
+        const newPredmety = {...(timReport.Predmety || {})};
 
         newPredmety[primaryId] = {
             ...newPredmety[primaryId],
@@ -182,12 +182,12 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
         if (!timReport || !timReport.Predmety) return undefined;
 
         const primaryId = getItemIdentifier(item);
-        
+
         // Support both object and array structures during transition
         if (Array.isArray(timReport.Predmety)) {
             // Legacy array structure
-            return timReport.Predmety.find(status => 
-                status.ID_PREDMETY === primaryId || 
+            return timReport.Predmety.find(status =>
+                status.ID_PREDMETY === primaryId ||
                 status.ID_PREDMETY === getLegacyItemIdentifier(item)
             );
         } else {
@@ -201,15 +201,15 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
         const timReport = formData.Stavy_Tim[timId];
 
         // Celkový počet je vždy z timData, i když nejsou data inicializována
-        if (!timData) return { completed: false, total: 0, filled: 0 };
-        
+        if (!timData) return {completed: false, total: 0, filled: 0};
+
         const totalItems = timData.items.length;
-        
+
         // Pokud nejsou data inicializována, máme 0 vyplněných z celkového počtu
-        if (!timReport) return { completed: false, total: totalItems, filled: 0 };
+        if (!timReport) return {completed: false, total: totalItems, filled: 0};
 
         const requiredFields = totalItems;
-        
+
         // Support both object and array structures during transition
         let predmetyToCheck = [];
         if (Array.isArray(timReport.Predmety)) {
@@ -219,14 +219,14 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
             // New object structure with ID_PREDMETY as key
             predmetyToCheck = Object.values(timReport.Predmety);
         }
-        
+
         const filledFields = predmetyToCheck.filter(status => {
             if (!status.Zachovalost) return false;
             if (status.Zachovalost === 3 || status.Zachovalost === 4) return true; // Nevyhovující/chybí don't require additional data
 
             // For states 1-2, additional data is needed
             const hasYear = status.Rok_Vyroby !== null && status.Rok_Vyroby !== undefined;
-            
+
             // Najdeme původní item aby mohli zkontrolovat jestli je to směrovka
             const originalItem = timData.items.find(item => item.ID_PREDMETY?.toString() === status.ID_PREDMETY?.toString());
             const isArrow = originalItem?.Predmet?.toLowerCase().includes('směrovka') || false;
@@ -283,17 +283,19 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                         <div className="card__content">
                                             <div className="flex items-center justify-between mb-4">
                                                 <div className="flex items-center gap-3">
-                                                    <IconMapPin size={20} />
+                                                    <IconMapPin size={20}/>
                                                     <div>
-                                                        <div className="font-medium">{replaceTextWithIcons(timGroup.Naz_TIM)}</div>
-                                                        <div className="text-sm text-gray-600">TIM {timGroup.EvCi_TIM}</div>
+                                                        <div
+                                                            className="font-medium">{replaceTextWithIcons(timGroup.Naz_TIM)}</div>
+                                                        <div
+                                                            className="text-sm text-gray-600">TIM {timGroup.EvCi_TIM}</div>
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-24 bg-gray-200 rounded-full h-2">
-                                                        <div 
+                                                        <div
                                                             className={`h-2 rounded-full ${completion.completed ? 'bg-green-500' : 'bg-blue-500'}`}
-                                                            style={{ width: `${(completion.filled / completion.total) * 100}%` }}
+                                                            style={{width: `${(completion.filled / completion.total) * 100}%`}}
                                                         ></div>
                                                     </div>
                                                     <span className="text-sm">
@@ -306,11 +308,11 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                     >
                                                         {isExpanded ? (
                                                             <>
-                                                                Skrýt <IconChevronUp size={14} className="ml-1" />
+                                                                Skrýt <IconChevronUp size={14} className="ml-1"/>
                                                             </>
                                                         ) : (
                                                             <>
-                                                                Rozbalit <IconChevronDown size={14} className="ml-1" />
+                                                                Rozbalit <IconChevronDown size={14} className="ml-1"/>
                                                             </>
                                                         )}
                                                     </button>
@@ -327,18 +329,22 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                         </label>
 
                                                         {/* Desktop header */}
-                                                        <div className="hidden md:flex gap-4 pb-2 border-b border-gray-300 mb-4">
+                                                        <div
+                                                            className="hidden md:flex gap-4 pb-2 border-b border-gray-300 mb-4">
                                                             <div className="flex-[2]">
-                                                                <span className="text-sm font-semibold text-gray-600">Předmět</span>
+                                                                <span
+                                                                    className="text-sm font-semibold text-gray-600">Předmět</span>
                                                             </div>
                                                             <div className="flex-1">
-                                                                <span className="text-sm font-semibold text-gray-600">Stav</span>
+                                                                <span
+                                                                    className="text-sm font-semibold text-gray-600">Stav</span>
                                                             </div>
                                                             <div className="flex-1">
                                                                 <span className="text-sm font-semibold text-gray-600">Rok výroby</span>
                                                             </div>
                                                             <div className="flex-1">
-                                                                <span className="text-sm font-semibold text-gray-600">Orientace</span>
+                                                                <span
+                                                                    className="text-sm font-semibold text-gray-600">Orientace</span>
                                                             </div>
                                                         </div>
 
@@ -350,48 +356,63 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                                 const needsAdditionalData = itemStatus?.Zachovalost !== 4 && item?.Druh_Predmetu !== 'P' && item?.Druh_Predmetu !== 'I';
 
                                                                 return (
-                                                                    <div key={getItemIdentifier(item)} className="border-b border-gray-200 dark:border-gray-600 pb-3">
-                                                                        <div className="flex flex-col md:flex-row gap-4 md:items-center">
+                                                                    <div key={getItemIdentifier(item)}
+                                                                         className="border-b border-gray-200 dark:border-gray-600 pb-3">
+                                                                        <div
+                                                                            className="flex flex-col md:flex-row gap-4 md:items-center">
                                                                             {/* Item */}
                                                                             <div className="flex-[2]">
-                                                                                <div className="md:hidden text-xs font-semibold text-gray-600 mb-1">
+                                                                                <div
+                                                                                    className="md:hidden text-xs font-semibold text-gray-600 mb-1">
                                                                                     Předmět
                                                                                 </div>
                                                                                 <div>
-                                                                                    <div className="flex items-center gap-2">
-                                                                                        <span className="text-sm font-bold">
-                                                                                            {item.EvCi_TIM}{item.Predmet_Index}
-                                                                                        </span>
-                                                                                        <span className="text-sm font-medium">
-                                                                                            {replaceTextWithIcons(item.Radek1)}
-                                                                                        </span>
-                                                                                    </div>
-                                                                                    <div className="flex gap-1 mt-1">
-                                                                                        {item.Druh_Predmetu_Naz && (
-                                                                                            <span className="inline-block px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">
+                                                                                    {item.Tim_HTML ? renderHtmlContent(item.Tim_HTML) : (
+                                                                                        <>
+                                                                                            <div className="flex items-center gap-2">
+                                                                                                <span className="text-sm font-bold">
+                                                                                                    {item.EvCi_TIM}{item.Predmet_Index}
+                                                                                                </span>
+                                                                                                <span className="text-sm font-medium">
+                                                                                                    {replaceTextWithIcons(item.Radek1)}
+                                                                                                </span>
+                                                                                            </div>
+
+                                                                                            <div
+                                                                                                className="flex gap-1 mt-1">
+                                                                                                {item.Druh_Predmetu_Naz && (
+                                                                                                    <span
+                                                                                                        className="inline-block px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">
                                                                                                 {item.Druh_Predmetu_Naz}
                                                                                             </span>
-                                                                                        )}
-                                                                                        {item.Druh_Presunu && (
-                                                                                            <span className="inline-block px-2 py-1 text-xs bg-gray-100 text-gray-800 rounded">
+                                                                                                )}
+                                                                                                {item.Druh_Presunu && (
+                                                                                                    <span
+                                                                                                        className="inline-block px-2 py-1 text-xs bg-gray-100 text-gray-800 rounded">
                                                                                                 {item.Druh_Presunu}
                                                                                             </span>
-                                                                                        )}
-                                                                                        {item.Barva && (
-                                                                                            <span className={`badge badge--kct-${item.Barva_Kod.toLowerCase()}`}>
+                                                                                                )}
+                                                                                                {item.Barva && (
+                                                                                                    <span
+                                                                                                        className={`badge badge--kct-${item.Barva_Kod.toLowerCase()}`}>
                                                                                                 {item.Barva}
                                                                                             </span>
-                                                                                        )}
-                                                                                    </div>
+                                                                                                )}
+                                                                                            </div>
+                                                                                        </>
+                                                                                    )}
                                                                                 </div>
                                                                             </div>
 
                                                                             {/* Status */}
                                                                             <div className="flex-1">
-                                                                                <div className="md:hidden text-xs font-semibold text-gray-600 mb-1">
+                                                                                <div
+                                                                                    className="md:hidden text-xs font-semibold text-gray-600 mb-1">
                                                                                     Stav
                                                                                 </div>
-                                                                                <label htmlFor={`item-status-${getItemIdentifier(item)}`} className="form__label sr-only">
+                                                                                <label
+                                                                                    htmlFor={`item-status-${getItemIdentifier(item)}`}
+                                                                                    className="form__label sr-only">
                                                                                     Stav položky
                                                                                 </label>
                                                                                 <select
@@ -402,14 +423,16 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                                                     onChange={(e) => e.target.value && updateItemStatus(
                                                                                         timGroup.EvCi_TIM,
                                                                                         item,
-                                                                                        { Zachovalost: parseInt(e.target.value) }
+                                                                                        {Zachovalost: parseInt(e.target.value)}
                                                                                     )}
                                                                                     disabled={disabled}
                                                                                     required={true}
                                                                                 >
-                                                                                    <option value="">Vyberte stav</option>
+                                                                                    <option value="">Vyberte stav
+                                                                                    </option>
                                                                                     {statusOptions.map(opt => (
-                                                                                        <option key={opt.value} value={opt.value}>
+                                                                                        <option key={opt.value}
+                                                                                                value={opt.value}>
                                                                                             {opt.label}
                                                                                         </option>
                                                                                     ))}
@@ -418,12 +441,15 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
 
                                                                             {/* Year of production */}
                                                                             <div className="flex-1">
-                                                                                <div className="md:hidden text-xs font-semibold text-gray-600 mb-1">
+                                                                                <div
+                                                                                    className="md:hidden text-xs font-semibold text-gray-600 mb-1">
                                                                                     Rok výroby
                                                                                 </div>
                                                                                 {needsAdditionalData ? (
                                                                                     <>
-                                                                                        <label htmlFor={`item-year-${getItemIdentifier(item)}`} className="form__label sr-only">
+                                                                                        <label
+                                                                                            htmlFor={`item-year-${getItemIdentifier(item)}`}
+                                                                                            className="form__label sr-only">
                                                                                             Rok výroby
                                                                                         </label>
                                                                                         <input
@@ -440,7 +466,7 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                                                                 updateItemStatus(
                                                                                                     timGroup.EvCi_TIM,
                                                                                                     item,
-                                                                                                    { Rok_Vyroby: year }
+                                                                                                    {Rok_Vyroby: year}
                                                                                                 );
                                                                                             }}
                                                                                             disabled={disabled}
@@ -448,18 +474,22 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                                                         />
                                                                                     </>
                                                                                 ) : (
-                                                                                    <span className="text-sm text-gray-500">-</span>
+                                                                                    <span
+                                                                                        className="text-sm text-gray-500">-</span>
                                                                                 )}
                                                                             </div>
 
                                                                             {/* Orientation */}
                                                                             <div className="flex-1">
-                                                                                <div className="md:hidden text-xs font-semibold text-gray-600 mb-1">
+                                                                                <div
+                                                                                    className="md:hidden text-xs font-semibold text-gray-600 mb-1">
                                                                                     Orientace směrovky
                                                                                 </div>
                                                                                 {needsAdditionalData && isArrow ? (
                                                                                     <>
-                                                                                        <label htmlFor={`item-orientation-${getItemIdentifier(item)}`} className="form__label sr-only">
+                                                                                        <label
+                                                                                            htmlFor={`item-orientation-${getItemIdentifier(item)}`}
+                                                                                            className="form__label sr-only">
                                                                                             Orientace směrovky
                                                                                         </label>
                                                                                         <select
@@ -470,21 +500,24 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                                                             onChange={(e) => updateItemStatus(
                                                                                                 timGroup.EvCi_TIM,
                                                                                                 item,
-                                                                                                { Smerovani: e.target.value }
+                                                                                                {Smerovani: e.target.value}
                                                                                             )}
                                                                                             disabled={disabled}
                                                                                             required={true}
                                                                                         >
-                                                                                            <option value="">L/P</option>
+                                                                                            <option value="">L/P
+                                                                                            </option>
                                                                                             {arrowOrientationOptions.map(opt => (
-                                                                                                <option key={opt.value} value={opt.value}>
+                                                                                                <option key={opt.value}
+                                                                                                        value={opt.value}>
                                                                                                     {opt.label}
                                                                                                 </option>
                                                                                             ))}
                                                                                         </select>
                                                                                     </>
                                                                                 ) : (
-                                                                                    <span className="text-sm text-gray-500">-</span>
+                                                                                    <span
+                                                                                        className="text-sm text-gray-500">-</span>
                                                                                 )}
                                                                             </div>
                                                                         </div>
@@ -504,7 +537,8 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                             Všechny směrovky jsou viditelné ze středu křižovatky
                                                         </p>
                                                         <div className="flex gap-4">
-                                                            <label htmlFor={`centerRule-yes-${timGroup.EvCi_TIM}`} className="flex items-center">
+                                                            <label htmlFor={`centerRule-yes-${timGroup.EvCi_TIM}`}
+                                                                   className="flex items-center">
                                                                 <input
                                                                     id={`centerRule-yes-${timGroup.EvCi_TIM}`}
                                                                     type="radio"
@@ -521,7 +555,8 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                                 />
                                                                 ANO
                                                             </label>
-                                                            <label htmlFor={`centerRule-no-${timGroup.EvCi_TIM}`} className="flex items-center">
+                                                            <label htmlFor={`centerRule-no-${timGroup.EvCi_TIM}`}
+                                                                   className="flex items-center">
                                                                 <input
                                                                     id={`centerRule-no-${timGroup.EvCi_TIM}`}
                                                                     type="radio"
@@ -542,7 +577,9 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
 
                                                         {timReport?.Souhlasi_STP === false && (
                                                             <>
-                                                                <label htmlFor={`centerRule-comment-${timGroup.EvCi_TIM}`} className="form__label sr-only">
+                                                                <label
+                                                                    htmlFor={`centerRule-comment-${timGroup.EvCi_TIM}`}
+                                                                    className="form__label sr-only">
                                                                     Komentář k nesplnění středového pravidla
                                                                 </label>
                                                                 <textarea
@@ -619,8 +656,10 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                                             Komentář k TIMu
                                                         </label>
                                                         <p className="text-xs text-gray-600 mb-2">
-                                                            Stav upevnění směrovek a tabulek, např. zarostlá nebo prasklá
-                                                            dřevěná lišta, silně zkorodovaný nebo uvolněný ocelový upevňovací pás,
+                                                            Stav upevnění směrovek a tabulek, např. zarostlá nebo
+                                                            prasklá
+                                                            dřevěná lišta, silně zkorodovaný nebo uvolněný ocelový
+                                                            upevňovací pás,
                                                             deformovaný trubkový držák směrovky, viditelná rez apod.
                                                         </p>
                                                         <textarea
@@ -675,9 +714,9 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
             <RenewedSectionsForm
                 useky={useky}
                 Obnovene_Useky={formData.Obnovene_Useky || {}}
-                onObnoveneUsekyChange={(obnoveneUseky) => setFormData(prev => ({ 
-                    ...prev, 
-                    Obnovene_Useky: obnoveneUseky 
+                onObnoveneUsekyChange={(obnoveneUseky) => setFormData(prev => ({
+                    ...prev,
+                    Obnovene_Useky: obnoveneUseky
                 }))}
                 disabled={disabled}
             />
@@ -688,9 +727,9 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                     <h4 className="text-lg font-semibold mb-4">Komentář ke značkařskému úseku</h4>
 
                     <div className="text-sm text-gray-600 mb-4">
-                        <strong>Nápověda k vyplnění:</strong><br />
-                        • Místa, která by podle nynějšího stavu v terénu mohla být vyznačkována účelněji<br />
-                        • Místa, která nemohla být spolehlivě vyznačkována s návrhem na opatření<br />
+                        <strong>Nápověda k vyplnění:</strong><br/>
+                        • Místa, která by podle nynějšího stavu v terénu mohla být vyznačkována účelněji<br/>
+                        • Místa, která nemohla být spolehlivě vyznačkována s návrhem na opatření<br/>
                         • Místa zhoršené schůdnosti nebo průchodnosti s návrhem na opatření
                     </div>
 
@@ -703,7 +742,7 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                         className="form__textarea mb-4"
                         placeholder="Popište stav značkařského úseku a případné návrhy na zlepšení..."
                         value={formData.Koment_Usek || ""}
-                        onChange={(e) => setFormData(prev => ({ ...prev, Koment_Usek: e.target.value }))}
+                        onChange={(e) => setFormData(prev => ({...prev, Koment_Usek: e.target.value}))}
                         rows={4}
                         disabled={disabled}
                     />
@@ -715,7 +754,10 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                         <AdvancedFileUpload
                             id="route-attachments"
                             files={getAttachmentsAsArray(formData.Prilohy_Usek || {})}
-                            onFilesChange={(files) => setFormData(prev => ({ ...prev, Prilohy_Usek: setAttachmentsFromArray(files) }))}
+                            onFilesChange={(files) => setFormData(prev => ({
+                                ...prev,
+                                Prilohy_Usek: setAttachmentsFromArray(files)
+                            }))}
                             maxFiles={10}
                             accept="image/jpeg,image/png,image/heic"
                             maxSize={15}
@@ -729,11 +771,10 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
 
                     <div>
                         <label className="form__label mb-1 block font-medium">
-                            Průběh značené trasy v terénu
+                            Průběh značené trasy podle map
                         </label>
                         <p className="text-sm text-gray-600 mb-2">
-                            Souhlasí průběh trasy s jejím zákresem v posledním vydání turistické mapy KČT a s průběhem trasy
-                            na mapy.cz?
+                            Souhlasí průběh trasy s jejím zákresem v posledním tištěném vydání turistické mapy KČT?
                         </p>
                         <div className="flex gap-4">
                             <label htmlFor="Souhlasi_Mapa-yes" className="flex items-center">
@@ -743,7 +784,7 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                     name="Souhlasi_Mapa"
                                     value="ano"
                                     checked={formData.Souhlasi_Mapa === "ano"}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, Souhlasi_Mapa: e.target.value }))}
+                                    onChange={(e) => setFormData(prev => ({...prev, Souhlasi_Mapa: e.target.value}))}
                                     className="form__radio mr-2"
                                     disabled={disabled}
                                 />
@@ -756,15 +797,82 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                     name="Souhlasi_Mapa"
                                     value="ne"
                                     checked={formData.Souhlasi_Mapa === "ne"}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, Souhlasi_Mapa: e.target.value }))}
+                                    onChange={(e) => setFormData(prev => ({...prev, Souhlasi_Mapa: e.target.value}))}
                                     className="form__radio mr-2"
                                     disabled={disabled}
                                 />
                                 NE
                             </label>
+                            <label htmlFor="Souhlasi_Mapa-unknovn" className="flex items-center">
+                                <input
+                                    id="Souhlasi_Mapa-unknovn"
+                                    type="radio"
+                                    name="Souhlasi_Mapa"
+                                    value="nevim"
+                                    checked={formData.Souhlasi_Mapa === "nevim"}
+                                    onChange={(e) => setFormData(prev => ({...prev, Souhlasi_Mapa: e.target.value}))}
+                                    className="form__radio mr-2"
+                                    disabled={disabled}
+                                />
+                                NEVÍM
+                            </label>
                         </div>
-                        
-                        {formData.Souhlasi_Mapa === "ne" && (
+
+                        <p className="text-sm text-gray-600 mb-2 mt-3">
+                            Souhlasí průběh trasy s jejím zákresem na Mapy.com?
+                        </p>
+                        <div className="flex gap-4">
+                            <label htmlFor="Souhlasi_Mapy_com-yes" className="flex items-center">
+                                <input
+                                    id="Souhlasi_Mapy_com-yes"
+                                    type="radio"
+                                    name="Souhlasi_Mapy_com"
+                                    value="ano"
+                                    checked={formData.Souhlasi_Mapy_com === "ano"}
+                                    onChange={(e) => setFormData(prev => ({
+                                        ...prev,
+                                        Souhlasi_Mapy_com: e.target.value
+                                    }))}
+                                    className="form__radio mr-2"
+                                    disabled={disabled}
+                                />
+                                ANO
+                            </label>
+                            <label htmlFor="Souhlasi_Mapy_com-no" className="flex items-center">
+                                <input
+                                    id="Souhlasi_Mapy_com-no"
+                                    type="radio"
+                                    name="Souhlasi_Mapy_com"
+                                    value="ne"
+                                    checked={formData.Souhlasi_Mapy_com === "ne"}
+                                    onChange={(e) => setFormData(prev => ({
+                                        ...prev,
+                                        Souhlasi_Mapy_com: e.target.value
+                                    }))}
+                                    className="form__radio mr-2"
+                                    disabled={disabled}
+                                />
+                                NE
+                            </label>
+                            <label htmlFor="Souhlasi_Mapy_com-unknovn" className="flex items-center">
+                                <input
+                                    id="Souhlasi_Mapy_com-unknovn"
+                                    type="radio"
+                                    name="Souhlasi_Mapy_com"
+                                    value="nevim"
+                                    checked={formData.Souhlasi_Mapy_com === "nevim"}
+                                    onChange={(e) => setFormData(prev => ({
+                                        ...prev,
+                                        Souhlasi_Mapy_com: e.target.value
+                                    }))}
+                                    className="form__radio mr-2"
+                                    disabled={disabled}
+                                />
+                                NEVÍM
+                            </label>
+                        </div>
+
+                        {(formData.Souhlasi_Mapa === "ne" || formData.Souhlasi_Mapy_com === "ne") && (
                             <div className="mt-4 space-y-4">
                                 <div>
                                     <label htmlFor="Souhlasi_Mapa-comment" className="form__label mb-1 block">
@@ -776,12 +884,12 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                         className="form__textarea"
                                         placeholder="Popište nesoulad trasy s mapou..."
                                         value={formData.Koment_Mapa || ""}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, Koment_Mapa: e.target.value }))}
+                                        onChange={(e) => setFormData(prev => ({...prev, Koment_Mapa: e.target.value}))}
                                         rows={3}
                                         disabled={disabled}
                                     />
                                 </div>
-                                
+
                                 <div>
                                     <label className="form__label mb-2 block">
                                         Přílohy k nesouladu
@@ -789,7 +897,10 @@ export const PartBForm = ({ formData, setFormData, head, useky, predmety, prikaz
                                     <AdvancedFileUpload
                                         id="Souhlasi_Mapa-attachments"
                                         files={getAttachmentsAsArray(formData.Prilohy_Mapa || {})}
-                                        onFilesChange={(files) => setFormData(prev => ({ ...prev, Prilohy_Mapa: setAttachmentsFromArray(files) }))}
+                                        onFilesChange={(files) => setFormData(prev => ({
+                                            ...prev,
+                                            Prilohy_Mapa: setAttachmentsFromArray(files)
+                                        }))}
                                         maxFiles={5}
                                         accept="image/jpeg,image/png,image/heic"
                                         maxSize={15}

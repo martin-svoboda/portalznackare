@@ -15,7 +15,8 @@ import { calculateExecutionDate } from '../utils/compensationCalculator';
 import { toISODateString } from '../../../utils/dateUtils';
 
 
-export const PartAForm = ({ 
+export const PartAForm = ({
+    data,
     formData, 
     setFormData, 
     tariffRates, 
@@ -154,8 +155,6 @@ export const PartAForm = ({
     };
 
 
-
-
     // Handler functions for payment redirects
     const handlePresmerovanivyplatChange = (Presmerovani_Vyplat) => {
         setFormData(prev => ({ ...prev, Presmerovani_Vyplat }));
@@ -167,6 +166,7 @@ export const PartAForm = ({
             {/* Travel Groups */}
             <ErrorBoundary sectionName="Segmenty cest">
                 <TravelGroupsForm
+                    data={data}
                 formData={formData}
                 setFormData={setFormData}
                 tariffRates={tariffRates}

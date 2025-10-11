@@ -1,4 +1,4 @@
-import React, {useEffect, useState, useMemo} from 'react';
+import React, {useEffect, useState, useMemo, useCallback} from 'react';
 import {Loader} from '../../components/shared/Loader';
 import {PrikazHead} from '../../components/prikazy/PrikazHead';
 import {StepNavigation} from './components/StepNavigation';
@@ -17,6 +17,8 @@ const App = () => {
     const container = document.querySelector('[data-app="hlaseni-prikazu"]');
     const prikazId = container?.dataset?.prikazId;
     const currentUser = container?.dataset?.user ? JSON.parse(container.dataset.user) : null;
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
     // Single state object for all data
     const [appData, setAppData] = useState({
@@ -25,6 +27,7 @@ const App = () => {
         predmety: [],
         useky: [],
         formData: null, // Will be initialized after counter is ready
+        userDetails: [],
         teamMembers: [],
         canEdit: false,
         tariffRates: null,
@@ -95,7 +98,6 @@ const App = () => {
         return userInTeam?.isLeader || false;
     };
 
-    console.log(currentUser);
     // Load all data in single effect
     useEffect(() => {
         const loadAllData = async () => {
@@ -244,6 +246,16 @@ const App = () => {
                     log.error('Chyba při načítání ceníku', error);
                 }
 
+                // Load user details - only if not already loaded
+                let userDetails = null;
+                try {
+                    userDetails = await api.insyz.user();
+
+                    log.info(`Načteny detaily uživatele`, userDetails);
+                } catch (error) {
+                    log.error('Chyba při načítání detailů uživatele', error);
+                }
+
                 // Update state with all data
                 setAppData(prev => ({
                     ...prev,
@@ -253,6 +265,7 @@ const App = () => {
                     useky: orderData.useky || [],
                     formData,
                     teamMembers,
+                    userDetails: userDetails || prev.userDetails,
                     canEdit,
                     isLeader,
                     tariffRates,
@@ -275,6 +288,8 @@ const App = () => {
                 log.error('Chyba při načítání dat aplikace', error);
                 setAppData(prev => ({...prev, loading: false}));
             }
+
+
         };
 
         loadAllData();

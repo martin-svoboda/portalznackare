@@ -192,6 +192,7 @@ export const useFormSaving = (formData, head, prikazId, tariffRates, isLeader, t
                     Prilohy_Usek: convertAttachmentsToIds(formData.Prilohy_Usek || {}),
                     Obnovene_Useky: formData.Obnovene_Useky || {},
                     Souhlasi_Mapa: formData.Souhlasi_Mapa,
+                    Souhlasi_Mapy_com: formData.Souhlasi_Mapy_com,
                     Koment_Mapa: formData.Koment_Mapa,
                     Prilohy_Mapa: convertAttachmentsToIds(formData.Prilohy_Mapa || {}),
                     Cast_B_Dokoncena: formData.Cast_B_Dokoncena
@@ -379,6 +380,7 @@ export const useFormSaving = (formData, head, prikazId, tariffRates, isLeader, t
                     Prilohy_Usek: convertAttachmentsToIds(formData.Prilohy_Usek || {}),
                     Obnovene_Useky: formData.Obnovene_Useky || {},
                     Souhlasi_Mapa: formData.Souhlasi_Mapa,
+                    Souhlasi_Mapy_com: formData.Souhlasi_Mapy_com,
                     Koment_Mapa: formData.Koment_Mapa,
                     Prilohy_Mapa: convertAttachmentsToIds(formData.Prilohy_Mapa || {}),
                     Cast_B_Dokoncena: formData.Cast_B_Dokoncena

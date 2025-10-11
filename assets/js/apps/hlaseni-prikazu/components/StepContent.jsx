@@ -90,6 +90,7 @@ export const StepContent = ({
                 {/* Main form */}
                 <div className="lg:col-span-2">
                     <PartAForm
+                        data={data}
                         formData={formData}
                         setFormData={setFormData}
                         tariffRates={tariffRates}
