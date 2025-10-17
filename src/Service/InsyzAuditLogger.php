@@ -46,23 +46,13 @@ class InsyzAuditLogger
             $auditLog = new InsyzAuditLog();
 
             // Set user and int_adr
+            // VŽDY loguj - pokud není INT_ADR, použij 0
             if ($user) {
                 $auditLog->setUser($user);
             } elseif ($intAdr) {
                 $auditLog->setIntAdr($intAdr);
             } else {
-                // For login attempts, we need to log even without user identification
-                // to track failed login attempts with email/credentials
-                $isLoginEndpoint = (
-                    str_contains($endpoint, 'login') ||
-                    str_contains($mssqlProcedure ?? '', 'WEB_Login')
-                );
-
-                if (!$isLoginEndpoint) {
-                    // For non-login endpoints, skip if no user identification
-                    return;
-                }
-                // Continue logging for login attempts - use 0 to indicate no INT_ADR available yet
+                // Není known INT_ADR - použij 0 (platí obecně pro všechny situace)
                 $auditLog->setIntAdr(0);
             }
 

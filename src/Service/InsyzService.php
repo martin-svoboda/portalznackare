@@ -21,11 +21,17 @@ class InsyzService
 
     /**
      * Centralizované volání MSSQL procedur s automatickým audit logováním
+     *
+     * @param string $procedure Název stored procedure
+     * @param array $args Parametry pro proceduru
+     * @param bool $multiple Zda volat multiple recordsets
+     * @param int|null $explicitIntAdr Explicitní INT_ADR pro logování (pokud známe ale nejsme authenticated)
      */
-    public function connect(string $procedure, array $args, bool $multiple = false): array
+    public function connect(string $procedure, array $args, bool $multiple = false, ?int $explicitIntAdr = null): array
     {
         $startTime = microtime(true);
-        $intAdr = $this->getCurrentUserIntAdr();
+        // Použij explicitní INT_ADR pokud je předán, jinak zkus získat z tokenu
+        $intAdr = $explicitIntAdr ?? $this->getCurrentUserIntAdr();
 
         try {
             if ($multiple) {
@@ -51,10 +57,15 @@ class InsyzService
 
 	/**
 	 * Univerzální metoda pro načítání test dat s automatickým logováním
+	 *
+	 * @param string $endpoint Název endpointu/souboru
+	 * @param array $params Parametry pro logování
+	 * @param int|null $explicitIntAdr Explicitní INT_ADR pro logování (pokud známe ale nejsme authenticated)
 	 */
-	public function getTestData(string $endpoint, array $params): array {
+	public function getTestData(string $endpoint, array $params, ?int $explicitIntAdr = null): array {
 		$startTime = microtime(true);
-		$intAdr = $this->getCurrentUserIntAdr();
+		// Použij explicitní INT_ADR pokud je předán, jinak zkus získat z tokenu
+		$intAdr = $explicitIntAdr ?? $this->getCurrentUserIntAdr();
 
 		// Pro user a prikazy endpointy zkusit nejdřív konkrétní soubor
 		$specificFile = $this->kernel->getProjectDir() . '/var/mock-data/api/insyz/' . $endpoint . '.json';
@@ -88,23 +99,81 @@ class InsyzService
         $isAlreadyHash = (strlen($password) === 40 && ctype_xdigit($password));
 
         if ($this->useTestData()) {
-            // Test login logic - akceptuj plain text "test123" nebo jeho SHA1 hash
+            // Test login logic - akceptuj plain text "test123" nebo jeho SHA1 hash pro všechny test účty
             $testPasswordHash = strtoupper(sha1('test123'));
 
-            $isValidCredentials = ($email === 'test@test.com' &&
-                ($password === 'test123' || strtoupper($password) === $testPasswordHash));
+            // Definuj test scénáře pro různé bezpečnostní kontroly
+            $testAccounts = [
+                'test@test.com' => [
+                    "INT_ADR" => "4133",
+                    "Platnost" => "OK",
+                    "Platnost_DO" => "2026-09-02",
+                    "Zablokovano" => "0",
+                    "KontrolaPlatnostiPwdWEB" => "0"
+                ],
+                'test@blocked.com' => [
+                    "INT_ADR" => "4134",
+                    "Platnost" => "OK",
+                    "Platnost_DO" => "2026-09-02",
+                    "Zablokovano" => "1",  // ← Zablokovaný účet
+                    "KontrolaPlatnostiPwdWEB" => "0"
+                ],
+                'test@expired.com' => [
+                    "INT_ADR" => "4135",
+                    "Platnost" => "OK",
+                    "Platnost_DO" => "2020-01-01",  // ← Staré datum
+                    "Zablokovano" => "0",
+                    "KontrolaPlatnostiPwdWEB" => "1"  // ← Kontrola zapnuta
+                ],
+                'test@expired-nocheck.com' => [
+                    "INT_ADR" => "4136",
+                    "Platnost" => "OK",
+                    "Platnost_DO" => "2020-01-01",  // ← Staré datum
+                    "Zablokovano" => "0",
+                    "KontrolaPlatnostiPwdWEB" => "0"  // ← Kontrola vypnuta → mělo by projít
+                ],
+                'test@invalid.com' => [
+                    "INT_ADR" => "4137",
+                    "Platnost" => "EXPIRED",  // ← Neplatné heslo
+                    "Platnost_DO" => "2026-09-02",
+                    "Zablokovano" => "0",
+                    "KontrolaPlatnostiPwdWEB" => "0"
+                ]
+            ];
+
+            // Zkontroluj, zda je email z test účtů a heslo je správné
+            $isValidCredentials = isset($testAccounts[$email]) &&
+                ($password === 'test123' || strtoupper($password) === $testPasswordHash);
 
             if ($isValidCredentials) {
-                $intAdr = 4133;
-                // Log successful test login
-                $this->logInsyzCall('login', 'trasy.WEB_Login',
-                    ['@Email' => $email, '@WEBPwdHash' => '[HIDDEN]'],
-                    [['INT_ADR' => $intAdr]],  // Array of rows, not single row
-                    null,
-                    $startTime,
-                    null  // intAdr is NULL during login attempt
-                );
-                return $intAdr;
+	            $result = array( 0 => $testAccounts[$email] );
+
+                try {
+                    // Validuj bezpečnostní parametry
+                    $this->validateLoginResponse($result[0]);
+
+                    // Log successful test login
+                    $this->logInsyzCall('login', 'trasy.WEB_Login',
+                        ['@Email' => $email, '@WEBPwdHash' => '[HIDDEN]'],
+                        $result,
+                        null,
+                        $startTime,
+                        null  // intAdr is NULL during login attempt
+                    );
+
+	                return (int) $result[0]['INT_ADR'];
+
+                } catch (Exception $e) {
+                    // Loguj zamítnuté přihlášení s důvodem
+                    $this->logInsyzCall('login', 'trasy.WEB_Login',
+                        ['@Email' => $email, '@WEBPwdHash' => '[HIDDEN]'],
+                        $result,
+                        $e->getMessage(), // "Účet je zablokován" atd.
+                        $startTime,
+                        (int) $result[0]['INT_ADR'] // INT_ADR i když zamítnuto
+                    );
+                    throw $e;
+                }
             }
 
             // Log failed test login attempt
@@ -128,7 +197,24 @@ class InsyzService
         ]);
 
         if (isset($result[0]['INT_ADR'])) {
-            return (int) $result[0]['INT_ADR'];
+            try {
+                // Validuj bezpečnostní parametry
+                $this->validateLoginResponse($result[0]);
+
+                return (int) $result[0]['INT_ADR'];
+
+            } catch (Exception $e) {
+                // Loguj zamítnuté přihlášení s důvodem
+                // connect() už zalogoval success, teď loguj zamítnutí s důvodem
+                $this->logInsyzCall('login', 'trasy.WEB_Login',
+                    ['@Email' => $email, '@WEBPwdHash' => '[HIDDEN]'],
+                    $result,
+                    $e->getMessage(), // "Účet je zablokován" atd.
+                    $startTime,
+                    (int) $result[0]['INT_ADR'] // INT_ADR i když zamítnuto
+                );
+                throw $e;
+            }
         }
 
         throw new Exception('Chyba přihlášení, zkontrolujte údaje a zkuste to znovu.');
@@ -152,11 +238,13 @@ class InsyzService
     {
         if ($this->useTestData()) {
             // Mock data už jsou ve správném formátu multidatasetu
-            return $this->getTestData('user/' . $intAdr, [$intAdr]);
+            // Předej INT_ADR explicitně pro logování (důležité během login flow)
+            return $this->getTestData('user/' . $intAdr, [$intAdr], $intAdr);
         }
 
         return $this->cacheService->getCachedUserData($intAdr, function($intAdr) {
-            return $this->connect("trasy.ZNACKAR_DETAIL", [$intAdr], true);
+            // Předej INT_ADR explicitně pro logování (důležité během login flow)
+            return $this->connect("trasy.ZNACKAR_DETAIL", [$intAdr], true, $intAdr);
         });
     }
 
@@ -179,7 +267,7 @@ class InsyzService
     public function getPrikazy(int $intAdr, ?int $year = null): array
     {
         $yearParam = $year ?? date('Y');
-        
+
         if ($this->useTestData()) {
             return $this->getTestData('prikazy/' . $intAdr . '-' . $yearParam, [$intAdr, $yearParam]);
         }
@@ -196,13 +284,13 @@ class InsyzService
             if (empty($result)) {
                 throw new Exception('Chybí detail pro ID ' . $id);
             }
-            
+
             // Ověřit, že uživatel má oprávnění k příkazu
             $head = $result['head'] ?? [];
             if (empty($head)) {
                 throw new Exception('U tohoto příkazu se nenačetla žádná data v hlavičce.');
             }
-            
+
             // Hledání hodnoty INT_ADR v hlavičce
             $found = array_filter(array_keys($head), fn($key) => str_starts_with($key, 'INT_ADR'));
             $match = false;
@@ -217,13 +305,13 @@ class InsyzService
             if (!$match) {
                 throw new Exception('Tento příkaz vám nebyl přidělen a nemáte oprávnění k jeho nahlížení.');
             }
-            
+
             return $result;
         }
 
         return $this->cacheService->getCachedPrikaz($intAdr, $id, function($intAdr, $prikazId) {
             $result = $this->connect("trasy.ZP_Detail", [$prikazId], true);
-            
+
             // Zkontrolovat skutečnou strukturu
             if (!is_array($result) || empty($result)) {
                 throw new Exception('MSSQL procedura nevrátila žádná data pro příkaz ' . $prikazId);
@@ -266,7 +354,7 @@ class InsyzService
     public function getSazby(?string $datum = null): array
     {
         $datumParam = $datum ? date('Y-m-d', strtotime($datum)) : date('Y-m-d');
-        
+
         if ($this->useTestData()) {
             return $this->getTestData('sazby/sazby', [$datumParam]);
         }
@@ -274,15 +362,15 @@ class InsyzService
         return $this->cacheService->getCachedSazby($datum, function($datum) {
             // Příprava data ve formátu YYYY-MM-DD (poziční parametr)
             $datumProvedeni = $datum ? date('Y-m-d', strtotime($datum)) : date('Y-m-d');
-            
+
             // Volat proceduru s multiple recordsets (jako ZP_Detail)
             $result = $this->connect("trasy.ZP_Sazby", [$datumProvedeni], true);
-            
+
             // Zkontrolovat, zda procedura vrátila nějaká data
             if (empty($result) || !is_array($result)) {
                 throw new Exception('MSSQL procedura trasy.ZP_Sazby nevrátila žádná data pro datum: ' . $datumProvedeni);
             }
-            
+
             return $result;
         });
     }
@@ -312,7 +400,7 @@ class InsyzService
                 'user' => $uzivatel,
                 'timestamp' => date('Y-m-d H:i:s')
             ];
-            
+
             $this->getTestData('submit', ['@Data_XML' => '[XML_TRUNCATED]', '@Uzivatel' => $uzivatel]);
             return $result;
         }
@@ -503,5 +591,38 @@ class InsyzService
         }
 
         return $result;
+    }
+
+    /**
+     * Validuje bezpečnostní parametry z WEB_Login odpovědi
+     *
+     * @param array $loginData Data z WEB_Login (jeden řádek)
+     * @throws Exception Pokud účet nesplňuje bezpečnostní požadavky
+     */
+    private function validateLoginResponse(array $loginData): void
+    {
+        // 1. Je účet zablokován?
+        if (isset($loginData['Zablokovano']) && $loginData['Zablokovano'] !== '0') {
+            throw new Exception('Účet je zablokován. Kontaktujte správce.');
+        }
+
+        // 2. Má se kontrolovat platnost hesla?
+        if (isset($loginData['KontrolaPlatnostiPwdWEB']) && $loginData['KontrolaPlatnostiPwdWEB'] !== '0') {
+            // ANO - kontroluj datum platnosti
+            if (isset($loginData['Platnost_DO'])) {
+                $platnostDo = \DateTime::createFromFormat('Y-m-d', $loginData['Platnost_DO']);
+                $dnes = new \DateTime('today');
+
+                if ($platnostDo && $platnostDo < $dnes) {
+                    throw new Exception('Platnost hesla vypršela. Kontaktujte správce.');
+                }
+            }
+        }
+        // NE - přeskočit kontrolu data
+
+        // 3. Je heslo platné?
+        if (isset($loginData['Platnost']) && $loginData['Platnost'] !== 'OK') {
+            throw new Exception('Heslo není platné. Kontaktujte správce.');
+        }
     }
 }
