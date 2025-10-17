@@ -33,11 +33,15 @@ class InsyzService
             } else {
                 $result = $this->connector->callProcedure($procedure, $args);
             }
-            
-            // Automatické logování úspěšného volání
-            $this->logInsyzCall($procedure, $procedure, $args, $result, null, $startTime, $intAdr);
+
+            // Detekuj prázdný result = technicky úspěch, ale logicky failure
+            $isEmpty = empty($result);
+            $errorMessage = $isEmpty ? 'MSSQL returned empty result' : null;
+
+            // Automatické logování s rozlišením prázdného výsledku
+            $this->logInsyzCall($procedure, $procedure, $args, $result, $errorMessage, $startTime, $intAdr);
             return $result;
-            
+
         } catch (\Exception $e) {
             // Automatické logování chyby
             $this->logInsyzCall($procedure, $procedure, $args, null, $e->getMessage(), $startTime, $intAdr);

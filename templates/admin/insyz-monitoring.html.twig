@@ -36,7 +36,15 @@
                             <td>{{ log.endpoint }}</td>
                             <td>{{ log.method }}</td>
                             <td>
-                                <span class="badge badge--{{ log.status == 'success' ? 'success' : 'danger' }}">
+                                {% set badgeClass = 'secondary' %}
+                                {% if log.status == 'success' %}
+                                    {% set badgeClass = 'success' %}
+                                {% elseif log.status == 'no_data' %}
+                                    {% set badgeClass = 'warning' %}
+                                {% elseif log.status in ['error', 'timeout'] %}
+                                    {% set badgeClass = 'danger' %}
+                                {% endif %}
+                                <span class="badge badge--{{ badgeClass }}">
                                     {{ log.status }}
                                 </span>
                             </td>

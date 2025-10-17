@@ -87,10 +87,15 @@ class InsyzAuditLogger
 
             // Set cache information
             $auditLog->setCacheHit($cacheHit);
-            
+
             // Determine status
             if ($error) {
-                $auditLog->setStatus($cacheHit ? InsyzAuditLog::STATUS_CACHE_HIT : InsyzAuditLog::STATUS_ERROR);
+                // Rozliš mezi technickou chybou a prázdným výsledkem
+                if (str_contains($error, 'empty result')) {
+                    $auditLog->setStatus(InsyzAuditLog::STATUS_NO_DATA);
+                } else {
+                    $auditLog->setStatus($cacheHit ? InsyzAuditLog::STATUS_CACHE_HIT : InsyzAuditLog::STATUS_ERROR);
+                }
                 $auditLog->setErrorMessage($error);
             } else {
                 $auditLog->setStatus($cacheHit ? InsyzAuditLog::STATUS_CACHE_HIT : InsyzAuditLog::STATUS_SUCCESS);

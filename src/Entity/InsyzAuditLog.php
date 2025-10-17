@@ -21,6 +21,7 @@ class InsyzAuditLog
     public const STATUS_ERROR = 'error';
     public const STATUS_TIMEOUT = 'timeout';
     public const STATUS_CACHE_HIT = 'cache_hit';
+    public const STATUS_NO_DATA = 'no_data';  // MSSQL odpověděl, ale vrátil prázdný výsledek (např. neplatné údaje při loginu)
 
     #[ORM\Id]
     #[ORM\GeneratedValue]
