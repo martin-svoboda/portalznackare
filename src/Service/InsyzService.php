@@ -78,20 +78,40 @@ class InsyzService
 
     public function loginUser(string $email, string $password): int
     {
+        $startTime = microtime(true);
+
         // Detekuj, zda password je už SHA1 hash (40 hex znaků) nebo plain text
         $isAlreadyHash = (strlen($password) === 40 && ctype_xdigit($password));
-        
+
         if ($this->useTestData()) {
             // Test login logic - akceptuj plain text "test123" nebo jeho SHA1 hash
             $testPasswordHash = strtoupper(sha1('test123'));
-            
-            if ($email === 'test@test.com' && 
-                ($password === 'test123' || strtoupper($password) === $testPasswordHash)) {
+
+            $isValidCredentials = ($email === 'test@test.com' &&
+                ($password === 'test123' || strtoupper($password) === $testPasswordHash));
+
+            if ($isValidCredentials) {
                 $intAdr = 4133;
-                $this->getTestData('login', ['@Email' => $email, '@WEBPwdHash' => '[HIDDEN]']);
+                // Log successful test login
+                $this->logInsyzCall('login', 'trasy.WEB_Login',
+                    ['@Email' => $email, '@WEBPwdHash' => '[HIDDEN]'],
+                    [['INT_ADR' => $intAdr]],  // Array of rows, not single row
+                    null,
+                    $startTime,
+                    null  // intAdr is NULL during login attempt
+                );
                 return $intAdr;
             }
-            
+
+            // Log failed test login attempt
+            $this->logInsyzCall('login', 'trasy.WEB_Login',
+                ['@Email' => $email, '@WEBPwdHash' => '[HIDDEN]'],
+                [],
+                'Invalid credentials',
+                $startTime,
+                null  // intAdr is NULL during login attempt
+            );
+
             throw new Exception('Chyba přihlášení, zkontrolujte údaje a zkuste to znovu.');
         }
 

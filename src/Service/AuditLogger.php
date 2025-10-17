@@ -107,6 +107,45 @@ class AuditLogger
     }
 
     /**
+     * Log failed login attempt
+     */
+    public function logFailedLogin(
+        string $username,
+        string $reason,
+        ?string $ipAddress = null,
+        ?string $userAgent = null
+    ): void
+    {
+        $auditLog = new AuditLog();
+        $auditLog->setAction('user_login_failed');
+        $auditLog->setEntityType('User');
+        $auditLog->setEntityId(null);
+
+        $auditLog->setNewValues($this->sanitizeValues([
+            'username' => $username,
+            'reason' => $reason,
+            'timestamp' => date('Y-m-d H:i:s')
+        ]));
+
+        // Set request info (either from params or current request)
+        $request = $this->requestStack->getCurrentRequest();
+
+        if ($ipAddress) {
+            $auditLog->setIpAddress($ipAddress);
+        } elseif ($request) {
+            $auditLog->setIpAddress($request->getClientIp());
+        }
+
+        if ($userAgent) {
+            $auditLog->setUserAgent($userAgent);
+        } elseif ($request) {
+            $auditLog->setUserAgent($request->headers->get('User-Agent'));
+        }
+
+        $this->auditLogRepository->save($auditLog, true);
+    }
+
+    /**
      * Log user logout
      */
     public function logLogout(User $user): void

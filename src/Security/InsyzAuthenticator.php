@@ -141,6 +141,22 @@ class InsyzAuthenticator extends AbstractAuthenticator
 
     public function onAuthenticationFailure(Request $request, AuthenticationException $exception): ?Response
     {
+        // Získej username z requestu pro logování
+        if ($request->getContentType() === 'json') {
+            $data = json_decode($request->getContent(), true);
+            $username = $data['username'] ?? 'unknown';
+        } else {
+            $username = $request->request->get('username', 'unknown');
+        }
+
+        // ✅ OPRAVA: Loguj failed login attempt
+        $this->auditLogger->logFailedLogin(
+            $username,
+            $exception->getMessageKey(),
+            $request->getClientIp(),
+            $request->headers->get('User-Agent')
+        );
+
         // Pro JSON požadavky vrať JSON odpověď
         if ($request->getContentType() === 'json') {
             return new JsonResponse([
@@ -148,7 +164,7 @@ class InsyzAuthenticator extends AbstractAuthenticator
                 'message' => $exception->getMessageKey()
             ], Response::HTTP_UNAUTHORIZED);
         }
-        
+
         // Pro HTML formuláře přesměruj zpět s chybou
         $request->getSession()->getFlashBag()->add('error', 'Chyba přihlášení: ' . $exception->getMessageKey());
         return new RedirectResponse('/');
