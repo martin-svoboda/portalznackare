@@ -371,25 +371,36 @@ class InsyzService
         $summary = ['records' => $recordCount];
 
         // Mock data má strukturu {head: {}, predmety: [], useky: []}
-        // Nebude to mít $result[0] jako obyčejný array 
+        // Nebude to mít $result[0] jako obyčejný array
         if (isset($result['head'])) {
             $summary['structure'] = 'mock_data';
             $summary['sections'] = array_keys($result);
+            // Pro mock data ukázat i sample z head
+            if (!empty($result['head'])) {
+                $summary['head_sample'] = $this->truncateRecord(is_array($result['head']) ? $result['head'] : []);
+            }
             return $summary;
         }
 
         // Pro MSSQL data (array of arrays)
         if ($recordCount > 0 && is_array($result[0])) {
             $summary['columns'] = array_keys($result[0]);
-            
-            // For small results, include sample data
-            if ($recordCount <= 3) {
-                $summary['sample_data'] = array_map([$this, 'truncateRecord'], array_slice($result, 0, 3));
-            } else {
-                $summary['first_record_sample'] = $this->truncateRecord($result[0]);
+            $summary['column_count'] = count($summary['columns']);
+
+            // Vždy ukázat první 1-2 záznamy pro debugging
+            $sampleSize = min(2, $recordCount);
+            $summary['sample'] = array_map(
+                [$this, 'truncateRecord'],
+                array_slice($result, 0, $sampleSize)
+            );
+
+            // Pokud je jen jeden záznam, přidej i info o typech hodnot
+            if ($recordCount === 1) {
+                $summary['value_types'] = $this->getValueTypes($result[0]);
             }
         } else {
             $summary['structure'] = 'unknown';
+            $summary['raw_sample'] = $this->truncateValue(json_encode($result));
         }
 
         return $summary;
@@ -401,16 +412,52 @@ class InsyzService
     private function truncateRecord(array $record): array
     {
         $truncated = [];
-        
+
         foreach ($record as $key => $value) {
-            if (is_string($value) && strlen($value) > 50) {
-                $truncated[$key] = substr($value, 0, 50) . '...[TRUNCATED]';
-            } else {
-                $truncated[$key] = $value;
+            $truncated[$key] = $this->truncateValue($value);
+        }
+
+        return $truncated;
+    }
+
+    /**
+     * Truncate single value (string, array, etc.)
+     */
+    private function truncateValue(mixed $value, int $maxLength = 100): mixed
+    {
+        if (is_string($value) && strlen($value) > $maxLength) {
+            return substr($value, 0, $maxLength) . '...[' . strlen($value) . ' chars]';
+        }
+
+        if (is_array($value)) {
+            return '[array:' . count($value) . ' items]';
+        }
+
+        return $value;
+    }
+
+    /**
+     * Get types of values in a record for debugging
+     */
+    private function getValueTypes(array $record): array
+    {
+        $types = [];
+
+        foreach ($record as $key => $value) {
+            $types[$key] = gettype($value);
+
+            // Pro stringy přidej i délku
+            if (is_string($value)) {
+                $types[$key] .= '(' . strlen($value) . ')';
+            }
+
+            // Pro arrays přidej počet prvků
+            if (is_array($value)) {
+                $types[$key] .= '(' . count($value) . ')';
             }
         }
-        
-        return $truncated;
+
+        return $types;
     }
 
 

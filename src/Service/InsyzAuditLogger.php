@@ -109,8 +109,21 @@ class InsyzAuditLogger
 
             // Set response summary (not full response)
             if ($responseData && $this->shouldLogResponseSummary()) {
-                $responseSummary = $auditLog->createResponseSummary($responseData);
-                $auditLog->setResponseSummary($responseSummary);
+                // Detekuj, jestli už to je zpracovaný summary nebo raw data
+                // Summary má klíče jako 'records', 'columns', 'sample'
+                $isAlreadyProcessed = (
+                    is_array($responseData) &&
+                    (isset($responseData['records']) || isset($responseData['structure']))
+                );
+
+                if ($isAlreadyProcessed) {
+                    // Už je to zpracovaný summary z InsyzService, použij přímo
+                    $auditLog->setResponseSummary($responseData);
+                } else {
+                    // Raw data, zpracuj pomocí entity metody
+                    $responseSummary = $auditLog->createResponseSummary($responseData);
+                    $auditLog->setResponseSummary($responseSummary);
+                }
             }
 
             // Set request context from current HTTP request
