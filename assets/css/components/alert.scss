@@ -16,7 +16,8 @@
     @apply dark:bg-yellow-950 dark:border-yellow-800 dark:text-yellow-200;
   }
 
-  &--danger {
+  &--danger,
+  &--error, {
     @apply bg-red-50 border-red-200 text-red-800;
     @apply dark:bg-red-950 dark:border-red-800 dark:text-red-200;
   }
@@ -42,7 +43,7 @@
 
   // Alert content structure
   &__content {
-    @apply flex items-start;
+    @apply flex items-start flex-col;
   }
 
   &__icon {
@@ -56,7 +57,8 @@
       @apply text-yellow-600 dark:text-yellow-400;
     }
 
-    &--danger {
+    &--danger,
+    &--error {
       @apply text-red-600 dark:text-red-400;
     }
 
@@ -92,7 +94,8 @@
       @apply focus:ring-yellow-600;
     }
 
-    &--danger {
+    &--danger,
+    &--error{
       @apply focus:ring-red-600;
     }
 
@@ -111,6 +114,7 @@
     @apply dark:bg-green-950 dark:border-green-800 dark:text-green-200;
   }
 
+  &--danger,
   &--error {
     @apply bg-red-50 border-red-200 text-red-800;
     @apply dark:bg-red-950 dark:border-red-800 dark:text-red-200;
