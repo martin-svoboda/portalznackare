@@ -305,14 +305,56 @@ if (result.success) {
 </form>
 ```
 
-### 2. **Session management**
+### 2. **Security validation po WEB_Login**
+
+Po úspěšném volání MSSQL procedury `WEB_Login` se provádí bezpečnostní validace v tomto pořadí:
+
+```php
+// InsyzService::validateLoginResponse() - src/Service/InsyzService.php:470-495
+
+1. Zablokovano - Je účet zablokován?
+   if (Zablokovano !== '0')
+       → throw "Účet je zablokován. Kontaktujte správce."
+
+2. KontrolaPlatnostiPwdWEB + Platnost_DO - Je platnost hesla vypršelá?
+   if (KontrolaPlatnostiPwdWEB !== '0')  // Kontrola zapnuta
+       if (Platnost_DO < dnes)
+           → throw "Platnost hesla vypršela. Kontaktujte správce."
+   // Pokud KontrolaPlatnostiPwdWEB = '0', přeskočí se kontrola data
+
+3. Platnost - Je heslo platné?
+   if (Platnost !== 'OK')
+       → throw "Heslo není platné. Kontaktujte správce."
+```
+
+**Audit logging:**
+- **Úspěšné přihlášení:** `status='success'`, INT_ADR = číslo uživatele
+- **Zamítnuté přihlášení:** `status='error'`, INT_ADR = číslo uživatele, `error_message` = konkrétní důvod zamítnutí
+- **Neplatné credentials:** `status='error'`, INT_ADR = 0, `error_message='Invalid credentials'`
+
+**Response summary obsahuje:**
+```json
+{
+  "records": 1,
+  "sample": [{
+    "INT_ADR": "4133",
+    "Platnost": "OK",
+    "Platnost_DO": "2026-09-02",
+    "Zablokovano": "0",
+    "KontrolaPlatnostiPwdWEB": "0"
+  }]
+}
+```
+
+### 3. **Session management**
 
 ```php
 // Workflow po úspěšném přihlášení:
 1. InsyzAuthenticator ověří credentials přes INSYZ
-2. InsyzUserProvider načte user data z INSYZ  
-3. Symfony vytvoří authenticated session
-4. Subsequent API calls automaticky authorized
+2. validateLoginResponse() zkontroluje bezpečnostní parametry
+3. InsyzUserProvider načte user data z INSYZ
+4. Symfony vytvoří authenticated session
+5. Subsequent API calls automaticky authorized
 
 // Session data uložena:
 - User object s INSYZ daty (INT_ADR, jméno, email, roles)
@@ -320,7 +362,7 @@ if (result.success) {
 - Session storage (default: files)
 ```
 
-### 3. **Authorization check**
+### 4. **Authorization check**
 
 ```php
 // V každém protected controllerů
@@ -330,7 +372,7 @@ if (!$user instanceof User) {
     throw new AccessDeniedException();
 }
 
-// Role-based access  
+// Role-based access
 if (!$this->isGranted('ROLE_VEDOUCI')) {
     throw new AccessDeniedException('Only team leaders allowed');
 }
@@ -339,7 +381,7 @@ if (!$this->isGranted('ROLE_VEDOUCI')) {
 $prikazy = $this->insyzService->getPrikazy($user->getIntAdr(), $year);
 ```
 
-### 4. **React authentication check**
+### 5. **React authentication check**
 
 ```javascript
 // Auth check v React apps
@@ -454,10 +496,10 @@ INSYZ_DB_PASS=complex_secure_password
 
 ---
 
-**User Management:** [user-management.md](user-management.md)  
-**Audit Logging:** [audit-logging.md](audit-logging.md)  
-**Admin API:** [../api/admin-api.md](../api/admin-api.md)  
-**INSYZ Integration:** [insyz-integration.md](insyz-integration.md)  
-**API Reference:** [../api/insyz-api.md](../api/insyz-api.md)  
-**Configuration:** [../configuration.md](../configuration.md)  
-**Aktualizováno:** 2025-08-08
+**User Management:** [user-management.md](user-management.md)
+**Audit Logging:** [audit-logging.md](audit-logging.md)
+**Admin API:** [../api/admin-api.md](../api/admin-api.md)
+**INSYZ Integration:** [insyz-integration.md](insyz-integration.md)
+**API Reference:** [../api/insyz-api.md](../api/insyz-api.md)
+**Configuration:** [../configuration.md](../configuration.md)
+**Aktualizováno:** 2025-10-17 - Přidána bezpečnostní validace po WEB_Login
