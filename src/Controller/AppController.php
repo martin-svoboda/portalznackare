@@ -4,11 +4,13 @@ namespace App\Controller;
 
 use App\Service\CzechVocativeService;
 use App\Service\InsyzService;
+use App\Service\DataEnricherService;
 use App\Entity\User;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Core\Security;
+use Twig\Environment;
 
 class AppController extends AbstractController
 {
@@ -131,6 +133,46 @@ class AppController extends AbstractController
             'kvalifikace' => $kvalifikace,
             'seminare' => $seminare
         ]);
+    }
+
+    /**
+     * HTML náhled kontrolního formuláře PDF pro ladění stylů
+     */
+    #[Route('/prikaz/{id}/pdf-preview', name: 'app_pdf_preview', methods: ['GET'])]
+    public function pdfPreview(
+        int $id,
+        InsyzService $insyzService,
+        DataEnricherService $dataEnricher,
+        Environment $twig
+    ): Response {
+        // Autentifikace
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            return new Response('Nepřihlášený uživatel', Response::HTTP_UNAUTHORIZED);
+        }
+
+        try {
+            // Načíst data z INSYZ
+            $prikazData = $insyzService->getPrikaz($user->getIntAdr(), $id);
+
+            // Obohatit data - PŘESNĚ stejně jako pro PDF
+            $enrichedData = $dataEnricher->enrichPrikazDetail($prikazData, true);
+
+            // Render HTML template - PŘESNĚ stejně jako pro PDF
+            $html = $twig->render('pdf/control_form.html.twig', [
+                'prikaz' => $enrichedData,
+                'head' => $enrichedData['head'] ?? [],
+                'useky' => $enrichedData['useky'] ?? [],
+                'predmety' => $enrichedData['predmety'] ?? [],
+                'generated_at' => new \DateTime()
+            ]);
+
+            // Vrátit čisté HTML jako normální stránka (bez API CSP)
+            return new Response($html);
+
+        } catch (\Exception $e) {
+            return new Response('Chyba: ' . $e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 
     #[Route('/{slug}', name: 'app_catch_all', requirements: ['slug' => '^(?!napoveda).*'], priority: -10)]

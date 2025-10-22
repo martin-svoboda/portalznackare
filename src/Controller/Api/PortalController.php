@@ -16,6 +16,7 @@ use App\Message\SendToInsyzMessage;
 use App\MessageHandler\SendToInsyzHandler;
 use App\Service\WorkerManagerService;
 use App\Service\UserPreferenceService;
+use App\Service\PdfGeneratorService;
 use App\Utils\Logger;
 use Doctrine\ORM\EntityManagerInterface;
 use App\Service\AttachmentLookupService;
@@ -30,7 +31,8 @@ class PortalController extends AbstractController
         private WorkerManagerService $workerManager,
         private SendToInsyzHandler $insyzHandler,
         private AttachmentLookupService $attachmentService,
-        private UserPreferenceService $userPreferenceService
+        private UserPreferenceService $userPreferenceService,
+        private PdfGeneratorService $pdfGenerator
     ) {}
     #[Route('/post', methods: ['GET'])]
     public function getPost(Request $request): JsonResponse
@@ -502,5 +504,53 @@ class PortalController extends AbstractController
         ], Response::HTTP_BAD_REQUEST);
     }
 
+    /**
+     * Generování kontrolního formuláře PDF pro příkaz
+     */
+    #[Route('/prikaz/{id}/control-form-pdf', name: 'api_portal_control_form_pdf', methods: ['GET'])]
+    public function getControlFormPdf(int $id): Response
+    {
+        // Autentifikace
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            return new JsonResponse([
+                'error' => 'Nepřihlášený uživatel'
+            ], Response::HTTP_UNAUTHORIZED);
+        }
+
+        try {
+            Logger::info('Generování kontrolního formuláře PDF', [
+                'id_zp' => $id,
+                'int_adr' => $user->getIntAdr()
+            ]);
+
+            // Vygenerovat PDF
+            $pdfContent = $this->pdfGenerator->generateControlFormPdf($id, $user->getIntAdr());
+
+            // Vytvořit response s PDF
+            $response = new Response($pdfContent);
+            $response->headers->set('Content-Type', 'application/pdf');
+            $response->headers->set('Content-Disposition',
+                'attachment; filename="kontrolni-formular-' . $id . '.pdf"'
+            );
+
+            Logger::info('Kontrolní formulář PDF úspěšně vygenerován', [
+                'id_zp' => $id,
+                'size' => strlen($pdfContent)
+            ]);
+
+            return $response;
+
+        } catch (\Exception $e) {
+            Logger::error('Chyba při generování PDF', [
+                'id_zp' => $id,
+                'error' => $e->getMessage()
+            ]);
+
+            return new JsonResponse([
+                'error' => 'Chyba při generování PDF: ' . $e->getMessage()
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
 
 }

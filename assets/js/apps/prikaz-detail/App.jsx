@@ -20,6 +20,7 @@ import { getPrikazDescription } from '../../utils/prikaz';
 import { renderHtmlContent, replaceTextWithIcons } from '../../utils/htmlUtils';
 import { api } from '../../utils/api';
 import { log } from '../../utils/debug';
+import { showErrorToast, showSuccessToast, showInfoToast } from '../../utils/toastManager';
 
 // Utility functions from original app
 function groupByEvCiTIM(rows) {
@@ -139,6 +140,7 @@ const App = () => {
     const [useky, setUseky] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [downloadingPdf, setDownloadingPdf] = useState(false);
 
     // Detect dark mode
     const [isDarkMode, setIsDarkMode] = useState(
@@ -216,6 +218,56 @@ const App = () => {
     useEffect(() => {
         loadPrikazData();
     }, [loadPrikazData]);
+
+    // Handler pro stažení kontrolního formuláře PDF (backend mPDF)
+    const handleDownloadPdf = useCallback(async () => {
+        if (!prikazId) {
+            log.error('Chybí ID příkazu pro generování PDF');
+            showErrorToast('Chybí ID příkazu');
+            return;
+        }
+
+        setDownloadingPdf(true);
+        log.info('Generování kontrolního formuláře PDF', { prikazId });
+
+        try {
+            // Zavolat backend endpoint pro PDF
+            const response = await fetch(`/api/portal/prikaz/${prikazId}/control-form-pdf`, {
+                method: 'GET',
+                credentials: 'same-origin',
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                const errorMsg = errorData.error || errorData.message || 'Chyba při generování PDF';
+                throw new Error(errorMsg);
+            }
+
+            // Získat blob PDF
+            const blob = await response.blob();
+
+            // Vytvořit dočasný odkaz pro stažení
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `kontrolni-formular-${prikazId}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+
+            // Cleanup
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+
+            log.info('PDF úspěšně staženo', { prikazId });
+            showSuccessToast('PDF bylo úspěšně vygenerováno');
+
+        } catch (error) {
+            log.error('Chyba při generování PDF', error);
+            showErrorToast(`Nepodařilo se vygenerovat PDF: ${error.message}`);
+        } finally {
+            setDownloadingPdf(false);
+        }
+    }, [prikazId]);
 
     // Aktualizace prvků v Twig šabloně
     useEffect(() => {
@@ -498,9 +550,13 @@ const App = () => {
                         {head && head.Stav_ZP_Naz && isNezpracovany(head.Stav_ZP_Naz) && (
                             <div className="mt-4 pt-4 border-t">
                                 <div className="flex gap-2">
-                                    <button className="btn btn--secondary">
+                                    <button
+                                        className="btn btn--secondary"
+                                        onClick={handleDownloadPdf}
+                                        disabled={downloadingPdf}
+                                    >
                                         <IconPrinter size={16} className="mr-2"/>
-                                        Kontrolní formulář PDF
+                                        {downloadingPdf ? 'Generování PDF...' : 'Kontrolní formulář PDF'}
                                     </button>
                                 </div>
                             </div>

@@ -226,7 +226,7 @@ if (isActiveStav(prikaz.Stav_ZP_Naz)) {
 
 ### **Dostupné filtry:**
 - **Rok** - dropdown s posledními lety
-- **"Jen ke zpracování"** - checkbox pro aktivní příkazy  
+- **"Jen ke zpracování"** - checkbox pro aktivní příkazy
 - **Material React Table** - vestavěné filtry a vyhledávání
 - **Vizuální zvýraznění** - nezpracované příkazy modře
 
@@ -248,7 +248,7 @@ curl "https://portalznackare.ddev.site/api/test/insyz-prikaz/123"
 
 ---
 
-**Propojené funkcionality:** [Hlášení příkazů](hlaseni-prikazu.md) | [INSYZ Integration](insyz-integration.md)  
-**API Reference:** [../api/insyz-api.md](../api/insyz-api.md)  
-**Frontend:** [../architecture.md](../architecture.md)  
-**Aktualizováno:** 2025-07-22
+**Propojené funkcionality:** [Hlášení příkazů](hlaseni-prikazu.md) | [INSYZ Integration](insyz-integration.md)
+**API Reference:** [../api/insyz-api.md](../api/insyz-api.md) | [../api/portal-api.md](../api/portal-api.md)
+**Frontend:** [../architecture.md](../architecture.md)
+**Aktualizováno:** 2025-10-22 - Vyčištění neaktuální dokumentace
