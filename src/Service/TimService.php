@@ -31,7 +31,7 @@ class TimService {
 			case "CT":
 			case "DO":
 				$svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 25">
-							<polygon points="0,0 0,25 40,25 40,0" fill="' . $color . '"/>
+                            <path d="M13.711,0.281c-0,-0 -6.933,5.281 -10.253,8.224c-2.9,2.571 -2.802,5.66 -0.108,8.129c3.389,3.107 10.425,8.647 10.425,8.647l27.14,-0l0,-25l-27.204,-0Z" fill="' . $color . '"/>
 						</svg>';
 				break;
 
@@ -88,7 +88,8 @@ class TimService {
 		if ( $forPdf && $svg ) {
 			// Určit rozměry podle viewBox
 			$width  = in_array( $shape, [ 'NS', 'SN' ] ) ? '25' : '40';
-			$height = in_array( $shape, [ 'PA', 'CT', 'DO' ] ) ? '25' : '26';
+			$pasova = in_array( $shape, [ 'PA', 'CT', 'DO' ] );
+			$height = $pasova ? '25' : '26';
 
 			$base64 = base64_encode( $svg );
 
@@ -175,26 +176,78 @@ class TimService {
 		return $result;
 	}
 
-	private function renderTriangle( string $direction, string $fillColor, bool $forPdf = false ): string {
+	private function renderTriangle( string $direction, string $position, string $fillColor, bool $forPdf = false ): string {
 		if ( ! $forPdf ) {
 			return '';
 		}
+		$points = '';
+		if ( $direction === 'L' ) {
+			$points = match ( $position ) {
+				'top' => 'M50.2,32.194l-34.69,0l34.69,-31.637l0,31.637Z',      // Trojúhelník levý nahoru
+				'bottom' => 'M50.783,32.391l-32.965,-31.97l32.965,-0l-0,31.97Z',    // Trojúhelník levý dolů
+				'center' => 'M15.991,0.814l-12.131,10.543c-2.99,2.583 -2.562,6.667 0.237,9.127l13.748,12.41l32.965,-0l-0,-32.08l-34.819,0Z',    // levý střed
+				default => '',
+			};
+		}
 
-		$points = match ( $direction ) {
-			'l-top' => '0,30 40,30 40,0',      // Trojúhelník levý nahoru
-			'l-bottom' => '0,0 40,30 40,0',    // Trojúhelník levý dolů
-			'p-top' => '0,0 0,30 40,30',    // Trojúhelník pravý dolů
-			'p-bottom' => '0,0 0,30 40,0',      // Trojúhelník pravý nahoru
-			default => '0,0 40,0 40,30',       // Fallback - pravý horní roh
-		};
+		if ( $direction === 'P' ) {
+			$points = match ( $position ) {
+				'top' => 'M0.697,32.194l34.69,0l-34.69,-31.637l-0,31.637Z',      // Trojúhelník levý nahoru
+				'bottom' => 'M0.095,32.391l32.964,-31.97l-32.964,-0l-0,31.97Z',    // Trojúhelník levý dolů
+				'center' => 'M34.941,0.814l12.131,10.543c2.99,2.583 2.561,6.667 -0.237,9.127l-13.749,12.41l-32.964,-0l-0,-32.08l34.819,0Z',    // levý střed
+				default => '',
+			};
+		}
 
-		$svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 30">
-                  <polygon points="' . $points . '" fill="' . $fillColor . '" stroke="#ccc" stroke-width="1"/>
+		if ( ! $points ) {
+			return '';
+		}
+
+		$svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 32">
+                  <path d="' . $points . '" fill="' . $fillColor . '" stroke="#ccc" stroke-width="1"/>
               </svg>';
 
-		return '<img src="data:image/svg+xml;base64,' . base64_encode( $svg ) . '" width="40" height="30" />';
+		return '<img src="data:image/svg+xml;base64,' . base64_encode( $svg ) . '" width="50" height="32" />';
 	}
 
+	public function get_arrow_table( $item, $direction, $vedouciBarva, $barvaPodkladu, $forPdf ) {
+		$html  = '';
+		$shape = ( $item['Druh_Odbocky_Kod'] ?? null ) ?: ( $item['Druh_Znaceni_Kod'] ?? null ) ?: 'PA';
+		$html  .= '<table class="shape-table" style="width: 50px; text-align: center; ">';
+		$html  .= '<tr><td style="padding: 0;">';
+
+		$pasova = in_array( $shape, [ 'PA', 'CT', 'DO' ] );
+
+		if ( $forPdf ) {
+			$html .= $this->renderTriangle( $direction, 'top', $barvaPodkladu, true );
+		}
+
+		$html .= '</td></tr><tr><td style="padding: 0; position: relative;">';
+
+		if ( $forPdf ) {
+			$html .= '<div style="position: absolute; ' . ( $direction === 'L' ? 'right: 0;' : 'left: 0;' ) . '">';
+		}
+
+		$html .= '<div style="margin: 4px; float:' . ( $direction === 'L' ? 'right' : 'left' ) . '; ' . ( $direction === 'P' && $pasova ? 'transform: scaleX(-1);' : '' ) . '">';
+		$html .= $this->renderTimArrowShape( $vedouciBarva, $shape, true );
+		$html .= '</div>';
+
+		if ( $forPdf ) {
+			$html .= '</div>';
+			$html .= $this->renderTriangle( $direction, 'center', $barvaPodkladu, true );
+		}
+
+		$html .= '</td></tr><tr><td style="padding: 0;">';
+
+		if ( $forPdf ) {
+			$html .= $this->renderTriangle( $direction, 'bottom', $barvaPodkladu, true );
+		}
+
+		$html .= '<tr><td></td></tr>';
+		$html .= '</table>';
+
+		return $html;
+	}
 
 	/**
 	 * Vygeneruje kompletní TIM náhled
@@ -210,50 +263,56 @@ class TimService {
 		$barvaPodkladu = $this->getBarvaPodkladu( $item['Druh_Presunu'] ?? null );
 
 		// Styly pro TIM kontejner
-		$itemStyle  = 'padding: 5px; display: inline-block;';
+		$itemStyle  = 'padding: 5px; display: inline-block; background-color: ' . $barvaPodkladu . '; border: 1px solid #ccc;';
 		$shapeStyle = 'display: none;';
-		$clipPath   = '';
+		$tableStyle = '';
+		$arrow_svg  = '';
 
 		// Nastavení stylů podle směru šipky
-		if ( $showArrow && $direction === "L" && ! $forPdf ) {
-			$itemStyle  = 'padding: 5px 5px 5px 50px; text-align: left;';
-			$clipPath   = 'clip-path: polygon(45px 0, 100% 0, 100% 100%, 45px 100%, 0px 50%);';
+		if ( ! $forPdf && $showArrow && $direction === "L" ) {
+			$arrow_svg  = '<svg viewBox="0 0 266 95" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+					        <path d="M49.059,93.183l215.029,0l0,-91.454l-215.029,-0c-0,-0 -40.963,36.424 -45.598,40.517c-2.904,2.566 -2.487,6.621 0.231,9.064c2.283,2.051 45.367,41.873 45.367,41.873Z" fill="' . $barvaPodkladu . '" stroke="#ccc" stroke-width="1"/>
+					        <path d="M48.979,92.168l0,-20.642c0,-3.207 -2.279,-6.116 -6.116,-6.116l-23.06,-0" fill="transparent" stroke="#ccc" stroke-width="2" stroke-opacity="0.3"/>
+					        <path d="M48.979,2.004l0,21.551c0,3.348 -2.379,6.386 -6.385,6.386l-24.075,-0" fill="transparent" stroke="#ccc" stroke-width="2" stroke-opacity="0.3"/>
+					</svg>';
+			$itemStyle  = 'padding: 6px; text-align: left;';
 			$shapeStyle = 'position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 40px; height: 25px; display: flex; justify-content: end;';
 		}
 
-		if ( $showArrow && $direction === "P" && ! $forPdf ) {
-			$itemStyle  = 'padding: 5px 50px 5px 5px; text-align: left;';
-			$clipPath   = 'clip-path: polygon(calc(100% - 45px) 0, 100% 50%, calc(100% - 45px) 100%, 0 100%, 0 0);';
+		if ( ! $forPdf && $showArrow && $direction === "P" ) {
+			$arrow_svg  = '<svg viewBox="0 0 266 95" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+					        <path d="M216.491,1.729l-215.03,-0l0,91.454l215.03,0c-0,0 40.963,-36.424 45.597,-40.517c2.904,-2.565 2.488,-6.621 -0.23,-9.063c-2.283,-2.052 -45.367,-41.874 -45.367,-41.874Z" fill="' . $barvaPodkladu . '" stroke="#ccc" stroke-width="1"/>
+					        <path d="M216.57,2.744l0,20.642c0,3.207 2.28,6.117 6.116,6.117l23.061,-0" fill="transparent" stroke="#ccc" stroke-width="2" stroke-opacity="0.3"/>
+					        <path d="M216.57,92.908l0,-21.551c0,-3.348 2.38,-6.385 6.386,-6.385l24.075,-0" fill="transparent" stroke="#ccc" stroke-width="2" stroke-opacity="0.3"/>
+					</svg>';
+			$itemStyle  = 'padding: 6px; text-align: left;';
 			$shapeStyle = 'position: absolute; right: 0; top: 50%; transform: translateY(-50%); width: 40px; height: 25px; display: flex; justify-content: start;';
 		}
 
+		// použít SVG jako background-image
+		if ( ! $forPdf && $showArrow && $direction ) {
+			$arrow_svg_base64 = base64_encode( $arrow_svg );
+			$backgroundImage  = 'background-image: url(data:image/svg+xml;base64,' . $arrow_svg_base64 . ');';
+			$backgroundStyles = 'background-size: 100% 100%; background-repeat: no-repeat; background-position: center;';
+			$tableStyle       = $backgroundImage . $backgroundStyles;
+		}
+
 		// Začátek HTML
-		$html = '<table style="width: 265px; text-align: center"><tr><td style="padding: 0;">';
+		$html = '<table style="width: 270px; text-align: center; ' . $tableStyle . '"><tr><td style="padding: 0;">';
 
 		// Šipka L pro pdf pokud je potřeba
-		if ( $forPdf && $showArrow && $direction === "L" ) {
-			$shape = ( $item['Druh_Odbocky_Kod'] ?? null ) ?: ( $item['Druh_Znaceni_Kod'] ?? null ) ?: 'PA';
-			$html  .= '<table class="shape-table" style="">';
-			$html  .= '<tr><td>' .  $this->renderTriangle('l-top', $barvaPodkladu, true) . '</td></tr><tr><td style="background-color: ' . $barvaPodkladu . ';">';
-			$html  .= $this->renderTimArrowShape( $vedouciBarva, $shape, $forPdf );
-			$html  .= '</td></tr><tr><td>' . $this->renderTriangle('l-bottom', $barvaPodkladu, true) . '</td></tr>';
-			$html  .= '</table></td><td style="padding: 0;">';
+		if ( $showArrow && $direction === "L" ) {
+			$html .= $this->get_arrow_table( $item, $direction, $vedouciBarva, $barvaPodkladu, $forPdf );
+			$html .= '</td><td style="padding: 0;">';
 		}
 
 		// Hlavní TIM kontejner
-		$html .= '<div style="' . $itemStyle . $clipPath . ' background-color: ' . $barvaPodkladu . '; border: 1px solid #ccc; position: relative; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">';
+		$html .= '<div style="' . $itemStyle . ' position: relative;">';
 
-		// Šipka pokud je potřeba
-		if ( $showArrow && $direction ) {
-			$shape = ( $item['Druh_Odbocky_Kod'] ?? null ) ?: ( $item['Druh_Znaceni_Kod'] ?? null ) ?: 'PA';
-			$html  .= '<div style="' . $shapeStyle . '">';
-			$html  .= $this->renderTimArrowShape( $vedouciBarva, $shape, $forPdf );
-			$html  .= '</div>';
-		}
 
 		// Obsah TIM
 		$html .= '<div style="display: flex; flex-direction: column; gap: 0;">';
-		$html .= '<div style="width: 210px; min-height: 60px; display: flex; flex-direction: column; justify-content: center; align-items: center;">';
+		$html .= '<div style="width: 210px; min-height: 60px; display: flex; flex-direction: column; justify-content: center; align-items: center; line-height: 1.2">';
 
 		// Řádky s textem
 		if ( count( $lines ) > 0 ) {
@@ -325,13 +384,9 @@ class TimService {
 		$html .= '</div>'; // konec hlavního kontejneru
 
 		// Šipka P (pravá) pro pdf pokud je potřeba
-		if ( $forPdf && $showArrow && $direction === "P" ) {
-			$shape = ( $item['Druh_Odbocky_Kod'] ?? null ) ?: ( $item['Druh_Znaceni_Kod'] ?? null ) ?: 'PA';
-			$html  .= '</td><td style="padding: 0;"><table class="shape-table" style="">';
-			$html  .= '<tr><td>' .  $this->renderTriangle('p-top', $barvaPodkladu, true) . '</td></tr><tr><td style="background-color: ' . $barvaPodkladu . ';">';
-			$html  .= $this->renderTimArrowShape( $vedouciBarva, $shape, $forPdf );
-			$html  .= '</td></tr><tr><td>' . $this->renderTriangle('p-bottom', $barvaPodkladu, true) . '</td></tr>';
-			$html  .= '</table>';
+		if ( $showArrow && $direction === "P" ) {
+			$html .= '</td><td style="padding: 0;">';
+			$html .= $this->get_arrow_table( $item, $direction, $vedouciBarva, $barvaPodkladu, $forPdf );
 		}
 
 		$html .= '</td></tr></table>'; // konec flex wrapperu
