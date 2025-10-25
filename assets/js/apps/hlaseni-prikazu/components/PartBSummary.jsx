@@ -79,7 +79,8 @@ export const PartBSummary = ({
                                     {timGroup.items.map(item => {
                                         const itemId = item.ID_PREDMETY?.toString();
                                         const itemStatus = predmetyInTim[itemId];
-                                        const isArrow = item.Predmet?.toLowerCase().includes('směrovka');
+                                        const isArrow = item.Druh_Predmetu && 'S' === item.Druh_Predmetu.toUpperCase();
+                                        const isSponzor = item.Druh_Predmetu && 'P' === item.Druh_Predmetu.toUpperCase();
                                         const needsAdditionalData = itemStatus?.Zachovalost && ['1', '2'].includes(itemStatus.Zachovalost?.toString());
                                         
                                         return (
@@ -102,7 +103,7 @@ export const PartBSummary = ({
                                                     )}
                                                 </td>
                                                 <td className={`${smallTextSize} py-2 pr-4`}>
-                                                    {needsAdditionalData ? (
+                                                    {needsAdditionalData && !isSponzor ? (
                                                         itemStatus?.Rok_Vyroby ? (
                                                             <span>{itemStatus.Rok_Vyroby}</span>
                                                         ) : (

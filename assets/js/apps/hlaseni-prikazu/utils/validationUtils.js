@@ -641,7 +641,7 @@ const validateTimItems = (formData, predmety, errors, warnings) => {
                 incompleteItems.push({
                     itemId,
                     timId,
-                    predmet: item.Predmet || 'Neznámý předmět',
+                    predmet: item.Druh_Predmetu_Naz || 'Neznámý předmět',
                     missing: 'stav'
                 });
                 return; // Pokud chybí stav, nekontrolujeme další pole
@@ -649,15 +649,16 @@ const validateTimItems = (formData, predmety, errors, warnings) => {
             
             // Conditional required fields based on item type and status
             const needsAdditionalData = itemStatus.Zachovalost && [1, 2].includes(parseInt(itemStatus.Zachovalost));
-            const isArrow = item.Predmet && item.Predmet.toLowerCase().includes('směrovka');
-            
+            const isArrow = item.Druh_Predmetu && 'S' === item.Druh_Predmetu.toUpperCase();
+            const isSponzor = item.Druh_Predmetu && 'P' === item.Druh_Predmetu.toUpperCase();
+
             // Required: Rok_Vyroby (for items that need additional data)
-            if (needsAdditionalData && !itemStatus.Rok_Vyroby) {
+            if (needsAdditionalData && !itemStatus.Rok_Vyroby && !isSponzor) {
                 missingItems++;
                 incompleteItems.push({
                     itemId,
                     timId,
-                    predmet: item.Predmet || 'Neznámý předmět',
+                    predmet: item.Druh_Predmetu_Naz || 'Neznámý předmět',
                     missing: 'rok výroby'
                 });
             }
@@ -668,7 +669,7 @@ const validateTimItems = (formData, predmety, errors, warnings) => {
                 incompleteItems.push({
                     itemId,
                     timId,
-                    predmet: item.Predmet || 'Neznámý předmět',
+                    predmet: item.Druh_Predmetu_Naz || 'Neznámý předmět',
                     missing: 'orientace směrovky'
                 });
             }

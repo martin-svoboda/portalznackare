@@ -223,13 +223,14 @@ export const PartBForm = ({formData, setFormData, head, useky, predmety, prikazI
         const filledFields = predmetyToCheck.filter(status => {
             if (!status.Zachovalost) return false;
             if (status.Zachovalost === 3 || status.Zachovalost === 4) return true; // Nevyhovující/chybí don't require additional data
+            const originalItem = timData.items.find(item => item.ID_PREDMETY?.toString() === status.ID_PREDMETY?.toString());
 
             // For states 1-2, additional data is needed
-            const hasYear = status.Rok_Vyroby !== null && status.Rok_Vyroby !== undefined;
+            const isSponzor = originalItem?.Druh_Predmetu && 'P' === originalItem.Druh_Predmetu.toUpperCase();
+            const hasYear = isSponzor || ( status.Rok_Vyroby !== null && status.Rok_Vyroby !== undefined );
 
             // Najdeme původní item aby mohli zkontrolovat jestli je to směrovka
-            const originalItem = timData.items.find(item => item.ID_PREDMETY?.toString() === status.ID_PREDMETY?.toString());
-            const isArrow = originalItem?.Predmet?.toLowerCase().includes('směrovka') || false;
+            const isArrow = originalItem?.Druh_Predmetu && 'S' === originalItem.Druh_Predmetu.toUpperCase();
             const hasOrientation = !isArrow || status.Smerovani;
 
             return hasYear && hasOrientation;
