@@ -54,8 +54,13 @@ class InsyzController extends AbstractController
             ], Response::HTTP_UNAUTHORIZED);
         }
 
-        try {
-            $userData = $this->insyzService->getUser((int) $user->getIntAdr());
+	    $intAdr = $request->query->get('int_adr');
+		if (empty($intAdr)) {
+			$intAdr = $user->getIntAdr();
+		}
+
+	    try {
+            $userData = $this->insyzService->getUser((int) $intAdr);
             return new JsonResponse($userData);
         } catch (Exception $e) {
             return new JsonResponse(['error' => $e->getMessage()], 500);

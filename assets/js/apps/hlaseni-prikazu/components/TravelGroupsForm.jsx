@@ -15,9 +15,9 @@ import {
     IconCurrencyDollar
 } from '@tabler/icons-react';
 import {AdvancedFileUpload} from '../../../components/shared/forms/AdvancedFileUpload';
-import { 
-    getAttachmentsAsArray, 
-    setAttachmentsFromArray 
+import {
+    getAttachmentsAsArray,
+    setAttachmentsFromArray
 } from '../utils/attachmentUtils';
 import { calculateExecutionDate } from '../utils/compensationCalculator';
 import { toISODateString } from '../../../utils/dateUtils';
@@ -62,8 +62,6 @@ export const TravelGroupsForm = ({
                                      disabled = false,
                                      getNextId
                                  }) => {
-    const userDataHead = data.userDetails ? data.userDetails[0][0] : null;
-
     // Generate storage path for this report
     const storagePath = useMemo(() => {
         if (!prikazId) return null;
@@ -248,29 +246,41 @@ export const TravelGroupsForm = ({
         }
     }, []); // Run only once on mount
 
-    // Auto-fill SPZ when driver is set but SPZ is empty (for automatically assigned drivers)
+    // Auto-fill SPZ when driver is set but SPZ is empty - works for any team member
     React.useEffect(() => {
-        if (!userDataHead?.INT_ADR || !userDataHead?.RZ_Auta) return;
+        const usersDetails = data.usersDetails || {};
 
-        const needsSPZFill = formData.Skupiny_Cest?.some(group =>
-            group.Ridic &&
-            group.Ridic == userDataHead.INT_ADR &&
-            (!group.SPZ || group.SPZ.trim() === '')
-        );
+        // Check if any group needs SPZ auto-fill
+        const needsSPZFill = formData.Skupiny_Cest?.some(group => {
+            if (!group.Ridic || (group.SPZ && group.SPZ.trim() !== '')) return false;
+            const driverData = usersDetails[group.Ridic];
+            if (!driverData) return false;
+            // usersDetails[INT_ADR] vrací přímo objekt s daty, ne pole
+            const userData = Array.isArray(driverData) ? driverData[0]?.[0] : driverData;
+            return userData?.RZ_Auta && userData.RZ_Auta.trim() !== '';
+        });
 
         if (needsSPZFill) {
             setFormData(prev => ({
                 ...prev,
                 Skupiny_Cest: (prev.Skupiny_Cest || []).map(group => {
-                    // Only update if driver is current user and SPZ is empty
-                    if (group.Ridic == userDataHead.INT_ADR && (!group.SPZ || group.SPZ.trim() === '')) {
-                        return { ...group, SPZ: userDataHead.RZ_Auta };
+                    // Only update if driver is selected, SPZ is empty, and driver has RZ_Auta
+                    if (group.Ridic && (!group.SPZ || group.SPZ.trim() === '')) {
+                        const driverData = usersDetails[group.Ridic];
+                        if (!driverData) return group;
+
+                        // usersDetails[INT_ADR] vrací přímo objekt s daty, ne pole
+                        const userData = Array.isArray(driverData) ? driverData[0]?.[0] : driverData;
+
+                        if (userData?.RZ_Auta && userData.RZ_Auta.trim() !== '') {
+                            return { ...group, SPZ: userData.RZ_Auta };
+                        }
                     }
                     return group;
                 })
             }));
         }
-    }, [userDataHead?.INT_ADR, userDataHead?.RZ_Auta, formData.Skupiny_Cest?.map(g => `${g.id}-${g.Ridic}-${g.SPZ}`).join(',')]); // Run when user data loads or driver/SPZ changes
+    }, [data.usersDetails, formData.Skupiny_Cest?.map(g => `${g.id}-${g.Ridic}-${g.SPZ}`).join(',')]); // Run when users details load or driver/SPZ changes
 
     // Auto-set first driver to have higher rate when Zvysena_Sazba is true or when drivers change
     React.useEffect(() => {
@@ -289,7 +299,7 @@ export const TravelGroupsForm = ({
     // Získat unikátní řidiče napříč skupinami
     const uniqueDrivers = useMemo(() => {
         const driverMap = new Map();
-        
+
         travelGroups.forEach(group => {
             if (group.Ridic) {
                 const driver = (teamMembers || []).find(m => m.INT_ADR == group.Ridic);
@@ -298,7 +308,7 @@ export const TravelGroupsForm = ({
                     const totalKmForDriver = travelGroups
                         .filter(g => g.Ridic === group.Ridic)
                         .reduce((total, g) => total + calculateGroupKilometers(g), 0);
-                    
+
                     driverMap.set(group.Ridic, {
                         ...driver,
                         totalKm: totalKmForDriver,
@@ -307,7 +317,7 @@ export const TravelGroupsForm = ({
                 }
             }
         });
-        
+
         return Array.from(driverMap.values());
     }, [travelGroups, teamMembers]);
 

@@ -3,8 +3,8 @@
  * Automaticky loguje a zobrazuje notifikace
  */
 
-import { log } from './debug';
-import { showNotification } from './notifications';
+import {log} from './debug';
+import {showNotification} from './notifications';
 
 /**
  * API Error třída pro lepší error handling
@@ -32,7 +32,7 @@ export async function apiCall(endpoint, options = {}) {
 
     // Automaticky přidej /api prefix pokud chybí
     const url = endpoint.startsWith('/api') ? endpoint : `/api${endpoint}`;
-    
+
     const config = {
         method,
         headers: {
@@ -56,16 +56,16 @@ export async function apiCall(endpoint, options = {}) {
 
     try {
         const response = await fetch(finalUrl, config);
-        
+
         // Zpracování 204 No Content - žádné JSON k parsování
         if (response.status === 204) {
             log.api('Odpověď:', finalUrl, 'Žádný obsah (204)');
             return null;
         }
-        
+
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            
+
             // Speciální handling pro autentizační chyby
             if (response.status === 401) {
                 const message = 'Nejste přihlášení. Přihlaste se prosím.';
@@ -73,48 +73,48 @@ export async function apiCall(endpoint, options = {}) {
                 error.requiresAuth = true;
                 throw error;
             }
-            
+
             if (response.status === 403) {
                 const message = 'Nemáte oprávnění pro přístup k tomuto prostředku.';
                 const error = new ApiError(response.status, message);
                 error.insufficientPermissions = true;
                 throw error;
             }
-            
+
             // Podrobná chybová zpráva z serveru
             let message = (typeof errorData.error === 'string' ? errorData.error : errorData.message) || `HTTP ${response.status}`;
-            
+
             // Přidej dodatečné informace pokud jsou k dispozici
             if (errorData.error_code) {
                 message += ` (${errorData.error_code})`;
             }
-            
+
             const error = new ApiError(response.status, message);
             error.errorCode = errorData.error_code;
             error.details = errorData.details;
             error.success = errorData.success;
-            
+
             throw error;
         }
 
         const result = await response.json();
-        
+
         // Zobraz success notifikaci pokud je požadována
         if (showSuccess) {
             showNotification('success', successMessage);
         }
-        
+
         return result;
-        
+
     } catch (error) {
         log.error(`API ${method} ${finalUrl} selhalo`, error);
-        
+
         // Zobraz error notifikaci
         if (showError) {
             const message = errorMessage || error.message || 'Něco se pokazilo';
             showNotification('error', message);
         }
-        
+
         throw error;
     }
 }
@@ -124,40 +124,40 @@ export async function apiCall(endpoint, options = {}) {
  */
 export const api = {
     // Základní metody
-    get: (url, data, options = {}) => 
-        apiCall(url, { ...options, method: 'GET', data }),
-    post: (url, data, options = {}) => 
-        apiCall(url, { ...options, method: 'POST', data }),
-    put: (url, data, options = {}) => 
-        apiCall(url, { ...options, method: 'PUT', data }),
-    delete: (url, options = {}) => 
-        apiCall(url, { ...options, method: 'DELETE' }),
+    get: (url, data, options = {}) =>
+        apiCall(url, {...options, method: 'GET', data}),
+    post: (url, data, options = {}) =>
+        apiCall(url, {...options, method: 'POST', data}),
+    put: (url, data, options = {}) =>
+        apiCall(url, {...options, method: 'PUT', data}),
+    delete: (url, options = {}) =>
+        apiCall(url, {...options, method: 'DELETE'}),
 
     // Specifické endpointy pro snadné použití
     prikazy: {
         list: (params) => api.get('/insyz/prikazy', params),
         detail: (id) => api.get(`/insyz/prikaz/${id}`),
         report: (id) => {
-            const params = { id_zp: id };
+            const params = {id_zp: id};
             return api.get('/portal/report', params);
         },
-        saveReport: (data) => api.post('/portal/report', data, { 
-            showSuccess: true, 
-            successMessage: 'Hlášení bylo uloženo' 
+        saveReport: (data) => api.post('/portal/report', data, {
+            showSuccess: true,
+            successMessage: 'Hlášení bylo uloženo'
         })
     },
 
     insyz: {
-        user: () => api.get('/insyz/user'),
-        sazby: (date) => api.get('/insyz/sazby', { date }),
-        submitReport: (xmlData) => api.post('/insyz/submit-report', { xml_data: xmlData }, {
+        user: (int_adr = '') => api.get('/insyz/user', {int_adr}),
+        sazby: (date) => api.get('/insyz/sazby', {date}),
+        submitReport: (xmlData) => api.post('/insyz/submit-report', {xml_data: xmlData}, {
             showSuccess: true,
             successMessage: 'Hlášení bylo úspěšně odesláno do INSYZ'
         })
     },
 
     auth: {
-        login: (username, password) => api.post('/auth/login', { username, password }),
+        login: (username, password) => api.post('/auth/login', {username, password}),
         logout: () => api.post('/auth/logout'),
         status: () => api.get('/auth/status')
     }

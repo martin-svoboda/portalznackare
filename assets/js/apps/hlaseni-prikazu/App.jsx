@@ -27,7 +27,7 @@ const App = () => {
         predmety: [],
         useky: [],
         formData: null, // Will be initialized after counter is ready
-        userDetails: [],
+        usersDetails: [],
         teamMembers: [],
         canEdit: false,
         tariffRates: null,
@@ -246,14 +246,31 @@ const App = () => {
                     log.error('Chyba při načítání ceníku', error);
                 }
 
-                // Load user details - only if not already loaded
-                let userDetails = null;
+                // Load user details for all team members
+                let usersDetails = {};
                 try {
-                    userDetails = await api.insyz.user();
+                    // Načti detaily pro všechny značkaře paralelně
+                    const detailsPromises = teamMembers.map(member =>
+                        api.insyz.user(member.INT_ADR)
+                            .then(detail => ({ intAdr: member.INT_ADR, detail }))
+                            .catch(error => {
+                                log.error(`Chyba při načítání detailů uživatele ${member.INT_ADR}`, error);
+                                return null; // Vrať null při chybě, aby se ostatní načetly
+                            })
+                    );
 
-                    log.info(`Načteny detaily uživatele`, userDetails);
+                    const detailsArray = await Promise.all(detailsPromises);
+                    // Odfiltruj případné null hodnoty a převeď na objekt s INT_ADR jako klíčem
+                    usersDetails = detailsArray
+                        .filter(item => item !== null)
+                        .reduce((acc, item) => {
+                            acc[item.intAdr] = item.detail;
+                            return acc;
+                        }, {});
+
+                    log.info(`Načteny detaily ${Object.keys(usersDetails).length} uživatelů`, usersDetails);
                 } catch (error) {
-                    log.error('Chyba při načítání detailů uživatele', error);
+                    log.error('Chyba při načítání detailů uživatelů', error);
                 }
 
                 // Update state with all data
@@ -265,7 +282,7 @@ const App = () => {
                     useky: orderData.useky || [],
                     formData,
                     teamMembers,
-                    userDetails: userDetails || prev.userDetails,
+                    usersDetails: usersDetails || prev.usersDetails,
                     canEdit,
                     isLeader,
                     tariffRates,
@@ -294,6 +311,8 @@ const App = () => {
 
         loadAllData();
     }, [prikazId, currentUser?.INT_ADR]);
+
+    console.log('App data', appData);
 
     // Status polling pro sledování zpracování
     const polling = useStatusPolling(
