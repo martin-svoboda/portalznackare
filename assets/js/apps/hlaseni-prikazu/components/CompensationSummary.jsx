@@ -4,6 +4,7 @@ import {
     calculateCompensationForAllMembers
 } from '../utils/compensationCalculator';
 import {log} from '../../../utils/debug';
+import {useAppData} from '../contexts/AppContext';
 
 // Member compensation detail component for compact mode
 const MemberCompensationDetail = ({
@@ -352,26 +353,24 @@ const MemberCompensationDetail = ({
 
 export const CompensationSummary = ({
                                         formData,
-                                        tariffRates,
                                         calculation,
                                         compact = false,
                                         tariffRatesLoading = false,
                                         tariffRatesError = null,
-                                        currentUser,
-                                        isLeader,
-                                        teamMembers,
                                         readOnly = false,
                                     }) => {
     // ALL HOOKS MUST BE AT THE TOP - React Error #310 fix
 
+    // Získat všechna potřebná data z globálního contextu
+    const { usersDetails, tariffRates, teamMembers, currentUser, isLeader } = useAppData();
 
     // Create stable calculator functions
-    const calculateForAllMembers = useCallback((formData, tariffRates, teamMembers) => {
-        return calculateCompensationForAllMembers(formData, tariffRates, teamMembers);
+    const calculateForAllMembers = useCallback((formData, tariffRates, teamMembers, usersDetails) => {
+        return calculateCompensationForAllMembers(formData, tariffRates, teamMembers, usersDetails);
     }, []);
 
-    const calculateForSingleUser = useCallback((formData, tariffRates, userIntAdr) => {
-        return calculateCompensation(formData, tariffRates, userIntAdr);
+    const calculateForSingleUser = useCallback((formData, tariffRates, userIntAdr, usersDetails) => {
+        return calculateCompensation(formData, tariffRates, userIntAdr, usersDetails);
     }, []);
 
     // Calculate compensation using proper calculator functions
@@ -389,14 +388,15 @@ export const CompensationSummary = ({
 
             if (isLeader && teamMembers && teamMembers.length > 0) {
                 // Leader view - show all team members
-                const result = calculateForAllMembers(formData, tariffRates, teamMembers);
+                const result = calculateForAllMembers(formData, tariffRates, teamMembers, usersDetails);
                 return result;
             } else if (currentUser) {
                 // Member view - show only own compensation
                 const singleCompensation = calculateForSingleUser(
                     formData,
                     tariffRates,
-                    currentUser.INT_ADR
+                    currentUser.INT_ADR,
+                    usersDetails
                 );
 
                 // Vrátit ve formátu {INT_ADR: compensation} pro konzistenci
@@ -409,7 +409,7 @@ export const CompensationSummary = ({
             log.error('Error in compensation calculation', error);
             return null;
         }
-    }, [readOnly, calculation, formData, tariffRates, isLeader, teamMembers, currentUser, calculateForAllMembers, calculateForSingleUser]);
+    }, [readOnly, calculation, formData, tariffRates, isLeader, teamMembers, currentUser, usersDetails, calculateForAllMembers, calculateForSingleUser]);
 
 
     // Determine which members to show based on permissions

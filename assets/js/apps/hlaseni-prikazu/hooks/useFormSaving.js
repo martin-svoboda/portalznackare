@@ -123,7 +123,7 @@ const serializeTeamMember = (member) => {
     return serialized;
 };
 
-export const useFormSaving = (formData, head, prikazId, tariffRates, isLeader, teamMembers, currentUser, reportLoaded = false) => {
+export const useFormSaving = (formData, head, prikazId, reportLoaded = false, usersDetails, tariffRates, isLeader, teamMembers, currentUser) => {
     const [saving, setSaving] = useState(false);
 
     // Handle save operation
@@ -203,7 +203,8 @@ export const useFormSaving = (formData, head, prikazId, tariffRates, isLeader, t
                         const result = calculateCompensationForAllMembers(
                             formData,
                             tariffRates,
-                            teamMembers
+                            teamMembers,
+                            usersDetails
                         );
                         return result;
                     }
@@ -285,12 +286,13 @@ export const useFormSaving = (formData, head, prikazId, tariffRates, isLeader, t
             setSaving(false);
         }
     }, [
-        formData, 
-        head, 
-        prikazId, 
-        tariffRates, 
-        isLeader, 
-        teamMembers, 
+        formData,
+        head,
+        prikazId,
+        usersDetails,
+        tariffRates,
+        isLeader,
+        teamMembers,
         currentUser,
         reportLoaded
     ]);
@@ -391,7 +393,8 @@ export const useFormSaving = (formData, head, prikazId, tariffRates, isLeader, t
                         const result = calculateCompensationForAllMembers(
                             formData,
                             tariffRates,
-                            teamMembers
+                            teamMembers,
+                            usersDetails
                         );
                         return result;
                     }
@@ -504,12 +507,13 @@ export const useFormSaving = (formData, head, prikazId, tariffRates, isLeader, t
             setSaving(false);
         }
     }, [
-        formData, 
-        head, 
-        prikazId, 
-        tariffRates, 
-        isLeader, 
-        teamMembers, 
+        formData,
+        head,
+        prikazId,
+        usersDetails,
+        tariffRates,
+        isLeader,
+        teamMembers,
         currentUser,
         reportLoaded
     ]);

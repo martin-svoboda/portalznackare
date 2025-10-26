@@ -8,6 +8,7 @@ import {useStatusPolling} from './hooks/useStatusPolling';
 import {useStepNavigation} from './hooks/useStepNavigation';
 import {useFieldIdCounter} from './hooks/useFieldIdCounter';
 import {useAutoSave} from './hooks/useAutoSave';
+import {AppProvider} from './contexts/AppContext';
 import {api} from '../../utils/api';
 import {log} from '../../utils/debug';
 import {parseTariffRatesFromAPI, calculateExecutionDate} from './utils/compensationCalculator';
@@ -27,7 +28,7 @@ const App = () => {
         predmety: [],
         useky: [],
         formData: null, // Will be initialized after counter is ready
-        usersDetails: [],
+        usersDetails: {},
         teamMembers: [],
         canEdit: false,
         tariffRates: null,
@@ -312,8 +313,6 @@ const App = () => {
         loadAllData();
     }, [prikazId, currentUser?.INT_ADR]);
 
-    console.log('App data', appData);
-
     // Status polling pro sledování zpracování
     const polling = useStatusPolling(
         prikazId,
@@ -339,11 +338,12 @@ const App = () => {
         appData.formData,
         appData.head,
         prikazId,
+        true, // reportLoaded
+        appData.usersDetails,
         appData.tariffRates,
         appData.isLeader,
         appData.teamMembers,
-        currentUser,
-        true // reportLoaded
+        currentUser
     );
 
     // Update form data handler
@@ -401,39 +401,51 @@ const App = () => {
 
     // App rendering
     return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="card">
-                <div className="card__content">
-                    <PrikazHead head={appData.head}/>
+        <AppProvider initialData={{
+            usersDetails: appData.usersDetails,
+            tariffRates: appData.tariffRates,
+            head: appData.head,
+            predmety: appData.predmety,
+            useky: appData.useky,
+            teamMembers: appData.teamMembers,
+            currentUser: appData.currentUser,
+            isLeader: appData.isLeader,
+            canEdit: appData.canEdit
+        }}>
+            <div className="space-y-6">
+                {/* Header */}
+                <div className="card">
+                    <div className="card__content">
+                        <PrikazHead head={appData.head}/>
+                    </div>
                 </div>
+
+                {/* Step Navigation */}
+                <StepNavigation
+                    activeStep={activeStep}
+                    onStepChange={changeStep}
+                    partACompleted={appData.formData?.Cast_A_Dokoncena}
+                    partBCompleted={appData.formData?.Cast_B_Dokoncena}
+                    head={appData.head}
+                    saving={saving}
+                    status={appData.formData?.status}
+                />
+
+                {/* Step Content */}
+                <StepContent
+                    data={appData}
+                    setFormData={setFormData}
+                    activeStep={activeStep}
+                    onStepChange={changeStep}
+                    onSave={saveDraft}
+                    onSubmit={() => submitForApproval(setFormData)}
+                    saving={saving}
+                    prikazId={prikazId}
+                    reportId={appData.reportId}
+                    getNextId={getNextId}
+                />
             </div>
-
-            {/* Step Navigation */}
-            <StepNavigation
-                activeStep={activeStep}
-                onStepChange={changeStep}
-                partACompleted={appData.formData?.Cast_A_Dokoncena}
-                partBCompleted={appData.formData?.Cast_B_Dokoncena}
-                head={appData.head}
-                saving={saving}
-                status={appData.formData?.status}
-            />
-
-            {/* Step Content */}
-            <StepContent
-                data={appData}
-                setFormData={setFormData}
-                activeStep={activeStep}
-                onStepChange={changeStep}
-                onSave={saveDraft}
-                onSubmit={() => submitForApproval(setFormData)}
-                saving={saving}
-                prikazId={prikazId}
-                reportId={appData.reportId}
-                getNextId={getNextId}
-            />
-        </div>
+        </AppProvider>
     );
 };
 

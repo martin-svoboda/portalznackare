@@ -144,14 +144,9 @@ export const StepContent = ({
                                 <ErrorBoundary sectionName="Výpočet náhrad">
                                     <CompensationSummary
                                         formData={formData}
-                                        tariffRates={tariffRates}
                                         tariffRatesLoading={tariffRatesLoading}
                                         tariffRatesError={tariffRatesError}
                                         compact={true}
-                                        isLeader={isLeader}
-                                        teamMembers={teamMembers}
-                                        currentUser={currentUser}
-                                        head={head}
                                     />
                                 </ErrorBoundary>
                             </div>
@@ -296,14 +291,9 @@ export const StepContent = ({
                         
                         <CompensationSummary
                             formData={formData}
-                            tariffRates={tariffRates}
                             tariffRatesLoading={tariffRatesLoading}
                             tariffRatesError={tariffRatesError}
                             compact={false}
-                            isLeader={isLeader}
-                            teamMembers={teamMembers}
-                            currentUser={currentUser}
-                            head={head}
                         />
                     </div>
                 </div>

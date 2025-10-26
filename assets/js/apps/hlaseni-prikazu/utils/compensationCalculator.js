@@ -1,4 +1,31 @@
-import { toISODateString } from '../../../utils/dateUtils.js';
+import {toISODateString} from '../../../utils/dateUtils.js';
+import {log} from '../../../utils/debug';
+
+/**
+ * Kontrola zda má uživatel kvalifikaci Zaškolený značkař (ZZ)
+ * @param {Object} usersDetails - Data uživatelů z API (usersDetails[INT_ADR])
+ * @param {number} userIntAdr - INT_ADR uživatele ke kontrole
+ * @returns {boolean} - true pokud má kvalifikaci ZZ, jinak false
+ */
+export function hasQualificationZZ(usersDetails, userIntAdr) {
+    if (!usersDetails || !userIntAdr) {
+        return false;
+    }
+
+    const userData = usersDetails[userIntAdr];
+    if (!userData || !Array.isArray(userData)) {
+        return false;
+    }
+
+    // Index 2 obsahuje kvalifikace
+    const kvalifikace = userData[2];
+    if (!Array.isArray(kvalifikace)) {
+        return false;
+    }
+
+    // Zkontrolovat zda existuje kvalifikace s Zkratka_Kval === "ZZ"
+    return kvalifikace.some(kval => kval.Zkratka_Kval === "ZZ");
+}
 
 /**
  * Parse tariff rates from API response - zpracování ze sazebníku
@@ -277,24 +304,38 @@ export function calculateTransportDetails(formData, tariffRates, userIntAdr = nu
 /**
  * Výpočet kompenzace pro konkrétního uživatele
  * Vrací data v Czech Snake_Case formátu s detailními dny práce
+ * @param {Object} formData - Formulářová data
+ * @param {Object} tariffRates - Sazby
+ * @param {number} userIntAdr - INT_ADR uživatele
+ * @param {Object} usersDetails - Data uživatelů pro kontrolu kvalifikací
+ * @returns {Object|null} - Objekt kompenzace nebo null
  */
-export function calculateCompensation(formData, tariffRates, userIntAdr = null) {
+export function calculateCompensation(formData, tariffRates, userIntAdr = null, usersDetails = null) {
     if (!tariffRates || !userIntAdr) return null;
-    
+
+    // Kontrola kvalifikace ZZ - uživatel musí být zaškolený pro náhrady
+    const maKvalifikaciZZ = hasQualificationZZ(usersDetails, userIntAdr);
+
+    log.info('calculateCompensation: kontrola nároku na náhrady', {
+        userIntAdr,
+        maKvalifikaciZZ,
+        budouNahrady: maKvalifikaciZZ ? 'ANO' : 'NE (chybí kvalifikace ZZ)'
+    });
+
     // Spočítat pracovní dny a celkové hodiny pro uživatele
     const workDays = calculateWorkDays(formData, userIntAdr);
     const totalWorkHours = workDays.reduce((total, day) => total + day.Cas, 0);
-    
+
     // Najít tarify pro stravné a náhrady odděleně
     const stravneTariff = findTariffByWorkTime(totalWorkHours, tariffRates.stravneTariffs);
     const nahradyTariff = findTariffByWorkTime(totalWorkHours, tariffRates.nahradyTariffs);
-    
+
     // Spočítat dopravní náklady pro uživatele
     const transportCosts = calculateTransportCosts(formData, tariffRates, userIntAdr);
-    
-    // Stravné a náhrada za práci podle příslušných tarifů
-    const mealAllowance = stravneTariff ? parseFloat(stravneTariff.Stravne || 0) : 0;
-    const workAllowance = nahradyTariff ? parseFloat(nahradyTariff.Nahrada || 0) : 0;
+
+    // Stravné a náhrada za práci - POUZE pokud má kvalifikaci ZZ
+    const mealAllowance = maKvalifikaciZZ && stravneTariff ? parseFloat(stravneTariff.Stravne || 0) : 0;
+    const workAllowance = maKvalifikaciZZ && nahradyTariff ? parseFloat(nahradyTariff.Nahrada || 0) : 0;
     
     // Ubytování - pouze pro toho kdo platil
     const accommodationCosts = (formData.Noclezne || [])
@@ -416,13 +457,13 @@ export function extractTeamMembers(head) {
  * Výpočet kompenzací pro všechny členy týmu
  * Vrací data indexovaná podle INT_ADR v novém formátu
  */
-export function calculateCompensationForAllMembers(formData, tariffRates, teamMembers) {
+export function calculateCompensationForAllMembers(formData, tariffRates, teamMembers, usersDetails) {
     if (!tariffRates || !teamMembers) return {};
     
     const result = {};
     
     teamMembers.forEach(member => {
-        const compensation = calculateCompensation(formData, tariffRates, member.INT_ADR);
+        const compensation = calculateCompensation(formData, tariffRates, member.INT_ADR, usersDetails);
         if (compensation) {
             result[member.INT_ADR] = compensation;
         }
