@@ -70,7 +70,7 @@ class SecurityHeadersListener
             "default-src 'self'",
             "script-src 'self' 'unsafe-inline'", // Potřeba pro React
             "style-src 'self' 'unsafe-inline' unpkg.com", // Tailwind + Leaflet CSS
-            "img-src 'self' data: https: api.mapy.cz", // Obrázky + mapové dlaždice
+            "img-src 'self' data: blob: https: api.mapy.cz", // Obrázky + mapové dlaždice + blob URLs z kamery
             "font-src 'self'",
             "connect-src 'self' api.mapy.cz api.openrouteservice.org", // AJAX + mapové API
             "frame-ancestors 'self'",           // Pouze naše domény v iframe

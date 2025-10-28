@@ -3,16 +3,16 @@ import {
     IconUpload,
     IconFile,
     IconTrash,
-    IconPhoto,
     IconCamera,
     IconEye,
     IconEdit,
     IconX,
     IconCheck,
-    IconPhotoCancel
+    IconCameraRotate
 } from '@tabler/icons-react';
 import {showErrorToast, showSuccessToast, showWarningToast} from '../../../utils/notifications.js';
 import UnifiedImageModal from '../UnifiedImageModal';
+import {Loader} from '../Loader';
 
 export const AdvancedFileUpload = ({
                                        id,
@@ -35,9 +35,9 @@ export const AdvancedFileUpload = ({
     const [cameraOpen, setCameraOpen] = useState(false);
     const [stream, setStream] = useState(null);
     const [facingMode, setFacingMode] = useState('environment');
-    const [capturedPhoto, setCapturedPhoto] = useState(null);
+    const [capturedPhotoBlob, setCapturedPhotoBlob] = useState(null);
+    const [capturedPhotoDataURL, setCapturedPhotoDataURL] = useState(null);
     const [uploading, setUploading] = useState(false);
-    const [uploadProgress, setUploadProgress] = useState(0);
 
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
@@ -50,20 +50,41 @@ export const AdvancedFileUpload = ({
     // Camera functionality
     const startCamera = async () => {
         try {
-            const constraints = {
+            // Zkusíme nejprve požadovaný facing mode
+            let constraints = {
                 video: {
                     facingMode: facingMode,
                     width: {ideal: 1920},
                     height: {ideal: 1080}
                 }
             };
-            const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+
+            let mediaStream;
+            try {
+                mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+            } catch (error) {
+                // Fallback bez facingMode pokud selže
+                constraints = {
+                    video: {
+                        width: {ideal: 1920},
+                        height: {ideal: 1080}
+                    }
+                };
+                mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+            }
+
             setStream(mediaStream);
             setCameraOpen(true);
 
-            if (videoRef.current) {
-                videoRef.current.srcObject = mediaStream;
-            }
+            // Timeout pro korektní připojení video streamu
+            setTimeout(() => {
+                if (videoRef.current) {
+                    videoRef.current.srcObject = mediaStream;
+                    videoRef.current.play().catch(err => {
+                        console.error('Video play error:', err);
+                    });
+                }
+            }, 100);
         } catch (error) {
             console.error('Error accessing camera:', error);
             showErrorToast('Nepodařilo se spustit kameru. Zkontrolujte oprávnění.', {
@@ -79,7 +100,8 @@ export const AdvancedFileUpload = ({
             setStream(null);
         }
         setCameraOpen(false);
-        setCapturedPhoto(null);
+        setCapturedPhotoBlob(null);
+        setCapturedPhotoDataURL(null);
     };
 
     const capturePhoto = () => {
@@ -92,32 +114,85 @@ export const AdvancedFileUpload = ({
             canvas.height = video.videoHeight;
             context.drawImage(video, 0, 0);
 
-            const dataURL = canvas.toDataURL('image/jpeg', 0.8);
-            setCapturedPhoto(dataURL);
+            // Vytvoříme blob pro upload + data URL pro náhled (CSP safe)
+            canvas.toBlob((blob) => {
+                if (blob) {
+                    setCapturedPhotoBlob(blob);
+
+                    // Pro náhled v modalu - data: URL je CSP kompatibilní
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        setCapturedPhotoDataURL(reader.result);
+                    };
+                    reader.readAsDataURL(blob);
+                }
+            }, 'image/jpeg', 0.8);
         }
     };
 
-    const confirmPhoto = () => {
-        if (capturedPhoto) {
-            // Convert dataURL to file
-            fetch(capturedPhoto)
-                .then(res => res.blob())
-                .then(blob => {
-                    const timestamp = Date.now();
-                    const file = new File([blob], `camera-${timestamp}.jpg`, {
-                        type: 'image/jpeg',
-                        lastModified: timestamp
-                    });
-                    handleFileSelect([file]);
-                    stopCamera();
+    const confirmPhoto = async () => {
+        if (capturedPhotoBlob) {
+            try {
+                // Vytvoříme File z blobu
+                const file = new File([capturedPhotoBlob], `camera-${Date.now()}.jpg`, {
+                    type: 'image/jpeg',
+                    lastModified: Date.now()
                 });
+
+                // ✅ KOMPRESE před odesláním (1920px @ 85% podle backend standardu)
+                const compressedFile = await compressImage(file, 1920, 0.85);
+
+                await handleFileSelect([compressedFile]);
+                stopCamera();
+            } catch (error) {
+                console.error('Error confirming photo:', error);
+                showErrorToast('Nepodařilo se zpracovat fotografii');
+            }
         }
     };
 
-    const switchCamera = () => {
-        setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
-        stopCamera();
-        setTimeout(() => startCamera(), 100);
+    const switchCamera = async () => {
+        if (stream) {
+            // Zastavíme aktuální stream
+            stream.getTracks().forEach(track => track.stop());
+            setStream(null);
+        }
+
+        const newFacingMode = facingMode === 'user' ? 'environment' : 'user';
+        setFacingMode(newFacingMode);
+
+        try {
+            // Spustíme novou kameru s opačným facing mode
+            let mediaStream;
+            try {
+                mediaStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: newFacingMode,
+                        width: {ideal: 1920},
+                        height: {ideal: 1080}
+                    }
+                });
+            } catch (error) {
+                showWarningToast('Zařízení nemá druhou kameru');
+                // Vrátíme zpět na původní facing mode
+                setFacingMode(facingMode);
+                return;
+            }
+
+            setStream(mediaStream);
+
+            setTimeout(() => {
+                if (videoRef.current) {
+                    videoRef.current.srcObject = mediaStream;
+                    videoRef.current.play().catch(err => {
+                        console.error('Video play error:', err);
+                    });
+                }
+            }, 100);
+        } catch (error) {
+            console.error('Error switching camera:', error);
+            showErrorToast('Nepodařilo se přepnout kameru.');
+        }
     };
 
     // Image compression
@@ -173,7 +248,6 @@ export const AdvancedFileUpload = ({
         }
 
         setUploading(true);
-        setUploadProgress(0);
 
         // Basic validation first
         const validFiles = [];
@@ -212,10 +286,27 @@ export const AdvancedFileUpload = ({
             return;
         }
 
+        // ✅ KOMPRESE obrázků před uploadem (1920px @ 85% podle backend standardu)
+        const processedFiles = [];
+        for (const file of validFiles) {
+            if (isImage(file.type)) {
+                try {
+                    const compressed = await compressImage(file, 1920, 0.85);
+                    processedFiles.push(compressed);
+                } catch (error) {
+                    console.error('Error compressing image:', file.name, error);
+                    // Pokud komprese selže, použijeme původní soubor
+                    processedFiles.push(file);
+                }
+            } else {
+                processedFiles.push(file);
+            }
+        }
+
         // Upload files to server
         try {
             const formData = new FormData();
-            validFiles.forEach(file => {
+            processedFiles.forEach(file => {
                 formData.append('files[]', file);
             });
 
@@ -313,7 +404,6 @@ export const AdvancedFileUpload = ({
             });
         } finally {
             setUploading(false);
-            setUploadProgress(0);
 
             // Clear file input to allow selecting the same file again
             const fileInput = document.getElementById(`file-input-${componentInstanceId}`);
@@ -528,13 +618,13 @@ export const AdvancedFileUpload = ({
                 )}
             </div>
 
-            {/* Upload progress */}
+            {/* Upload loading indicator */}
             {uploading && (
-                <div className="bg-gray-200 rounded-full h-2">
-                    <div
-                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                        style={{width: `${uploadProgress}%`}}
-                    ></div>
+                <div className="flex items-center justify-center gap-3 py-4">
+                    <Loader />
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                        Nahrávání souborů...
+                    </span>
                 </div>
             )}
 
@@ -633,70 +723,97 @@ export const AdvancedFileUpload = ({
                 </div>
             )}
 
-            {/* Camera Modal */}
+            {/* Camera Modal - minimalistické rozhraní jako fotoaparát v mobilu */}
             {cameraOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75">
-                    <div
-                        className="bg-white dark:bg-gray-900 rounded-lg p-4 max-w-4xl w-full mx-4 max-h-[90vh] overflow-auto">
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-lg font-semibold">Fotoaparát</h3>
-                            <button
-                                onClick={stopCamera}
-                                className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-                            >
-                                <IconX size={20}/>
-                            </button>
-                        </div>
+                <div className="fixed inset-0 z-50 bg-black/90 md:flex md:items-center md:justify-center md:p-4">
+                    <div className="relative w-full h-full md:w-auto md:h-auto md:max-w-4xl md:max-h-[90vh] flex flex-col md:rounded-2xl md:overflow-hidden md:shadow-2xl">
+                        {capturedPhotoDataURL ? (
+                            <>
+                                {/* Photo confirmation view */}
+                                <div className="flex-1 flex items-center justify-center bg-black p-4">
+                                    <img
+                                        src={capturedPhotoDataURL}
+                                        alt="Zachycená fotka"
+                                        className="max-w-full max-h-full object-contain md:max-h-[80vh]"
+                                    />
+                                </div>
 
-                        {capturedPhoto ? (
-                            <div className="text-center">
-                                <img
-                                    src={capturedPhoto}
-                                    alt="Captured"
-                                    className="max-w-full max-h-96 mx-auto rounded"
-                                />
-                                <div className="flex gap-2 justify-center mt-4">
+                                {/* Action buttons - s textem po vyfocení */}
+                                <div className="absolute bottom-0 left-0 right-0 flex gap-4 justify-center p-6 bg-gradient-to-t from-black/80 to-transparent">
                                     <button
-                                        onClick={() => setCapturedPhoto(null)}
-                                        className="btn btn--warning--light"
+                                        onClick={() => {
+                                            setCapturedPhotoDataURL(null);
+                                            setCapturedPhotoBlob(null);
+                                        }}
+                                        className="flex items-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-full font-medium transition-colors"
+                                        disabled={uploading}
                                     >
-                                        <IconPhotoCancel size={16}/>
-                                        Znovu
+                                        <IconX size={20}/>
+                                        Vyfotit znovu
                                     </button>
+
                                     <button
                                         onClick={confirmPhoto}
-                                        className="btn btn--success"
+                                        className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-full font-medium transition-colors"
+                                        disabled={uploading}
                                     >
-                                        <IconCheck size={16}/>
-                                        Použít
+                                        {uploading ? (
+                                            <>
+                                                <Loader />
+                                                Nahrávání...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <IconCheck size={20}/>
+                                                Potvrdit
+                                            </>
+                                        )}
                                     </button>
                                 </div>
-                            </div>
+                            </>
                         ) : (
-                            <div className="text-center">
-                                <video
-                                    ref={videoRef}
-                                    autoPlay
-                                    playsInline
-                                    className="max-w-full max-h-96 mx-auto rounded"
-                                />
-                                <div className="flex gap-2 justify-center mt-4">
+                            <>
+                                {/* Live camera view */}
+                                <div className="flex-1 flex items-center justify-center bg-black overflow-hidden md:min-h-[600px]">
+                                    <video
+                                        ref={videoRef}
+                                        autoPlay
+                                        playsInline
+                                        muted
+                                        className="w-full h-full object-cover md:max-h-[80vh]"
+                                    />
+                                </div>
+
+                                {/* Floating action buttons - pouze ikony */}
+                                <div className="absolute bottom-0 left-0 right-0 flex items-center justify-center gap-8 p-8 bg-gradient-to-t from-black/80 to-transparent">
+                                    {/* Přepnout kameru */}
                                     <button
                                         onClick={switchCamera}
-                                        className="btn btn--primary--light"
+                                        className="w-14 h-14 flex items-center justify-center bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-full transition-all"
+                                        aria-label="Přepnout kameru"
                                     >
-                                        <IconCameraRotate size={16}/>
-                                        Přepnout kameru
+                                        <IconCameraRotate size={28} className="text-white" stroke={1.5}/>
                                     </button>
+
+                                    {/* Vyfotit - hlavní tlačítko */}
                                     <button
                                         onClick={capturePhoto}
-                                        className="btn btn--success"
+                                        className="w-20 h-20 flex items-center justify-center bg-white hover:bg-gray-200 rounded-full shadow-lg transition-all hover:scale-105"
+                                        aria-label="Vyfotit"
                                     >
-                                        <IconCamera size={16}/>
-                                        Vyfotit
+                                        <div className="w-16 h-16 border-4 border-gray-900 rounded-full"></div>
+                                    </button>
+
+                                    {/* Zavřít */}
+                                    <button
+                                        onClick={stopCamera}
+                                        className="w-14 h-14 flex items-center justify-center bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-full transition-all"
+                                        aria-label="Zavřít kameru"
+                                    >
+                                        <IconX size={28} className="text-white" stroke={1.5}/>
                                     </button>
                                 </div>
-                            </div>
+                            </>
                         )}
                     </div>
                     <canvas ref={canvasRef} className="hidden"/>

@@ -175,7 +175,7 @@ class AppController extends AbstractController
         }
     }
 
-    #[Route('/{slug}', name: 'app_catch_all', requirements: ['slug' => '^(?!napoveda).*'], priority: -10)]
+    #[Route('/{slug}', name: 'app_catch_all', requirements: ['slug' => '^(?!napoveda|build|uploads|images|favicon|site\.webmanifest|apple-touch-icon).*'], priority: -10)]
     public function catchAll(): Response
     {
         return $this->render('pages/404.html.twig');
