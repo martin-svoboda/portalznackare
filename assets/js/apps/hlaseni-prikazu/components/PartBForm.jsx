@@ -227,7 +227,7 @@ export const PartBForm = ({formData, setFormData, head, useky, predmety, prikazI
 
             // For states 1-2, additional data is needed
             const isSponzor = originalItem?.Druh_Predmetu && 'P' === originalItem.Druh_Predmetu.toUpperCase();
-            const hasYear = isSponzor || ( status.Rok_Vyroby !== null && status.Rok_Vyroby !== undefined );
+            const hasYear = isSponzor || (status.Rok_Vyroby !== null && status.Rok_Vyroby !== undefined);
 
             // Najdeme původní item aby mohli zkontrolovat jestli je to směrovka
             const isArrow = originalItem?.Druh_Predmetu && 'S' === originalItem.Druh_Predmetu.toUpperCase();
@@ -282,42 +282,45 @@ export const PartBForm = ({formData, setFormData, head, useky, predmety, prikazI
                                 return (
                                     <div key={timGroup.EvCi_TIM} className="card border">
                                         <div className="card__content">
-                                            <div className="flex items-center justify-between mb-4">
-                                                <div className="flex items-center gap-3">
-                                                    <IconMapPin size={20}/>
-                                                    <div>
-                                                        <div
-                                                            className="font-medium">{replaceTextWithIcons(timGroup.Naz_TIM)}</div>
-                                                        <div
-                                                            className="text-sm text-gray-600">TIM {timGroup.EvCi_TIM}</div>
+                                            <div className="flex items-center gap-2">
+                                                <div className="flex flex-1 justify-between flex-col md:flex-row gap-2">
+                                                    <div className="flex w-full items-center gap-3">
+                                                        <IconMapPin size={20}/>
+                                                        <div className="flex gap-x-2 flex-wrap items-baseline">
+                                                            <div
+                                                                className="font-medium">{replaceTextWithIcons(timGroup.Naz_TIM)}</div>
+                                                            <div
+                                                                className="text-sm text-gray-600">TIM {timGroup.EvCi_TIM}</div>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-24 bg-gray-200 rounded-full h-2">
-                                                        <div
-                                                            className={`h-2 rounded-full ${completion.completed ? 'bg-green-500' : 'bg-blue-500'}`}
-                                                            style={{width: `${(completion.filled / completion.total) * 100}%`}}
-                                                        ></div>
-                                                    </div>
-                                                    <span className="text-sm">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-24 bg-gray-200 rounded-full h-2">
+                                                            <div
+                                                                className={`h-2 rounded-full ${completion.completed ? 'bg-green-500' : 'bg-blue-500'}`}
+                                                                style={{width: `${(completion.filled / completion.total) * 100}%`}}
+                                                            ></div>
+                                                        </div>
+                                                        <span className="text-sm">
                                                         {completion.filled}/{completion.total}
                                                     </span>
-                                                    <button
-                                                        type="button"
-                                                        className="btn btn--small btn--secondary"
-                                                        onClick={() => toggleTimExpansion(timGroup.EvCi_TIM)}
-                                                    >
-                                                        {isExpanded ? (
-                                                            <>
-                                                                Skrýt <IconChevronUp size={14} className="ml-1"/>
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                Rozbalit <IconChevronDown size={14} className="ml-1"/>
-                                                            </>
-                                                        )}
-                                                    </button>
+                                                    </div>
                                                 </div>
+                                                <button
+                                                    type="button"
+                                                    className="btn btn--small btn--secondary"
+                                                    onClick={() => toggleTimExpansion(timGroup.EvCi_TIM)}
+                                                >
+                                                    {isExpanded ? (
+                                                        <>
+                                                            Skrýt <IconChevronUp size={14} className="ml-1"/>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            Rozbalit <IconChevronDown size={14} className="ml-1"/>
+                                                        </>
+                                                    )}
+                                                </button>
+
                                             </div>
 
                                             {isExpanded && (
@@ -370,11 +373,14 @@ export const PartBForm = ({formData, setFormData, head, useky, predmety, prikazI
                                                                                 <div>
                                                                                     {item.Tim_HTML ? renderHtmlContent(item.Tim_HTML) : (
                                                                                         <>
-                                                                                            <div className="flex items-center gap-2">
-                                                                                                <span className="text-sm font-bold">
+                                                                                            <div
+                                                                                                className="flex items-center gap-2">
+                                                                                                <span
+                                                                                                    className="text-sm font-bold">
                                                                                                     {item.EvCi_TIM}{item.Predmet_Index}
                                                                                                 </span>
-                                                                                                <span className="text-sm font-medium">
+                                                                                                <span
+                                                                                                    className="text-sm font-medium">
                                                                                                     {replaceTextWithIcons(item.Radek1)}
                                                                                                 </span>
                                                                                             </div>

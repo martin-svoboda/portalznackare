@@ -105,29 +105,6 @@ export const StepContent = ({
                         reportId={reportId}
                         disabled={disabled}
                     />
-                    
-                    <ValidationMessages 
-                        validationResult={partAValidation}
-                        canComplete={canCompletePartA}
-                        className="mt-4"
-                    />
-
-                    {/* Navigation */}
-                    <div className="flex justify-end gap-2 mt-6">
-                        <button
-                            className="btn btn--secondary"
-                            onClick={onSave}
-                            disabled={saving}
-                        >
-                            {saving ? <Loader size="small" center={false}/> : <IconDeviceFloppy/>} Uložit změny
-                        </button>
-                        <button
-                            className="btn btn--primary"
-                            onClick={() => onStepChange(1)}
-                        >
-                            Pokračovat na část B
-                        </button>
-                    </div>
                 </div>
 
                 {/* Sidebar with compensation summary */}
@@ -152,6 +129,29 @@ export const StepContent = ({
                             </div>
                         </div>
                     </div>
+                </div>
+
+                <ValidationMessages
+                    validationResult={partAValidation}
+                    canComplete={canCompletePartA}
+                    className="mt-0 lg:col-span-3"
+                />
+
+                {/* Navigation */}
+                <div className="flex lg:col-span-3 justify-between flex-col md:flex-row gap-2">
+                    <button
+                        className="btn btn--secondary w-full md:w-auto"
+                        onClick={onSave}
+                        disabled={saving}
+                    >
+                        {saving ? <Loader size="small" center={false}/> : <IconDeviceFloppy/>} Uložit změny
+                    </button>
+                    <button
+                        className="btn btn--primary w-full md:w-auto"
+                        onClick={() => onStepChange(1)}
+                    >
+                        Pokračovat na část B
+                    </button>
                 </div>
             </div>
         );
@@ -233,21 +233,21 @@ export const StepContent = ({
                 />
 
                 {/* Navigation */}
-                <div className="flex justify-between mt-6">
+                <div className="flex justify-between flex-col md:flex-row mt-6 gap-2">
                     <button
-                        className="btn btn--secondary"
-                        onClick={() => onStepChange(0)}
+                        className="btn btn--secondary hidden w-full md:w-auto"
+                        onClick={onSave}
+                        disabled={saving}
                     >
-                        Zpět na část A
+                        {saving ? <Loader size="small" center={false}/> : <IconDeviceFloppy/>} Uložit změny
                     </button>
 
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 justify-between">
                         <button
                             className="btn btn--secondary"
-                            onClick={onSave}
-                            disabled={saving}
+                            onClick={() => onStepChange(0)}
                         >
-                            {saving ? <Loader size="small" center={false}/> : <IconDeviceFloppy/>} Uložit změny
+                            Zpět na část A
                         </button>
                         <button
                             className="btn btn--primary"
@@ -444,7 +444,7 @@ export const StepContent = ({
                                 </div>
                             )}
 
-                            <div className="flex justify-between">
+                            <div className="flex justify-end gap-2">
                                 <button
                                     className="btn btn--secondary"
                                     onClick={() => onStepChange(1)}

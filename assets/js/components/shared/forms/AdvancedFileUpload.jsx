@@ -125,9 +125,24 @@ export const AdvancedFileUpload = ({
                         setCapturedPhotoDataURL(reader.result);
                     };
                     reader.readAsDataURL(blob);
+
+                    // Zastavíme video stream po vyfocení
+                    if (stream) {
+                        stream.getTracks().forEach(track => track.stop());
+                        setStream(null);
+                    }
                 }
             }, 'image/jpeg', 0.8);
         }
+    };
+
+    const retakePhoto = () => {
+        // Vyčistíme captured photo
+        setCapturedPhotoBlob(null);
+        setCapturedPhotoDataURL(null);
+
+        // Restartujeme kameru
+        startCamera();
     };
 
     const confirmPhoto = async () => {
@@ -569,8 +584,7 @@ export const AdvancedFileUpload = ({
             <div className="flex gap-3">
                 {/* Upload area */}
                 <div
-                    className={`
-                    border-2 border-dashed rounded-lg transition-colors flex gap-4 items-center justify-center min-h-20 p-5 flex-1
+                    className={`flex-1 border-2 border-dashed rounded-lg transition-colors flex gap-4 items-center justify-center min-h-20 p-5 flex-1
                     ${disabled ? 'border-gray-200 bg-gray-50 cursor-not-allowed' :
                         isDragOver ? 'border-blue-400 bg-blue-50' : 'border-gray-300 hover:border-gray-400 cursor-pointer'}
                 `}
@@ -590,7 +604,7 @@ export const AdvancedFileUpload = ({
                         </div>
                         <div className="text-xs text-gray-400 mt-1">
                             Maximálně {maxFiles} souborů
-                            • {accept.replace(/[^a-zA-Z,]/g, '').replace(/'image'/g, '').toUpperCase()}
+                            • {accept.replace(/[^a-zA-Z,]/g, ' ').replace(/'image'/g, '')}
                         </div>
                     </div>
 
@@ -741,10 +755,7 @@ export const AdvancedFileUpload = ({
                                 {/* Action buttons - s textem po vyfocení */}
                                 <div className="absolute bottom-0 left-0 right-0 flex gap-4 justify-center p-6 bg-gradient-to-t from-black/80 to-transparent">
                                     <button
-                                        onClick={() => {
-                                            setCapturedPhotoDataURL(null);
-                                            setCapturedPhotoBlob(null);
-                                        }}
+                                        onClick={retakePhoto}
                                         className="flex items-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-full font-medium transition-colors"
                                         disabled={uploading}
                                     >
