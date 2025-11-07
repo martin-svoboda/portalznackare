@@ -2,6 +2,9 @@
 
 namespace App\Controller;
 
+use App\Enum\PageContentTypeEnum;
+use App\Enum\PageStatusEnum;
+use App\Repository\PageRepository;
 use App\Service\CzechVocativeService;
 use App\Service\InsyzService;
 use App\Service\DataEnricherService;
@@ -87,9 +90,17 @@ class AppController extends AbstractController
     }
 
     #[Route('/metodika', name: 'app_metodika')]
-    public function metodika(): Response
+    public function metodika(PageRepository $pageRepository): Response
     {
-        return $this->render('pages/metodika.html.twig');
+        $dily = $pageRepository->findBy([
+            'contentType' => PageContentTypeEnum::METODIKA,
+            'parent' => null,
+            'status' => PageStatusEnum::PUBLISHED,
+        ], ['sortOrder' => 'ASC']);
+
+        return $this->render('pages/metodika.html.twig', [
+            'dily' => $dily,
+        ]);
     }
 
     #[Route('/downloads', name: 'app_downloads')]
@@ -175,7 +186,7 @@ class AppController extends AbstractController
         }
     }
 
-    #[Route('/{slug}', name: 'app_catch_all', requirements: ['slug' => '^(?!napoveda|build|uploads|images|favicon|site\.webmanifest|apple-touch-icon).*'], priority: -10)]
+    #[Route('/{slug}', name: 'app_catch_all', requirements: ['slug' => '^(?!napoveda|build|uploads|images|favicon|site\.webmanifest|apple-touch-icon).*'], priority: -200)]
     public function catchAll(): Response
     {
         return $this->render('pages/404.html.twig');

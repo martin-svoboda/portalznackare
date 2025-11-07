@@ -1,0 +1,31 @@
+{% extends 'admin.html.twig' %}
+
+{% block title %}{{ pageId ? 'Upravit stránku' : 'Nová stránka' }}{% endblock %}
+
+{% block body %}
+    <div class="page">
+        <div class="page__header">
+            {% include 'components/page-header.html.twig' with {
+                'title': pageId ? 'Upravit stránku' : 'Nová stránka',
+                'breadcrumbs': [
+                    {'text': 'Administrace', 'url': path('admin_dashboard')},
+                    {'text': 'Správa stránek', 'url': path('admin_cms_pages')},
+                    {'text': pageId ? 'Upravit' : 'Nová stránka'}
+                ]
+            } %}
+        </div>
+
+        <div class="page__content">
+            <div
+                data-app="admin-cms-page-editor"
+                data-page-id="{{ pageId }}"
+                data-debug="{{ app.debug ? 'true' : 'false' }}"
+            ></div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    {{ encore_entry_script_tags('admin-cms-page-editor') }}
+{% endblock %}

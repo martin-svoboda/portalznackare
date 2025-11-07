@@ -1,0 +1,62 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Nápověda - Portál značkaře{% endblock %}
+
+{% block body %}
+    <div class="container container--xl">
+        {% include 'components/page-header.html.twig' with {
+            title: 'Nápověda',
+            subtitle: 'Průvodce používáním portálu značkaře',
+            breadcrumbs: [
+                {
+                    url: path('app_index'),
+                    text: 'Úvod'
+                },
+                {
+                    text: 'Nápověda'
+                }
+            ]
+        } %}
+
+        {# Grid karet nápověd #}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+            {% for napoveda in napovedy %}
+                <a href="{{ napoveda.urlPath }}" class="card hover:shadow-lg transition-shadow">
+                    <div class="flex items-start gap-3">
+                        {% if napoveda.meta.icon is defined %}
+                            {{ tabler_icon(napoveda.meta.icon, 32, 'text-blue-600 dark:text-blue-400') }}
+                        {% else %}
+                            {{ tabler_icon('help-circle', 32, 'text-blue-600 dark:text-blue-400') }}
+                        {% endif %}
+
+                        <div class="flex-1">
+                            <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                                {{ napoveda.title }}
+                            </h3>
+
+                            {% if napoveda.excerpt %}
+                                <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                                    {{ napoveda.excerpt }}
+                                </p>
+                            {% endif %}
+
+                            {% if napoveda.children|length > 0 %}
+                                <span class="badge badge--primary badge--sm">
+                                    {{ napoveda.children|length }} {{ napoveda.children|length == 1 ? 'podstránka' : (napoveda.children|length < 5 ? 'podstránky' : 'podstránek') }}
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </a>
+            {% else %}
+                <div class="col-span-full">
+                    {% include 'components/alert.html.twig' with {
+                        type: 'info',
+                        title: 'Žádné nápovědy',
+                        message: 'Nápovědy zatím nebyly vytvořeny. Vytvořte je v administračním rozhraní.'
+                    } %}
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+{% endblock %}

@@ -1,0 +1,60 @@
+{% extends "base.html.twig" %}
+
+{% block title %}{{ page.title }} - Nápověda - Portál značkaře{% endblock %}
+
+{% block body %}
+    <div class="container container--xl">
+        {% include "components/page-header.html.twig" with {
+            title: page.title,
+            subtitle: page.excerpt,
+            breadcrumbs: [
+                {
+                    url: path("app_index"),
+                    text: "Úvod"
+                },
+                {
+                    url: path("help_index"),
+                    text: "Nápověda"
+                },
+                {
+                    text: page.title
+                }
+            ]
+        } %}
+
+        <div class="mt-6">
+            <article class="card prose prose-lg dark:prose-invert max-w-none">
+                {{ page.content|raw }}
+            </article>
+
+            {% if page.children|length > 0 %}
+                <div class="mt-8">
+                    <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">Související témata</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {% for child in page.children %}
+                            {% if child.status.value == "published" %}
+                                <a href="{{ child.urlPath }}" class="card hover:shadow-lg transition-shadow">
+                                    <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                                        {{ child.title }}
+                                    </h3>
+                                    {% if child.excerpt %}
+                                        <p class="text-sm text-gray-600 dark:text-gray-400">
+                                            {{ child.excerpt }}
+                                        </p>
+                                    {% endif %}
+                                </a>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+
+            <div class="mt-8">
+                <a href="{{ path("help_index") }}" class="btn btn--secondary">
+                    {{ tabler_icon("arrow-left", 16) }}
+                    Zpět na přehled nápovědy
+                </a>
+            </div>
+        </div>
+    </div>
+{% endblock %}

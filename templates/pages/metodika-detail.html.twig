@@ -1,0 +1,104 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ page.title }} - Metodika - Portál značkaře{% endblock %}
+
+{% block body %}
+    <div class="container container--xl">
+        {% include 'components/page-header.html.twig' with {
+            title: page.title,
+            breadcrumbs: breadcrumbs|map(p => {
+                'text': p.title,
+                'url': p.id == page.id ? null : p.urlPath
+            })
+        } %}
+
+        {# Grid layout: sidebar TOC + content #}
+        <div class="mt-6" style="display: grid; grid-template-columns: 250px 1fr; gap: 2rem;">
+
+            {# Sidebar: Table of Contents #}
+            <aside class="card sticky top-4" style="height: fit-content;">
+                <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Na této stránce</h4>
+                {% if tocHeadings|length > 0 %}
+                    <nav class="flex flex-col gap-1">
+                        {% for heading in tocHeadings %}
+                            <a href="#{{ heading.id }}"
+                               class="nav__link text-sm"
+                               style="padding-left: {{ (heading.level - 2) * 1 }}rem;">
+                                {{ heading.text }}
+                            </a>
+                        {% endfor %}
+                    </nav>
+                {% else %}
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Žádné nadpisy</p>
+                {% endif %}
+            </aside>
+
+            {# Main content #}
+            <main class="card">
+                {# Page content #}
+                <article class="prose dark:prose-invert max-w-none">
+                    {{ page.content|raw }}
+                </article>
+
+                {# Child pages (podkapitoly) #}
+                {% if children|length > 0 %}
+                    <section class="mt-12 pt-8 border-t border-gray-200 dark:border-gray-700">
+                        <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">Podkapitoly</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {% for child in children %}
+                                <a href="{{ child.urlPath }}"
+                                   class="card bg-gray-50 dark:bg-gray-800 hover:shadow-lg transition-shadow">
+                                    <h3 class="text-base font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                                        {{ child.title }}
+                                    </h3>
+                                    {% if child.excerpt %}
+                                        <p class="text-sm text-gray-600 dark:text-gray-400">
+                                            {{ child.excerpt }}
+                                        </p>
+                                    {% endif %}
+                                </a>
+                            {% endfor %}
+                        </div>
+                    </section>
+                {% endif %}
+
+                {# Prev/Next navigation #}
+                <nav class="flex justify-between items-center mt-12 pt-8 border-t border-gray-200 dark:border-gray-700 gap-4">
+                    {% if prevNext.prev %}
+                        <a href="{{ prevNext.prev.urlPath }}" class="btn btn--secondary flex items-center gap-2">
+                            {{ tabler_icon('arrow-left', 16) }}
+                            <span class="hidden sm:inline">{{ prevNext.prev.title }}</span>
+                            <span class="sm:hidden">Předchozí</span>
+                        </a>
+                    {% else %}
+                        <div></div>
+                    {% endif %}
+
+                    {% if prevNext.next %}
+                        <a href="{{ prevNext.next.urlPath }}" class="btn btn--primary flex items-center gap-2 ml-auto">
+                            <span class="hidden sm:inline">{{ prevNext.next.title }}</span>
+                            <span class="sm:hidden">Další</span>
+                            {{ tabler_icon('arrow-right', 16) }}
+                        </a>
+                    {% endif %}
+                </nav>
+            </main>
+        </div>
+    </div>
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script>
+        // Smooth scroll pro TOC odkazy
+        document.querySelectorAll('a[href^="#"]').forEach(link => {
+            link.addEventListener('click', e => {
+                e.preventDefault();
+                const target = document.querySelector(link.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+    </script>
+{% endblock %}

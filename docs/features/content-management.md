@@ -1,148 +1,303 @@
 # Content Management System
 
-> **Topics dokumentace** - CMS funkcionalita pro metodiky, downloads a help systém
+> **Topics dokumentace** - Kompletní CMS funkcionalita včetně WYSIWYG editoru, metodik, downloads a help systému
 
 ## 📚 Přehled Content Management
 
-**Metodiky:** Kategorizované PDF dokumenty a návody  
-**Downloads:** Soubory ke stažení (formuláře, templates, atd.)  
-**Help systém:** Markdown-based nápověda pro uživatele  
-**Static pages:** Server-rendered Twig stránky s možností rozšíření
+### ✅ Implementováno (v produkci)
+- **CMS Pages** - Plně funkční správa stránek s Tiptap WYSIWYG editorem
+- **Help systém** - Markdown-based nápověda pro uživatele
+- **Static pages** - Server-rendered Twig stránky
 
-### CMS komponenty
-- **Metodiky** - Kategorizované dokumenty s PDF stahováním
-- **Downloads** - File management pro veřejné soubory  
-- **Help Controller** - Dynamický help systém z Markdown
-- **Static pages** - Twig templating pro obsah
+### 🚧 Plánováno
+- **Metodiky** - Kategorizované PDF dokumenty a návody
+- **Downloads** - Soubory ke stažení (formuláře, templates, atd.)
 
-## 📖 Metodiky systém
+---
 
-### Současná implementace
+## 🎯 CMS Pages System (IMPLEMENTOVÁNO)
+
+### Přehled
+Kompletní CMS slouží ke správě statických stránek, dokumentace, metodik a FAQ položek. Poskytuje WYSIWYG editor s podporou bohatého formátování a kompletní správu životního cyklu obsahu.
+
+**API dokumentace:** [docs/api/cms-api.md](../api/cms-api.md)
+
+### Použité technologie
+- **Backend**: Symfony 6.4 + PostgreSQL
+- **Frontend**: React 18 + TanStack Table
+- **Editor**: Tiptap (lightweight WYSIWYG, 100KB)
+- **Styling**: BEM + Tailwind CSS
+
+### Database Schema
+```sql
+CREATE TABLE pages (
+    id BIGSERIAL PRIMARY KEY,
+    title VARCHAR(500) NOT NULL,
+    slug VARCHAR(500) NOT NULL UNIQUE,
+    content TEXT NOT NULL,
+    excerpt TEXT NULL,
+    content_type VARCHAR(50) NOT NULL DEFAULT 'page',
+    status VARCHAR(50) NOT NULL DEFAULT 'draft',
+    author_id INTEGER NOT NULL,
+    parent_id BIGINT NULL REFERENCES pages(id),
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    featured_image_id INTEGER NULL REFERENCES file_attachments(id),
+    meta JSON DEFAULT '{}'::json,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    published_at TIMESTAMP NULL,
+    deleted_at TIMESTAMP NULL,
+    history JSON DEFAULT '[]'::json
+);
+```
+
+### Klíčové komponenty
+
+**Backend:**
+- `PageStatusEnum`: Stavy stránky (draft, published, archived)
+- `PageContentTypeEnum`: Typy obsahu (page, article, document, faq)
+- `Page` entity: Hlavní entita s lifecycle callbacky
+- `PageRepository`: Query metody pro vyhledávání a stromovou strukturu
+- `PageService`: Business logika pro správu stránek
+- `SlugService`: Generování URL-friendly slugů s podporou české diakritiky
+- `CmsApiController`: REST API pro admin rozhraní (`/admin/api/cms/*`)
+- `CmsController`: Frontend zobrazení stránek (`/cms/{slug}`)
+
+**Frontend:**
+- `admin-cms-pages`: React administrační aplikace
+- `TiptapEditor`: WYSIWYG editor s toolbarem
+- `PageForm`: Formulář pro vytváření/editaci stránek
+
+### Administrační rozhraní
+
+**URL:** `/admin/cms`
+
+**Funkce:**
+1. Seznam stránek s TanStack React Table
+2. Filtry: Status, Typ obsahu, Zobrazit smazané
+3. Akce: Zobrazit, Upravit, Publikovat/Archivovat, Smazat, Obnovit
+4. Vytvoření nové stránky s Tiptap editorem
+
+### Frontend zobrazení
+
+**URL Pattern:** `/cms/{slug}`
+
+**Features:**
+- Breadcrumbs navigace (hierarchická cesta)
+- SEO meta tagy (seo_title, seo_description, keywords)
+- Featured image support
+- Prose styling (Tailwind Typography)
+- Pouze publikované stránky
+
+### Typy obsahu (PageContentTypeEnum)
+
+- **page** (Stránka): Standardní statická stránka
+- **article** (Článek): Novinky, aktuality
+- **document** (Dokument): Metodiky, návody
+- **faq** (FAQ): Často kladené otázky
+
+### Životní cyklus stránky
+
+**Stavy (PageStatusEnum):**
+- **draft** (Koncept): Výchozí stav, viditelný pouze v administraci
+- **published** (Publikováno): Viditelný na frontendu
+- **archived** (Archivováno): Není viditelný, ale není smazaný
+- **deleted** (Smazáno): Soft delete - stránka v koši, lze obnovit
+
+**Přechody:**
+```
+draft → publish() → published
+published → archive() → archived
+archived → publish() → published
+* → softDelete() → deleted (status=DELETED, deleted_at set, previous status saved to meta)
+deleted → restore() → původní status (from meta.status_before_delete)
+```
+
+**Soft Delete implementace:**
 ```php
-// src/Controller/AppController.php
-#[Route('/metodika', name: 'app_metodika')]
-public function metodika(): Response
+// Page::softDelete() - uloží původní status do meta
+public function softDelete(int $userId): static
 {
-    return $this->render('pages/metodika.html.twig');
+    $this->setMetaValue('status_before_delete', $this->status->value);
+    $oldStatus = $this->status->value;
+    $this->status = PageStatusEnum::DELETED;
+    $this->deletedAt = new \DateTimeImmutable();
+
+    $this->addHistoryEntry($userId, 'deleted', [
+        'status' => [$oldStatus, 'deleted'],
+        'deleted_at' => $this->deletedAt->format('c')
+    ]);
+    return $this;
+}
+
+// Page::restore() - obnoví původní status z meta
+public function restore(int $userId): static
+{
+    $previousStatus = $this->getMetaValue('status_before_delete', 'draft');
+    $this->status = PageStatusEnum::from($previousStatus);
+    $this->deletedAt = null;
+
+    // Vymaž saved status z meta
+    $meta = $this->meta;
+    unset($meta['status_before_delete']);
+    $this->meta = $meta;
+
+    $this->addHistoryEntry($userId, 'restored', [
+        'status' => ['deleted', $previousStatus]
+    ]);
+    return $this;
 }
 ```
 
+### WYSIWYG Editor (Tiptap)
+
+**Podporované formátování:**
+- Text: Tučné, kurzíva, přeškrtnuté, kód
+- Nadpisy: H1, H2, H3
+- Seznamy: Odrážkový, číslovaný
+- Bloky: Citace, horizontální oddělovač
+- Odkazy: URL odkazy
+- Obrázky: URL obrázků (inline)
+- Undo/Redo: Historie změn
+
+**Výstup:** Čisté HTML uložené v `content` TEXT sloupci
+
+### SEO Metadata
+
+Metadata v JSON `meta` poli:
+```json
+{
+    "seo_title": "Custom <title> tag",
+    "seo_description": "Meta description",
+    "keywords": ["keyword1", "keyword2"]
+}
+```
+
+### Hierarchická struktura
+
+```php
+// Parent-Child vztah
+$page->setParent($parentPage);
+$page->getChildren(); // Collection
+
+// Breadcrumbs (cesta od root)
+$page->getBreadcrumbs(); // array
+
+// Slug cesta
+$page->getPath(); // ['root-slug', 'parent-slug']
+
+// Hloubka ve stromu
+$page->getDepth(); // 0 = root, 1 = první úroveň
+```
+
+### Full-text vyhledávání
+
+```php
+// Trigram search (pg_trgm extension)
+$pages = $pageRepository->search('značení trasy', publishedOnly: true);
+```
+
+Vyhledává v: `title`, `excerpt`, `content`
+
+### Slug generování
+
+```php
+// SlugService transliterace
+"Značení tras v KČT" → "znaceni-tras-v-kct"
+
+// Czech diacritics map:
+'á' => 'a', 'č' => 'c', 'ř' => 'r', 'š' => 's', ...
+```
+
+### Přiložené soubory
+
+Integrace s `FileAttachment`:
+```php
+$pageService->attachFile($page, $file, 'page_attachment');
+$attachments = $pageService->getPageAttachments($page);
+```
+
+### History tracking
+
+```json
+[
+    {
+        "action": "created",
+        "user_id": 1,
+        "timestamp": "2025-11-06T20:00:00+00:00"
+    },
+    {
+        "action": "published",
+        "user_id": 1,
+        "timestamp": "2025-11-06T20:05:00+00:00"
+    }
+]
+```
+
+---
+
+## 📖 Metodiky systém (IMPLEMENTOVÁNO)
+
+### Přehled
+Metodiky používají CMS systém - stránky jsou uloženy v databázi s typem `PageContentTypeEnum::METODIKA` a zobrazeny přes standardní route.
+
+**URL:** `/metodika/`
+
+### AppController implementace
+```php
+// src/Controller/AppController.php
+#[Route('/metodika', name: 'app_metodika')]
+public function metodika(PageRepository $pageRepository): Response
+{
+    $dily = $pageRepository->findBy([
+        'contentType' => PageContentTypeEnum::METODIKA,
+        'parent' => null,
+        'status' => PageStatusEnum::PUBLISHED,
+    ], ['sortOrder' => 'ASC']);
+
+    return $this->render('pages/metodika.html.twig', [
+        'dily' => $dily,
+    ]);
+}
+```
+
+### Template
 ```twig
 {# templates/pages/metodika.html.twig #}
 {% extends 'base.html.twig' %}
 
-{% block title %}Metodiky - Portál značkaře{% endblock %}
+{% block title %}Metodika značení - Portál značkaře{% endblock %}
 
 {% block body %}
-    <div class="container container--lg">
+    <div class="container container--xl">
         {% include 'components/page-header.html.twig' with {
-            title: 'Metodiky',
-            subtitle: 'Návody, postupy a dokumentace pro značkaře'
+            title: 'Metodika značení',
+            subtitle: 'Komplexní průvodce značením turistických tras'
         } %}
-        
-        {# TODO: Implementovat React app pro metodiky #}
-        <div class="card">
-            <div class="card__content">
-                <p class="text-gray-600 dark:text-gray-400">
-                    Metodiky budou implementovány v následující fázi vývoje.
-                </p>
-            </div>
+
+        {# Grid karet dílů metodiky #}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+            {% for dil in dily %}
+                <a href="{{ dil.urlPath }}" class="card hover:shadow-lg transition-shadow">
+                    {{ tabler_icon(dil.meta.icon ?? 'book', 32) }}
+                    <h3>{{ dil.title }}</h3>
+                    {% if dil.excerpt %}
+                        <p>{{ dil.excerpt }}</p>
+                    {% endif %}
+                    <span class="badge badge--primary badge--sm">
+                        {{ dil.children|length }} {{ dil.children|length == 1 ? 'kapitola' : (dil.children|length < 5 ? 'kapitoly' : 'kapitol') }}
+                    </span>
+                </a>
+            {% endfor %}
         </div>
     </div>
 {% endblock %}
 ```
 
-### Plánovaná API struktura
-```php
-// src/Controller/Api/PortalController.php (TODO endpointy)
-#[Route('/api/portal/metodika', methods: ['GET'])]
-public function getMetodika(Request $request): JsonResponse
-{
-    // TODO: Implementovat získání metodik
-    return new JsonResponse([
-        'message' => 'Endpoint /metodika není zatím implementován - bude implementován v další fázi'
-    ], 501);
-}
-
-#[Route('/api/portal/metodika-terms', methods: ['GET'])]
-public function getMetodikaTerms(Request $request): JsonResponse
-{
-    // TODO: Implementovat získání kategorií metodik
-    return new JsonResponse([
-        'message' => 'Endpoint /metodika-terms není zatím implementován - bude implementován v další fázi'
-    ], 501);
-}
-```
-
-### Budoucí funkcionalita
-```javascript
-// assets/js/apps/metodiky/App.jsx (plánováno)
-const App = () => {
-    const [categories, setCategories] = useState([]);
-    const [documents, setDocuments] = useState([]);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [selectedCategory, setSelectedCategory] = useState('all');
-    
-    useEffect(() => {
-        // Načíst kategorie a dokumenty
-        Promise.all([
-            fetch('/api/portal/metodika-terms').then(r => r.json()),
-            fetch('/api/portal/metodika').then(r => r.json())
-        ]).then(([categoriesData, documentsData]) => {
-            setCategories(categoriesData);
-            setDocuments(documentsData);
-        });
-    }, []);
-    
-    const filteredDocuments = documents.filter(doc => 
-        (selectedCategory === 'all' || doc.category === selectedCategory) &&
-        doc.title.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    
-    return (
-        <div className="space-y-6">
-            {/* Search and filters */}
-            <div className="flex gap-4">
-                <input
-                    type="text"
-                    placeholder="Hledat metodiky..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="form__input flex-1"
-                />
-                <select
-                    value={selectedCategory}
-                    onChange={(e) => setSelectedCategory(e.target.value)}
-                    className="form__select"
-                >
-                    <option value="all">Všechny kategorie</option>
-                    {categories.map(cat => (
-                        <option key={cat.slug} value={cat.slug}>{cat.name}</option>
-                    ))}
-                </select>
-            </div>
-            
-            {/* Documents grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredDocuments.map(doc => (
-                    <div key={doc.id} className="card">
-                        <div className="card__content">
-                            <h3 className="card__title">{doc.title}</h3>
-                            <p className="text-sm text-gray-600 mb-4">{doc.description}</p>
-                            <div className="flex justify-between items-center">
-                                <span className="text-xs text-gray-500">{doc.category_name}</span>
-                                <a href={doc.download_url} className="btn btn--primary btn--sm">
-                                    Stáhnout PDF
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-};
-```
+### Hierarchická struktura
+Metodiky podporují parent-child hierarchii:
+- **Díly** (parent=null): Hlavní části metodiky
+- **Kapitoly** (parent=dil): Podstránky pod jednotlivými díly
 
 ## 📥 Downloads systém
 
@@ -201,249 +356,90 @@ class DownloadService
 }
 ```
 
-## 📚 Help System s podporou obrázků
+## 📚 Help System (NAPOVEDA)
 
-### 📸 Screenshot Management
-- **Složka:** `user-docs/assets/images/` - jedna složka pro všechny obrázky
-- **Formáty:** PNG pro UI screenshoty, JPG pro fotografie
-- **Routing:** `/napoveda/assets/images/filename.png` pro interní help systém
-- **Wiki sync:** Automatické kopírování do `user-docs-assets/images/filename.png`
-- **Pojmenování:** `funkce-akce.png` (např. `login-form.png`, `prikazy-filter.png`)
+### Přehled
+Nápověda používá stejný CMS systém jako metodiky - stránky jsou uloženy v databázi s typem `PageContentTypeEnum::NAPOVEDA` a zobrazeny přes `HelpController`.
 
-## 📚 Help System
+**URL:** `/napoveda/`
 
-### HelpController s podporou obrázků
+### HelpController - Database-driven
 ```php
 // src/Controller/HelpController.php
 #[Route('/napoveda')]
 class HelpController extends AbstractController
 {
-    private string $userDocsPath;
-    private MarkdownService $markdownService;
-    
-    public function __construct(string $projectDir, MarkdownService $markdownService)
-    {
-        $this->userDocsPath = $projectDir . '/user-docs';
-        $this->markdownService = $markdownService;
+    public function __construct(
+        private PageRepository $pageRepository
+    ) {
     }
-    
+
     #[Route('/', name: 'help_index')]
     public function index(): Response
     {
-        if (!is_dir($this->userDocsPath)) {
-            return $this->render('help/coming-soon.html.twig');
-        }
-        
-        $content = $this->loadMarkdownFile('README.md');
-        $navigation = $this->buildNavigation();
-        
-        return $this->render('help/index.html.twig', [
-            'content' => $this->markdownService->parse($content, '/napoveda/assets'),
-            'navigation' => $navigation
+        // Načti publikované nápovědy z databáze
+        $napovedy = $this->pageRepository->findBy([
+            'contentType' => PageContentTypeEnum::NAPOVEDA,
+            'parent' => null,
+            'status' => PageStatusEnum::PUBLISHED,
+        ], ['sortOrder' => 'ASC']);
+
+        return $this->render('pages/napoveda.html.twig', [
+            'napovedy' => $napovedy,
         ]);
     }
-    
-    #[Route('/{section}', name: 'help_section')]
-    public function section(string $section): Response
+
+    #[Route('/{slug}', name: 'help_page', priority: -1)]
+    public function page(string $slug): Response
     {
-        $sectionPath = $this->userDocsPath . '/' . $section;
-        
-        if (!is_dir($sectionPath)) {
-            return $this->render('help/not-found.html.twig', [
-                'navigation' => $this->buildNavigation(),
-                'currentSection' => $section,
-                'message' => 'Tato sekce nápovědy ještě není k dispozici.'
-            ]);
-        }
-        
-        // Načti README nebo první soubor v sekci
-        $indexFile = $sectionPath . '/README.md';
-        if (!file_exists($indexFile)) {
-            $files = glob($sectionPath . '/*.md');
-            $indexFile = $files[0] ?? null;
-        }
-        
-        $content = $indexFile ? $this->loadMarkdownFile($indexFile) : '';
-        
-        return $this->render('help/page.html.twig', [
-            'content' => $this->markdownService->parse($content, '/napoveda/assets'),
-            'navigation' => $this->buildNavigation(),
-            'currentSection' => $section
+        // Najdi stránku podle slugu
+        $page = $this->pageRepository->findOneBy([
+            'slug' => $slug,
+            'contentType' => PageContentTypeEnum::NAPOVEDA,
+            'status' => PageStatusEnum::PUBLISHED,
         ]);
-    }
-    
-    #[Route('/assets/{path}', name: 'help_assets', requirements: ['path' => '.+'])]
-    public function assets(string $path): Response
-    {
-        $filePath = $this->userDocsPath . '/assets/' . $path;
-        
-        // Security check - pouze soubory v assets složce
-        $realPath = realpath($filePath);
-        $assetsPath = realpath($this->userDocsPath . '/assets');
-        
-        if (!$realPath || !str_starts_with($realPath, $assetsPath)) {
-            throw $this->createNotFoundException('Asset not found');
+
+        if (!$page) {
+            throw $this->createNotFoundException('Stránka nápovědy nebyla nalezena');
         }
-        
-        if (!file_exists($filePath)) {
-            throw $this->createNotFoundException('Asset not found');
-        }
-        
-        // Detekce MIME typu
-        $mimeType = mime_content_type($filePath) ?: 'application/octet-stream';
-        
-        // Cache headers pro obrázky
-        $response = new BinaryFileResponse($filePath);
-        $response->headers->set('Content-Type', $mimeType);
-        $response->headers->set('Cache-Control', 'public, max-age=86400'); // 24 hodin
-        
-        return $response;
+
+        return $this->render('pages/napoveda-detail.html.twig', [
+            'page' => $page,
+        ]);
     }
 }
 ```
 
-### Navigation Configuration
-```yaml
-# user-docs/navigation.yaml
-sections:
-  getting-started:
-    title: "Začínáme"
-    description: "První kroky s aplikací"
-    pages:
-      - first-login: "První přihlášení"
-      - dashboard: "Orientace v aplikaci"
-      - basic-workflow: "Základní pracovní postup"
-  
-  prikazy:
-    title: "Práce s příkazy"
-    description: "Správa a zpracování příkazů"
-    pages:
-      - viewing: "Prohlížení příkazů"
-      - filtering: "Filtrování a vyhledávání"
-      - detail: "Detail příkazu"
-      - printing: "Tisk a export"
-  
-  hlaseni:
-    title: "Hlášení práce"
-    description: "Vyplňování a odesílání hlášení"
-    pages:
-      - overview: "Přehled hlášení"
-      - part-a: "Část A - Základní údaje"
-      - part-b: "Část B - Výkaz práce"
-      - attachments: "Přikládání souborů"
-      - submission: "Odeslání hlášení"
-```
-
-### MarkdownService s podporou obrázků
-```php
-// src/Service/MarkdownService.php
-class MarkdownService
-{
-    public function parse(string $content, string $basePath = ''): string
-    {
-        // Základní Markdown parsing
-        // Později možno nahradit knihovnou jako commonmark/commonmark
-        
-        $content = preg_replace('/^# (.+)$/m', '<h1>$1</h1>', $content);
-        $content = preg_replace('/^## (.+)$/m', '<h2>$1</h2>', $content);
-        $content = preg_replace('/^### (.+)$/m', '<h3>$1</h3>', $content);
-        
-        // Images - NOVÁ FUNKCIONALITA
-        $content = preg_replace_callback(
-            '/!\[([^\]]*)\]\(([^)]+)\)/',
-            function ($matches) use ($basePath) {
-                $alt = $matches[1];
-                $src = $matches[2];
-                
-                // Pro help systém přidat /napoveda/assets/ prefix
-                if ($basePath && !preg_match('/^https?:\/\//', $src)) {
-                    $src = $basePath . '/' . ltrim($src, '/');
-                }
-                
-                return "<img src=\"{$src}\" alt=\"{$alt}\" class=\"help-image img-fluid rounded shadow-sm my-3\" loading=\"lazy\">";
-            },
-            $content
-        );
-        
-        // Links
-        $content = preg_replace('/\[([^\]]+)\]\(([^)]+)\)/', '<a href="$2">$1</a>', $content);
-        
-        // Bold and italic
-        $content = preg_replace('/\*\*([^*]+)\*\*/', '<strong>$1</strong>', $content);
-        $content = preg_replace('/\*([^*]+)\*/', '<em>$1</em>', $content);
-        
-        // Paragraphs
-        $content = preg_replace('/\n\n/', '</p><p>', $content);
-        $content = '<p>' . $content . '</p>';
-        
-        // Clean up empty paragraphs
-        $content = preg_replace('/<p><\/p>/', '', $content);
-        $content = preg_replace('/<p>(<h[1-6]>)/i', '$1', $content);
-        $content = preg_replace('/(<\/h[1-6]>)<\/p>/i', '$1', $content);
-        $content = preg_replace('/<p>(<img[^>]*>)<\/p>/i', '$1', $content);
-        
-        return $content;
-    }
-}
-```
-
-## 🎨 Template struktura
-
-### Help Templates
+### Templates
 ```twig
-{# templates/help/index.html.twig #}
-{% extends 'base.html.twig' %}
-
-{% block title %}Nápověda - Portál značkaře{% endblock %}
-
-{% block body %}
-    <div class="container container--lg">
-        <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
-            {# Sidebar navigation #}
-            <div class="lg:col-span-1">
-                {% include 'help/navigation.html.twig' with {
-                    navigation: navigation,
-                    currentSection: currentSection ?? null
-                } %}
-            </div>
-            
-            {# Main content #}
-            <div class="lg:col-span-3">
-                <div class="card">
-                    <div class="card__content prose dark:prose-invert max-w-none">
-                        {{ content|raw }}
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-{% endblock %}
-```
-
-```twig
-{# templates/help/navigation.html.twig #}
-<nav class="space-y-1">
-    {% for section in navigation %}
-        <div>
-            <a href="{{ section.url }}" 
-               class="flex items-center px-3 py-2 text-sm font-medium rounded-md {{ currentSection == section.name ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-50' }}">
-                {{ section.title }}
-            </a>
-            
-            {% if section.pages and currentSection == section.name %}
-                <div class="ml-3 mt-1 space-y-1">
-                    {% for page in section.pages %}
-                        <a href="{{ page.url }}" 
-                           class="block px-3 py-1 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-md">
-                            {{ page.title }}
-                        </a>
-                    {% endfor %}
-                </div>
-            {% endif %}
-        </div>
+{# templates/pages/napoveda.html.twig - Seznam nápověd #}
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    {% for napoveda in napovedy %}
+        <a href="{{ napoveda.urlPath }}" class="card hover:shadow-lg transition-shadow">
+            {{ tabler_icon(napoveda.meta.icon ?? 'help-circle', 32) }}
+            <h3>{{ napoveda.title }}</h3>
+            <p>{{ napoveda.excerpt }}</p>
+        </a>
     {% endfor %}
-</nav>
+</div>
 ```
+
+```twig
+{# templates/pages/napoveda-detail.html.twig - Detail nápovědy #}
+<article class="card prose prose-lg dark:prose-invert max-w-none">
+    {{ page.content|raw }}
+</article>
+
+{# Zobrazit child stránky #}
+{% if page.children|length > 0 %}
+    <h2>Související témata</h2>
+    {% for child in page.children %}
+        <a href="{{ child.urlPath }}">{{ child.title }}</a>
+    {% endfor %}
+{% endif %}
+```
+
+---
 
 ## 🚀 Budoucí rozšíření
 
@@ -595,7 +591,17 @@ class ContentAnalyticsService
 
 ---
 
-**File Management:** [../features/file-management.md](../features/file-management.md)  
-**Services Configuration:** [../configuration.md](../configuration.md)  
-**Help System Live:** [/napoveda](/napoveda) (když aplikace běží)  
-**Aktualizováno:** 2025-07-22
+**CMS API Reference:** [../api/cms-api.md](../api/cms-api.md)
+**File Management:** [../features/file-management.md](../features/file-management.md)
+**Services Configuration:** [../configuration.md](../configuration.md)
+**Metodiky Live:** [/metodika](/metodika) (když aplikace běží)
+**Nápověda Live:** [/napoveda](/napoveda) (když aplikace běží)
+**Aktualizováno:** 2025-11-07
+
+## Changelog
+- **2025-11-07**:
+  - Přidán DELETED status do PageStatusEnum (4 stavy místo 3)
+  - Změna soft delete logiky - status-based místo timestamp-only (ukládá původní status do meta)
+  - Help System změněn z markdown-based na database-driven (PageContentTypeEnum::NAPOVEDA)
+  - Metodiky systém označen jako implementováno (database-driven)
+- **2025-11-06**: Initial CMS documentation created

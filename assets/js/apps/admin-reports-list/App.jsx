@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, {useState, useEffect} from 'react';
 import {
     createColumnHelper,
     flexRender,
@@ -7,8 +7,8 @@ import {
     getSortedRowModel,
     useReactTable,
 } from '@tanstack/react-table';
-import { IconEye, IconRefresh } from '@tabler/icons-react';
-import { StateBadge, getStateLabel } from '../../utils/stateBadge';
+import {IconEye, IconRefresh} from '@tabler/icons-react';
+import {StateBadge, getStateLabel} from '../../utils/stateBadge';
 import {Loader} from "@components/shared";
 
 const columnHelper = createColumnHelper();
@@ -58,7 +58,7 @@ const App = () => {
         columnHelper.accessor('state', {
             header: 'Stav',
             size: 100,
-            cell: info => <StateBadge state={info.getValue()} />,
+            cell: info => <StateBadge state={info.getValue()}/>,
             filterFn: (row, columnId, value) => {
                 if (value === 'all') return true;
                 return row.getValue(columnId) === value;
@@ -82,7 +82,7 @@ const App = () => {
                     className="btn btn--sm btn--primary"
                     title="Zobrazit detail"
                 >
-                    <IconEye size={16} />
+                    <IconEye size={16}/>
                     Detail
                 </a>
             ),
@@ -108,57 +108,58 @@ const App = () => {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex-layout flex-layout--between flex-layout--wrap">
-                <h1 className="page-title">Správa hlášení</h1>
-                <button 
-                    onClick={loadReports}
-                    className="btn btn--secondary"
-                    disabled={loading}
-                >
-                    <IconRefresh size={16} />
-                    Obnovit
-                </button>
-            </div>
+
 
             {/* Filtry */}
             <div className="card">
                 <div className="card__content">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                            <label className="form__label">Číslo ZP</label>
-                            <input
-                                type="text"
-                                className="form__input"
-                                placeholder="Vyhledat podle čísla ZP..."
-                                value={table.getColumn('cisloZp')?.getFilterValue() ?? ''}
-                                onChange={e => table.getColumn('cisloZp')?.setFilterValue(e.target.value)}
-                            />
+                    <div className="flex-layout flex-layout--between flex-layout--wrap">
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label className="form__label">Číslo ZP</label>
+                                <input
+                                    type="text"
+                                    className="form__input"
+                                    placeholder="Vyhledat podle čísla ZP..."
+                                    value={table.getColumn('cisloZp')?.getFilterValue() ?? ''}
+                                    onChange={e => table.getColumn('cisloZp')?.setFilterValue(e.target.value)}
+                                />
+                            </div>
+                            <div>
+                                <label className="form__label">Značkaři</label>
+                                <input
+                                    type="text"
+                                    className="form__input"
+                                    placeholder="Vyhledat podle značkařů..."
+                                    value={table.getColumn('znackari')?.getFilterValue() ?? ''}
+                                    onChange={e => table.getColumn('znackari')?.setFilterValue(e.target.value)}
+                                />
+                            </div>
+                            <div>
+                                <label className="form__label">Stav</label>
+                                <select
+                                    className="form__select"
+                                    value={table.getColumn('state')?.getFilterValue() ?? 'all'}
+                                    onChange={e => table.getColumn('state')?.setFilterValue(e.target.value === 'all' ? undefined : e.target.value)}
+                                >
+                                    <option value="all">Všechny stavy</option>
+                                    <option value="draft">{getStateLabel('draft')}</option>
+                                    <option value="send">{getStateLabel('send')}</option>
+                                    <option value="submitted">{getStateLabel('submitted')}</option>
+                                    <option value="approved">{getStateLabel('approved')}</option>
+                                    <option value="rejected">{getStateLabel('rejected')}</option>
+                                </select>
+                            </div>
                         </div>
-                        <div>
-                            <label className="form__label">Značkaři</label>
-                            <input
-                                type="text"
-                                className="form__input"
-                                placeholder="Vyhledat podle značkařů..."
-                                value={table.getColumn('znackari')?.getFilterValue() ?? ''}
-                                onChange={e => table.getColumn('znackari')?.setFilterValue(e.target.value)}
-                            />
-                        </div>
-                        <div>
-                            <label className="form__label">Stav</label>
-                            <select
-                                className="form__select"
-                                value={table.getColumn('state')?.getFilterValue() ?? 'all'}
-                                onChange={e => table.getColumn('state')?.setFilterValue(e.target.value === 'all' ? undefined : e.target.value)}
-                            >
-                                <option value="all">Všechny stavy</option>
-                                <option value="draft">{getStateLabel('draft')}</option>
-                                <option value="send">{getStateLabel('send')}</option>
-                                <option value="submitted">{getStateLabel('submitted')}</option>
-                                <option value="approved">{getStateLabel('approved')}</option>
-                                <option value="rejected">{getStateLabel('rejected')}</option>
-                            </select>
-                        </div>
+                        <button
+                            onClick={loadReports}
+                            className="btn btn--secondary"
+                            disabled={loading}
+                        >
+                            <IconRefresh size={16}/>
+                            Obnovit
+                        </button>
                     </div>
                 </div>
             </div>
@@ -169,41 +170,41 @@ const App = () => {
                     <div className="overflow-x-auto">
                         <table className="table">
                             <thead>
-                                {table.getHeaderGroups().map(headerGroup => (
-                                    <tr key={headerGroup.id}>
-                                        {headerGroup.headers.map(header => (
-                                            <th key={header.id} style={{ width: header.column.getSize() }}>
-                                                {header.isPlaceholder ? null : (
-                                                    <div
-                                                        className={header.column.getCanSort() ? 'cursor-pointer select-none' : ''}
-                                                        onClick={header.column.getToggleSortingHandler()}
-                                                    >
-                                                        {flexRender(header.column.columnDef.header, header.getContext())}
-                                                        {{
-                                                            asc: ' ↑',
-                                                            desc: ' ↓',
-                                                        }[header.column.getIsSorted()] ?? null}
-                                                    </div>
-                                                )}
-                                            </th>
-                                        ))}
-                                    </tr>
-                                ))}
+                            {table.getHeaderGroups().map(headerGroup => (
+                                <tr key={headerGroup.id}>
+                                    {headerGroup.headers.map(header => (
+                                        <th key={header.id} style={{width: header.column.getSize()}}>
+                                            {header.isPlaceholder ? null : (
+                                                <div
+                                                    className={header.column.getCanSort() ? 'cursor-pointer select-none' : ''}
+                                                    onClick={header.column.getToggleSortingHandler()}
+                                                >
+                                                    {flexRender(header.column.columnDef.header, header.getContext())}
+                                                    {{
+                                                        asc: ' ↑',
+                                                        desc: ' ↓',
+                                                    }[header.column.getIsSorted()] ?? null}
+                                                </div>
+                                            )}
+                                        </th>
+                                    ))}
+                                </tr>
+                            ))}
                             </thead>
                             <tbody>
-                                {table.getRowModel().rows.map(row => (
-                                    <tr key={row.id}>
-                                        {row.getVisibleCells().map(cell => (
-                                            <td key={cell.id}>
-                                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                            </td>
-                                        ))}
-                                    </tr>
-                                ))}
+                            {table.getRowModel().rows.map(row => (
+                                <tr key={row.id}>
+                                    {row.getVisibleCells().map(cell => (
+                                        <td key={cell.id}>
+                                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                        </td>
+                                    ))}
+                                </tr>
+                            ))}
                             </tbody>
                         </table>
                     </div>
-                    
+
                     {table.getRowModel().rows.length === 0 && (
                         <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                             Žádná hlášení nenalezena

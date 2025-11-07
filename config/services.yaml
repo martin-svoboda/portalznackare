@@ -29,10 +29,6 @@ services:
         arguments:
             $projectDir: '%kernel.project_dir%'
 
-    App\Controller\HelpController:
-        arguments:
-            $projectDir: '%kernel.project_dir%'
-
     # API Exception listener pro JSON error responses
     App\EventListener\ApiExceptionListener:
         tags:

@@ -22,6 +22,8 @@ Encore
     // Admin apps entries
     .addEntry('admin-reports-list', './assets/js/apps/admin-reports-list/index.jsx')
     .addEntry('admin-report-detail', './assets/js/apps/admin-report-detail/index.jsx')
+    .addEntry('admin-cms-pages', './assets/js/apps/admin-cms-pages/index.jsx')
+    .addEntry('admin-cms-page-editor', './assets/js/apps/admin-cms-page-editor/index.jsx')
     
     // Globální systémy
     .addEntry('toast-system', './assets/js/toast-system.js')

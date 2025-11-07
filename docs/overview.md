@@ -25,6 +25,7 @@ Kompletní dokumentace webové aplikace pro správu turistického značení KČT
 - [INSYZ Stored Procedures](api/insyz-stored-procedures.md) - Reference všech INSYZ SP
 - [Portal API](api/portal-api.md) - Lokální funkcionalita
 - [Admin API](api/admin-api.md) - Administrační endpointy
+- [CMS API](api/cms-api.md) - CMS správa stránek
 
 ### 🛠️ Development
 - [Development guide](development/development.md) - Debug nástroje a workflow
@@ -66,6 +67,6 @@ Kompletní dokumentace webové aplikace pro správu turistického značení KČT
 
 ---
 
-**Aktualizováno:** 2025-08-08  
-**Verze dokumentace:** 2.2  
+**Aktualizováno:** 2025-11-06
+**Verze dokumentace:** 2.3
 **Pro projekt:** Portál značkaře

@@ -89,10 +89,14 @@
                     <h3 class="card__title">Rychlé akce</h3>
                 </div>
                 <div class="card__content">
-                    <div class="grid grid-cols-4">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <a href="{{ path('admin_users') }}" class="btn btn--secondary">
                             {{ tabler_icon('users', 20) }}
                             Správa uživatelů
+                        </a>
+                        <a href="{{ path('admin_cms_pages') }}" class="btn btn--secondary">
+                            {{ tabler_icon('file-text', 20) }}
+                            Správa stránek
                         </a>
                         <a href="{{ path('admin_audit_logs') }}" class="btn btn--secondary">
                             {{ tabler_icon('file-search', 20) }}

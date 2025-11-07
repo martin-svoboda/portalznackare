@@ -269,4 +269,18 @@ class AdminController extends AbstractController
 
         return $this->render('admin/system-options.html.twig', ['settings' => $settings]);
     }
+
+    #[Route('/cms', name: 'admin_cms_pages')]
+    public function cmsPages(): Response
+    {
+        return $this->render('admin/cms-pages.html.twig');
+    }
+
+    #[Route('/cms/edit/{id?}', name: 'admin_cms_page_edit')]
+    public function cmsPageEdit(?int $id = null): Response
+    {
+        return $this->render('admin/cms-page-editor.html.twig', [
+            'pageId' => $id,
+        ]);
+    }
 }
