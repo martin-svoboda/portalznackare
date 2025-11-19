@@ -246,6 +246,7 @@ function App({pageId}) {
                         <TiptapEditor
                             content={formData.content}
                             onChange={(html) => handleChange('content', html)}
+                            pageId={pageId}
                         />
                     </div>
                 </div>

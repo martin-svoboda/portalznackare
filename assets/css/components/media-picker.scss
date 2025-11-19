@@ -1,0 +1,172 @@
+// Media Picker Modal - WordPress-style media library picker
+// BEM + Tailwind @apply pattern
+
+.media-picker-overlay {
+    @apply fixed inset-0 z-50;
+    @apply bg-black/50 backdrop-blur-sm;
+    @apply flex items-center justify-center p-4;
+    @apply animate-in fade-in duration-200;
+}
+
+.media-picker {
+    @apply bg-white dark:bg-gray-900;
+    @apply rounded-lg shadow-2xl;
+    @apply w-full max-w-4xl max-h-[90vh];
+    @apply flex flex-col;
+    @apply animate-in zoom-in-95 duration-200;
+
+    // Header
+    &__header {
+        @apply flex items-center justify-between;
+        @apply px-6 py-4;
+        @apply border-b border-gray-200 dark:border-gray-700;
+    }
+
+    // Tabs
+    &__tabs {
+        @apply flex gap-1;
+        @apply px-6 py-2;
+        @apply bg-gray-50 dark:bg-gray-800;
+        @apply border-b border-gray-200 dark:border-gray-700;
+    }
+
+    &__tab {
+        @apply flex items-center gap-2;
+        @apply px-4 py-2;
+        @apply text-sm font-medium;
+        @apply text-gray-600 dark:text-gray-400;
+        @apply bg-transparent;
+        @apply rounded-t-lg;
+        @apply border-b-2 border-transparent;
+        @apply transition-colors;
+
+        &:hover {
+            @apply text-gray-900 dark:text-gray-100;
+            @apply bg-gray-100 dark:bg-gray-700;
+        }
+
+        &.active {
+            @apply text-blue-600 dark:text-blue-400;
+            @apply bg-white dark:bg-gray-900;
+            @apply border-blue-600 dark:border-blue-400;
+        }
+    }
+
+    // Content area
+    &__content {
+        @apply flex-1 overflow-y-auto;
+        @apply px-6 py-4;
+    }
+
+    // Library tab
+    &__library {
+        @apply space-y-4;
+    }
+
+    &__grid {
+        @apply grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3;
+    }
+
+    &__grid-item {
+        @apply relative aspect-square;
+        @apply bg-gray-100 dark:bg-gray-800;
+        @apply rounded-lg overflow-hidden;
+        @apply cursor-pointer;
+        @apply border-2 border-transparent;
+        @apply transition-all duration-200;
+
+        &:hover {
+            @apply border-blue-300 dark:border-blue-600;
+            @apply shadow-lg;
+        }
+
+        &.selected {
+            @apply border-blue-600 dark:border-blue-400;
+            @apply ring-2 ring-blue-600 dark:ring-blue-400;
+            @apply shadow-lg;
+        }
+    }
+
+    &__grid-item-check {
+        @apply absolute top-2 right-2;
+        @apply w-8 h-8;
+        @apply bg-blue-600 dark:bg-blue-500;
+        @apply text-white;
+        @apply rounded-full;
+        @apply flex items-center justify-center;
+        @apply shadow-lg;
+    }
+
+    // Upload tab
+    &__upload {
+        @apply space-y-4;
+    }
+
+    &__dropzone {
+        @apply flex flex-col items-center justify-center;
+        @apply min-h-[300px];
+        @apply p-8;
+        @apply border-2 border-dashed border-gray-300 dark:border-gray-600;
+        @apply rounded-lg;
+        @apply cursor-pointer;
+        @apply transition-colors;
+
+        &:hover,
+        &.drag-over {
+            @apply border-blue-500 dark:border-blue-400;
+            @apply bg-blue-50 dark:bg-blue-900/20;
+        }
+    }
+
+    // Camera modal
+    &__camera {
+        @apply space-y-4;
+
+        video {
+            @apply w-full rounded-lg;
+            @apply bg-black;
+        }
+    }
+
+    // Footer
+    &__footer {
+        @apply px-6 py-4;
+        @apply border-t border-gray-200 dark:border-gray-700;
+        @apply bg-gray-50 dark:bg-gray-800;
+    }
+}
+
+// Animation keyframes
+@keyframes fade-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes zoom-in-95 {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.animate-in {
+    animation-duration: 0.2s;
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+    animation-fill-mode: both;
+}
+
+.fade-in {
+    animation-name: fade-in;
+}
+
+.zoom-in-95 {
+    animation-name: zoom-in-95;
+}

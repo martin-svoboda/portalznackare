@@ -59,7 +59,7 @@ export const createDebugLogger = (componentName) => ({
         if (!debugEnabled) return;
         console.log(`[${new Date().toLocaleTimeString('cs-CZ')}] 📊 [${componentName}] State: ${stateName}`, { old: oldValue, new: newValue });
     },
-    
+
     error: (message, error = null) => {
         console.error(`[${new Date().toLocaleTimeString('cs-CZ')}] ❌ [${componentName}] ${message}`, error || '');
     },

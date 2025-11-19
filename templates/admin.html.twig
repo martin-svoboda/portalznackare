@@ -78,6 +78,11 @@
                     Správa stránek
                 </a>
 
+                <a href="{{ path('admin_media') }}" class="nav-link {{ app.request.attributes.get('_route') == 'admin_media' ? 'active' : '' }}">
+                    {{ tabler_icon('photo') }}
+                    Správa médií
+                </a>
+
                 <a href="{{ path('admin_audit_logs') }}" class="nav-link {{ app.request.attributes.get('_route') == 'admin_audit_logs' ? 'active' : '' }}">
                     {{ tabler_icon('file-search') }}
                     Audit logy

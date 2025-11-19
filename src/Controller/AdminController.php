@@ -283,4 +283,10 @@ class AdminController extends AbstractController
             'pageId' => $id,
         ]);
     }
+
+    #[Route('/media', name: 'admin_media')]
+    public function media(): Response
+    {
+        return $this->render('admin/media-library.html.twig');
+    }
 }

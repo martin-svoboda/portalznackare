@@ -345,12 +345,121 @@ class PageService
     {
         $pageId = $page->getId();
 
-        return $this->fileAttachmentRepository->createQueryBuilder('f')
-            ->where('JSON_EXTRACT(f.usageInfo, :usage_key) IS NOT NULL')
-            ->andWhere('f.deletedAt IS NULL')
-            ->setParameter('usage_key', sprintf('$."page_%d"', $pageId))
+        // Get all files and filter in PHP (DQL doesn't support JSON operations well)
+        // This is more portable than using database-specific JSON functions
+        $allFiles = $this->fileAttachmentRepository->createQueryBuilder('f')
+            ->where('f.deletedAt IS NULL')
+            ->andWhere('f.usageInfo IS NOT NULL')
             ->orderBy('f.createdAt', 'ASC')
             ->getQuery()
             ->getResult();
+
+        // Filter files that are used by this page
+        return array_filter($allFiles, function($file) use ($pageId) {
+            return $file->isUsedIn('pages', $pageId);
+        });
+    }
+
+    /**
+     * Update file usage tracking based on HTML content
+     * Parses img tags with data-file-id attributes and updates usage tracking
+     *
+     * @param Page $page
+     * @return void
+     */
+    public function updatePageFileUsage(Page $page): void
+    {
+        $content = $page->getContent();
+        $pageId = $page->getId();
+
+        // 1. Parse HTML content for img tags with data-file-id
+        $currentFileIds = $this->extractFileIdsFromContent($content);
+
+        $this->logger->debug('Updating page file usage', [
+            'page_id' => $pageId,
+            'current_file_ids' => $currentFileIds,
+        ]);
+
+        // 2. Get all files currently marked as used by this page
+        $existingFiles = $this->getPageAttachments($page);
+        $existingFileIds = array_map(fn($f) => $f->getId(), $existingFiles);
+
+        $this->logger->debug('Existing file usage', [
+            'page_id' => $pageId,
+            'existing_file_ids' => $existingFileIds,
+        ]);
+
+        // 3. Add usage for new files
+        $newFileIds = array_diff($currentFileIds, $existingFileIds);
+        foreach ($newFileIds as $fileId) {
+            $file = $this->fileAttachmentRepository->find($fileId);
+            if ($file) {
+                $file->addUsage('pages', $pageId, ['field' => 'content_images']);
+                $this->fileAttachmentRepository->save($file, true);
+
+                $this->logger->debug('Added file usage', [
+                    'page_id' => $pageId,
+                    'file_id' => $fileId,
+                ]);
+            }
+        }
+
+        // 4. Remove usage for files no longer in content
+        $removedFileIds = array_diff($existingFileIds, $currentFileIds);
+        foreach ($removedFileIds as $fileId) {
+            $file = $this->fileAttachmentRepository->find($fileId);
+            if ($file) {
+                $file->removeUsage('pages', $pageId);
+                $this->fileAttachmentRepository->save($file, true);
+
+                $this->logger->debug('Removed file usage', [
+                    'page_id' => $pageId,
+                    'file_id' => $fileId,
+                ]);
+            }
+        }
+
+        $this->logger->info('Page file usage updated', [
+            'page_id' => $pageId,
+            'added' => count($newFileIds),
+            'removed' => count($removedFileIds),
+        ]);
+    }
+
+    /**
+     * Extract file IDs from HTML content
+     * Looks for img tags with data-file-id attributes
+     *
+     * @param string $htmlContent
+     * @return array<int> Array of file IDs
+     */
+    private function extractFileIdsFromContent(string $htmlContent): array
+    {
+        if (empty($htmlContent)) {
+            return [];
+        }
+
+        $fileIds = [];
+
+        // Use DOMDocument to parse HTML
+        $doc = new \DOMDocument();
+
+        // Suppress warnings for malformed HTML
+        libxml_use_internal_errors(true);
+        $doc->loadHTML('<?xml encoding="UTF-8">' . $htmlContent, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+        libxml_clear_errors();
+
+        // Find all img tags
+        $images = $doc->getElementsByTagName('img');
+
+        foreach ($images as $img) {
+            $fileId = $img->getAttribute('data-file-id');
+            if (!empty($fileId) && is_numeric($fileId)) {
+                $fileIds[] = (int)$fileId;
+            }
+        }
+
+        // Return unique file IDs
+        return array_unique($fileIds);
     }
 }

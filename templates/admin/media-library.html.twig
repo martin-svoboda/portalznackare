@@ -1,0 +1,16 @@
+{% extends 'admin.html.twig' %}
+
+{% block title %}Správa médií - Admin{% endblock %}
+
+{% block body %}
+<!-- React app mount point -->
+<div
+    data-app="admin-media-library"
+    data-debug="{{ app.request.server.get('DEBUG_APPS') == 'true' ? 'true' : 'false' }}"
+></div>
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    {{ encore_entry_script_tags('admin-media-library') }}
+{% endblock %}

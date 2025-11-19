@@ -96,6 +96,9 @@ class CmsApiController extends AbstractController
         $user = $this->getUser();
         $page = $this->pageService->createPage($data, $user->getIntAdr());
 
+        // Update file usage tracking for inline images in content
+        $this->pageService->updatePageFileUsage($page);
+
         return $this->json(
             $this->serializePage($page, true),
             Response::HTTP_CREATED
@@ -130,6 +133,9 @@ class CmsApiController extends AbstractController
 
         $user = $this->getUser();
         $page = $this->pageService->updatePage($page, $data, $user->getIntAdr());
+
+        // Update file usage tracking for inline images in content
+        $this->pageService->updatePageFileUsage($page);
 
         return $this->json($this->serializePage($page, true));
     }

@@ -3,6 +3,7 @@
 namespace App\Controller\Api;
 
 use App\Entity\User;
+use App\Repository\FileAttachmentRepository;
 use App\Service\FileUploadService;
 use App\Service\ImageProcessingService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -20,7 +21,8 @@ class FileController extends AbstractController
     public function __construct(
         private FileUploadService $fileUploadService,
         private ImageProcessingService $imageProcessingService,
-        private ValidatorInterface $validator
+        private ValidatorInterface $validator,
+        private FileAttachmentRepository $fileAttachmentRepository
     ) {
     }
 
@@ -187,7 +189,7 @@ class FileController extends AbstractController
         }
     }
 
-    #[Route('/{id}', methods: ['GET'])]
+    #[Route('/{id}', methods: ['GET'], requirements: ['id' => '\d+'])]
     public function getFile(int $id): JsonResponse
     {
         $user = $this->getUser();
@@ -216,7 +218,7 @@ class FileController extends AbstractController
         ]);
     }
 
-    #[Route('/{id}', methods: ['DELETE'])]
+    #[Route('/{id}', methods: ['DELETE'], requirements: ['id' => '\d+'])]
     public function deleteFile(int $id, Request $request): JsonResponse
     {
         $user = $this->getUser();
@@ -564,9 +566,138 @@ class FileController extends AbstractController
 
         } catch (\Exception $e) {
             error_log("FileController::edit - Chyba: " . $e->getMessage());
-            
+
             return new JsonResponse([
                 'error' => 'Nepodařilo se editovat soubor',
+                'details' => $e->getMessage()
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * Get folder structure for media library
+     * Parses storage_path to extract real folder names from disk
+     */
+    #[Route('/folders', methods: ['GET'])]
+    public function getFolders(): JsonResponse
+    {
+        error_log("=== getFolders() called ===");
+
+        $user = $this->getUser();
+        error_log("User: " . ($user ? get_class($user) : 'NULL'));
+
+        if (!$user instanceof User) {
+            error_log("User is not instance of User - returning 401");
+            return new JsonResponse([
+                'error' => 'Nepřihlášený uživatel'
+            ], Response::HTTP_UNAUTHORIZED);
+        }
+
+        error_log("User authenticated: " . $user->getJmeno() . " (ID: " . $user->getIntAdr() . ")");
+        error_log("User roles: " . json_encode($user->getRoles()));
+
+        // Only admins can access media library
+        if (!$this->isGranted('ROLE_ADMIN')) {
+            error_log("User does NOT have ROLE_ADMIN - returning 403");
+            return new JsonResponse([
+                'error' => 'Nedostatečná oprávnění'
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        error_log("User has ROLE_ADMIN - proceeding");
+
+        try {
+            $folders = $this->fileAttachmentRepository->getFolderStructure();
+            error_log("Folders fetched: " . count($folders) . " folders");
+            error_log("Folders data: " . json_encode($folders));
+
+            return new JsonResponse([
+                'success' => true,
+                'folders' => $folders
+            ]);
+        } catch (\Exception $e) {
+            error_log(sprintf(
+                "Failed to get folder structure - User: %s, Error: %s, Trace: %s",
+                $user->getIntAdr(),
+                $e->getMessage(),
+                $e->getTraceAsString()
+            ));
+
+            return new JsonResponse([
+                'error' => 'Chyba při načítání struktury složek',
+                'details' => $e->getMessage()
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * Get files for media library with filters
+     * Supports filtering by folder, usage, type, search, uploadedBy
+     */
+    #[Route('/library', methods: ['GET'])]
+    public function getLibrary(Request $request): JsonResponse
+    {
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            return new JsonResponse([
+                'error' => 'Nepřihlášený uživatel'
+            ], Response::HTTP_UNAUTHORIZED);
+        }
+
+        // Only admins can access media library
+        if (!$this->isGranted('ROLE_ADMIN')) {
+            return new JsonResponse([
+                'error' => 'Nedostatečná oprávnění'
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        try {
+            $filters = [
+                'folder' => $request->query->get('folder'),
+                'usage' => $request->query->get('usage'), // 'all' | 'used' | 'unused'
+                'type' => $request->query->get('type'), // 'all' | 'images' | 'pdfs' | 'documents'
+                'search' => $request->query->get('search'),
+                'uploadedBy' => $request->query->get('uploadedBy'),
+            ];
+
+            $files = $this->fileAttachmentRepository->findForLibrary($filters);
+
+            // Transform to API response format
+            $filesData = array_map(function($file) {
+                return [
+                    'id' => $file->getId(),
+                    'fileName' => $file->getOriginalName(),
+                    'storedName' => $file->getStoredName(),
+                    'fileSize' => $file->getSize(),
+                    'fileType' => $file->getMimeType(),
+                    'url' => $file->getPublicUrl(),
+                    'thumbnailUrl' => $file->getThumbnailPath() ? '/uploads/' . $file->getThumbnailPath() : null,
+                    'storagePath' => $file->getStoragePath(),
+                    'uploadedAt' => $file->getCreatedAt()->format('c'),
+                    'uploadedBy' => $file->getUploadedBy(),
+                    'usageCount' => $file->getUsageCount(),
+                    'usageInfo' => $file->getUsageInfo(),
+                    'isTemporary' => $file->isTemporary(),
+                    'isPublic' => $file->isPublic(),
+                    'metadata' => $file->getMetadata(),
+                ];
+            }, $files);
+
+            return new JsonResponse([
+                'success' => true,
+                'files' => $filesData,
+                'count' => count($filesData)
+            ]);
+        } catch (\Exception $e) {
+            error_log(sprintf(
+                "Failed to get library files - User: %s, Filters: %s, Error: %s",
+                $user->getIntAdr(),
+                json_encode($filters ?? []),
+                $e->getMessage()
+            ));
+
+            return new JsonResponse([
+                'error' => 'Chyba při načítání souborů',
                 'details' => $e->getMessage()
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }

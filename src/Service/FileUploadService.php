@@ -484,7 +484,8 @@ class FileUploadService
             'methodologies/',
             'downloads/',
             'gallery/',
-            'documentation/'
+            'documentation/',
+            'cms/' // CMS page content images
         ];
         
         foreach ($publicPaths as $publicPath) {

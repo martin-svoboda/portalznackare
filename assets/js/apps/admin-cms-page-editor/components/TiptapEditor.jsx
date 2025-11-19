@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
@@ -18,8 +18,10 @@ import {
     IconLink,
     IconPhoto,
 } from '@tabler/icons-react';
+import MediaPickerModal from '../../../components/shared/media/MediaPickerModal.jsx';
 
-function TiptapEditor({ content, onChange }) {
+function TiptapEditor({ content, onChange, pageId }) {
+    const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
     const editor = useEditor({
         extensions: [
             StarterKit,
@@ -30,9 +32,8 @@ function TiptapEditor({ content, onChange }) {
                 },
             }),
             Image.configure({
-                HTMLAttributes: {
-                    class: 'max-w-full h-auto rounded-lg',
-                },
+                // No CSS classes - display images 1:1 without any styling
+                HTMLAttributes: {},
             }),
         ],
         content: content,
@@ -65,10 +66,20 @@ function TiptapEditor({ content, onChange }) {
     };
 
     const addImage = () => {
-        const url = window.prompt('URL obrázku:');
-        if (url) {
-            editor.chain().focus().setImage({ src: url }).run();
-        }
+        setMediaPickerOpen(true);
+    };
+
+    const handleMediaSelect = (file, altText) => {
+        // Insert image with data-file-id attribute for usage tracking
+        // IMPORTANT: Always use full image URL, never thumbnail
+        const fullImageUrl = file.url;
+
+        editor.chain().focus().setImage({
+            src: fullImageUrl,
+            alt: altText,
+            'data-file-id': file.id
+        }).run();
+        setMediaPickerOpen(false);
     };
 
     const ToolbarButton = ({ onClick, active, children, title }) => (
@@ -201,6 +212,18 @@ function TiptapEditor({ content, onChange }) {
 
             {/* Editor Content */}
             <EditorContent editor={editor} />
+
+            {/* Media Picker Modal */}
+            <MediaPickerModal
+                isOpen={mediaPickerOpen}
+                onClose={() => setMediaPickerOpen(false)}
+                onSelect={handleMediaSelect}
+                storagePath={`cms/pages/${pageId || 'new'}`}
+                entityType="pages"
+                entityId={pageId || 0}
+                accept="image/*"
+                maxSize={10}
+            />
         </div>
     );
 }

@@ -551,6 +551,103 @@ curl -X PATCH https://portalznackare.ddev.site/admin/api/cms/pages/1/publish
 curl -X DELETE https://portalznackare.ddev.site/admin/api/cms/pages/1
 ```
 
+## Media Picker Integration & File Usage Tracking
+
+### WordPress-Style Media Picker
+
+CMS editor integruje MediaPickerModal komponentu pro snadné nahrávání a výběr obrázků.
+
+**Komponenta:** `assets/js/components/shared/media/MediaPickerModal.jsx`
+
+**Funkce:**
+1. **Výběr z knihovny:** Grid view všech CMS souborů s filtry a search
+2. **Upload nových souborů:** Drag & drop, camera support, automatická komprese
+3. **Alt text input:** Povinné pole pro accessibility
+
+**Storage:**
+- Path: `/uploads/cms/pages/{pageId}/`
+- Public access (bez security tokenu)
+
+**Vložení do editoru:**
+```jsx
+// Tiptap vložení obrázku s usage tracking
+editor.chain().focus().setImage({
+    src: file.url,
+    alt: altText,
+    'data-file-id': file.id  // Atribut pro usage tracking
+}).run();
+```
+
+**HTML výstup:**
+```html
+<img
+    src="/uploads/cms/pages/123/obrazek.jpg"
+    alt="Popis obrázku"
+    data-file-id="456"
+>
+```
+
+### Automatické Usage Tracking
+
+Při uložení stránky (CREATE nebo UPDATE) se automaticky aktualizuje usage tracking pro inline obrázky.
+
+**Backend flow:**
+```php
+// CmsApiController::createPage() nebo ::updatePage()
+$page = $this->pageService->updatePage($page, $data, $userId);
+
+// Automatická aktualizace usage tracking
+$this->pageService->updatePageFileUsage($page);
+```
+
+**PageService::updatePageFileUsage():**
+1. Parse HTML content pomocí DOMDocument
+2. Extrahuj `data-file-id` atributy z `<img>` tagů
+3. Porovnej s existujícím usage v DB
+4. Přidej nové usage: `$file->addUsage('pages', $pageId, 'content_images')`
+5. Odstraň staré usage: `$file->removeUsage('pages', $pageId)`
+
+**Usage Info Format:**
+```json
+{
+    "usageInfo": {
+        "pages_123": {
+            "type": "pages",
+            "id": 123,
+            "data": {
+                "field": "content_images"
+            },
+            "added_at": "2025-11-19T20:30:00+00:00"
+        }
+    }
+}
+```
+
+**Benefits:**
+- Automatické sledování použití obrázků
+- Ochrana před smazáním používaných souborů
+- Cleanup orphaned files (soubory bez usage)
+- Administrace může vidět, kde je soubor použit
+
+### File Upload API
+
+Media picker používá standardní File Upload API s CMS-specifickými parametry.
+
+**Endpoint:** `POST /api/portal/files/upload`
+
+**CMS Parameters:**
+```javascript
+formData.append('path', 'cms/pages/123');
+formData.append('is_public', 'true');
+formData.append('entity_type', 'pages');
+formData.append('entity_id', '123');
+formData.append('field_name', 'content_images');
+```
+
+**Reference:** [Admin API - Media Library](admin-api.md#media-library-api)
+
 ## Související dokumentace
-- [CMS Management Feature](../features/cms-management.md)
+- [CMS Management Feature](../features/content-management.md)
+- [Media Library Feature](../features/admin-media-library.md)
+- [File Management](../features/file-management.md)
 - [Overview](../overview.md)

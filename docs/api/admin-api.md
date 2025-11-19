@@ -249,6 +249,92 @@ Všechny admin operace jsou automaticky logovány:
 - Export operace jsou omezeny na max 10k záznamů
 - Cleanup operace mají minimální dobu retence 30 dní
 
+## 📁 Media Library API {#media-library-api}
+
+### GET `/api/portal/files/folders`
+
+Seznam složek s počty souborů - parsováno z existing `storage_path`.
+
+**Autentifikace:** ROLE_ADMIN
+**Lokace:** FileController.php:243
+
+**Response:**
+```json
+{
+    "success": true,
+    "folders": [
+        {"name": "methodologies", "count": 12},
+        {"name": "reports", "count": 32},
+        {"name": "temp", "count": 5},
+        {"name": "users", "count": 8}
+    ]
+}
+```
+
+**Curl test:**
+```bash
+curl "https://portalznackare.ddev.site/api/portal/files/folders" \
+  --cookie "PHPSESSID=..."
+```
+
+### GET `/api/portal/files/library`
+
+Seznam souborů s pokročilým filtrováním pro admin media library.
+
+**Autentifikace:** ROLE_ADMIN
+**Lokace:** FileController.php:269
+
+**Query parametry:**
+- `folder` - Filter podle složky (např. `reports`, `methodologies`)
+- `usage` - Filter podle použití (`all` / `used` / `unused`)
+- `type` - Filter podle typu (`all` / `images` / `pdfs` / `documents`)
+- `search` - Fulltext search v názvu souboru
+
+**Response:**
+```json
+{
+    "success": true,
+    "files": [
+        {
+            "id": 123,
+            "fileName": "photo.jpg",
+            "url": "/uploads/reports/2025/praha/1/123/abc123def456/photo.jpg",
+            "thumbnailUrl": "/uploads/reports/2025/praha/1/123/thumb_abc123def456/photo.jpg",
+            "fileSize": 1048576,
+            "fileType": "image/jpeg",
+            "isPublic": false,
+            "uploadedBy": "Jan Novák",
+            "createdAt": "2025-01-15T10:30:00+00:00",
+            "usageCount": 2
+        }
+    ]
+}
+```
+
+**Curl tests:**
+```bash
+# All files
+curl "https://portalznackare.ddev.site/api/portal/files/library"
+
+# Filter by folder
+curl "https://portalznackare.ddev.site/api/portal/files/library?folder=reports"
+
+# Filter unused images
+curl "https://portalznackare.ddev.site/api/portal/files/library?usage=unused&type=images"
+
+# Search
+curl "https://portalznackare.ddev.site/api/portal/files/library?search=photo"
+
+# Combined filters
+curl "https://portalznackare.ddev.site/api/portal/files/library?folder=reports&usage=unused&type=images&search=trasa"
+```
+
+**Implementace:**
+- **SQL parsing:** `SPLIT_PART(storage_path, '/', 1)` - NO new DB migration
+- **MIME type filtering:** Pre-defined categories (images, pdfs, documents)
+- **Usage filtering:** JSON_LENGTH check na `usageInfo` sloupec
+- **Fulltext search:** LIKE query na `originalName` a `storedName`
+
 ## 📊 INSYZ Audit API {#insyz-audit-api}
 
 ### 📋 GET `/api/insyz-audit-logs`
@@ -374,7 +460,8 @@ Bulk cleanup starých INSYZ audit logů.
 
 ---
 
-**Funkcionální dokumentace:** [../features/user-management.md](../features/user-management.md)  
-**Audit system:** [../features/audit-logging.md](../features/audit-logging.md)  
-**API přehled:** [overview.md](overview.md)  
-**Aktualizováno:** 2025-08-08
+**Funkcionální dokumentace:** [../features/user-management.md](../features/user-management.md)
+**Audit system:** [../features/audit-logging.md](../features/audit-logging.md)
+**Media Library:** [../features/admin-media-library.md](../features/admin-media-library.md)
+**API přehled:** [overview.md](overview.md)
+**Aktualizováno:** 2025-11-11

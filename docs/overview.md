@@ -17,6 +17,7 @@ Kompletní dokumentace webové aplikace pro správu turistického značení KČT
 - [Správa příkazů](features/prikazy-management.md) - Zobrazení a správa příkazů
 - [Hlášení příkazů](features/hlaseni-prikazu.md) - Workflow hlášení práce
 - [Správa souborů](features/file-management.md) - Upload a správa příloh
+- [Admin Media Library](features/admin-media-library.md) - WordPress-style správa médií
 - [Lokalizace](features/localization.md) - České skloňování
 - [Content Management](features/content-management.md) - CMS funkcionalita
 
@@ -67,6 +68,6 @@ Kompletní dokumentace webové aplikace pro správu turistického značení KČT
 
 ---
 
-**Aktualizováno:** 2025-11-06
-**Verze dokumentace:** 2.3
+**Aktualizováno:** 2025-11-11
+**Verze dokumentace:** 2.4
 **Pro projekt:** Portál značkaře

@@ -162,6 +162,69 @@ public function restore(int $userId): static
 
 **Výstup:** Čisté HTML uložené v `content` TEXT sloupci
 
+#### WordPress-Style Media Picker
+
+**Lokace:** `assets/js/components/shared/media/MediaPickerModal.jsx`
+
+Integrovaný media picker v Tiptap editoru pro snadné nahrávání a výběr obrázků z knihovny médií.
+
+**Funkce:**
+- **Tab "Knihovna médií":**
+  - Grid view všech CMS souborů
+  - Filtry: Type (images/all/pdfs/documents), Search
+  - Preview před výběrem
+  - Výběr existujícího souboru
+
+- **Tab "Nahrát nový":**
+  - Drag & drop upload
+  - Camera support (mobilní zařízení)
+  - Automatická komprese obrázků (1920px @ 85%)
+  - Vytvoření thumbnailů
+
+- **Alt text input:**
+  - Povinné pole pro accessibility
+  - Auto-generovaný z názvu souboru
+  - Ukládá se do `<img alt="">` atributu
+
+**Použití v editoru:**
+```jsx
+// Tlačítko v toolbaru
+<ToolbarButton onClick={() => setMediaPickerOpen(true)}>
+    <IconPhoto size={18} />
+</ToolbarButton>
+
+// Vložení obrázku s usage tracking
+editor.chain().focus().setImage({
+    src: file.url,
+    alt: altText,
+    'data-file-id': file.id  // Pro usage tracking
+}).run();
+```
+
+**Storage path:**
+- CMS obrázky: `/uploads/cms/pages/{pageId}/`
+- Public přístup (bez tokenu)
+
+**Usage tracking:**
+- Při save stránky se parsuje HTML obsah
+- Extrahují se `data-file-id` atributy
+- Automaticky se aktualizuje `FileAttachment.usageInfo`
+- Usage type: `pages`, entity ID: `{pageId}`, field: `content_images`
+
+**Backend flow:**
+```php
+// PageService::updatePageFileUsage()
+1. Parse HTML pro <img data-file-id="123">
+2. Získej current usage z DB
+3. Přidej nové usage: $file->addUsage('pages', $pageId, 'content_images')
+4. Odstraň staré usage: $file->removeUsage('pages', $pageId)
+```
+
+**Implementované metody:**
+- `PageService::updatePageFileUsage(Page $page)` - Automatická aktualizace usage tracking
+- `PageService::extractFileIdsFromContent(string $html)` - DOMDocument parsing img tagů
+- Volání v `CmsApiController::createPage()` a `updatePage()`
+
 ### SEO Metadata
 
 Metadata v JSON `meta` poli:
