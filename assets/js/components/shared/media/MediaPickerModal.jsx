@@ -13,12 +13,13 @@ const logger = createDebugLogger('MediaPickerModal');
  * Props:
  * - isOpen: boolean
  * - onClose: () => void
- * - onSelect: (file: FileAttachment, altText: string) => void
+ * - onSelect: (file: FileAttachment, altText?: string) => void
  * - storagePath: string (e.g., "cms/pages/123")
  * - entityType: string (e.g., "pages")
  * - entityId: number (e.g., 123)
  * - accept: string (e.g., "image/*")
  * - maxSize: number (MB, default 10)
+ * - mode: 'image' | 'file' (default 'image') - Controls UI behavior
  */
 export default function MediaPickerModal({
     isOpen = false,
@@ -28,7 +29,8 @@ export default function MediaPickerModal({
     entityType,
     entityId,
     accept = "image/*",
-    maxSize = 10
+    maxSize = 10,
+    mode = 'image'
 }) {
     // Tabs
     const [activeTab, setActiveTab] = useState('library'); // 'library' | 'upload'
@@ -37,7 +39,7 @@ export default function MediaPickerModal({
     const [libraryFiles, setLibraryFiles] = useState([]);
     const [loading, setLoading] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
-    const [typeFilter, setTypeFilter] = useState('images'); // 'all' | 'images' | 'pdfs' | 'documents'
+    const [typeFilter, setTypeFilter] = useState(mode === 'image' ? 'images' : 'all'); // 'all' | 'images' | 'pdfs' | 'documents'
 
     // Upload tab state
     const [uploading, setUploading] = useState(false);
@@ -399,13 +401,21 @@ export default function MediaPickerModal({
             return;
         }
 
-        if (!altText.trim()) {
+        // Alt text is required only for images
+        if (mode === 'image' && !altText.trim()) {
             showWarningToast('Zadejte prosím alt text pro obrázek');
             return;
         }
 
-        logger.lifecycle('File confirmed', { fileId: selectedFile.id, altText });
-        onSelect(selectedFile, altText);
+        logger.lifecycle('File confirmed', { fileId: selectedFile.id, altText: mode === 'image' ? altText : null, mode });
+
+        // Call onSelect with appropriate parameters based on mode
+        if (mode === 'image') {
+            onSelect(selectedFile, altText);
+        } else {
+            onSelect(selectedFile);
+        }
+
         handleClose();
     };
 
@@ -414,7 +424,7 @@ export default function MediaPickerModal({
         setSelectedFile(null);
         setAltText('');
         setSearchQuery('');
-        setTypeFilter('images');
+        setTypeFilter(mode === 'image' ? 'images' : 'all');
         setActiveTab('library');
         stopCamera();
         onClose();
@@ -428,7 +438,7 @@ export default function MediaPickerModal({
                 {/* Header */}
                 <div className="media-picker__header">
                     <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-                        Vložit obrázek
+                        {mode === 'image' ? 'Vložit obrázek' : 'Vložit soubor ke stažení'}
                     </h2>
                     <button
                         type="button"
@@ -512,8 +522,11 @@ export default function MediaPickerModal({
                                                     className="w-full h-full object-cover"
                                                 />
                                             ) : (
-                                                <div className="w-full h-full flex items-center justify-center bg-gray-200 dark:bg-gray-700">
-                                                    <IconPhoto size={48} className="text-gray-400" />
+                                                <div className="w-full h-full flex flex-col items-center justify-center bg-gray-200 dark:bg-gray-700 p-2">
+                                                    <IconPhoto size={48} className="text-gray-400 mb-2" />
+                                                    <p className="text-xs text-center text-gray-700 dark:text-gray-300 font-medium break-words line-clamp-2">
+                                                        {file.fileName}
+                                                    </p>
                                                 </div>
                                             )}
                                             {selectedFile?.id === file.id && (
@@ -626,15 +639,17 @@ export default function MediaPickerModal({
                                         />
                                     </div>
 
-                                    {/* Camera button */}
-                                    <button
-                                        type="button"
-                                        onClick={startCamera}
-                                        className="w-full mt-4 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 flex items-center justify-center gap-2"
-                                    >
-                                        <IconCamera size={20} />
-                                        Použít kameru
-                                    </button>
+                                    {/* Camera button - only for image mode */}
+                                    {mode === 'image' && (
+                                        <button
+                                            type="button"
+                                            onClick={startCamera}
+                                            className="w-full mt-4 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 flex items-center justify-center gap-2"
+                                        >
+                                            <IconCamera size={20} />
+                                            Použít kameru
+                                        </button>
+                                    )}
 
                                     {uploading && (
                                         <div className="mt-4 text-center">
@@ -677,18 +692,21 @@ export default function MediaPickerModal({
                                 <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
                                     {Math.round(selectedFile.fileSize / 1024)} KB
                                 </p>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                        Alt text (popis obrázku)
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={altText}
-                                        onChange={(e) => setAltText(e.target.value)}
-                                        placeholder="Popis obrázku pro nevidomé..."
-                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-blue-500"
-                                    />
-                                </div>
+                                {/* Alt text field - only for image mode */}
+                                {mode === 'image' && (
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                            Alt text (popis obrázku)
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={altText}
+                                            onChange={(e) => setAltText(e.target.value)}
+                                            placeholder="Popis obrázku pro nevidomé..."
+                                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                        />
+                                    </div>
+                                )}
                             </div>
 
                             {/* Action buttons */}
@@ -705,7 +723,7 @@ export default function MediaPickerModal({
                                     onClick={handleConfirmSelection}
                                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                                 >
-                                    Vložit obrázek
+                                    {mode === 'image' ? 'Vložit obrázek' : 'Vložit soubor'}
                                 </button>
                             </div>
                         </div>

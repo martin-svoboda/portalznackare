@@ -6,12 +6,13 @@
 
 ### ✅ Implementováno (v produkci)
 - **CMS Pages** - Plně funkční správa stránek s Tiptap WYSIWYG editorem
+- **Download Blocks** - Vkládání souborů ke stažení přímo do CMS obsahu (PDF, DOC, XLS, ZIP, atd.)
+- **Media Library** - WordPress-style picker pro obrázky i soubory s dual-mode support
 - **Help systém** - Markdown-based nápověda pro uživatele
 - **Static pages** - Server-rendered Twig stránky
 
 ### 🚧 Plánováno
-- **Metodiky** - Kategorizované PDF dokumenty a návody
-- **Downloads** - Soubory ke stažení (formuláře, templates, atd.)
+- **Metodiky** - Kategorizované PDF dokumenty a návody (databázová struktura připravena)
 
 ---
 
@@ -157,10 +158,17 @@ public function restore(int $userId): static
 - Seznamy: Odrážkový, číslovaný
 - Bloky: Citace, horizontální oddělovač
 - Odkazy: URL odkazy
-- Obrázky: URL obrázků (inline)
+- Obrázky: URL obrázků (inline) přes Media Picker
+- **Download Blocks: Soubory ke stažení (PDF, DOC, XLS, atd.) přes File Picker**
 - Undo/Redo: Historie změn
 
 **Výstup:** Čisté HTML uložené v `content` TEXT sloupci
+
+**Extensions:**
+- `StarterKit` - Základní formátování (bold, italic, lists, headings, atd.)
+- `Link` - URL odkazy s custom styling
+- `Image` - Inline obrázky s data-file-id tracking
+- `DownloadBlock` - Custom node pro downloadable files
 
 #### WordPress-Style Media Picker
 
@@ -224,6 +232,137 @@ editor.chain().focus().setImage({
 - `PageService::updatePageFileUsage(Page $page)` - Automatická aktualizace usage tracking
 - `PageService::extractFileIdsFromContent(string $html)` - DOMDocument parsing img tagů
 - Volání v `CmsApiController::createPage()` a `updatePage()`
+
+#### Download File Blocks (Soubory ke stažení)
+
+**Lokace:** `assets/js/apps/admin-cms-page-editor/extensions/DownloadBlock.js`
+
+Custom Tiptap extension pro vkládání downloadable files do obsahu stránek. Renderuje se jako stylizovaný `.download-item` block s informacemi o souboru a tlačítkem ke stažení.
+
+**Funkce:**
+- **Dual-mode Media Picker:**
+  - `mode="image"` - Pro obrázky s alt textem
+  - `mode="file"` - Pro downloadable files (PDF, DOC, XLS, ZIP, atd.)
+  - Camera button pouze pro image mode
+  - Větší max velikost pro file mode (50MB vs 10MB)
+
+- **File Picker Modal:**
+  - Stejné rozhraní jako image picker
+  - TypeFilter default: "all" (místo "images")
+  - Bez povinného alt text fieldu
+  - Zobrazuje file info (název, velikost, typ)
+
+- **Supported File Types:**
+  - PDF dokumenty
+  - Word dokumenty (DOC, DOCX)
+  - Excel tabulky (XLS, XLSX)
+  - PowerPoint prezentace (PPT, PPTX)
+  - Archivy (ZIP, RAR, 7Z)
+  - Jakékoliv další soubory
+
+**Použití v editoru:**
+```jsx
+// Tlačítko v toolbaru
+<ToolbarButton onClick={() => setFilePickerOpen(true)} title="Soubor ke stažení">
+    <IconDownload size={18} />
+</ToolbarButton>
+
+// Vložení download blocku
+editor.chain().focus().setDownloadBlock({
+    fileId: file.id,
+    fileName: file.fileName,
+    fileUrl: file.url,
+    fileSize: file.fileSize,    // v bytes
+    fileType: file.fileType     // MIME type
+}).run();
+```
+
+**HTML Output:**
+```html
+<div class="download-item" data-file-id="123">
+    <div class="download-item__info">
+        <h4 class="download-item__title">Formulář žádosti.pdf</h4>
+        <p class="download-item__desc">PDF dokument, 1.2 MB</p>
+    </div>
+    <a href="/uploads/cms/pages/45/formulář.pdf" class="btn btn--primary" download="Formulář žádosti.pdf">
+        <svg>...</svg>
+        Stáhnout
+    </a>
+</div>
+```
+
+**CSS Komponenta:**
+- **Lokace:** `assets/css/components/download-item.scss`
+- **Struktura:** BEM metodologie (`.download-item__info`, `.download-item__title`, atd.)
+- **Styling:** Tailwind @apply s dark mode supportem
+- **Responsive:** Flex layout s gap spacing
+
+**Node Configuration:**
+```javascript
+DownloadBlock.create({
+    name: 'downloadBlock',
+    group: 'block',
+    atom: true,          // Nelze rozdělit nebo editovat inline
+    draggable: true,     // Přesunutelný drag & drop
+
+    addAttributes() {
+        return {
+            fileId: { ... },      // Pro usage tracking
+            fileName: { ... },    // Zobrazovaný název
+            fileUrl: { ... },     // Download URL
+            fileSize: { ... },    // Velikost v bytes
+            fileType: { ... }     // MIME type pro ikonu
+        };
+    },
+
+    addCommands() {
+        return {
+            setDownloadBlock: (attrs) => ({ commands }) => {
+                return commands.insertContent({
+                    type: this.name,
+                    attrs: attrs
+                });
+            }
+        };
+    }
+});
+```
+
+**File Type Detection:**
+- Auto-detekce typu souboru z MIME type nebo extension
+- Lokalizované labely (např. "PDF dokument", "Excel tabulka")
+- Automatické formátování velikosti (B, KB, MB, GB)
+- SVG ikona downloadu inline v HTML (Tabler Icons)
+
+**Usage Tracking:**
+- Stejný systém jako u obrázků přes `data-file-id` atribut
+- `PageService::extractFileIdsFromContent()` parsuje i download blocks
+- Usage type: `pages`, entity ID: `{pageId}`, field: `content_downloads`
+- Automatická aktualizace při save stránky
+
+**Storage Path:**
+- Download files: `/uploads/cms/pages/{pageId}/`
+- Public přístup (stejně jako obrázky)
+- Organizace podle page ID pro snadnou správu
+
+**Modal Props:**
+```jsx
+// Image Picker
+<MediaPickerModal
+    mode="image"
+    accept="image/*"
+    maxSize={10}
+    onSelect={(file, altText) => { ... }}
+/>
+
+// File Picker
+<MediaPickerModal
+    mode="file"
+    accept="*"
+    maxSize={50}
+    onSelect={(file) => { ... }}  // Bez altText
+/>
+```
 
 ### SEO Metadata
 

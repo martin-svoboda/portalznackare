@@ -3,6 +3,7 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
 import Image from '@tiptap/extension-image';
+import DownloadBlock from '../extensions/DownloadBlock.js';
 import {
     IconBold,
     IconItalic,
@@ -17,11 +18,13 @@ import {
     IconSeparator,
     IconLink,
     IconPhoto,
+    IconDownload,
 } from '@tabler/icons-react';
 import MediaPickerModal from '../../../components/shared/media/MediaPickerModal.jsx';
 
 function TiptapEditor({ content, onChange, pageId }) {
     const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
+    const [filePickerOpen, setFilePickerOpen] = useState(false);
     const editor = useEditor({
         extensions: [
             StarterKit,
@@ -35,6 +38,7 @@ function TiptapEditor({ content, onChange, pageId }) {
                 // No CSS classes - display images 1:1 without any styling
                 HTMLAttributes: {},
             }),
+            DownloadBlock,
         ],
         content: content,
         onUpdate: ({ editor }) => {
@@ -80,6 +84,22 @@ function TiptapEditor({ content, onChange, pageId }) {
             'data-file-id': file.id
         }).run();
         setMediaPickerOpen(false);
+    };
+
+    const addDownloadFile = () => {
+        setFilePickerOpen(true);
+    };
+
+    const handleFileSelect = (file) => {
+        // Insert download block with file data
+        editor.chain().focus().setDownloadBlock({
+            fileId: file.id,
+            fileName: file.fileName,
+            fileUrl: file.url,
+            fileSize: file.fileSize,
+            fileType: file.fileType
+        }).run();
+        setFilePickerOpen(false);
     };
 
     const ToolbarButton = ({ onClick, active, children, title }) => (
@@ -208,12 +228,19 @@ function TiptapEditor({ content, onChange, pageId }) {
                 >
                     <IconPhoto size={18} />
                 </ToolbarButton>
+
+                <ToolbarButton
+                    onClick={addDownloadFile}
+                    title="Soubor ke stažení"
+                >
+                    <IconDownload size={18} />
+                </ToolbarButton>
             </div>
 
             {/* Editor Content */}
             <EditorContent editor={editor} />
 
-            {/* Media Picker Modal */}
+            {/* Media Picker Modal - Images */}
             <MediaPickerModal
                 isOpen={mediaPickerOpen}
                 onClose={() => setMediaPickerOpen(false)}
@@ -223,6 +250,20 @@ function TiptapEditor({ content, onChange, pageId }) {
                 entityId={pageId || 0}
                 accept="image/*"
                 maxSize={10}
+                mode="image"
+            />
+
+            {/* File Picker Modal - Download Files */}
+            <MediaPickerModal
+                isOpen={filePickerOpen}
+                onClose={() => setFilePickerOpen(false)}
+                onSelect={handleFileSelect}
+                storagePath={`cms/pages/${pageId || 'new'}`}
+                entityType="pages"
+                entityId={pageId || 0}
+                accept="*"
+                maxSize={50}
+                mode="file"
             />
         </div>
     );
