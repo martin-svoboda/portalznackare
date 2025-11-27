@@ -1,0 +1,82 @@
+// Tiptap Editor - ProseMirror specific styles
+// Only styles that Tailwind prose doesn't cover
+
+.ProseMirror {
+  // Selected image outline
+  img.ProseMirror-selectednode {
+    @apply outline outline-2 outline-blue-500;
+  }
+
+  // Poznámka: Align/float styly pro obrázky jsou aplikovány inline v ImageExtended.js
+  // Pro frontend rendering viz content.scss
+
+  // Tables - enhanced visibility in editor
+  table {
+    @apply border-collapse w-full my-4;
+    @apply border border-gray-300 dark:border-gray-600;
+
+    td, th {
+      @apply border border-gray-300 dark:border-gray-600;
+      @apply px-3 py-2 text-left;
+      @apply min-w-[100px];
+    }
+
+    th {
+      @apply bg-gray-100 dark:bg-gray-800;
+      @apply font-semibold;
+      @apply text-gray-900 dark:text-gray-100;
+    }
+
+    td {
+      @apply text-gray-700 dark:text-gray-300;
+    }
+
+    // Selected table cell
+    .selectedCell {
+      @apply bg-blue-50 dark:bg-blue-900/20;
+    }
+  }
+
+  // Placeholder text
+  p.is-editor-empty:first-child::before {
+    @apply text-gray-400 dark:text-gray-500;
+    content: attr(data-placeholder);
+    float: left;
+    height: 0;
+    pointer-events: none;
+  }
+
+  // Gapcursor (cursor placeholder for empty nodes)
+  .ProseMirror-gapcursor {
+    @apply relative;
+
+    &:after {
+      content: '';
+      @apply absolute top-0 left-0 w-0.5 h-full;
+      @apply bg-gray-900 dark:bg-gray-100;
+      @apply animate-pulse;
+    }
+  }
+}
+
+// Custom download block extension
+.download-item {
+  @apply flex items-center justify-between;
+  @apply p-4 my-4 bg-gray-50 dark:bg-gray-800 rounded-lg;
+  @apply border border-gray-200 dark:border-gray-700;
+  @apply hover:bg-gray-100 dark:hover:bg-gray-700;
+  @apply transition-colors;
+
+  &__info {
+    @apply flex-1;
+  }
+
+  &__title {
+    @apply text-base font-medium;
+    @apply text-gray-900 dark:text-gray-100 mb-1;
+  }
+
+  &__desc {
+    @apply text-sm text-gray-600 dark:text-gray-400 m-0;
+  }
+}

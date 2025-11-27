@@ -1,6 +1,7 @@
 import React, {useState, useEffect} from 'react';
 import {IconDeviceFloppy, IconArrowLeft, IconLoader} from '@tabler/icons-react';
 import {createDebugLogger} from '@utils/debug';
+import {showSuccess, showError} from '@utils/notifications';
 import TiptapEditor from './components/TiptapEditor';
 
 const logger = createDebugLogger('AdminCmsPageEditor');
@@ -82,7 +83,7 @@ function App({pageId}) {
             })
             .catch(error => {
                 logger.error('Failed to load page', error);
-                alert('Chyba při načítání stránky');
+                showError('Chyba při načítání stránky');
                 window.location.href = '/admin/cms';
             });
     }, [pageId, isEdit]);
@@ -166,15 +167,24 @@ function App({pageId}) {
             });
 
             if (response.ok) {
-                logger.lifecycle('Page saved successfully');
-                window.location.href = '/admin/cms';
+                const savedPage = await response.json();
+                logger.lifecycle('Page saved successfully', savedPage);
+
+                // Při vytvoření nové stránky přesměruj na edit s ID
+                if (!isEdit && savedPage.id) {
+                    window.location.href = `/admin/cms/edit/${savedPage.id}`;
+                } else {
+                    // Při editaci zůstaň na stejné stránce, jen zobraz notifikaci
+                    showSuccess('Stránka byla úspěšně uložena');
+                    setSaving(false);
+                }
             } else {
                 const error = await response.json();
                 throw new Error(error.message || 'Failed to save page');
             }
         } catch (error) {
             logger.error('Failed to save page', error);
-            alert('Chyba při ukládání stránky: ' + error.message);
+            showError('Chyba při ukládání stránky: ' + error.message);
         } finally {
             setSaving(false);
         }

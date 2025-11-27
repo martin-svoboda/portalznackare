@@ -3,7 +3,7 @@
 
 // Základní card
 .card {
-  @apply p-5 bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden;
+  @apply p-5 bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800;
 
   // Card variants
   &--elevated {
