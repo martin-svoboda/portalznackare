@@ -2,59 +2,39 @@
 
 {% block title %}{{ page.title }}{% endblock %}
 
-{% block meta %}
-    {% if page.metaValue('seo_title') %}
-        <title>{{ page.metaValue('seo_title') }}</title>
-    {% endif %}
-    {% if page.metaValue('seo_description') %}
-        <meta name="description" content="{{ page.metaValue('seo_description') }}">
-    {% endif %}
-    {% if page.metaValue('keywords') %}
-        <meta name="keywords" content="{{ page.metaValue('keywords')|join(', ') }}">
-    {% endif %}
-{% endblock %}
-
 {% block body %}
-<div class="page">
-    <div class="page__header">
+    <div class="container container--lg">
         {% include 'components/page-header.html.twig' with {
+            title: page.title,
+            subtitle: page.excerpt,
             'breadcrumbs': breadcrumbs|map(p => {
                 'text': p.title,
                 'url': p.id == page.id ? null : p.urlPath
             })
         } %}
-    </div>
 
-    <article class="page__content">
-        <div class="cms-page">
-            <header class="cms-page__header">
-                <h1 class="cms-page__title">{{ page.title }}</h1>
-
-                {% if page.excerpt %}
-                    <p class="cms-page__excerpt">{{ page.excerpt }}</p>
-                {% endif %}
-
-                {% if page.featuredImage %}
-                    <div class="cms-page__featured-image">
-                        <img
-                            src="{{ page.featuredImage.publicUrl }}"
-                            alt="{{ page.title }}"
-                            class="w-full h-auto rounded-lg shadow-md"
-                        >
-                    </div>
-                {% endif %}
-            </header>
-
-            <div class="cms-page__content prose dark:prose-invert">
-                {{ page.content|raw }}
+        {% if page.featuredImage %}
+            <div class="cms-page__featured-image">
+                <img
+                        src="{{ page.featuredImage.publicUrl }}"
+                        alt="{{ page.title }}"
+                        class="w-full h-auto rounded-lg shadow-md"
+                >
             </div>
+        {% endif %}
 
-            <footer class="cms-page__footer">
-                <div class="text-sm text-gray-500 dark:text-gray-400">
-                    Poslední aktualizace: {{ page.updatedAt|date('d.m.Y H:i') }}
-                </div>
-            </footer>
-        </div>
-    </article>
-</div>
+        {# Main content #}
+        <main class="card max-w-4xl">
+            {# Page content #}
+            <article class="prose dark:prose-invert max-w-none">
+                {{ page.content|raw }}
+            </article>
+        </main>
+
+        <footer class="cms-page__footer">
+            <div class="text-sm text-gray-500 dark:text-gray-400">
+                Poslední aktualizace: {{ page.updatedAt|date('d.m.Y H:i') }}
+            </div>
+        </footer>
+    </div>
 {% endblock %}

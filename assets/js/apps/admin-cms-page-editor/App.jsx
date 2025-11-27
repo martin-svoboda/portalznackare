@@ -249,7 +249,7 @@ function App({pageId}) {
                     </div>
 
                     {/* Content editor */}
-                    <div>
+                    <div className="max-w-4xl">
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             Obsah *
                         </label>
