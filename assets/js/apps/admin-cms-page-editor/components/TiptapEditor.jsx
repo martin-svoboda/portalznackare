@@ -29,12 +29,6 @@ import {
     IconStrikethrough,
     IconCode,
     IconCodeDots,
-    IconH1,
-    IconH2,
-    IconH3,
-    IconList,
-    IconListNumbers,
-    IconListCheck,
     IconQuote,
     IconSeparator,
     IconLink,
@@ -49,23 +43,14 @@ import {
     IconColumnRemove,
     IconTableOff,
     IconBorderAll,
-    IconBorderInner,
-    IconLayoutColumns,
-    IconLayoutRows,
     IconArrowBackUp,
     IconArrowForwardUp,
-    IconAlignLeft,
-    IconAlignCenter,
-    IconAlignRight,
-    IconAlignJustified,
-    IconPalette,
-    IconHighlight,
     IconFloatLeft,
     IconFloatRight,
     IconFloatNone,
     IconLayoutAlignLeft,
     IconLayoutAlignCenter,
-    IconLayoutAlignRight,
+    IconLayoutAlignRight, IconTableColumn, IconTableRow, IconBorderNone,
 } from '@tabler/icons-react';
 
 // Shared components
@@ -464,7 +449,7 @@ function TiptapEditor({ content, onChange, pageId }) {
                             onClick={() => editor.chain().focus().mergeCells().run()}
                             title="Sloučit buňky (vyber více buněk)"
                         >
-                            <IconBorderInner size={16} />
+                            <IconBorderNone size={16} />
                         </ToolbarButton>
 
                         <ToolbarButton
@@ -480,14 +465,14 @@ function TiptapEditor({ content, onChange, pageId }) {
                             onClick={() => editor.chain().focus().toggleHeaderRow().run()}
                             title="Přepnout řádek záhlaví"
                         >
-                            <IconLayoutRows size={16} />
+                            <IconTableRow size={16} />
                         </ToolbarButton>
 
                         <ToolbarButton
                             onClick={() => editor.chain().focus().toggleHeaderColumn().run()}
                             title="Přepnout sloupec záhlaví"
                         >
-                            <IconLayoutColumns size={16} />
+                            <IconTableColumn size={16} />
                         </ToolbarButton>
                     </div>
                 )}
