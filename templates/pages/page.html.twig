@@ -7,10 +7,7 @@
         {% include 'components/page-header.html.twig' with {
             title: page.title,
             subtitle: page.excerpt,
-            'breadcrumbs': breadcrumbs|map(p => {
-                'text': p.title,
-                'url': p.id == page.id ? null : p.urlPath
-            })
+            breadcrumbs: page|page_breadcrumbs
         } %}
 
         {% if page.featuredImage %}

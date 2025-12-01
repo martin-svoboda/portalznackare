@@ -7,19 +7,7 @@
         {% include "components/page-header.html.twig" with {
             title: page.title,
             subtitle: page.excerpt,
-            breadcrumbs: [
-                {
-                    url: path("app_index"),
-                    text: "Úvod"
-                },
-                {
-                    url: path("help_index"),
-                    text: "Nápověda"
-                },
-                {
-                    text: page.title
-                }
-            ]
+            breadcrumbs: page|page_breadcrumbs
         } %}
 
         <div class="mt-6">

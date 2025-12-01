@@ -49,6 +49,16 @@ services:
         tags:
             - { name: twig.extension }
 
+    # Twig extension pro breadcrumbs navigaci
+    App\Twig\BreadcrumbsExtension:
+        tags:
+            - { name: twig.extension }
+
+    # Twig extension pro navigační menu
+    App\Twig\MenuExtension:
+        tags:
+            - { name: twig.extension }
+
     # Cache services konfigurace
     App\Service\ApiCacheService:
         arguments:

@@ -319,6 +319,26 @@ function App({pageId}) {
                         </p>
                     </div>
 
+                    {/* Show in Menu - jen pro root PAGE stránky */}
+                    {formData.content_type === 'page' && !formData.parent_id && (
+                        <div>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={formData.meta.showInMenu || false}
+                                    onChange={(e) => handleMetaChange('showInMenu', e.target.checked)}
+                                    className="form__checkbox"
+                                />
+                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Zobrazit v hlavním menu
+                                </span>
+                            </label>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                Stránka se zobrazí v navigačním menu před Nápovědou
+                            </p>
+                        </div>
+                    )}
+
                     <button
                         type="submit"
                         className="btn btn--primary w-full"

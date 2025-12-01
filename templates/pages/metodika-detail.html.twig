@@ -6,10 +6,7 @@
     <div class="container container--xl">
         {% include 'components/page-header.html.twig' with {
             title: page.title,
-            breadcrumbs: breadcrumbs|map(p => {
-                'text': p.title,
-                'url': p.id == page.id ? null : p.urlPath
-            })
+            breadcrumbs: page|page_breadcrumbs
         } %}
 
         {# Grid layout: sidebar TOC + content #}

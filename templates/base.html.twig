@@ -55,15 +55,7 @@
                     {% if app.user %}Nástěnka{% else %}Úvod{% endif %}
                 </a>
                 
-                <a href="{{ path('app_metodika') }}" class="nav-link {{ app.request.attributes.get('_route') == 'app_metodika' ? 'active' : '' }}">
-                    {{ tabler_icon('book') }}
-                    Metodika
-                </a>
-                
-                <a href="{{ path('app_downloads') }}" class="nav-link {{ app.request.attributes.get('_route') == 'app_downloads' ? 'active' : '' }}">
-                    {{ tabler_icon('download') }}
-                    Ke stažení
-                </a>
+
 
                 {% if app.user %}
 
@@ -71,22 +63,35 @@
                         {{ tabler_icon('clipboard-list') }}
                         Příkazy
                     </a>
-                    
-                    <a href="{{ path('app_profil') }}" class="nav-link {{ app.request.attributes.get('_route') == 'app_profil' ? 'active' : '' }}">
-                        {{ tabler_icon('user') }}
-                        Profil
-                    </a>
+
+                    {% for page in get_menu_pages() %}
+                        <a href="{{ page.urlPath }}" class="nav-link {{ app.request.attributes.get('_route') == 'cms_page_show' and app.request.attributes.get('path') == page.urlPath|trim('/') ? 'active' : '' }}">
+                            {{ tabler_icon('file-text') }}
+                            {{ page.title }}
+                        </a>
+                    {% endfor %}
                     
                     <div class="nav-divider"></div>
-                    
+
+                    <a href="{{ path('app_metodika') }}" class="nav-link {{ app.request.attributes.get('_route') == 'app_metodika' ? 'active' : '' }}">
+                        {{ tabler_icon('book') }}
+                        Metodika
+                    </a>
+
                     <a href="{{ path('help_index') }}" class="nav-link {{ app.request.attributes.get('_route') starts with 'help_' ? 'active' : '' }}">
                         {{ tabler_icon('help') }}
                         Nápověda
                     </a>
-                    
+
+                    <div class="nav-divider"></div>
+
+                    <a href="{{ path('app_profil') }}" class="nav-link {{ app.request.attributes.get('_route') == 'app_profil' ? 'active' : '' }}">
+                        {{ tabler_icon('user') }}
+                        Profil
+                    </a>
+
                     {% if is_granted('ROLE_ADMIN') %}
-                        <div class="nav-divider"></div>
-                        
+
                         <a href="{{ path('admin_dashboard') }}" class="nav-link {{ app.request.attributes.get('_route') starts with 'admin_' ? 'active' : '' }}">
                             {{ tabler_icon('settings') }}
                             Administrace

@@ -49,6 +49,7 @@ class HelpController extends AbstractController
 
         return $this->render('pages/napoveda-detail.html.twig', [
             'page' => $page,
+            'breadcrumbs' => $page->getBreadcrumbs(),
         ]);
     }
 }
