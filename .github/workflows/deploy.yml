@@ -10,6 +10,8 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-22.04
+    permissions:
+      contents: write  # Required for creating GitHub releases
     env:
       SSH_SERVER: 37.235.105.56
       SSH_USER: root
