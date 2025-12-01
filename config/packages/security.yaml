@@ -60,6 +60,7 @@ security:
         - { path: ^/prikaz/, roles: ROLE_USER }
         - { path: ^/profil, roles: ROLE_USER }
         - { path: ^/metodika, roles: ROLE_USER }
+        - { path: ^/napoveda, roles: ROLE_USER }
         - { path: ^/downloads, roles: ROLE_USER }
 
 when@test:
