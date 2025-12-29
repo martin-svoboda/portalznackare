@@ -64,7 +64,7 @@ export const PrikazUseky = ({ useky, soubeh }) => {
                 <>
                     <div className="flex flex-wrap items-center gap-4 mt-5">
                         <div className="text-base font-bold">
-                            Možný souběh/křížení tras:
+                            Možný souběh/křížení barev:
                         </div>
                         <div className="flex flex-wrap gap-1">
                             {soubeh.map((row, index) => (
