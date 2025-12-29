@@ -97,6 +97,14 @@
                             Administrace
                         </a>
                     {% endif %}
+
+                    <div class="nav-spacer"></div>
+
+                    <a href="{{ path('api_auth_logout') }}" class="nav-link nav-link--danger"
+                       onclick="return confirm('Opravdu se chcete odhlásit?')">
+                        {{ tabler_icon('logout') }}
+                        Odhlásit se
+                    </a>
                 {% endif %}
             </nav>
 

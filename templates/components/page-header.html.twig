@@ -28,9 +28,9 @@ Parameters:
     <div class="flex-layout flex-layout--between flex-layout--wrap">
         {% if title is defined and title %}
             <div>
-                <h1 class="page-title">{{ title }}</h1>
+                <h1 class="page-title">{{ title|raw }}</h1>
                 {% if subtitle is defined and subtitle %}
-                    <p class="page-subtitle">{{ subtitle }}</p>
+                    <p class="page-subtitle">{{ subtitle|raw }}</p>
                 {% endif %}
             </div>
         {% endif %}

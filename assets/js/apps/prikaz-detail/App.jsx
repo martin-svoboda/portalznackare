@@ -375,11 +375,6 @@ const App = () => {
                 Cell: ({row}) => replaceTextWithIcons(row.original.Naz_TIM, 14)
             },
             {accessorKey: "NP", header: "Montáž", size: 100},
-            {
-                accessorKey: "Stav_TIM_Nazev",
-                header: "Stav",
-                size: 40,
-            },
         ],
         []
     );
@@ -425,7 +420,6 @@ const App = () => {
             <div>
                 <div className="text-sm opacity-75 md:hidden">
                     <div>Montáž: {row.original.NP}</div>
-                    <div>Stav: {row.original.Stav_TIM_Nazev}</div>
                 </div>
                 <div className="space-y-4 mt-4">
                     {row.original.items?.map((item, i) => {

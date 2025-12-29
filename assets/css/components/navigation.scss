@@ -21,6 +21,19 @@
   @apply h-px bg-gray-200 dark:bg-gray-700 my-3;
 }
 
+.nav-spacer {
+  @apply flex-grow;
+}
+
+.nav-link--danger {
+  @apply text-red-600 hover:bg-red-50 hover:text-red-700;
+  @apply dark:text-red-400 dark:hover:bg-red-900/20 dark:hover:text-red-300;
+
+  &.active {
+    @apply bg-red-600 text-white hover:bg-red-700;
+  }
+}
+
 // Logo component
 .logo {
   @apply text-lg font-bold text-gray-900 dark:text-white no-underline cursor-pointer;

@@ -223,6 +223,31 @@
   }
 }
 
+// Input wrapper (pro input s ikonou uvnitř)
+.form__input-wrapper {
+  @apply relative;
+}
+
+.form__input--with-icon {
+  @apply pr-12; // Místo pro ikonu vpravo
+}
+
+.form__input-icon {
+  @apply absolute right-0 top-0 h-full px-3 flex items-center justify-center text-gray-400 dark:text-gray-500;
+
+  &--toggle {
+    @apply cursor-pointer hover:text-gray-600 dark:hover:text-gray-300 transition-colors bg-transparent border-0;
+
+    &:focus {
+      @apply outline-none text-blue-500;
+    }
+
+    &.is-visible {
+      @apply text-blue-500 dark:text-blue-400;
+    }
+  }
+}
+
 .table .form {
   &__input, &__select {
     @apply border-0 bg-transparent px-0 py-0 min-h-5 shadow-none;

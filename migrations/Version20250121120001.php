@@ -10,7 +10,7 @@ use Doctrine\Migrations\AbstractMigration;
 /**
  * Auto-generated Migration: Change reports structure to one report per order with team members
  */
-final class Version20240131100000 extends AbstractMigration
+final class Version20250121120001 extends AbstractMigration
 {
     public function getDescription(): string
     {

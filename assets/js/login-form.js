@@ -144,5 +144,59 @@ function showError(message) {
     }, 10000);
 }
 
+/**
+ * Inicializace toggle pro zobrazení/skrytí hesla
+ */
+function initPasswordToggle() {
+    const toggleButtons = document.querySelectorAll('[data-toggle-password]');
+
+    if (toggleButtons.length === 0) {
+        return;
+    }
+
+    toggleButtons.forEach(button => {
+        const targetId = button.getAttribute('data-toggle-password');
+        const input = document.getElementById(targetId);
+
+        if (!input) {
+            logger.error('Password input not found', { targetId });
+            return;
+        }
+
+        logger.lifecycle('Inicializace password toggle', { targetId });
+
+        button.addEventListener('click', () => {
+            const isPassword = input.type === 'password';
+
+            // Toggle typu inputu
+            input.type = isPassword ? 'text' : 'password';
+
+            // Toggle třídy na tlačítku
+            button.classList.toggle('is-visible', isPassword);
+
+            // Změna ikony - eye ↔ eye-off
+            const svg = button.querySelector('svg');
+            if (svg) {
+                const useElement = svg.querySelector('use');
+                if (useElement) {
+                    const currentHref = useElement.getAttribute('href');
+                    const newHref = isPassword
+                        ? currentHref.replace('#tabler-eye', '#tabler-eye-off')
+                        : currentHref.replace('#tabler-eye-off', '#tabler-eye');
+                    useElement.setAttribute('href', newHref);
+                }
+            }
+
+            // Aktualizace aria-label
+            button.setAttribute('aria-label', isPassword ? 'Skrýt heslo' : 'Zobrazit heslo');
+
+            logger.state('password visibility', !isPassword, isPassword);
+        });
+    });
+}
+
 // Inicializuj při načtení DOM
-document.addEventListener('DOMContentLoaded', initSecureLoginForm);
+document.addEventListener('DOMContentLoaded', () => {
+    initSecureLoginForm();
+    initPasswordToggle();
+});

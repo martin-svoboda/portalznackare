@@ -44,8 +44,17 @@
             
             <div class="form-group">
                 <label class="form__label">Heslo:</label>
-                <input type="password" name="password" required class="form__input"
-                       placeholder="{{ password_placeholder|default('test123') }}">
+                <div class="form__input-wrapper">
+                    <input type="password" name="password" required class="form__input form__input--with-icon"
+                           placeholder="{{ password_placeholder|default('test123') }}"
+                           id="login-password">
+                    <button type="button"
+                            class="form__input-icon form__input-icon--toggle"
+                            aria-label="Zobrazit heslo"
+                            data-toggle-password="login-password">
+                        {{ tabler_icon('eye', 20) }}
+                    </button>
+                </div>
             </div>
             
             <button type="submit" class="btn btn--primary btn--full">

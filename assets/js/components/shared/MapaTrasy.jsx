@@ -127,7 +127,7 @@ export function MapaTrasy({ data: { title = '', points, route, druhPresunu = 'PZ
     // Mapování druhPresunu na mapset a type pro Mapy.cz
     const mapset = druhPresunu === "LZT" ? "winter" : "outdoor";
     const type = druhPresunu === "CZT" ? "bike_mountain" :
-        druhPresunu === "CZS" ? "bike_road" : "foot_fast";
+        druhPresunu === "CZS" ? "bike_road" : "foot_hiking";
     const [routeCoords, setRouteCoords] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -165,7 +165,7 @@ export function MapaTrasy({ data: { title = '', points, route, druhPresunu = 'PZ
 
         // Try OpenRouteService first
         const orsRequest = buildORSRouteRequest(validPoints, druhPresunu);
-
+/*
         fetch(orsRequest.url, {
             method: 'POST',
             headers: {
@@ -193,7 +193,7 @@ export function MapaTrasy({ data: { title = '', points, route, druhPresunu = 'PZ
             .catch(orsError => {
                 // Fallback to Mapy.cz API
                 console.warn('OpenRouteService failed, falling back to Mapy.cz:', orsError);
-
+*/
                 const url = buildMapyRouteUrl(validPoints, MAPY_API_KEY, type);
                 fetch(url)
                     .then(r => {
@@ -218,7 +218,7 @@ export function MapaTrasy({ data: { title = '', points, route, druhPresunu = 'PZ
                         setRouteCoords([]);
                         setLoading(false);
                     });
-            });
+          /*  });*/
         // eslint-disable-next-line
     }, [validPoints.length, validPoints.map(p => `${p.lat},${p.lon}`).join('|'), route, druhPresunu]);
 
