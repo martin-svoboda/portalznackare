@@ -320,7 +320,7 @@ export function MapaTrasy({ data: { title = '', points, route, druhPresunu = 'PZ
                                 <div className="flex items-start gap-2">
                                     <IconAlertTriangleFilled />
                                     <div>
-                                        Mapa je pouze orientační a nemusí zcela souhlasit s trasou. Vždy dbejte na správné umístění trasy i prvků.
+                                        Mapa je jen indikativní - zobrazuje nejkratší trasu mezi TIMy po turistické značce a výjimečně nemusí ukazovat trasu, kterou máte obnovovat.
                                     </div>
                                 </div>
                             </div>
