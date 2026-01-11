@@ -68,8 +68,13 @@ export async function apiCall(endpoint, options = {}) {
 
             // Speciální handling pro autentizační chyby
             if (response.status === 401) {
-                const message = 'Nejste přihlášení. Přihlaste se prosím.';
-                const error = new ApiError(response.status, message);
+                // Session vypršela - přesměrovat na login s návratovou URL
+                const currentPath = window.location.pathname + window.location.search;
+                const loginUrl = '/prihlaseni?redirect=' + encodeURIComponent(currentPath);
+                window.location.href = loginUrl;
+
+                // Throw error pro případ, že by redirect nefungoval
+                const error = new ApiError(response.status, 'Session vypršela. Přesměrování na přihlášení...');
                 error.requiresAuth = true;
                 throw error;
             }

@@ -11,6 +11,9 @@ framework:
         handler_id: null
         cookie_secure: auto
         cookie_samesite: lax
+        # Session platí 8 hodin (pracovní den) - PHP default je pouze 24 minut
+        gc_maxlifetime: 28800
+        cookie_lifetime: 28800
 
     #esi: true
     #fragments: true
