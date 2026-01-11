@@ -1,4 +1,4 @@
-import React, {useMemo} from 'react';
+import React, {useMemo, useState} from 'react';
 import {
     IconPlus,
     IconTrash,
@@ -12,7 +12,9 @@ import {
     IconArrowDown,
     IconUsers,
     IconUserCheck,
-    IconCurrencyDollar
+    IconCurrencyDollar,
+    IconInfoCircle,
+    IconAlertTriangle
 } from '@tabler/icons-react';
 import {AdvancedFileUpload} from '../../../components/shared/forms/AdvancedFileUpload';
 import {
@@ -21,6 +23,7 @@ import {
 } from '../utils/attachmentUtils';
 import { calculateExecutionDate } from '../utils/compensationCalculator';
 import { toISODateString } from '../../../utils/dateUtils';
+import { validateTimeConflicts, groupHasTimeConflict, memberHasTimeConflictInGroup, validateTripOverlapsWithinGroup, groupHasTripOverlap } from '../utils/validationUtils';
 
 const druhDopravyOptions = [
     {value: "AUV", label: "AUV (Auto vlastní)", icon: IconCar},
@@ -114,6 +117,32 @@ export const TravelGroupsForm = ({
                 group.id === groupId ? {...group, ...updates} : group
             ) || []
         }));
+    };
+
+    const moveGroupUp = (groupId) => {
+        setFormData(prev => {
+            const groups = [...(prev.Skupiny_Cest || [])];
+            const currentIndex = groups.findIndex(g => g.id === groupId);
+
+            if (currentIndex > 0) {
+                [groups[currentIndex - 1], groups[currentIndex]] = [groups[currentIndex], groups[currentIndex - 1]];
+            }
+
+            return { ...prev, Skupiny_Cest: groups };
+        });
+    };
+
+    const moveGroupDown = (groupId) => {
+        setFormData(prev => {
+            const groups = [...(prev.Skupiny_Cest || [])];
+            const currentIndex = groups.findIndex(g => g.id === groupId);
+
+            if (currentIndex < groups.length - 1) {
+                [groups[currentIndex], groups[currentIndex + 1]] = [groups[currentIndex + 1], groups[currentIndex]];
+            }
+
+            return { ...prev, Skupiny_Cest: groups };
+        });
     };
 
     // Travel segment functions (same as original) - scoped to group
@@ -296,6 +325,28 @@ export const TravelGroupsForm = ({
 
     const travelGroups = formData.Skupiny_Cest || [];
 
+    // State pro zobrazení nápovědy
+    const [showHelp, setShowHelp] = useState(false);
+
+    // Detekce časových konfliktů - použití centralizované validace
+    const timeConflicts = useMemo(() =>
+        validateTimeConflicts(travelGroups, teamMembers),
+        [travelGroups, teamMembers]
+    );
+
+    // Detekce překryvů cest v rámci skupiny
+    const tripOverlaps = useMemo(() =>
+        validateTripOverlapsWithinGroup(travelGroups),
+        [travelGroups]
+    );
+
+    // Zjistit, zda má konkrétní cesta překryv s jinou cestou ve skupině
+    const tripHasOverlap = (groupId, tripIndex) => {
+        const groupOverlaps = tripOverlaps[groupId];
+        if (!groupOverlaps) return false;
+        return groupOverlaps.some(([i, j]) => i === tripIndex || j === tripIndex);
+    };
+
     // Získat unikátní řidiče napříč skupinami
     const uniqueDrivers = useMemo(() => {
         const driverMap = new Map();
@@ -324,6 +375,32 @@ export const TravelGroupsForm = ({
 
     return (
         <div className="space-y-6">
+            {/* Nápověda k cestám */}
+            <div className="text-right mb-2">
+                <button
+                    type="button"
+                    onClick={() => setShowHelp(!showHelp)}
+                    className="btn btn--info--light btn--sm"
+                >
+                    <IconInfoCircle size={16} className="mr-1"/>
+                    Nápověda
+                </button>
+            </div>
+
+            {showHelp && (
+                <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-sm mb-4">
+                    <p className="mb-3">
+                        <strong>Pro výpočet cestovních náhrad, stravného a cestovného</strong> je rozhodný čas začátku první a čas konce poslední cesty, a k tomu kilometrická vzdálenost nebo jízdné.
+                    </p>
+                    <p className="mb-3">
+                        Pro <strong>Skupinu cestujících</strong> se výpočet provede společně. Pokud značkaři jedou ze stejného místa na místo výkonu a spolu se vracejí i zpět, jedná se o jednu skupinu cestujících, která vykoná dvě cesty: jednu tam a jednu zpět a to je nejjednodušší scénář.
+                    </p>
+                    <p>
+                        Pokud každý značkař vykoná část cesty samostatně, někde se potkají a pak jedou spolu (případně ještě složitější kombinace s tříčlennou značkařskou skupinou), můžete <strong>Přidat skupinu cestujících</strong> a přesně vybrat složení jednotlivých cestujících pro přesný výpočet cestovného.
+                    </p>
+                </div>
+            )}
+
             {travelGroups.map((group, groupIndex) => (
                 <div key={group.id} className="card">
                     <div className="card__content">
@@ -331,67 +408,112 @@ export const TravelGroupsForm = ({
                         <div className="flex justify-between items-center mb-4">
                             <h4 className="text-lg font-semibold">
                                 <IconUsers size={20} className="inline mr-2"/>
-                                {travelGroups.length > 1 ? `Skupina cest ${groupIndex + 1}` : 'Segmenty cest'}
+                                {`Skupina cestujících ${groupIndex + 1}`}
                             </h4>
                             {travelGroups.length > 1 && (
-                                <button
-                                    type="button"
-                                    onClick={() => removeTravelGroup(group.id)}
-                                    className="btn btn--icon btn--danger--light btn--sm"
-                                    title="Odstranit skupinu"
-                                    disabled={disabled}
-                                >
-                                    <IconTrash size={16}/>
-                                </button>
+                                <div className="flex gap-1">
+                                    {/* Move group up - only if not first */}
+                                    {groupIndex > 0 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => moveGroupUp(group.id)}
+                                            className="btn btn--icon btn--gray--light btn--sm"
+                                            title="Přesunout skupinu nahoru"
+                                            disabled={disabled}
+                                        >
+                                            <IconArrowUp size={16}/>
+                                        </button>
+                                    )}
+                                    {/* Move group down - only if not last */}
+                                    {groupIndex < travelGroups.length - 1 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => moveGroupDown(group.id)}
+                                            className="btn btn--icon btn--gray--light btn--sm"
+                                            title="Přesunout skupinu dolů"
+                                            disabled={disabled}
+                                        >
+                                            <IconArrowDown size={16}/>
+                                        </button>
+                                    )}
+                                    {/* Remove group */}
+                                    <button
+                                        type="button"
+                                        onClick={() => removeTravelGroup(group.id)}
+                                        className="btn btn--icon btn--danger--light btn--sm"
+                                        title="Odstranit skupinu"
+                                        disabled={disabled}
+                                    >
+                                        <IconTrash size={16}/>
+                                    </button>
+                                </div>
                             )}
                         </div>
 
                         {/* Participant selector - zobrazit jen pokud je více skupin */}
-                        {travelGroups.length > 1 && (
                             <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
                                 <label className="form__label mb-3">
-                                    Účastníci této skupiny cest
+                                    Účastníci této skupiny cestujících
                                 </label>
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                                         {(teamMembers || []).map(member => {
                                             const memberIntAdr = member.INT_ADR;
+                                            const hasConflict = memberHasTimeConflictInGroup(timeConflicts, memberIntAdr, group.id);
                                             return (
-                                                <label key={memberIntAdr} className="flex items-center space-x-2">
+                                                <label key={memberIntAdr} className={`flex items-center space-x-2 ${hasConflict ? 'text-orange-600 dark:text-orange-400' : ''}`}>
                                                     <input
                                                         type="checkbox"
                                                         className="form__checkbox"
-                                                        checked={group.Cestujci?.includes(memberIntAdr) || false}
+                                                        checked={ travelGroups.length < 2 ? true : group.Cestujci?.includes(memberIntAdr) || false}
                                                         onChange={(e) => {
                                                             const newCestujci = e.target.checked
                                                                 ? [...(group.Cestujci || []), memberIntAdr]
                                                                 : (group.Cestujci || []).filter(p => p !== memberIntAdr);
                                                             updateGroupField(group.id, {Cestujci: newCestujci});
                                                         }}
-                                                        disabled={disabled}
+                                                        disabled={disabled ? disabled : travelGroups.length < 2}
                                                     />
                                                     <span className="text-sm">{member.name || member.Znackar || 'Neznámý člen'}</span>
+                                                    {hasConflict && (
+                                                        <IconAlertTriangle size={14} className="text-orange-500" title="Časový konflikt - tento člen je ve více skupinách se překrývajícími časy"/>
+                                                    )}
                                                 </label>
                                             );
                                         })}
                                     </div>
+                                    {/* Varování o časovém konfliktu */}
+                                    {groupHasTimeConflict(timeConflicts, group.id) && (
+                                        <div className="mt-3 p-2 bg-orange-100 dark:bg-orange-900/30 border border-orange-300 dark:border-orange-700 rounded-md flex items-start gap-2">
+                                            <IconAlertTriangle size={18} className="text-orange-600 dark:text-orange-400 flex-shrink-0 mt-0.5"/>
+                                            <p className="text-sm text-orange-700 dark:text-orange-300">
+                                                <strong>Časový konflikt:</strong> Některý člen je ve více skupinách s překrývajícími se časy cest. Zkontrolujte, zda je to záměr.
+                                            </p>
+                                        </div>
+                                    )}
                             </div>
-                        )}
 
                         {/* PŮVODNÍ: Zůstává stejná header struktura jako v původním */}
-                        {travelGroups.length === 1 && (
-                            <h4 className="text-lg font-semibold mb-4">Jízdné</h4>
-                        )}
 
                         <div className="space-y-6">
                             {/* PŮVODNÍ: Přesně stejné UI pro segmenty jako v původním */}
                             {group.Cesty?.filter(seg => seg && seg.id).map((segment, index) => {
                                 if (!segment) return null;
                                 const TransportIcon = getTransportIcon(segment.Druh_Dopravy || "AUV");
+                                const hasOverlap = tripHasOverlap(group.id, index);
 
                                 return (
                                     <div key={segment.id}>
                                         {index > 0 && <hr className="my-4"/>}
-                                        <div className="ml-4 pl-6 border-l-2 border-blue-400 relative">
+                                        {/* Varování o překryvu cesty */}
+                                        {hasOverlap && (
+                                            <div className="ml-4 mb-2 p-2 bg-orange-100 dark:bg-orange-900/30 border border-orange-300 dark:border-orange-700 rounded-md flex items-center gap-2">
+                                                <IconAlertTriangle size={16} className="text-orange-600 dark:text-orange-400 flex-shrink-0"/>
+                                                <p className="text-sm text-orange-700 dark:text-orange-300">
+                                                    <strong>Časový překryv:</strong> Tato cesta se časově překrývá s jinou cestou v této skupině.
+                                                </p>
+                                            </div>
+                                        )}
+                                        <div className={`ml-4 pl-6 border-l-2 ${hasOverlap ? 'border-orange-500' : 'border-blue-400'} relative`}>
                                             <div className="absolute top-0 right-0 flex gap-1 z-10">
                                                 {/* Move up - only if not first */}
                                                 {index > 0 && (
@@ -698,7 +820,7 @@ export const TravelGroupsForm = ({
                                     disabled={disabled}
                                 >
                                     <IconPlus size={16} className="mr-2"/>
-                                    Přidat segment
+                                    Přidat úsek cesty
                                 </button>
                             </div>
 
@@ -760,6 +882,22 @@ export const TravelGroupsForm = ({
                 </div>
             ))}
 
+            {/* NOVÉ: Tlačítko pro přidání skupiny - vždy dole */}
+            <div className="text-center">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
+                    Různé skupiny cestujících je vhodné použít v případě, kdy se cesty značkařů ve skupině liší. Můžete tak například nastavit v jedné skupině společné cesty a v druhé samostatnou cestu řidiče před vyzvednutím druhého značkaře.
+                </p>
+                <button
+                    type="button"
+                    onClick={addTravelGroup}
+                    className={`btn ${travelGroups.length === 0 ? 'btn--primary' : 'btn--secondary'}`}
+                    disabled={disabled}
+                >
+                    <IconPlus size={16} className="mr-2"/>
+                    {travelGroups.length === 0 ? 'Přidat skupinu cestujících' : 'Přidat další skupinu cestujících'}
+                </button>
+            </div>
+
             {/* Radio button group pro zvýšenou sazbu - zobrazit pouze když je příkaz se zvýšenou sazbou */}
             {formData.Zvysena_Sazba && uniqueDrivers.length > 0 && (
                 <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
@@ -800,21 +938,6 @@ export const TravelGroupsForm = ({
                 </div>
             )}
 
-            {/* NOVÉ: Tlačítko pro přidání skupiny - vždy dole */}
-            <div className="text-center">
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
-                    Různé skupiny cest je vhodné použít v případě, kdy se cesty značkařů ve skupině liší. Můžete tak například nastavit v jedné skupině společné cesty a v druhé samostatnou cestu řidiče před vyzvednutím druhého značkaře.
-                </p>
-                <button
-                    type="button"
-                    onClick={addTravelGroup}
-                    className={`btn ${travelGroups.length === 0 ? 'btn--primary' : 'btn--secondary'}`}
-                    disabled={disabled}
-                >
-                    <IconPlus size={16} className="mr-2"/>
-                    {travelGroups.length === 0 ? 'Přidat skupinu cest' : 'Přidat další skupinu cest'}
-                </button>
-            </div>
         </div>
     );
 };

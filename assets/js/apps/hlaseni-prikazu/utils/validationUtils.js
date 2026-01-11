@@ -4,6 +4,7 @@
  */
 
 import { extractTeamMembers } from './compensationCalculator';
+import { toISODateString } from '../../../utils/dateUtils';
 
 /**
  * Validace minimálního počtu jízd za den pro každého člena
@@ -251,6 +252,127 @@ const validateSegmentCompleteness = (formData) => {
         isValid: details.length === 0,
         details
     };
+};
+
+/**
+ * Validace časových konfliktů - člen nemůže být ve dvou skupinách ve stejný čas
+ * @param {Array} travelGroups - Pole skupin cestujících (formData.Skupiny_Cest)
+ * @param {Array} teamMembers - Pole členů týmu
+ * @returns {Object} Objekt s konflikty { memberIntAdr: [groupId1, groupId2, ...] }
+ */
+const validateTimeConflictsInternal = (travelGroups, teamMembers) => {
+    const DEBUG = false; // Vypnuto pro produkci
+
+    if (!travelGroups || travelGroups.length < 2) {
+        return {};
+    }
+
+    const conflicts = {};
+
+    const getGroupTripRanges = (group) => {
+        const ranges = [];
+        (group.Cesty || []).forEach(cesta => {
+            if (cesta.Datum && cesta.Cas_Odjezdu && cesta.Cas_Prijezdu) {
+                const dateStr = toISODateString(cesta.Datum);
+                const startTime = new Date(`${dateStr}T${cesta.Cas_Odjezdu}`);
+                const endTime = new Date(`${dateStr}T${cesta.Cas_Prijezdu}`);
+
+                if (!isNaN(startTime.getTime()) && !isNaN(endTime.getTime())) {
+                    ranges.push({ start: startTime, end: endTime });
+                }
+            }
+        });
+        return ranges;
+    };
+
+    const intervalsOverlap = (range1, range2) => {
+        return range1.start < range2.end && range2.start < range1.end;
+    };
+
+    const groupsHaveOverlappingTrips = (ranges1, ranges2) => {
+        for (const r1 of ranges1) {
+            for (const r2 of ranges2) {
+                if (intervalsOverlap(r1, r2)) return true;
+            }
+        }
+        return false;
+    };
+
+    (teamMembers || []).forEach(member => {
+        const memberIntAdr = member.INT_ADR;
+        const memberGroups = travelGroups.filter(g =>
+            (g.Cestujci || []).some(c => c == memberIntAdr)
+        );
+
+        if (memberGroups.length < 2) return;
+
+        for (let i = 0; i < memberGroups.length; i++) {
+            for (let j = i + 1; j < memberGroups.length; j++) {
+                const ranges1 = getGroupTripRanges(memberGroups[i]);
+                const ranges2 = getGroupTripRanges(memberGroups[j]);
+
+                if (ranges1.length === 0 || ranges2.length === 0) continue;
+
+                if (groupsHaveOverlappingTrips(ranges1, ranges2)) {
+                    if (!conflicts[memberIntAdr]) {
+                        conflicts[memberIntAdr] = [];
+                    }
+                    if (!conflicts[memberIntAdr].includes(memberGroups[i].id)) {
+                        conflicts[memberIntAdr].push(memberGroups[i].id);
+                    }
+                    if (!conflicts[memberIntAdr].includes(memberGroups[j].id)) {
+                        conflicts[memberIntAdr].push(memberGroups[j].id);
+                    }
+                }
+            }
+        }
+    });
+
+    return conflicts;
+};
+
+/**
+ * Validace překryvů cest v rámci jedné skupiny
+ * @param {Array} travelGroups - Pole skupin cestujících (formData.Skupiny_Cest)
+ * @returns {Object} Objekt s konflikty { groupId: [[tripIndex1, tripIndex2], ...] }
+ */
+const validateTripOverlapsInternal = (travelGroups) => {
+    if (!travelGroups || travelGroups.length === 0) return {};
+
+    const conflicts = {};
+
+    const intervalsOverlap = (range1, range2) => {
+        return range1.start < range2.end && range2.start < range1.end;
+    };
+
+    travelGroups.forEach(group => {
+        const cesty = group.Cesty || [];
+        if (cesty.length < 2) return;
+
+        const tripRanges = cesty.map((cesta, index) => {
+            if (!cesta.Datum || !cesta.Cas_Odjezdu || !cesta.Cas_Prijezdu) return null;
+            const dateStr = toISODateString(cesta.Datum);
+            const startTime = new Date(`${dateStr}T${cesta.Cas_Odjezdu}`);
+            const endTime = new Date(`${dateStr}T${cesta.Cas_Prijezdu}`);
+
+            if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) return null;
+
+            return { index, start: startTime, end: endTime };
+        }).filter(r => r !== null);
+
+        for (let i = 0; i < tripRanges.length; i++) {
+            for (let j = i + 1; j < tripRanges.length; j++) {
+                if (intervalsOverlap(tripRanges[i], tripRanges[j])) {
+                    if (!conflicts[group.id]) {
+                        conflicts[group.id] = [];
+                    }
+                    conflicts[group.id].push([tripRanges[i].index, tripRanges[j].index]);
+                }
+            }
+        }
+    });
+
+    return conflicts;
 };
 
 /**
@@ -521,10 +643,38 @@ export const validatePartA = (formData, head) => {
             });
         });
     }
-    
+
+    // Validace časových konfliktů mezi skupinami
+    const teamMembers = extractTeamMembers(head);
+    const timeConflicts = validateTimeConflictsInternal(formData.Skupiny_Cest, teamMembers);
+    if (Object.keys(timeConflicts).length > 0) {
+        Object.entries(timeConflicts).forEach(([memberIntAdr, groupIds]) => {
+            const member = teamMembers.find(m => m.INT_ADR == memberIntAdr);
+            const memberName = member?.name || member?.Znackar || `Člen ${memberIntAdr}`;
+            errors.push({
+                type: 'time_conflict_between_groups',
+                message: `Časový konflikt: ${memberName} je ve ${groupIds.length} skupinách s překrývajícími se časy cest`
+            });
+        });
+    }
+
+    // Validace překryvů cest v rámci skupiny
+    const tripOverlaps = validateTripOverlapsInternal(formData.Skupiny_Cest);
+    if (Object.keys(tripOverlaps).length > 0) {
+        Object.entries(tripOverlaps).forEach(([groupId, overlaps]) => {
+            const groupIndex = (formData.Skupiny_Cest || []).findIndex(g => g.id === groupId || g.id === parseInt(groupId));
+            overlaps.forEach(([tripIndex1, tripIndex2]) => {
+                errors.push({
+                    type: 'trip_overlap_within_group',
+                    message: `Časový překryv: Ve skupině ${groupIndex + 1} se cesta ${tripIndex1 + 1} překrývá s cestou ${tripIndex2 + 1}`
+                });
+            });
+        });
+    }
+
     const isValid = errors.length === 0;
     const canComplete = errors.length === 0; // Varování neblokují dokončení
-    
+
     return {
         isValid,
         canComplete,
@@ -709,15 +859,165 @@ const validateActivityReport = (formData, errors, warnings) => {
             message: 'Hlášení o činnosti je velmi krátké - doporučujeme podrobnější popis'
         });
     }
-    
+
     // Optional: Prilohy_Usek (attachments are not required but recommended)
     const attachments = formData.Prilohy_Usek || {};
     const attachmentCount = Object.keys(attachments).length;
-    
+
     if (attachmentCount === 0) {
         warnings.push({
             type: 'missing_activity_attachments',
             message: 'Doporučuje se přiložit fotografie dokumentující provedenou činnost'
         });
     }
+};
+
+/**
+ * Validace časových konfliktů - člen nemůže být ve dvou skupinách ve stejný čas
+ * @param {Array} travelGroups - Pole skupin cestujících (formData.Skupiny_Cest)
+ * @param {Array} teamMembers - Pole členů týmu
+ * @returns {Object} Objekt s konflikty { memberIntAdr: [groupId1, groupId2, ...] }
+ */
+export const validateTimeConflicts = (travelGroups, teamMembers) => {
+    if (!travelGroups || travelGroups.length < 2) return {};
+
+    const conflicts = {};
+
+    const getGroupTripRanges = (group) => {
+        const ranges = [];
+        (group.Cesty || []).forEach(cesta => {
+            if (cesta.Datum && cesta.Cas_Odjezdu && cesta.Cas_Prijezdu) {
+                const dateStr = toISODateString(cesta.Datum);
+                const startTime = new Date(`${dateStr}T${cesta.Cas_Odjezdu}`);
+                const endTime = new Date(`${dateStr}T${cesta.Cas_Prijezdu}`);
+
+                if (!isNaN(startTime.getTime()) && !isNaN(endTime.getTime())) {
+                    ranges.push({ start: startTime, end: endTime });
+                }
+            }
+        });
+        return ranges;
+    };
+
+    const intervalsOverlap = (range1, range2) => {
+        return range1.start < range2.end && range2.start < range1.end;
+    };
+
+    const groupsHaveOverlappingTrips = (ranges1, ranges2) => {
+        for (const r1 of ranges1) {
+            for (const r2 of ranges2) {
+                if (intervalsOverlap(r1, r2)) return true;
+            }
+        }
+        return false;
+    };
+
+    (teamMembers || []).forEach(member => {
+        const memberIntAdr = member.INT_ADR;
+        const memberGroups = travelGroups.filter(g =>
+            (g.Cestujci || []).some(c => c == memberIntAdr)
+        );
+
+        if (memberGroups.length < 2) return;
+
+        for (let i = 0; i < memberGroups.length; i++) {
+            for (let j = i + 1; j < memberGroups.length; j++) {
+                const ranges1 = getGroupTripRanges(memberGroups[i]);
+                const ranges2 = getGroupTripRanges(memberGroups[j]);
+
+                if (ranges1.length === 0 || ranges2.length === 0) continue;
+
+                if (groupsHaveOverlappingTrips(ranges1, ranges2)) {
+                    if (!conflicts[memberIntAdr]) {
+                        conflicts[memberIntAdr] = [];
+                    }
+                    if (!conflicts[memberIntAdr].includes(memberGroups[i].id)) {
+                        conflicts[memberIntAdr].push(memberGroups[i].id);
+                    }
+                    if (!conflicts[memberIntAdr].includes(memberGroups[j].id)) {
+                        conflicts[memberIntAdr].push(memberGroups[j].id);
+                    }
+                }
+            }
+        }
+    });
+
+    return conflicts;
+};
+
+/**
+ * Validace překryvů cest v rámci jedné skupiny
+ * @param {Array} travelGroups - Pole skupin cestujících (formData.Skupiny_Cest)
+ * @returns {Object} Objekt s konflikty { groupId: [[tripIndex1, tripIndex2], ...] }
+ */
+export const validateTripOverlapsWithinGroup = (travelGroups) => {
+    if (!travelGroups || travelGroups.length === 0) return {};
+
+    const conflicts = {};
+
+    const intervalsOverlap = (range1, range2) => {
+        return range1.start < range2.end && range2.start < range1.end;
+    };
+
+    travelGroups.forEach(group => {
+        const cesty = group.Cesty || [];
+        if (cesty.length < 2) return;
+
+        const tripRanges = cesty.map((cesta, index) => {
+            if (!cesta.Datum || !cesta.Cas_Odjezdu || !cesta.Cas_Prijezdu) return null;
+            const dateStr = toISODateString(cesta.Datum);
+            const startTime = new Date(`${dateStr}T${cesta.Cas_Odjezdu}`);
+            const endTime = new Date(`${dateStr}T${cesta.Cas_Prijezdu}`);
+
+            if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) return null;
+
+            return { index, start: startTime, end: endTime };
+        }).filter(r => r !== null);
+
+        for (let i = 0; i < tripRanges.length; i++) {
+            for (let j = i + 1; j < tripRanges.length; j++) {
+                if (intervalsOverlap(tripRanges[i], tripRanges[j])) {
+                    if (!conflicts[group.id]) {
+                        conflicts[group.id] = [];
+                    }
+                    conflicts[group.id].push([tripRanges[i].index, tripRanges[j].index]);
+                }
+            }
+        }
+    });
+
+    return conflicts;
+};
+
+/**
+ * Pomocná funkce - zjistí, zda má skupina překryv cest v rámci sebe
+ * @param {Object} tripOverlaps - Výsledek z validateTripOverlapsWithinGroup
+ * @param {number|string} groupId - ID skupiny
+ * @returns {boolean}
+ */
+export const groupHasTripOverlap = (tripOverlaps, groupId) => {
+    return tripOverlaps[groupId] && tripOverlaps[groupId].length > 0;
+};
+
+/**
+ * Pomocná funkce - zjistí, zda má skupina konflikt
+ * @param {Object} timeConflicts - Výsledek z validateTimeConflicts
+ * @param {number|string} groupId - ID skupiny
+ * @returns {boolean}
+ */
+export const groupHasTimeConflict = (timeConflicts, groupId) => {
+    return Object.values(timeConflicts).some(groupIds => groupIds.includes(groupId));
+};
+
+/**
+ * Pomocná funkce - zjistí konflikt pro konkrétního člena v konkrétní skupině
+ * @param {Object} timeConflicts - Výsledek z validateTimeConflicts
+ * @param {number|string} memberIntAdr - INT_ADR člena
+ * @param {number|string} groupId - ID skupiny
+ * @returns {boolean}
+ */
+export const memberHasTimeConflictInGroup = (timeConflicts, memberIntAdr, groupId) => {
+    const memberConflicts = timeConflicts[memberIntAdr];
+    if (!memberConflicts) return false;
+    return memberConflicts.includes(groupId);
 };

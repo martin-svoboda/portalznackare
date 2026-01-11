@@ -47,16 +47,14 @@ export const PaymentRedirectsForm = ({
 
                 <div className="space-y-3">
                     {teamMembers.map((member) => {
-                        // Skip current user - they can't redirect to themselves
-                        if (currentUser && member.INT_ADR == currentUser.INT_ADR) {
-                            return null;
-                        }
+                        const isCurrentUser = currentUser && member.INT_ADR == currentUser.INT_ADR;
 
                         return (
                             <div key={member.INT_ADR} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
                                 <div>
                                     <span className="font-medium">{member.name || member.Znackar}</span>
-                                    <span className="text-sm text-gray-600 ml-2">({member.INT_ADR})</span>
+                                    {isCurrentUser && <span className="text-sm text-blue-600 ml-2">(Vy)</span>}
+                                    {!isCurrentUser && <span className="text-sm text-gray-600 ml-2">({member.INT_ADR})</span>}
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <span className="text-sm text-gray-600">Přesměrovat na:</span>
