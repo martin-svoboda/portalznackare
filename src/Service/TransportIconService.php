@@ -129,14 +129,16 @@ class TransportIconService {
 		$iconMap = $this->getIconMap();
 
 		// Najdi všechny výskyty &NĚCO nebo &NĚCO,NĚCO2,NĚCO3 (včetně diakritiky)
-		return preg_replace_callback( '/&([A-ZÁĚŠČŘŽÝÚŮÍÓ.,]+)/ui', function ( $matches ) use ( $iconMap, $iconSize, $hideIcon, $forPdf ) {
+		// Použití \p{L} pro všechna unicode písmena (velká i malá)
+		return preg_replace_callback( '/&([\p{L}.,]+)/u', function ( $matches ) use ( $iconMap, $iconSize, $hideIcon, $forPdf ) {
 			$iconKeys = explode( ',', $matches[1] );
 			$result   = '';
 
 			foreach ( $iconKeys as $iconKey ) {
 				$iconKey = trim( $iconKey );
 				// Normalizuj klíč - uppercase a odstraň interpunkci
-				$normalizedKey = strtoupper( preg_replace( '/[.,]/', '', $iconKey ) );
+				// mb_strtoupper pro správnou konverzi českých znaků (ž -> Ž)
+				$normalizedKey = mb_strtoupper( preg_replace( '/[.,]/', '', $iconKey ), 'UTF-8' );
 
 				if ( isset( $iconMap[ $normalizedKey ] ) ) {
 					if ( ! $hideIcon ) {

@@ -87,8 +87,10 @@ class TimService {
 		// Pro PDF: převést na base64 data URI s <img> tagem
 		if ( $forPdf && $svg ) {
 			// Určit rozměry podle viewBox
-			$width  = in_array( $shape, [ 'NS', 'SN' ] ) ? '25' : '40';
+			// Pásové tvary (PA, CT, DO) mají viewBox 40x25
+			// Ostatní tvarové směrovky (NS, SN, Z, S, V, P, MI, VO) mají viewBox 26x26
 			$pasova = in_array( $shape, [ 'PA', 'CT', 'DO' ] );
+			$width  = $pasova ? '40' : '26';
 			$height = $pasova ? '25' : '26';
 
 			$base64 = base64_encode( $svg );
@@ -256,7 +258,8 @@ class TimService {
 	public function timPreview( array $item, bool $forPdf = false ): string {
 		// Pro PDF použít zjednodušenou verzi bez pokročilých CSS
 		$lines     = $this->getItemLines( $item );
-		$showArrow = ( $item['Druh_Predmetu'] ?? '' ) === "S" || ( $item['Druh_Predmetu'] ?? '' ) === "D";
+		// S = směrovka, D = ?, O = odbočka - všechny se zobrazují jako směrovky s šipkou
+		$showArrow = in_array( $item['Druh_Predmetu'] ?? '', [ 'S', 'D', 'O' ] );
 		$direction = $item['Smerovani'] ?? '';
 
 		$vedouciBarva  = isset( $item['Barva_Kod'] ) && ! empty( $item['Barva_Kod'] ) ? $this->colorService->barvaDleKodu( $item['Barva_Kod'] ) : 'transparent';
@@ -356,7 +359,8 @@ class TimService {
 						$html .= '<div style="position: absolute; bottom: -7px; width: 120%;">';
 					}
 					$html .= '<span style="text-align: center; font-weight: ' . $fontWeight . '; font-size: ' . $textSize . '; color: black; transform: scaleX(' . $scaleCompressed . '); transform-origin: center; display: inline-block; width: 100%;">';
-					$html .= $this->renderTextContent( $line['text'], true ); // hideIcon = true
+					// $html .= $this->renderTextContent( $line['text'], true ); // hideIcon = true - původně odebírání ikon pro M typ
+				$html .= $this->renderTextContent( $line['text'], false, $forPdf ); // ikony se zobrazují všude
 					$html .= '</span>';
 					$html .= '</div>';
 				} else {
