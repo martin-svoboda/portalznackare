@@ -16,6 +16,147 @@ const getCurrentYear = () => new Date().getFullYear();
 const getAvailableYears = () => Array.from({length: 5}, (_, i) => `${getCurrentYear() - i}`);
 const isNezpracovany = (stav) => stav === 'Přidělený' || stav === 'Vystavený';
 
+// Výpočet očekávaného progressu (lineárně od 1.4. do 30.9.)
+const calculateExpectedProgress = (displayYear) => {
+    const now = new Date();
+    const year = parseInt(displayYear) || now.getFullYear();
+
+    const startDate = new Date(year, 3, 1); // 1.4.
+    const endDate = new Date(year, 8, 30);  // 30.9.
+
+    // Pokud jsme před 1.4., progress je 0%
+    if (now < startDate) return 0;
+    // Pokud jsme po 30.9., progress je 100%
+    if (now > endDate) return 100;
+
+    const totalDays = (endDate - startDate) / (1000 * 60 * 60 * 24);
+    const elapsedDays = (now - startDate) / (1000 * 60 * 60 * 24);
+
+    return Math.round((elapsedDays / totalDays) * 100);
+};
+
+// Progress Bar komponenta
+const PrikazyProgressBar = ({ data, displayYear }) => {
+    const year = parseInt(displayYear) || getCurrentYear();
+    const total = data.length;
+
+    if (total === 0) return null;
+
+    // Počty dle stavů
+    const provedeny = data.filter(p => p.Stav_ZP_Naz === 'Provedený').length;
+    const zauctovany = data.filter(p => p.Stav_ZP_Naz === 'Zaúčtovaný').length;
+    const predanyKKZ = data.filter(p => p.Stav_ZP_Naz === 'Předaný KKZ').length;
+
+    // Hotové = Provedený + Předaný KKZ + Zaúčtovaný
+    const hotoveCelkem = provedeny + predanyKKZ + zauctovany;
+
+    // Procenta
+    const provedenyPct = (provedeny / total) * 100;
+    const predanyKKZPct = (predanyKKZ / total) * 100;
+    const zauctovanyPct = (zauctovany / total) * 100;
+    const hotovePct = (hotoveCelkem / total) * 100;
+
+    // Očekávaný progress
+    const expectedPct = calculateExpectedProgress(displayYear);
+
+    // Pozice milníků (30.6. = 50%, 30.9. = 100% období od 1.4.)
+    const milestone1Pct = 50;  // 30.6.
+    const milestone2Pct = 100; // 30.9.
+
+    return (
+        <div className="mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div className="flex justify-between items-center mb-2">
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Postup prací {year}
+                </span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">
+                    {hotoveCelkem} / {total} příkazů ({hotovePct.toFixed(0)}%)
+                </span>
+            </div>
+
+            {/* Progress bar container */}
+            <div className="relative h-6 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                {/* Očekávaný progress - červená (pod ostatními) */}
+                <div
+                    className="absolute h-full bg-red-400 dark:bg-red-600 opacity-50"
+                    style={{ width: `${expectedPct}%` }}
+                    title={`Očekáváno: ${expectedPct}%`}
+                />
+
+                {/* Skutečný progress - vrstvený */}
+                <div className="absolute h-full w-full flex">
+                    {/* Zaúčtovaný - lime */}
+                    <div
+                        className="h-full bg-lime-500 dark:bg-lime-600"
+                        style={{ width: `${zauctovanyPct}%` }}
+                        title={`Zaúčtovaný: ${zauctovany} (${zauctovanyPct.toFixed(1)}%)`}
+                    />
+                    {/* Předaný KKZ - green */}
+                    <div
+                        className="h-full bg-green-500 dark:bg-green-600"
+                        style={{ width: `${predanyKKZPct}%` }}
+                        title={`Předaný KKZ: ${predanyKKZ} (${predanyKKZPct.toFixed(1)}%)`}
+                    />
+                    {/* Provedený - teal */}
+                    <div
+                        className="h-full bg-teal-500 dark:bg-teal-600"
+                        style={{ width: `${provedenyPct}%` }}
+                        title={`Provedený: ${provedeny} (${provedenyPct.toFixed(1)}%)`}
+                    />
+                </div>
+
+                {/* Milníky */}
+                <div
+                    className="absolute h-full w-0.5 bg-gray-600 dark:bg-gray-300"
+                    style={{ left: `${milestone1Pct}%` }}
+                    title="30.6."
+                />
+                <div
+                    className="absolute h-full w-0.5 bg-gray-800 dark:bg-white"
+                    style={{ left: `${milestone2Pct}%` }}
+                    title="30.9."
+                />
+            </div>
+
+            {/* Popisky milníků */}
+            <div className="relative h-5 mt-1">
+                <span
+                    className="absolute text-xs text-gray-500 dark:text-gray-400 transform -translate-x-1/2"
+                    style={{ left: `${milestone1Pct}%` }}
+                >
+                    30.6.
+                </span>
+                <span
+                    className="absolute text-xs text-gray-500 dark:text-gray-400 transform -translate-x-1/2"
+                    style={{ left: `${milestone2Pct}%` }}
+                >
+                    30.9.
+                </span>
+            </div>
+
+            {/* Legenda */}
+            <div className="flex flex-wrap gap-4 mt-2 text-xs">
+                <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 bg-red-400 dark:bg-red-600 rounded opacity-50"></div>
+                    <span className="text-gray-600 dark:text-gray-400">Očekáváno ({expectedPct}%)</span>
+                </div>
+                <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 bg-teal-500 dark:bg-teal-600 rounded"></div>
+                    <span className="text-gray-600 dark:text-gray-400">Provedený ({provedeny})</span>
+                </div>
+                <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 bg-green-500 dark:bg-green-600 rounded"></div>
+                    <span className="text-gray-600 dark:text-gray-400">Předaný KKZ ({predanyKKZ})</span>
+                </div>
+                <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 bg-lime-500 dark:bg-lime-600 rounded"></div>
+                    <span className="text-gray-600 dark:text-gray-400">Zaúčtovaný ({zauctovany})</span>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const PrikazyApp = () => {
     // Detekce dashboard módu z data atributu
     const container = document.querySelector('[data-app="prikazy"]');
@@ -308,8 +449,12 @@ const PrikazyApp = () => {
         palette: {mode: isDarkMode ? 'dark' : 'light'},
     }), [isDarkMode]);
 
+    // Rok pro zobrazení (vybraný nebo aktuální)
+    const displayYear = year || String(getCurrentYear());
+
     return (
         <ThemeProvider theme={theme}>
+            <PrikazyProgressBar data={data} displayYear={displayYear} />
             <MaterialReactTable table={table}/>
         </ThemeProvider>
     );
