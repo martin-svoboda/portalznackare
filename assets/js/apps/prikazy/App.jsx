@@ -79,59 +79,109 @@ const PrikazyApp = () => {
         return result;
     }, [data, showOnlyToProcess, isDashboardMode]);
 
+    const Member = ({name, isLeader}) => {
+        if (!name?.trim()) return null;
+
+        return (
+            <div className="flex items-center gap-1">
+            <span className={isLeader ? 'font-bold' : 'font-normal'}>
+                {name}
+            </span>
+                {isLeader && (
+                    <IconCrown
+                        size={18}
+                        color="#ffd700"
+                        title="Vedoucí"
+                        aria-label="Vedoucí"
+                    />
+                )}
+            </div>
+        );
+    };
+
     // Definice sloupců
     const columns = useMemo(() => [
-        {accessorKey: 'Cislo_ZP', header: 'Číslo', size: 100},
-        {
-            accessorKey: 'Druh_ZP_Naz',
-            header: 'Druh',
-            size: window.innerWidth > 1280 ? 120 : 60,
-            filterVariant: 'select',
-            Cell: ({row}) => (
-                <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-                    <PrikazTypeIcon type={row.original.Druh_ZP} size={28}/>
-                    <span className="hidden xl:block">{row.original.Druh_ZP_Naz}</span>
-                </div>
-            ),
-        },
-        {
-            accessorKey: 'Popis_ZP',
-            header: 'Popis',
-            // size: 300,
-            Cell: ({row}) => replaceTextWithIcons(row.original.Popis_ZP, 14),
-        },
-        {
-            accessorKey: 'Stav_ZP_Naz',
-            header: 'Stav',
-            size: 150,
-            filterVariant: 'select',
-            Cell: ({row}) => <PrikazStavBadge stav={row.original.Stav_ZP_Naz}/>,
-        },
-        {accessorKey: 'Znackar', header: 'Značkař', size: 100, filterVariant: 'autocomplete'},
-        {
-            accessorKey: 'Je_Vedouci',
-            header: 'Ved.',
-            size: 40,
-            Cell: ({cell}) =>
-                cell.getValue() === '1' || cell.getValue() === 1 ? (
-                    <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: '28px',
-                        height: '28px',
-                        borderRadius: '50%',
-                        backgroundColor: '#FFC107',
-                        color: '#333'
-                    }}>
-                        <IconCrown size={14}/>
-                    </div>
-                ) : null,
-            enableColumnFilter: false,
-            meta: {align: 'center'}
-        },
-        {accessorKey: 'Vyuctovani', header: 'Vyúč.', size: 50, filterVariant: 'select'},
-    ], []);
+                {accessorKey: 'Cislo_ZP', header: 'Číslo', size: 100},
+                {
+                    accessorKey: 'Druh_ZP_Naz',
+                    header: 'Druh',
+                    filterVariant: 'select',
+                    size: window.innerWidth > 1280 ? 120 : 60,
+                    Cell: ({row}) => (
+                        <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                            <PrikazTypeIcon type={row.original.Druh_ZP} size={28}/>
+                            <span className="hidden xl:block">{row.original.Druh_ZP_Naz}</span>
+                        </div>
+                    ),
+                },
+                {
+                    accessorKey: 'Popis_ZP',
+                    header: 'Popis',
+                    // size: 300,
+                    Cell: ({row}) => replaceTextWithIcons(row.original.Popis_ZP, 14),
+                },
+                {
+                    accessorKey: 'Stav_ZP_Naz',
+                    header: 'Stav',
+                    size: 150,
+                    filterVariant: 'select',
+                    Cell: ({row}) => <PrikazStavBadge stav={row.original.Stav_ZP_Naz}/>,
+                },
+                {
+                    accessorKey: 'Znackar',
+                    header: 'Značkaři',
+                    size: 100,
+                    Cell: ({row}) => {
+                        return [1, 2, 3].map(i => (
+                            <Member
+                                key={i}
+                                name={row.original[`Znackar${i}`]}
+                                isLeader={row.original[`Je_Vedouci${i}`] === "1"}
+                            />
+                        ));
+                    }
+                },
+                {
+                    accessorKey: 'Je_Vedouci',
+                    header:
+                        'Ved.',
+                    size:
+                        40,
+                    Cell:
+                        ({cell}) =>
+                            cell.getValue() === '1' || cell.getValue() === 1 ? (
+                                <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    width: '28px',
+                                    height: '28px',
+                                    borderRadius: '50%',
+                                    backgroundColor: '#FFC107',
+                                    color: '#333'
+                                }}>
+                                    <IconCrown size={14}/>
+                                </div>
+                            ) : null,
+                    enableColumnFilter:
+                        false,
+                    meta:
+                        {
+                            align: 'center'
+                        }
+                }
+                ,
+                {
+                    accessorKey: 'Vyuctovani', header:
+                        'Vyúč.', size:
+                        50, filterVariant:
+                        'select'
+                }
+                ,
+            ],
+            []
+        )
+    ;
 
     const table = useMaterialReactTable({
         columns,
@@ -158,8 +208,8 @@ const PrikazyApp = () => {
                 Druh_ZP_Naz: window.innerWidth > 768,
                 Popis_ZP: window.innerWidth > 460,
                 Stav_ZP_Naz: window.innerWidth > 768,
-                Znackar: false,
-                Je_Vedouci: window.innerWidth > 1280,
+                Znackar: window.innerWidth > 768,
+                Je_Vedouci: false,
                 Vyuctovani: window.innerWidth > 1280,
             }
         },
@@ -229,6 +279,15 @@ const PrikazyApp = () => {
                         <span>{row.original.Druh_ZP_Naz}</span>
                     </div>
                     <PrikazStavBadge stav={row.original.Stav_ZP_Naz}/>
+                    <div>
+                        {[1, 2, 3].map(i => (
+                            <Member
+                                key={i}
+                                name={row.original[`Znackar${i}`]}
+                                isLeader={row.original[`Je_Vedouci${i}`] === "1"}
+                            />
+                        ))}
+                    </div>
                     <div>
                         Vyúčtování: {row.original.Vyuctovani ? row.original.Vyuctovani : 'Není'}
                     </div>
