@@ -245,7 +245,7 @@ export const PartAForm = ({
                                                     value={accommodation.Castka || 0}
                                                     onChange={(e) => updateAccommodation(accommodation.id, { Castka: Number(e.target.value) || 0 })}
                                                     min="0"
-                                                    step="0.01"
+                                                    step="1"
                                                     disabled={disabled}
                                                     required={true}
                                                 />
@@ -371,7 +371,7 @@ export const PartAForm = ({
                                                     value={expense.Castka || 0}
                                                     onChange={(e) => updateExpense(expense.id, { Castka: Number(e.target.value) || 0 })}
                                                     min="0"
-                                                    step="0.01"
+                                                    step="1"
                                                     disabled={disabled}
                                                     required={true}
                                                 />

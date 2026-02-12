@@ -455,11 +455,12 @@ export const StepContent = ({
 
                                 <button
                                     className="btn btn--primary btn--large"
-                                    disabled={saving || disabled}
+                                    disabled={saving || disabled || !canCompletePartA || !canCompletePartB}
                                     onClick={onSubmit}
+                                    title={!canCompletePartA || !canCompletePartB ? 'Nejprve opravte všechny chyby v části A i B' : ''}
                                 >
                                     <IconSend size={20} className="mr-2"/>
-                                    {saving ? 'Odesílání...' : 
+                                    {saving ? 'Odesílání...' :
                                      formData.status === 'send' ? 'Odesílá se do INSYZ...' :
                                      formData.status === 'submitted' ? 'Odesláno' :
                                      'Odeslat ke schválení'}

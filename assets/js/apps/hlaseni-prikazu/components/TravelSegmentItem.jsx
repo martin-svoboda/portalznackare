@@ -269,7 +269,7 @@ export const TravelSegmentItem = ({
                                     onChange={(e) => handleNumberChange('Naklady', e.target.value)}
                                     placeholder="0"
                                     min="0"
-                                    step="0.01"
+                                    step="1"
                                     disabled={disabled}
                                 />
                             </div>

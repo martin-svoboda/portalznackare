@@ -131,7 +131,7 @@ export const AccommodationForm = ({
                                             onChange={(e) => handleNumberChange(accommodation.id, 'Castka', e.target.value)}
                                             placeholder="0"
                                             min="0"
-                                            step="0.01"
+                                            step="1"
                                             disabled={disabled}
                                             required
                                         />

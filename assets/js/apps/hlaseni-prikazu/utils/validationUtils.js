@@ -3,7 +3,7 @@
  * Sjednocuje validační logiku napříč komponentami
  */
 
-import { extractTeamMembers } from './compensationCalculator';
+import { extractTeamMembers, calculateExecutionDate } from './compensationCalculator';
 import { toISODateString } from '../../../utils/dateUtils';
 
 /**
@@ -11,29 +11,29 @@ import { toISODateString } from '../../../utils/dateUtils';
  */
 const validateMinimumTripsPerDay = (formData, head) => {
     if (!formData.Skupiny_Cest || !head) return { isValid: true, details: [] };
-    
+
     const details = [];
-    
+
     // Získat všechny členy týmu
     const teamMembers = extractTeamMembers(head);
     if (teamMembers.length === 0) return { isValid: true, details: [] };
-    
+
     // Pro každého člena zkontrolovat minimální počet jízd za den
     for (const member of teamMembers) {
-        // Najít skupiny kde je člen cestujícím
-        const memberGroups = formData.Skupiny_Cest.filter(group => 
-            group.Cestujci && group.Cestujci.includes(member.INT_ADR)
+        // Najít skupiny kde je člen cestujícím - porovnání s == pro type coercion (INT_ADR může být string i number)
+        const memberGroups = formData.Skupiny_Cest.filter(group =>
+            group.Cestujci && group.Cestujci.some(c => c == member.INT_ADR)
         );
-        
-        if (memberGroups.length === 0) continue; // Člen nejedde v žádné skupině
-        
+
+        if (memberGroups.length === 0) continue;
+
         // Extraktovat segmenty pro člena
         const memberSegments = memberGroups.flatMap(group => group.Cesty || []);
-        
+
         // Seskupit podle dnů
         const segmentsByDate = memberSegments.reduce((acc, segment) => {
             if (!segment || !segment.Cas_Odjezdu || !segment.Cas_Prijezdu) return acc;
-            
+
             let segmentDate = segment.Datum || new Date();
             if (!(segmentDate instanceof Date)) {
                 segmentDate = new Date(segmentDate);
@@ -41,13 +41,13 @@ const validateMinimumTripsPerDay = (formData, head) => {
             if (isNaN(segmentDate.getTime())) {
                 segmentDate = new Date();
             }
-            
+
             const dateKey = segmentDate.toDateString();
             if (!acc[dateKey]) acc[dateKey] = [];
             acc[dateKey].push(segment);
             return acc;
         }, {});
-        
+
         // Zkontrolovat že každý den má alespoň 2 jízdy
         for (const [dateKey, segments] of Object.entries(segmentsByDate)) {
             if (segments.length < 2) {
@@ -60,7 +60,7 @@ const validateMinimumTripsPerDay = (formData, head) => {
             }
         }
     }
-    
+
     return {
         isValid: details.length === 0,
         details
@@ -421,15 +421,27 @@ const validateExpenseDetails = (formData) => {
         }
     });
     
+    // Datum provedení pro kontrolu pozdějších výdajů
+    const executionDate = calculateExecutionDate(formData);
+    const executionDateStr = executionDate ? toISODateString(executionDate) : null;
+
     // Validace ostatních výdajů
     (formData.Vedlejsi_Vydaje || []).forEach((vydaj, index) => {
         const expenseId = `vedlejší výdaj ${index + 1}`;
-        
+
         if (!vydaj.Datum) {
             details.push({
                 type: 'missing_additional_expense_date',
                 expense: expenseId
             });
+        } else if (executionDateStr) {
+            const vydajDateStr = toISODateString(vydaj.Datum instanceof Date ? vydaj.Datum : new Date(vydaj.Datum));
+            if (vydajDateStr > executionDateStr) {
+                details.push({
+                    type: 'additional_expense_after_execution',
+                    expense: expenseId
+                });
+            }
         }
         
         if (!vydaj.Polozka?.trim()) {
@@ -615,6 +627,10 @@ export const validatePartA = (formData, head) => {
                     break;
                 case 'missing_additional_expense_attachment':
                     message = `Chybí příloha u ${detail.expense} - nepřiložené doklady budete muset dodat dodatečně ke schválení výdaje`;
+                    isWarning = true;
+                    break;
+                case 'additional_expense_after_execution':
+                    message = `Datum u ${detail.expense} je po datu provedení příkazu`;
                     isWarning = true;
                     break;
             }

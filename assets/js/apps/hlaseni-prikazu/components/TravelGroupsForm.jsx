@@ -766,7 +766,7 @@ export const TravelGroupsForm = ({
                                                                                             }}
                                                                                             placeholder="0"
                                                                                             min="0"
-                                                                                            step="0.01"
+                                                                                            step="1"
                                                                                             disabled={disabled}
                                                                                         />
                                                                                 </div>
