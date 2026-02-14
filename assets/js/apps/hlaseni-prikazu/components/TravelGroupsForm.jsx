@@ -602,7 +602,7 @@ export const TravelGroupsForm = ({
                                                         <IconMapPin size={16}/>
                                                     </div>
                                                     <div className="w-24">
-                                                        <span>Odjezd z</span>
+                                                        <span>Odkud</span>
                                                     </div>
                                                     <div className="flex-1 grid w-full grid-cols-1 md:grid-cols-3 gap-4">
                                                         <div className="md:col-span-2">
@@ -645,7 +645,7 @@ export const TravelGroupsForm = ({
                                                         <IconMapPin size={16}/>
                                                     </div>
                                                     <div className="w-24">
-                                                        <span>Příjezd do</span>
+                                                        <span>Kam</span>
                                                     </div>
                                                     <div className="flex-1 w-full grid grid-cols-1 md:grid-cols-3 gap-4">
                                                         <div className="md:col-span-2">
@@ -840,7 +840,12 @@ export const TravelGroupsForm = ({
                                                 className="form__select"
                                                 value={group.Ridic || ""}
                                                 onChange={(e) => {
-                                                    updateGroupField(group.id, { Ridic: parseInt(e.target.value) });
+                                                    const newDriverIntAdr = parseInt(e.target.value);
+                                                    const usersDetails = data.usersDetails || {};
+                                                    const driverData = usersDetails[newDriverIntAdr];
+                                                    const userData = Array.isArray(driverData) ? driverData[0]?.[0] : driverData;
+                                                    const newSPZ = userData?.RZ_Auta?.trim() || '';
+                                                    updateGroupField(group.id, { Ridic: newDriverIntAdr, SPZ: newSPZ });
                                                 }}
                                                 disabled={disabled}
                                                 required={true}

@@ -512,7 +512,7 @@ export const PartBForm = ({formData, setFormData, head, useky, predmety, prikazI
                                                                                             disabled={disabled}
                                                                                             required={true}
                                                                                         >
-                                                                                            <option value="">L/P
+                                                                                            <option value="">Vyberte směr
                                                                                             </option>
                                                                                             {arrowOrientationOptions.map(opt => (
                                                                                                 <option key={opt.value}
