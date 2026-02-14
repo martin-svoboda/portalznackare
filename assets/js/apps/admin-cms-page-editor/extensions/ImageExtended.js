@@ -5,6 +5,7 @@ import { Node, mergeAttributes } from '@tiptap/core';
  * - Čistý HTML výstup s width/height atributy (BEZ hacků!)
  * - data-align pro pozicování (left/center/right)
  * - data-float pro obtékání textem (left/right/none)
+ * - Podpora prokliknutelného obrázku (obalení v <a> tagu)
  * - Vlastní resize handle bez externích závislostí
  */
 
@@ -65,6 +66,33 @@ const createResizeIcon = () => {
     'M14 14m0 1a1 1 0 0 1 1 -1h5a1 1 0 0 1 1 1v3a1 1 0 0 1 -1 1h-5a1 1 0 0 1 -1 -1z',
     'M7 9l4 4',
     'M7 12v-3h3'
+  ];
+
+  paths.forEach(d => {
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', d);
+    svg.appendChild(path);
+  });
+
+  return svg;
+};
+
+// Bezpečné vytvoření SVG link ikony pro badge
+const createLinkIcon = () => {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('width', '14');
+  svg.setAttribute('height', '14');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'white');
+  svg.setAttribute('stroke-width', '2');
+  svg.setAttribute('stroke-linecap', 'round');
+  svg.setAttribute('stroke-linejoin', 'round');
+
+  const paths = [
+    'M9 15l6 -6',
+    'M11 6l.463 -.536a5 5 0 0 1 7.071 7.072l-.534 .464',
+    'M13 18l-.397 .534a5.068 5.068 0 0 1 -7.127 0a4.972 4.972 0 0 1 0 -7.071l.524 -.463',
   ];
 
   paths.forEach(d => {
@@ -149,18 +177,58 @@ const ImageExtended = Node.create({
           return { 'data-file-id': attributes['data-file-id'] };
         },
       },
+      // Link atributy - interní, nerendují se jako HTML atributy na <img>
+      'data-link-href': {
+        default: null,
+        parseHTML: element => {
+          // Obrázek obalený v <a> tagu
+          const parent = element.parentElement;
+          if (parent && parent.tagName === 'A') {
+            return parent.getAttribute('href');
+          }
+          return null;
+        },
+        renderHTML: () => ({}), // Zpracováno na úrovni nodu
+      },
+      'data-link-target': {
+        default: null,
+        parseHTML: element => {
+          const parent = element.parentElement;
+          if (parent && parent.tagName === 'A') {
+            return parent.getAttribute('target') || null;
+          }
+          return null;
+        },
+        renderHTML: () => ({}), // Zpracováno na úrovni nodu
+      },
     };
   },
 
   parseHTML() {
     return [
+      // Obrázek obalený v odkazu: <a href="..."><img src="..."></a>
+      {
+        tag: 'a > img[src]',
+      },
+      // Běžný obrázek: <img src="...">
       {
         tag: 'img[src]',
       },
     ];
   },
 
-  renderHTML({ HTMLAttributes }) {
+  renderHTML({ node, HTMLAttributes }) {
+    const linkHref = node.attrs['data-link-href'];
+    const linkTarget = node.attrs['data-link-target'];
+
+    if (linkHref) {
+      const linkAttrs = { href: linkHref };
+      if (linkTarget) {
+        linkAttrs.target = linkTarget;
+      }
+      return ['a', linkAttrs, ['img', mergeAttributes(HTMLAttributes)]];
+    }
+
     return ['img', mergeAttributes(HTMLAttributes)];
   },
 
@@ -179,6 +247,20 @@ const ImageExtended = Node.create({
 
       setImageFloat: float => ({ commands }) => {
         return commands.updateAttributes(this.name, { 'data-float': float });
+      },
+
+      setImageLink: (href, target) => ({ commands }) => {
+        return commands.updateAttributes(this.name, {
+          'data-link-href': href || null,
+          'data-link-target': target || null,
+        });
+      },
+
+      removeImageLink: () => ({ commands }) => {
+        return commands.updateAttributes(this.name, {
+          'data-link-href': null,
+          'data-link-target': null,
+        });
       },
     };
   },
@@ -262,6 +344,25 @@ const ImageExtended = Node.create({
       // XSS ochrana: Bezpečné vytvoření SVG
       resizeHandle.appendChild(createResizeIcon());
 
+      // Link badge - vizuální indikátor odkazu
+      const linkBadge = document.createElement('div');
+      linkBadge.className = 'image-link-badge';
+      linkBadge.style.cssText = `
+        position: absolute;
+        top: 4px;
+        left: 4px;
+        width: 22px;
+        height: 22px;
+        background: rgba(59, 130, 246, 0.9);
+        border-radius: 4px;
+        padding: 4px;
+        display: ${node.attrs['data-link-href'] ? 'flex' : 'none'};
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+      `;
+      linkBadge.appendChild(createLinkIcon());
+
       // Resize logika
       let isResizing = false;
       let startX, startWidth;
@@ -316,6 +417,7 @@ const ImageExtended = Node.create({
       // Sestavení DOM
       container.appendChild(img);
       container.appendChild(resizeHandle);
+      container.appendChild(linkBadge);
 
       return {
         dom: container,
@@ -351,6 +453,9 @@ const ImageExtended = Node.create({
           if (updatedNode.attrs['data-file-id']) {
             img.setAttribute('data-file-id', updatedNode.attrs['data-file-id']);
           }
+
+          // Update link badge viditelnosti
+          linkBadge.style.display = updatedNode.attrs['data-link-href'] ? 'flex' : 'none';
 
           // Update stylů pomocí utility funkcí (DRY)
           applyAlignmentStyles(img, newAlign);

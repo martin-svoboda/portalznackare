@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
+import { Plugin, PluginKey } from '@tiptap/pm/state';
 import Document from '@tiptap/extension-document'
 import Paragraph from '@tiptap/extension-paragraph'
 import Text from '@tiptap/extension-text'
@@ -62,12 +63,14 @@ import ListDropdownMenu from './ui/ListDropdownMenu.jsx';
 import TextAlignDropdown from './ui/TextAlignDropdown.jsx';
 import ColorTextDropdown from './ui/ColorTextDropdown.jsx';
 import ColorHighlightDropdown from './ui/ColorHighlightDropdown.jsx';
+import LinkPopover from './ui/LinkPopover.jsx';
 
 function TiptapEditor({ content, onChange, pageId }) {
     const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
     const [filePickerOpen, setFilePickerOpen] = useState(false);
     const [isInTable, setIsInTable] = useState(false);
     const [isImageSelected, setIsImageSelected] = useState(false);
+    const [linkPopoverOpen, setLinkPopoverOpen] = useState(false);
 
     const editor = useEditor({
         extensions: [
@@ -78,7 +81,32 @@ function TiptapEditor({ content, onChange, pageId }) {
                 // Disable default image extension from StarterKit since we use ImageExtended
                 // image: false,
             }),
-            Link.configure({
+            Link.extend({
+                addProseMirrorPlugins() {
+                    const plugins = this.parent?.() || [];
+                    // ProseMirror plugin - blokuje kliknutí na odkazy v editoru
+                    plugins.push(
+                        new Plugin({
+                            key: new PluginKey('preventLinkNavigation'),
+                            props: {
+                                handleClick: (view, pos, event) => {
+                                    if (!view.editable) return false;
+                                    const target = event.target;
+                                    const link = target instanceof HTMLAnchorElement
+                                        ? target
+                                        : target.closest?.('a');
+                                    if (link) {
+                                        event.preventDefault();
+                                        return true;
+                                    }
+                                    return false;
+                                },
+                            },
+                        })
+                    );
+                    return plugins;
+                },
+            }).configure({
                 openOnClick: false,
                 HTMLAttributes: {
                     class: 'text-blue-600 dark:text-blue-400 underline hover:no-underline',
@@ -141,14 +169,50 @@ function TiptapEditor({ content, onChange, pageId }) {
         return null;
     }
 
-    // Toolbar actions
-    const addLink = () => {
-        const url = window.prompt('URL odkazu:');
-        if (url) {
-            editor.chain().focus().setLink({ href: url }).run();
+    // Link popover helpers
+    const getLinkInitialValues = () => {
+        if (isImageSelected) {
+            const attrs = editor.getAttributes('image');
+            return {
+                href: attrs['data-link-href'] || '',
+                target: attrs['data-link-target'] || '',
+            };
+        }
+        const attrs = editor.getAttributes('link');
+        return {
+            href: attrs.href || '',
+            target: attrs.target || '',
+        };
+    };
+
+    const handleLinkSubmit = ({ href, target }) => {
+        if (isImageSelected) {
+            editor.chain().focus().setImageLink(href, target).run();
+        } else {
+            editor.chain().focus().setLink({ href, target: target || null }).run();
         }
     };
 
+    const handleLinkRemove = () => {
+        if (isImageSelected) {
+            editor.chain().focus().removeImageLink().run();
+        } else {
+            editor.chain().focus().unsetLink().run();
+        }
+    };
+
+    const hasActiveLink = () => {
+        if (isImageSelected) {
+            return !!editor.getAttributes('image')['data-link-href'];
+        }
+        return editor.isActive('link');
+    };
+
+    const toggleLinkPopover = () => {
+        setLinkPopoverOpen(!linkPopoverOpen);
+    };
+
+    // Toolbar actions
     const addImage = () => {
         setMediaPickerOpen(true);
     };
@@ -194,6 +258,8 @@ function TiptapEditor({ content, onChange, pageId }) {
             {children}
         </button>
     );
+
+    const linkValues = getLinkInitialValues();
 
     return (
         <div className="border border-gray-300 dark:border-gray-600 rounded-lg overflow-visible bg-white dark:bg-gray-800">
@@ -307,13 +373,25 @@ function TiptapEditor({ content, onChange, pageId }) {
                     <IconSeparator size={18} />
                 </ToolbarButton>
 
-                <ToolbarButton
-                    onClick={addLink}
-                    active={editor.isActive('link')}
-                    title="Odkaz"
-                >
-                    <IconLink size={18} />
-                </ToolbarButton>
+                {/* Link button with popover */}
+                <div className="relative">
+                    <ToolbarButton
+                        onClick={toggleLinkPopover}
+                        active={hasActiveLink()}
+                        title="Odkaz"
+                    >
+                        <IconLink size={18} />
+                    </ToolbarButton>
+
+                    <LinkPopover
+                        isOpen={linkPopoverOpen}
+                        onClose={() => setLinkPopoverOpen(false)}
+                        onSubmit={handleLinkSubmit}
+                        onRemove={hasActiveLink() ? handleLinkRemove : null}
+                        initialHref={linkValues.href}
+                        initialTarget={linkValues.target}
+                    />
+                </div>
 
                 <ToolbarButton
                     onClick={addImage}
