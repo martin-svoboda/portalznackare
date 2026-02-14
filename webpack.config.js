@@ -18,6 +18,7 @@ Encore
     .addEntry('app-hlaseni-prikazu', './assets/js/apps/hlaseni-prikazu/index.jsx')
     .addEntry('insyz-tester', './assets/js/apps/insyz-tester/index.jsx')
     .addEntry('user-preferences', './assets/js/apps/user-preferences/index.jsx')
+    .addEntry('change-password', './assets/js/apps/change-password/index.jsx')
     .addEntry('app-odpracovano-widget', './assets/js/apps/odpracovano-widget/index.jsx')
 
     // Admin apps entries

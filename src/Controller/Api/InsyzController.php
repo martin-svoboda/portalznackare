@@ -432,17 +432,33 @@ class InsyzController extends AbstractController
 
         $data = json_decode($request->getContent(), true);
 
-        if (!isset($data['password'])) {
+        // Validace přítomnosti všech povinných polí
+        $requiredFields = ['Stare_Heslo', 'Nove_Heslo', 'Nove_Heslo_Potvrzeni'];
+        foreach ($requiredFields as $field) {
+            if (!isset($data[$field]) || $data[$field] === '') {
+                return new JsonResponse([
+                    'error' => "Chybí parametr $field"
+                ], Response::HTTP_BAD_REQUEST);
+            }
+        }
+
+        // Kontrola shody nového hesla a potvrzení
+        if ($data['Nove_Heslo'] !== $data['Nove_Heslo_Potvrzeni']) {
             return new JsonResponse([
-                'error' => 'Chybí parametr password'
+                'error' => 'Hesla se neshodují'
             ], Response::HTTP_BAD_REQUEST);
         }
 
         try {
             $intAdr = (int) $user->getIntAdr();
-            $passwordHash = strtoupper(sha1($data['password']));
+            $email = $user->getEmail();
 
-            $result = $this->insyzService->updatePassword($intAdr, $passwordHash);
+            $result = $this->insyzService->updatePassword(
+                $intAdr,
+                $email,
+                $data['Stare_Heslo'],
+                $data['Nove_Heslo']
+            );
 
             return new JsonResponse([
                 'success' => true,
@@ -452,8 +468,8 @@ class InsyzController extends AbstractController
 
         } catch (Exception $e) {
             return new JsonResponse([
-                'error' => 'Chyba při aktualizaci hesla: ' . $e->getMessage()
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+                'error' => $e->getMessage()
+            ], Response::HTTP_BAD_REQUEST);
         }
     }
 

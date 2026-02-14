@@ -221,6 +221,32 @@ class InsyzService
     }
 
     /**
+     * Validuje sílu hesla a vrací pole chybových hlášek (prázdné = validní)
+     */
+    public function validatePasswordStrength(string $password): array
+    {
+        $errors = [];
+
+        if (strlen($password) < 8) {
+            $errors[] = 'Heslo musí mít alespoň 8 znaků';
+        }
+        if (!preg_match('/[A-Z]/', $password)) {
+            $errors[] = 'Heslo musí obsahovat alespoň 1 velké písmeno';
+        }
+        if (!preg_match('/[a-z]/', $password)) {
+            $errors[] = 'Heslo musí obsahovat alespoň 1 malé písmeno';
+        }
+        if (!preg_match('/[0-9]/', $password)) {
+            $errors[] = 'Heslo musí obsahovat alespoň 1 číslici';
+        }
+        if (!preg_match('/[!@#$%^&*()_+\-=\[\]{};\':"\\\\|,.<>\/?~`]/', $password)) {
+            $errors[] = 'Heslo musí obsahovat alespoň 1 speciální znak';
+        }
+
+        return $errors;
+    }
+
+    /**
      * Vytvoří bezpečný hash hesla kompatibilní s MSSQL HASHBYTES('SHA1', @password)
      */
     public function createPasswordHash(string $password): string
@@ -564,12 +590,28 @@ class InsyzService
 
 
     /**
-     * Aktualizuje heslo uživatele
+     * Aktualizuje heslo uživatele s ověřením starého hesla a validací nového
      */
-    public function updatePassword(int $intAdr, string $passwordHash): array
+    public function updatePassword(int $intAdr, string $email, string $oldPassword, string $newPassword): array
     {
+        // 1. Ověřit staré heslo přes loginUser (vyhodí Exception pokud nesedí)
+        try {
+            $this->loginUser($email, $oldPassword);
+        } catch (Exception $e) {
+            throw new Exception('Nesprávné současné heslo');
+        }
+
+        // 2. Validovat sílu nového hesla
+        $errors = $this->validatePasswordStrength($newPassword);
+        if (!empty($errors)) {
+            throw new Exception('Nové heslo nesplňuje požadavky: ' . implode(', ', $errors));
+        }
+
+        // 3. Vytvořit hash nového hesla
+        $passwordHash = $this->createPasswordHash($newPassword);
+
+        // 4. Zapsat nové heslo
         if ($this->useTestData()) {
-            // V test módu pouze simuluj úspěch
             $result = [
                 'success' => true,
                 'message' => 'Heslo bylo úspěšně aktualizováno (TEST MODE)',
@@ -579,10 +621,9 @@ class InsyzService
             return $result;
         }
 
-        // Zavolat proceduru pro aktualizaci hesla
         $result = $this->connect("trasy.WEB_Zapis_Pwd", [
             '@INT_ADR' => $intAdr,
-            '@WEBPwdHash' => strtoupper($passwordHash)
+            '@WEBPwdHash' => $passwordHash
         ]);
 
         return $result;

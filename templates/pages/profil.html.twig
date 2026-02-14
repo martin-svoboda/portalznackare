@@ -214,7 +214,7 @@
                                     <h4 class="profile-setting__title">Změna hesla</h4>
                                     <p class="profile-setting__desc">Aktualizace přihlašovacích údajů</p>
                                 </div>
-                                <button class="btn btn--secondary" onclick="alert('Změna hesla bude implementována v další fázi')">Změnit</button>
+                                <div data-app="change-password"></div>
                             </div>
                             <div class="profile-setting profile-setting--danger">
                                 <div class="profile-setting__info">
@@ -234,6 +234,7 @@
 {% block javascripts %}
     {% if app.user %}
         {{ encore_entry_script_tags('user-preferences') }}
+        {{ encore_entry_script_tags('change-password') }}
         {{ encore_entry_script_tags('app-odpracovano-widget') }}
     {% endif %}
 {% endblock %}
