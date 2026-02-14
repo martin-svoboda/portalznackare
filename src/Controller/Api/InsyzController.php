@@ -123,6 +123,24 @@ class InsyzController extends AbstractController
         }
     }
 
+    #[Route('/zp-useky/{id}', methods: ['GET'], requirements: ['id' => '\d+'])]
+    public function getZpUseky(int $id): JsonResponse
+    {
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            return new JsonResponse([
+                'error' => 'Nepřihlášený uživatel'
+            ], Response::HTTP_UNAUTHORIZED);
+        }
+
+        try {
+            $data = $this->insyzService->getZpUseky($id);
+            return new JsonResponse($data);
+        } catch (Exception $e) {
+            return new JsonResponse(['error' => $e->getMessage()], 500);
+        }
+    }
+
     #[Route('/sazby', methods: ['GET'])]
     public function getSazby(Request $request): JsonResponse
     {
@@ -350,6 +368,14 @@ class InsyzController extends AbstractController
             ];
         }
         
+        if (str_contains($endpoint, '/zp-useky/')) {
+            $id = $params['id'] ?? $this->extractFromResponse($responseData, ['ID_Znackarske_Prikazy', 'ID_Znackarske_prikazy', 'id']);
+            return [
+                'dir' => 'api/insyz/zp-useky',
+                'filename' => ($id ?: 'data') . '.json'
+            ];
+        }
+
         if (str_contains($endpoint, '/sazby')) {
             return [
                 'dir' => 'api/insyz/sazby',

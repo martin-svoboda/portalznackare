@@ -40,6 +40,12 @@
 
 **Vrací:** Multidataset s detailem příkazu (head, předměty, úseky)
 
+### trasy.ZP_Useky
+**Parametry:**
+- `@ID_Znackarske_prikazy` (int) - ID značkařského příkazu
+
+**Vrací:** Úseky příkazu (jeden dataset)
+
 ### trasy.ZP_Zapis_XML
 **Parametry:**
 - `@XML_Data` (xml) - XML data hlášení
@@ -64,4 +70,4 @@
 
 **Related Documentation:**
 [INSYZ API](./insyz-api.md)
-**Aktualizováno:** 2025-09-14
+**Aktualizováno:** 2026-02-14

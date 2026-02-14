@@ -375,6 +375,20 @@ class InsyzService
         });
     }
 
+    /**
+     * Získá úseky pro značkařský příkaz
+     */
+    public function getZpUseky(int $idPrikazu): array
+    {
+        if ($this->useTestData()) {
+            return $this->getTestData('zp-useky/' . $idPrikazu, [$idPrikazu]);
+        }
+
+        return $this->connect("trasy.ZP_Useky", [
+            '@ID_Znackarske_prikazy' => $idPrikazu
+        ]);
+    }
+
     public function submitReportToInsyz(string $xmlData, string $uzivatel): array
     {
         // Uložit XML pro kontrolu při testování
