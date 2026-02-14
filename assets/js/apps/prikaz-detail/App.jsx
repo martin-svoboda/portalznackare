@@ -259,11 +259,16 @@ const App = () => {
             // Získat blob PDF
             const blob = await response.blob();
 
+            // Získat název souboru z Content-Disposition hlavičky
+            const disposition = response.headers.get('Content-Disposition');
+            const filenameMatch = disposition && disposition.match(/filename="(.+?)"/);
+            const filename = filenameMatch ? filenameMatch[1] : `kontrolni-hlaseni-${prikazId}.pdf`;
+
             // Vytvořit dočasný odkaz pro stažení
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `kontrolni-formular-${prikazId}.pdf`;
+            a.download = filename;
             document.body.appendChild(a);
             a.click();
 

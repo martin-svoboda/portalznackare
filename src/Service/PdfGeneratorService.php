@@ -29,10 +29,10 @@ class PdfGeneratorService
      *
      * @param int $idZp ID příkazu z INSYZ
      * @param int $intAdr INT_ADR uživatele
-     * @return string PDF obsah jako string
+     * @return array{content: string, cislo_zp: string|null, popis_zp: string|null}
      * @throws \Exception
      */
-    public function generateControlFormPdf(int $idZp, int $intAdr): string
+    public function generateControlFormPdf(int $idZp, int $intAdr): array
     {
         $this->logger->info('Generování kontrolního formuláře PDF', [
             'id_zp' => $idZp,
@@ -79,8 +79,12 @@ class PdfGeneratorService
                 'id_zp' => $idZp
             ]);
 
-            // Return jako string
-            return $dompdf->output();
+            // Return PDF obsah a metadata pro název souboru
+            return [
+                'content' => $dompdf->output(),
+                'cislo_zp' => $enrichedData['head']['Cislo_ZP'] ?? null,
+                'popis_zp' => $enrichedData['head']['Popis_ZP'] ?? null,
+            ];
 
         } catch (\Exception $e) {
             $this->logger->error('Chyba při generování PDF', [

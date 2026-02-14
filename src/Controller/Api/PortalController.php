@@ -525,13 +525,34 @@ class PortalController extends AbstractController
             ]);
 
             // Vygenerovat PDF
-            $pdfContent = $this->pdfGenerator->generateControlFormPdf($id, $user->getIntAdr());
+            $pdfResult = $this->pdfGenerator->generateControlFormPdf($id, $user->getIntAdr());
+            $pdfContent = $pdfResult['content'];
+
+            // Název souboru z čísla příkazu a popisu
+            // P/PS/O/26020 → P-PS-O-26020
+            // "133604 PLASY KLÁŠTER - DVŮR LOMANY" → "plasy-klaster-dvur-lomany"
+            $filename = 'kontrolni-hlaseni';
+            if (!empty($pdfResult['cislo_zp'])) {
+                $filename .= '_' . str_replace('/', '-', $pdfResult['cislo_zp']);
+            }
+            if (!empty($pdfResult['popis_zp'])) {
+                // Odstranit číslo na začátku (kód trasy)
+                $popis = preg_replace('/^\d+\s*/', '', $pdfResult['popis_zp']);
+                // Transliterace diakritiky, lowercase, nahradit ne-alfanumerické pomlčkou
+                $popis = transliterator_transliterate('Any-Latin; Latin-ASCII', $popis);
+                $popis = strtolower(trim($popis));
+                $popis = preg_replace('/[^a-z0-9]+/', '-', $popis);
+                $popis = trim($popis, '-');
+                if ($popis !== '') {
+                    $filename .= '_' . $popis;
+                }
+            }
 
             // Vytvořit response s PDF
             $response = new Response($pdfContent);
             $response->headers->set('Content-Type', 'application/pdf');
             $response->headers->set('Content-Disposition',
-                'attachment; filename="kontrolni-formular-' . $id . '.pdf"'
+                'attachment; filename="' . $filename . '.pdf"'
             );
 
             Logger::info('Kontrolní formulář PDF úspěšně vygenerován', [
