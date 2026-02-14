@@ -536,8 +536,9 @@ class PortalController extends AbstractController
                 $filename .= '_' . str_replace('/', '-', $pdfResult['cislo_zp']);
             }
             if (!empty($pdfResult['popis_zp'])) {
-                // Odstranit číslo na začátku (kód trasy)
-                $popis = preg_replace('/^\d+\s*/', '', $pdfResult['popis_zp']);
+                // Odstranit HTML tagy (ikony dopravy apod.) a číslo na začátku
+                $popis = strip_tags($pdfResult['popis_zp']);
+                $popis = preg_replace('/^\d+\s*/', '', $popis);
                 // Transliterace diakritiky, lowercase, nahradit ne-alfanumerické pomlčkou
                 $popis = transliterator_transliterate('Any-Latin; Latin-ASCII', $popis);
                 $popis = strtolower(trim($popis));
