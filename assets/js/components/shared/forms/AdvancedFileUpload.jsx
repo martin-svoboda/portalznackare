@@ -2,6 +2,7 @@ import React, {useState, useEffect, useMemo, useRef} from 'react';
 import {
     IconUpload,
     IconFile,
+    IconFileTypePdf,
     IconTrash,
     IconCamera,
     IconEye,
@@ -563,6 +564,10 @@ export const AdvancedFileUpload = ({
         return fileType && fileType.startsWith('image/');
     };
 
+    const isPdf = (fileType) => {
+        return fileType === 'application/pdf';
+    };
+
     // Cleanup on unmount
     useEffect(() => {
         return () => {
@@ -652,7 +657,7 @@ export const AdvancedFileUpload = ({
                                 className="flex-shrink-0"
                                 onClick={() => openPreview(file)}
                             >
-                                {/* Preview for images or file icon */}
+                                {/* Preview for images, PDF icon, or generic file icon */}
                                 {isImage(file.fileType) ? (
                                     <div className="flex-shrink-0 w-20 h-20">
                                         <img
@@ -664,8 +669,12 @@ export const AdvancedFileUpload = ({
                                             }}
                                         />
                                     </div>
+                                ) : isPdf(file.fileType) ? (
+                                    <div className="flex-shrink-0 w-20 h-20 flex items-center justify-center bg-red-50 dark:bg-red-900/30 rounded">
+                                        <IconFileTypePdf size={42} className="text-red-600 dark:text-red-400" stroke={1}/>
+                                    </div>
                                 ) : (
-                                    <IconFile size={42} className="text-gray-500"/>
+                                    <IconFile size={42} className="text-gray-500" stroke={1}/>
                                 )}
                             </div>
 

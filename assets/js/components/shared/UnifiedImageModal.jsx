@@ -38,17 +38,19 @@ const UnifiedImageModal = ({
     const [previewCrop, setPreviewCrop] = useState(null);
     const [isEditingCrop, setIsEditingCrop] = useState(false);
 
-    // Načíst obrázek při otevření modalu
+    const isPdf = file?.fileType === 'application/pdf';
+
+    // Načíst obrázek při otevření modalu (přeskočit pro PDF)
     useEffect(() => {
-        if (isOpen && file) {
+        if (isOpen && file && !isPdf) {
             log.info('UnifiedImageModal: Načítám obrázek', { fileName: file.fileName });
             const img = new Image();
             img.crossOrigin = 'anonymous';
             img.onload = () => {
                 setOriginalImage(img);
-                log.info('UnifiedImageModal: Obrázek úspěšně načten', { 
-                    width: img.width, 
-                    height: img.height 
+                log.info('UnifiedImageModal: Obrázek úspěšně načten', {
+                    width: img.width,
+                    height: img.height
                 });
             };
             img.onerror = () => {
@@ -56,7 +58,7 @@ const UnifiedImageModal = ({
             };
             img.src = file.url || file.preview;
         }
-    }, [isOpen, file]);
+    }, [isOpen, file, isPdf]);
 
     // Resetovat stav při změně módu
     useEffect(() => {
@@ -636,7 +638,7 @@ const UnifiedImageModal = ({
                 {/* Header */}
                 <div className="flex items-center justify-between px-4 pt-4">
                     <h3 className="text-lg mb-0">
-                        {mode === 'preview' ? 'Náhled obrázku' : 'Editace obrázku'}: {file?.fileName}
+                        {isPdf ? 'Náhled PDF' : (mode === 'preview' ? 'Náhled obrázku' : 'Editace obrázku')}: {file?.fileName}
                     </h3>
                     <button
                         onClick={handleClose}
@@ -647,7 +649,41 @@ const UnifiedImageModal = ({
                 </div>
 
                 {/* Content */}
-                {mode === 'preview' ? (
+                {isPdf ? (
+                    // PDF mód - zobrazení v iframe
+                    <div className="p-4">
+                        <div className="bg-gray-100 dark:bg-gray-900 rounded-lg overflow-hidden" style={{ height: '70vh' }}>
+                            <iframe
+                                src={file.url}
+                                title={file.fileName}
+                                className="w-full h-full border-0"
+                            />
+                        </div>
+
+                        {/* Footer pro PDF */}
+                        <div className="flex justify-between mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                            {onDelete ? (
+                                <button
+                                    onClick={handleDelete}
+                                    className="btn btn--danger"
+                                >
+                                    <IconTrash size={16} />
+                                    Smazat
+                                </button>
+                            ) : (
+                                <div></div>
+                            )}
+
+                            <button
+                                onClick={handleClose}
+                                className="btn btn--secondary"
+                            >
+                                <IconX size={16} />
+                                Zavřít
+                            </button>
+                        </div>
+                    </div>
+                ) : mode === 'preview' ? (
                     // Preview mód - pouze zobrazení obrázku
                     <div className="p-4">
                         <div className="flex justify-center bg-gray-100 dark:bg-gray-900 rounded-lg p-4">
@@ -659,7 +695,7 @@ const UnifiedImageModal = ({
                                 />
                             )}
                         </div>
-                        
+
                         {/* Footer pro preview */}
                         <div className="flex justify-between mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                             {onDelete ? (
@@ -673,7 +709,7 @@ const UnifiedImageModal = ({
                             ) : (
                                 <div></div>
                             )}
-                            
+
                             <button
                                 onClick={switchToEditMode}
                                 className="btn btn--primary"

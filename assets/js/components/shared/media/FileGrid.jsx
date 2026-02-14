@@ -1,5 +1,5 @@
 import React from 'react';
-import { IconFile, IconEye, IconEdit, IconTrash, IconCopy } from '@tabler/icons-react';
+import { IconFile, IconFileTypePdf, IconEye, IconEdit, IconTrash, IconCopy } from '@tabler/icons-react';
 
 /**
  * FileGrid - Reusable grid component for displaying files
@@ -40,6 +40,11 @@ export default function FileGrid({
         return fileType && fileType.startsWith('image/');
     };
 
+    // Helper: Check if file is PDF
+    const isPdf = (fileType) => {
+        return fileType === 'application/pdf';
+    };
+
     // Grid columns class mapping
     const gridColsClass = {
         1: 'grid-cols-1',
@@ -74,9 +79,13 @@ export default function FileGrid({
                                     style={{ transition: 'transform 0.3s ease' }}
                                 />
                             </div>
+                        ) : isPdf(file.fileType) ? (
+                            <div className="w-20 h-20 flex items-center justify-center bg-red-50 dark:bg-red-900/30 rounded">
+                                <IconFileTypePdf size={42} className="text-red-600 dark:text-red-400" stroke={1} />
+                            </div>
                         ) : (
                             <div className="w-20 h-20 flex items-center justify-center bg-gray-200 dark:bg-gray-700 rounded">
-                                <IconFile size={42} className="text-gray-500 dark:text-gray-400" />
+                                <IconFile size={42} className="text-gray-500 dark:text-gray-400" stroke={1} />
                             </div>
                         )}
                     </div>
