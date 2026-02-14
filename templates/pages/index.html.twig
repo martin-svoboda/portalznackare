@@ -49,10 +49,16 @@
             <div class="grid grid--cols-2 mb-8">
                 <div class="card">
                     <div class="card__header">
-                        <h3 class="card__title">Widget pro obsah</h3>
+                        <h3 class="card__title">
+                            {{ tabler_icon('walk', 16, 'card__icon') }}
+                            Odpracované kilometry
+                        </h3>
                     </div>
                     <div class="card__content">
-                        <p class="text text--small text--muted">widget připravený pro obsah se souhrnem informací, graf...</p>
+                        <div data-app="odpracovano-widget"
+                             data-fetch="true"
+                             data-debug="{{ app.request.server.get('DEBUG_APPS') == 'true' ? 'true' : 'false' }}">
+                        </div>
                     </div>
                 </div>
 
@@ -81,6 +87,7 @@
 {% block javascripts %}
     {{ parent() }}
     {{ encore_entry_script_tags('app-prikazy') }}
+    {{ encore_entry_script_tags('app-odpracovano-widget') }}
     {% if not app.user %}
         {{ encore_entry_script_tags('login-form') }}
     {% endif %}

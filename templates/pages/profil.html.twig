@@ -98,6 +98,24 @@
                     </div>
                 </div>
 
+                <!-- Odpracované kilometry -->
+                {% if odpracovano is defined and odpracovano is not empty %}
+                <div class="card">
+                    <div class="card__header">
+                        <h2 class="card__title">
+                            {{ tabler_icon('walk', 20, 'card__icon') }}
+                            Odpracované kilometry
+                        </h2>
+                    </div>
+                    <div class="card__content">
+                        <div data-app="odpracovano-widget"
+                             data-odpracovano="{{ odpracovano|json_encode }}"
+                             data-show-table="true">
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
                 <!-- Kvalifikace -->
                 {% if kvalifikace %}
                 <div class="card">
@@ -216,5 +234,6 @@
 {% block javascripts %}
     {% if app.user %}
         {{ encore_entry_script_tags('user-preferences') }}
+        {{ encore_entry_script_tags('app-odpracovano-widget') }}
     {% endif %}
 {% endblock %}
