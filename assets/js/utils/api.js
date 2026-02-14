@@ -149,7 +149,8 @@ export const api = {
         saveReport: (data) => api.post('/portal/report', data, {
             showSuccess: true,
             successMessage: 'Hlášení bylo uloženo'
-        })
+        }),
+        zpUseky: (id) => api.get(`/insyz/zp-useky/${id}`)
     },
 
     insyz: {

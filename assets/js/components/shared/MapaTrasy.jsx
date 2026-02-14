@@ -123,12 +123,63 @@ function getMapyCzRouteUrl(points, mapset, type) {
     );
 }
 
-export function MapaTrasy({ data: { title = '', points, route, druhPresunu = 'PZT' } }) {
-    // Mapování druhPresunu na mapset a type pro Mapy.cz
+// Barva_Kod → barva polyline
+const ROUTE_COLORS = {
+    CE: '#e50313',  // červená
+    MO: '#1a6dff',  // modrá
+    ZE: '#009C00',  // zelená
+    ZL: '#ffdd00',  // žlutá
+};
+const DEFAULT_ROUTE_COLOR = '#ff57a0';
+
+function getRouteColor(barvaKod) {
+    return ROUTE_COLORS[barvaKod] || DEFAULT_ROUTE_COLOR;
+}
+
+// Druh_Presunu → Mapy.cz routeType
+function getMapyRouteType(druhPresunu) {
+    if (druhPresunu === 'CZT') return 'bike_mountain';
+    if (druhPresunu === 'CZS') return 'bike_road';
+    return 'foot_hiking';
+}
+
+// Fetch routing z Mapy.cz API pro jednu trasu
+function fetchRouteCoords(points, druhPresunu) {
+    if (!points || points.length < 2 || druhPresunu === 'LZT') {
+        return Promise.resolve([]);
+    }
+    const type = getMapyRouteType(druhPresunu);
+    const url = buildMapyRouteUrl(points, MAPY_API_KEY, type);
+    return fetch(url)
+        .then(r => {
+            if (!r.ok) throw new Error("Chyba API");
+            return r.json();
+        })
+        .then(data => {
+            if (
+                data?.geometry?.geometry?.type === "LineString" &&
+                Array.isArray(data.geometry.geometry.coordinates)
+            ) {
+                return data.geometry.geometry.coordinates.map(
+                    ([lon, lat]) => [lat, lon]
+                );
+            }
+            return [];
+        })
+        .catch(() => []);
+}
+
+export function MapaTrasy({ data: { title = '', points, route, routes = null, druhPresunu = 'PZT' } }) {
+    const hasMultiRoutes = Array.isArray(routes) && routes.length > 0;
+
+    // Mapování druhPresunu na mapset a type pro Mapy.cz (fallback single route)
     const mapset = druhPresunu === "LZT" ? "winter" : "outdoor";
-    const type = druhPresunu === "CZT" ? "bike_mountain" :
-        druhPresunu === "CZS" ? "bike_road" : "foot_hiking";
+    const type = getMapyRouteType(druhPresunu);
+
+    // Single route state (fallback)
     const [routeCoords, setRouteCoords] = useState([]);
+    // Multi-route state: { [EvCi_Tra]: coords[] }
+    const [multiRouteCoords, setMultiRouteCoords] = useState({});
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [leafletLoaded, setLeafletLoaded] = useState(false);
@@ -150,10 +201,41 @@ export function MapaTrasy({ data: { title = '', points, route, druhPresunu = 'PZ
     const validPoints = points.filter(isValidPoint);
     const invalidPoints = points.filter(p => !isValidPoint(p));
 
+    // Multi-route routing fetch
     useEffect(() => {
+        if (!hasMultiRoutes) return;
+
+        setLoading(true);
+        setError(null);
+
+        const promises = routes.map(r =>
+            fetchRouteCoords(r.points, r.Druh_Presunu).then(coords => ({
+                key: r.EvCi_Tra,
+                coords
+            }))
+        );
+
+        Promise.all(promises)
+            .then(results => {
+                const coordsMap = {};
+                results.forEach(({ key, coords }) => {
+                    coordsMap[key] = coords;
+                });
+                setMultiRouteCoords(coordsMap);
+                setLoading(false);
+            })
+            .catch(() => {
+                setError("Nepodařilo se načíst trasy.");
+                setLoading(false);
+            });
+        // eslint-disable-next-line
+    }, [hasMultiRoutes, routes?.map(r => r.EvCi_Tra).join('|')]);
+
+    // Single route fallback fetch
+    useEffect(() => {
+        if (hasMultiRoutes) return;
         if (!route || !validPoints || validPoints.length < 2) return;
 
-        // Pro lyžařské trasy nezobrazujeme routing
         if (druhPresunu === 'LZT') {
             setRouteCoords([]);
             setLoading(false);
@@ -163,69 +245,33 @@ export function MapaTrasy({ data: { title = '', points, route, druhPresunu = 'PZ
         setLoading(true);
         setError(null);
 
-        // Try OpenRouteService first
-        const orsRequest = buildORSRouteRequest(validPoints, druhPresunu);
-/*
-        fetch(orsRequest.url, {
-            method: 'POST',
-            headers: {
-                'Authorization': OPEN_ROUTE_KEY,
-                'Content-Type': 'application/json',
-                'Accept': 'application/json, application/geo+json'
-            },
-            body: JSON.stringify(orsRequest.body)
-        })
-            .then(r => {
-                if (!r.ok) throw new Error("ORS API error");
-                return r.json();
-            })
-            .then(data => {
-                // Process ORS response
-                let coords = [];
-                if (data?.features?.[0]?.geometry?.coordinates) {
-                    coords = data.features[0].geometry.coordinates.map(
-                        ([lon, lat]) => [lat, lon]
-                    );
-                }
+        fetchRouteCoords(validPoints, druhPresunu)
+            .then(coords => {
                 setRouteCoords(coords);
                 setLoading(false);
             })
-            .catch(orsError => {
-                // Fallback to Mapy.cz API
-                console.warn('OpenRouteService failed, falling back to Mapy.cz:', orsError);
-*/
-                const url = buildMapyRouteUrl(validPoints, MAPY_API_KEY, type);
-                fetch(url)
-                    .then(r => {
-                        if (!r.ok) throw new Error("Chyba API");
-                        return r.json();
-                    })
-                    .then(data => {
-                        let coords = [];
-                        if (
-                            data?.geometry?.geometry?.type === "LineString" &&
-                            Array.isArray(data.geometry.geometry.coordinates)
-                        ) {
-                            coords = data.geometry.geometry.coordinates.map(
-                                ([lon, lat]) => [lat, lon]
-                            );
-                        }
-                        setRouteCoords(coords);
-                        setLoading(false);
-                    })
-                    .catch(() => {
-                        setError("Nepodařilo se načíst trasu.");
-                        setRouteCoords([]);
-                        setLoading(false);
-                    });
-          /*  });*/
+            .catch(() => {
+                setError("Nepodařilo se načíst trasu.");
+                setRouteCoords([]);
+                setLoading(false);
+            });
         // eslint-disable-next-line
-    }, [validPoints.length, validPoints.map(p => `${p.lat},${p.lon}`).join('|'), route, druhPresunu]);
+    }, [hasMultiRoutes, validPoints.length, validPoints.map(p => `${p.lat},${p.lon}`).join('|'), route, druhPresunu]);
 
     const center = validPoints[0]
         ? [validPoints[0].lat, validPoints[0].lon]
         : [49.8, 14.8];
     const height = window.innerWidth > 768 ? 500 : 350;
+
+    // Zjistit zda existuje alespoň jedna vykreslená trasa
+    const hasAnyRouteCoords = hasMultiRoutes
+        ? Object.values(multiRouteCoords).some(c => c.length > 1)
+        : routeCoords.length > 1;
+
+    // Zjistit zda jsou všechny trasy lyžařské
+    const allRoutesLZT = hasMultiRoutes
+        ? routes.every(r => r.Druh_Presunu === 'LZT')
+        : druhPresunu === 'LZT';
 
     return (
         <div style={{ minHeight: height, width: "100%", position: "relative" }}>
@@ -241,9 +287,9 @@ export function MapaTrasy({ data: { title = '', points, route, druhPresunu = 'PZ
                     </button>
                 )}
             </div>
-            
+
             {loading && <Loader />}
-            
+
             {validPoints.length > 0 && leafletLoaded && (
                 <>
                     <MapContainer
@@ -296,13 +342,37 @@ export function MapaTrasy({ data: { title = '', points, route, druhPresunu = 'PZ
                                 </Popup>
                             </Marker>
                         ))}
-                        {route && routeCoords.length > 1 && (
-                            <Polyline positions={routeCoords} color="#ff57a0" weight={5} />
+                        {/* Multi-route polylines - bílý outline + barevná trasa */}
+                        {hasMultiRoutes && routes.map(r => {
+                            const coords = multiRouteCoords[r.EvCi_Tra];
+                            if (!coords || coords.length < 2) return null;
+                            return (
+                                <React.Fragment key={r.EvCi_Tra}>
+                                    <Polyline
+                                        positions={coords}
+                                        color="#ffffff"
+                                        weight={9}
+                                        opacity={0.9}
+                                    />
+                                    <Polyline
+                                        positions={coords}
+                                        color={getRouteColor(r.Barva_Kod)}
+                                        weight={5}
+                                    />
+                                </React.Fragment>
+                            );
+                        })}
+                        {/* Single route fallback polyline */}
+                        {!hasMultiRoutes && route && routeCoords.length > 1 && (
+                            <>
+                                <Polyline positions={routeCoords} color="#ffffff" weight={9} opacity={0.9} />
+                                <Polyline positions={routeCoords} color={DEFAULT_ROUTE_COLOR} weight={5} />
+                            </>
                         )}
                         <FitBounds points={validPoints} />
                     </MapContainer>
-                    
-                    {route && routeCoords.length > 1 ? druhPresunu === 'LZT' ? (
+
+                    {route && hasAnyRouteCoords ? allRoutesLZT ? (
                         <div className="alert alert--info mt-4">
                             <div className="alert__content">
                                 <div className="flex items-start gap-2">
@@ -328,7 +398,7 @@ export function MapaTrasy({ data: { title = '', points, route, druhPresunu = 'PZ
                     ) : null}
                 </>
             )}
-            
+
             {error && (
                 <div className="alert alert--danger mt-4">
                     <div className="alert__content">
@@ -339,7 +409,7 @@ export function MapaTrasy({ data: { title = '', points, route, druhPresunu = 'PZ
                     </div>
                 </div>
             )}
-            
+
             {invalidPoints.length > 0 && (
                 <div className="alert alert--danger mt-4">
                     <div className="alert__content">

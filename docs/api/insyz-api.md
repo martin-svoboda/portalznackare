@@ -145,6 +145,57 @@ GET /api/insyz/prikaz/123
 
 ---
 
+### 🗺️ GET `/api/insyz/zp-useky/{id}`
+
+Načte úseky (průběh tras přes TIM body) pro daný značkařský příkaz.
+
+**Autentifikace:** Vyžadováno
+**Path parametry:**
+- `id` - ID značkařského příkazu
+
+**Request:**
+```bash
+GET /api/insyz/zp-useky/53821
+```
+
+**Response:**
+```json
+[
+    {
+        "Druh": "Usek",
+        "EvCi_Tra": "133604",
+        "Kod_ZU": "C",
+        "Poradi_odbocky_na_TIM": "0",
+        "Poradi_TIM_v_trase": "11",
+        "EvCi_TIM": "PS207"
+    },
+    {
+        "Druh": "Odbocka TIM 1",
+        "EvCi_Tra": "169221",
+        "Kod_ZU": "A",
+        "Poradi_odbocky_na_TIM": "1",
+        "Poradi_TIM_v_trase": "1",
+        "EvCi_TIM": "PS351"
+    }
+]
+```
+
+**Pole:**
+| Pole | Popis |
+|---|---|
+| `Druh` | Typ záznamu (`Usek`, `Odbocka TIM N`) |
+| `EvCi_Tra` | Evidenční číslo trasy |
+| `Kod_ZU` | Kód značení úseku |
+| `Poradi_odbocky_na_TIM` | Pořadí odbočky (`0` = hlavní trasa) |
+| `Poradi_TIM_v_trase` | Pořadí TIM bodu v trase |
+| `EvCi_TIM` | Evidenční číslo TIM |
+
+**Chyby:**
+- `401` - Nepřihlášený uživatel
+- `500` - Chyba načítání úseků
+
+---
+
 ### 💰 GET `/api/insyz/sazby`
 
 Načte aktuální sazby pro výpočet náhrad (mock data).
@@ -311,4 +362,4 @@ curl "https://portalznackare.ddev.site/api/insyz-audit-logs?endpoint=/api/insyz/
 **Audit logging:** [../features/audit-logging.md](../features/audit-logging.md)  
 **Admin API:** [admin-api.md](admin-api.md#insyz-audit-api)  
 **Development nástroje:** [../development/insyz-api-tester.md](../development/insyz-api-tester.md)  
-**Aktualizováno:** 2025-08-08
+**Aktualizováno:** 2026-02-14

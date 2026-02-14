@@ -16,7 +16,7 @@ import { PrikazUseky } from '../../components/prikazy/PrikazUseky';
 import { ProvedeniPrikazu } from '../../components/prikazy/ProvedeniPrikazu';
 import { MapaTrasy } from '../../components/shared/MapaTrasy';
 import { Loader } from '../../components/shared/Loader';
-import { getPrikazDescription } from '../../utils/prikaz';
+import { getPrikazDescription, buildMapRoutes } from '../../utils/prikaz';
 import { renderHtmlContent, replaceTextWithIcons } from '../../utils/htmlUtils';
 import { api } from '../../utils/api';
 import { log } from '../../utils/debug';
@@ -138,6 +138,7 @@ const App = () => {
     const [head, setHead] = useState(null);
     const [predmety, setPredmety] = useState([]);
     const [useky, setUseky] = useState([]);
+    const [zpUseky, setZpUseky] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [downloadingPdf, setDownloadingPdf] = useState(false);
@@ -182,6 +183,18 @@ const App = () => {
             setPredmety(result.predmety || []);
             setUseky(result.useky || []);
             log.info(`Načten detail příkazu ${prikazId}`, result);
+
+            // Pro příkazy typu "O" (obnova) načíst ZP_Useky pro mapové trasy
+            if (result.head?.Druh_ZP === 'O') {
+                try {
+                    const zpUsekyData = await api.prikazy.zpUseky(prikazId);
+                    setZpUseky(Array.isArray(zpUsekyData) ? zpUsekyData : []);
+                    log.info(`Načteny ZP_Useky pro příkaz ${prikazId}`, zpUsekyData);
+                } catch (zpError) {
+                    log.error('Chyba při načítání ZP_Useky (fallback na jednu trasu)', zpError);
+                    setZpUseky([]);
+                }
+            }
         } catch (error) {
             setError(error.message);
             log.error('Chyba při načítání detailu příkazu', error);
@@ -349,6 +362,11 @@ const App = () => {
         [groupedData]
     );
 
+    const mapRoutes = useMemo(
+        () => buildMapRoutes(zpUseky, groupedData, useky),
+        [zpUseky, groupedData, useky]
+    );
+
     const mapData = useMemo(() => {
         const firstUsek = useky?.[0];
         const druhPresunu = firstUsek?.Druh_Presunu;
@@ -357,9 +375,10 @@ const App = () => {
             title: head?.Druh_ZP == "O" ? "Mapa trasy" : "Mapa TIM",
             points: mapPoints,
             route: "O" === head?.Druh_ZP,
+            routes: mapRoutes.length > 0 ? mapRoutes : null,
             druhPresunu: druhPresunu || "PZT"
         };
-    }, [mapPoints, head?.Druh_ZP, useky]);
+    }, [mapPoints, head?.Druh_ZP, useky, mapRoutes]);
 
     const columns = useMemo(
         () => [
