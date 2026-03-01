@@ -410,29 +410,23 @@ ddev exec psql -c "SELECT cache_hit, COUNT(*) FROM insyz_audit_log GROUP BY cach
 
 ### Console commands
 
-#### Aplikační audit commands
-```bash
-# Statistiky (existující)
-ddev exec php bin/console app:audit:stats
+Kompletní reference: [Console Commands](../development/commands.md)
 
-# Cleanup (existující)
-ddev exec php bin/console app:audit:cleanup --days=30
-```
-
-#### INSYZ API audit commands
 ```bash
 # INSYZ audit status
-ddev exec php bin/console app:insyz-audit:status
+php bin/console insyz:audit status
 
 # INSYZ audit konfigurace
-ddev exec php bin/console app:insyz-audit:config
-ddev exec php bin/console app:insyz-audit:config --set=enabled --value=true
+php bin/console insyz:audit config
+php bin/console insyz:audit config --set enabled=true
 
 # INSYZ audit cleanup
-ddev exec php bin/console app:insyz-audit:cleanup --days=30
+php bin/console insyz:audit cleanup --dry-run
+php bin/console insyz:audit cleanup
 
 # INSYZ audit statistiky
-ddev exec php bin/console app:insyz-audit:stats --since="7 days ago"
+php bin/console insyz:audit stats --period="24 hours"
+php bin/console insyz:audit stats --period="7 days"
 ```
 
 ---

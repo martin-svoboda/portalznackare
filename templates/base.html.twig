@@ -8,9 +8,11 @@
     <link rel="shortcut icon" href="/favicon.ico" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-title" content="Portál Zn." />
-    <link rel="manifest" href="/site.webmanifest" />
+    <link rel="manifest" href="{{ path('app_manifest') }}" />
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    
+
+    {% set is_dev = app.environment != 'prod' %}
+
     {% block stylesheets %}
         {{ encore_entry_link_tags('app-styles') }}
     {% endblock %}
@@ -26,7 +28,7 @@
                     <span></span>
                     <span></span>
                 </button>
-                <a href="{{ path('app_index') }}" class="logo flex items-center gap-2"><img src="/favicon.svg" alt="" class="w-8 h-8 -mt-2"/> <span>Portál značkaře</span></a>
+                <a href="{{ path('app_index') }}" class="logo flex items-center gap-2"><img src="{{ is_dev ? '/logo_dev.svg' : '/favicon.svg' }}" alt="" class="w-8 h-8 -mt-2"/> <span>Portál značkaře</span></a>
             </div>
             
             <div class="app-header__actions">

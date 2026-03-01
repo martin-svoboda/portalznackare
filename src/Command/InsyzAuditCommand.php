@@ -280,7 +280,7 @@ class InsyzAuditCommand extends Command
                         $stat['endpoint'],
                         $stat['total_requests'],
                         $stat['cache_hits'],
-                        $stat['hit_rate_percent'] . '%',
+                        round((float)$stat['hit_rate_percent'], 2) . '%',
                         $stat['avg_miss_duration_ms'] ? round($stat['avg_miss_duration_ms']) . 'ms' : 'N/A',
                         $stat['avg_hit_duration_ms'] ? round($stat['avg_hit_duration_ms']) . 'ms' : 'N/A'
                     ];

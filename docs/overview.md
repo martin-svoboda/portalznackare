@@ -30,6 +30,7 @@ Kompletní dokumentace webové aplikace pro správu turistického značení KČT
 
 ### 🛠️ Development
 - [Development guide](development/development.md) - Debug nástroje a workflow
+- [Console Commands](development/commands.md) - Přehled všech konzolových příkazů
 - [Background Jobs](development/background-jobs.md) - Symfony Messenger a asynchronní procesy
 - [Toast Notification System](development/toast-system.md) - Jednotný systém notifikací
 - [INSYZ API Tester](development/insyz-api-tester.md) - Testing nástroj

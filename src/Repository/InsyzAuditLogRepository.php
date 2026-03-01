@@ -171,7 +171,7 @@ class InsyzAuditLogRepository extends ServiceEntityRepository
         return $qb->select('ial.endpoint')
             ->addSelect('COUNT(ial.id) as total_requests')
             ->addSelect('SUM(CASE WHEN ial.cacheHit = true THEN 1 ELSE 0 END) as cache_hits')
-            ->addSelect('ROUND((SUM(CASE WHEN ial.cacheHit = true THEN 1 ELSE 0 END) * 100.0 / COUNT(ial.id)), 2) as hit_rate_percent')
+            ->addSelect('(SUM(CASE WHEN ial.cacheHit = true THEN 1 ELSE 0 END) * 100.0 / COUNT(ial.id)) as hit_rate_percent')
             ->addSelect('AVG(CASE WHEN ial.cacheHit = false THEN ial.durationMs END) as avg_miss_duration_ms')
             ->addSelect('AVG(CASE WHEN ial.cacheHit = true THEN ial.durationMs END) as avg_hit_duration_ms')
             ->from(InsyzAuditLog::class, 'ial')
