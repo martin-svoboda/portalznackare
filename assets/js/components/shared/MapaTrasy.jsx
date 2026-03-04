@@ -300,7 +300,12 @@ export function MapaTrasy({ data: { title = '', points, route, routes = null, dr
                     >
                         <TileLayer
                             url={`https://api.mapy.cz/v1/maptiles/${mapset}/256/{z}/{x}/{y}?apikey=${MAPY_API_KEY}`}
-                            attribution='Mapové podklady © <a href="https://www.seznam.cz/">Seznam.cz, a.s.</a> a další'
+                            attribution='© <a href="https://www.seznam.cz/">Seznam.cz, a.s.</a> a další'
+                            eventHandlers={{
+                                add: (e) => {
+                                    e.target.getContainer().style.filter = 'grayscale(40%) opacity(90%)';
+                                }
+                            }}
                         />
                         {validPoints.map((point, i) => (
                             <Marker

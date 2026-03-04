@@ -303,7 +303,7 @@ const App = () => {
     }, [head, prikazId]);
 
     const tableData = useMemo(
-        () => Array.isArray(predmety) ? [...predmety].sort((a, b) => Number(a.Poradi ?? 0) - Number(b.Poradi ?? 0)) : [],
+        () => Array.isArray(predmety) ? predmety : [],
         [predmety]
     );
 
