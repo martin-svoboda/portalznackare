@@ -373,17 +373,13 @@ const App = () => {
     );
 
     const mapData = useMemo(() => {
-        const firstUsek = useky?.[0];
-        const druhPresunu = firstUsek?.Druh_Presunu;
-
         return {
             title: head?.Druh_ZP == "O" ? "Mapa trasy" : "Mapa TIM",
             points: mapPoints,
             route: "O" === head?.Druh_ZP,
             routes: mapRoutes.length > 0 ? mapRoutes : null,
-            druhPresunu: druhPresunu || "PZT"
         };
-    }, [mapPoints, head?.Druh_ZP, useky, mapRoutes]);
+    }, [mapPoints, head?.Druh_ZP, mapRoutes]);
 
     const columns = useMemo(
         () => [

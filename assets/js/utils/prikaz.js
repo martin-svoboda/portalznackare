@@ -23,8 +23,6 @@ export function getPrikazDescription(druhZP) {
  * @returns {Array} Pole route objektů: {EvCi_Tra, points[], Barva_Kod, Druh_Presunu, Nazev_ZU}
  */
 export function buildMapRoutes(zpUseky, groupedData, useky) {
-    if (!Array.isArray(zpUseky) || zpUseky.length === 0) return [];
-
     // 1. GPS lookup z groupedData: EvCi_TIM → {lat, lon, name}
     const gpsLookup = {};
     if (Array.isArray(groupedData)) {
@@ -39,33 +37,42 @@ export function buildMapRoutes(zpUseky, groupedData, useky) {
         });
     }
 
-    // 2. Metadata lookup z useky: EvCi_Tra → {Barva_Kod, Druh_Presunu, Nazev_ZU}
+    // 2. Metadata lookup z useky: compositeKey → {Barva_Kod, Druh_Presunu, Nazev_ZU}
+    // Rozlišuje hlavní úsek (ID_TRASY_Odbocky === null) a odbočky
     const usekyLookup = {};
     if (Array.isArray(useky)) {
+        const odbockyCounters = {};
         useky.forEach(u => {
-            if (u.EvCi_Tra) {
-                usekyLookup[u.EvCi_Tra] = {
-                    Barva_Kod: u.Barva_Kod,
-                    Druh_Presunu: u.Druh_Presunu,
-                    Nazev_ZU: u.Nazev_ZU
-                };
+            if (!u.EvCi_Tra) return;
+            const isOdbocka = u.ID_TRASY_Odbocky !== null && u.ID_TRASY_Odbocky !== undefined;
+            let key;
+            if (isOdbocka) {
+                if (!odbockyCounters[u.EvCi_Tra]) odbockyCounters[u.EvCi_Tra] = 0;
+                odbockyCounters[u.EvCi_Tra]++;
+                key = `${u.EvCi_Tra}-${odbockyCounters[u.EvCi_Tra]}`;
+            } else {
+                key = `${u.EvCi_Tra}-0`;
             }
+            usekyLookup[key] = {
+                Barva_Kod: u.Barva_Kod,
+                Druh_Presunu: u.Druh_Presunu,
+                Nazev_ZU: u.Nazev_ZU
+            };
         });
     }
 
-    // 3. Seskupit ZP_Useky podle EvCi_Tra
+    // 3. Seskupit ZP_Useky podle EvCi_Tra + Poradi_odbocky_na_TIM (rozlišit hlavní úsek a odbočky)
     const grouped = {};
     zpUseky.forEach(item => {
         if (!item.EvCi_Tra) return;
-        if (!grouped[item.EvCi_Tra]) {
-            grouped[item.EvCi_Tra] = [];
-        }
-        grouped[item.EvCi_Tra].push(item);
+        const key = `${item.EvCi_Tra}-${item.Poradi_odbocky_na_TIM || '0'}`;
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(item);
     });
 
     // 4. Pro každou trasu: seřadit, namapovat GPS, přidat metadata
     const routes = [];
-    Object.entries(grouped).forEach(([evCiTra, items]) => {
+    Object.entries(grouped).forEach(([compositeKey, items]) => {
         // Seřadit podle Poradi_TIM_v_trase
         items.sort((a, b) => Number(a.Poradi_TIM_v_trase) - Number(b.Poradi_TIM_v_trase));
 
@@ -77,10 +84,11 @@ export function buildMapRoutes(zpUseky, groupedData, useky) {
         if (points.length < 2) return;
 
         // Metadata z useky lookup
-        const meta = usekyLookup[evCiTra] || {};
+        const meta = usekyLookup[compositeKey] || {};
 
         routes.push({
-            EvCi_Tra: evCiTra,
+            key: compositeKey,
+            EvCi_Tra: items[0].EvCi_Tra,
             points,
             Barva_Kod: meta.Barva_Kod || '',
             Druh_Presunu: meta.Druh_Presunu || 'PZT',

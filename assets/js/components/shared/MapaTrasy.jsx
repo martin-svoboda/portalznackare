@@ -3,10 +3,10 @@ import { MapContainer, TileLayer, Marker, Polyline, useMap, Popup } from "react-
 import { IconAlertTriangleFilled, IconMapShare } from "@tabler/icons-react";
 import L from "leaflet";
 import { Loader } from "./Loader";
+import { replaceTextWithIcons } from "../../utils/htmlUtils";
 
 // Mapy.cz API klíč
 const MAPY_API_KEY = "67fA8acT3ISVkTZEz3CYnTiXVo32Xvh1k1obif0B3d4";
-const OPEN_ROUTE_KEY = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjE5NjYyMDUwODI0NTQ5NmE5YTM2NTA0ZDM3MzU5YzVkIiwiaCI6Im11cm11cjY0In0=";
 
 // SVG pro platný marker (černý)
 const signSvg = encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"><path fill="#000" d="M11 21v-3H6.825q-.4 0-.763-.15t-.637-.425L3.7 15.7q-.3-.3-.3-.7t.3-.7l1.725-1.725q.275-.275.638-.425t.762-.15H11v-2H5q-.425 0-.712-.288T4 9V5q0-.425.288-.712T5 4h6V3q0-.425.288-.712T12 2t.713.288T13 3v1h4.175q.4 0 .763.15t.637.425L20.3 6.3q.3.3.3.7t-.3.7l-1.725 1.725q-.275.275-.638.425t-.762.15H13v2h6q.425 0 .713.288T20 13v4q0 .425-.288.713T19 18h-6v3q0 .425-.288.713T12 22t-.712-.288T11 21"/></svg>`);
@@ -47,33 +47,6 @@ function isValidPoint(point) {
         point.lat >= 48.5 && point.lat <= 51.2 &&
         point.lon >= 12.0 && point.lon <= 19.0
     );
-}
-
-// Map druhPresunu to OpenRouteService profiles
-function mapDruhPresunuToORSProfile(druhPresunu) {
-    const mapping = {
-        'PZT': 'foot-hiking',      // Pěší značené trasy
-        'LZT': 'foot-walking',     // Lyžařské trasy
-        'CZT': 'cycling-mountain', // Cyklotrasy terénní
-        'CZS': 'cycling-road',     // Cyklotrasy silniční
-        'VZT': 'wheelchair'        // Vozíčkářské trasy
-    };
-    return mapping[druhPresunu] || 'foot-hiking';
-}
-
-// Build OpenRouteService routing request
-function buildORSRouteRequest(points, druhPresunu) {
-    if (points.length < 2) throw new Error("Musí být alespoň dva body!");
-
-    const profile = mapDruhPresunuToORSProfile(druhPresunu);
-    const coordinates = points.map(p => [p.lon, p.lat]);
-
-    return {
-        url: `https://api.openrouteservice.org/v2/directions/${profile}/geojson`,
-        body: {
-            coordinates: coordinates
-        }
-    };
 }
 
 // Tvorba správné URL pro routing API
@@ -123,12 +96,13 @@ function getMapyCzRouteUrl(points, mapset, type) {
     );
 }
 
-// Barva_Kod → barva polyline
+// Barva_Kod → barva vedoucího pruhu (vnitřní polyline)
 const ROUTE_COLORS = {
     CE: '#e50313',  // červená
     MO: '#1a6dff',  // modrá
     ZE: '#009C00',  // zelená
     ZL: '#ffdd00',  // žlutá
+    BI: '#ffffff',  // bílá
 };
 const DEFAULT_ROUTE_COLOR = '#ff57a0';
 
@@ -136,11 +110,28 @@ function getRouteColor(barvaKod) {
     return ROUTE_COLORS[barvaKod] || DEFAULT_ROUTE_COLOR;
 }
 
+// Druh_Presunu → barva upozorňovacího pruhu (outline polyline)
+// Odpovídá ColorService::barvaDlePresunu() na backendu
+function getOutlineColor(druhPresunu) {
+    const mapping = {
+        'PZT': '#ffffff',  // bílá (RAL 1013 - perlová bílá)
+        'LZT': '#f7951d',  // oranžová (RAL 2009 - dopravní oranžová)
+        'CZT': '#ffe000',  // žlutá (RAL 1003 - signální žlutá)
+        'CZS': '#ffe000',  // žlutá (RAL 1003 - signální žlutá)
+    };
+    return mapping[druhPresunu] || '#ffffff';
+}
+
 // Druh_Presunu → Mapy.cz routeType
 function getMapyRouteType(druhPresunu) {
-    if (druhPresunu === 'CZT') return 'bike_mountain';
-    if (druhPresunu === 'CZS') return 'bike_road';
-    return 'foot_hiking';
+    const mapping = {
+        'PZT': 'foot_hiking',      // Pěší značené trasy
+        'LZT': 'foot_hiking',      // Lyžařské trasy (fallback - routing se skipuje)
+        'CZT': 'bike_mountain',    // Cyklotrasy terénní
+        'CZS': 'bike_road',        // Cyklotrasy silniční
+        'VZT': 'foot_hiking',      // Vozíčkářské trasy
+    };
+    return mapping[druhPresunu] || 'foot_hiking';
 }
 
 // Fetch routing z Mapy.cz API pro jednu trasu
@@ -169,17 +160,11 @@ function fetchRouteCoords(points, druhPresunu) {
         .catch(() => []);
 }
 
-export function MapaTrasy({ data: { title = '', points, route, routes = null, druhPresunu = 'PZT' } }) {
-    const hasMultiRoutes = Array.isArray(routes) && routes.length > 0;
+export function MapaTrasy({ data: { title = '', points, route, routes = null } }) {
+    const hasRoutes = Array.isArray(routes) && routes.length > 0;
 
-    // Mapování druhPresunu na mapset a type pro Mapy.cz (fallback single route)
-    const mapset = druhPresunu === "LZT" ? "winter" : "outdoor";
-    const type = getMapyRouteType(druhPresunu);
-
-    // Single route state (fallback)
-    const [routeCoords, setRouteCoords] = useState([]);
-    // Multi-route state: { [EvCi_Tra]: coords[] }
-    const [multiRouteCoords, setMultiRouteCoords] = useState({});
+    // Route coords state: { [EvCi_Tra]: coords[] }
+    const [routeCoords, setRouteCoords] = useState({});
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [leafletLoaded, setLeafletLoaded] = useState(false);
@@ -201,16 +186,16 @@ export function MapaTrasy({ data: { title = '', points, route, routes = null, dr
     const validPoints = points.filter(isValidPoint);
     const invalidPoints = points.filter(p => !isValidPoint(p));
 
-    // Multi-route routing fetch
+    // Routing fetch pro všechny trasy
     useEffect(() => {
-        if (!hasMultiRoutes) return;
+        if (!hasRoutes || !route) return;
 
         setLoading(true);
         setError(null);
 
         const promises = routes.map(r =>
             fetchRouteCoords(r.points, r.Druh_Presunu).then(coords => ({
-                key: r.EvCi_Tra,
+                key: r.key || r.EvCi_Tra,
                 coords
             }))
         );
@@ -221,7 +206,7 @@ export function MapaTrasy({ data: { title = '', points, route, routes = null, dr
                 results.forEach(({ key, coords }) => {
                     coordsMap[key] = coords;
                 });
-                setMultiRouteCoords(coordsMap);
+                setRouteCoords(coordsMap);
                 setLoading(false);
             })
             .catch(() => {
@@ -229,34 +214,7 @@ export function MapaTrasy({ data: { title = '', points, route, routes = null, dr
                 setLoading(false);
             });
         // eslint-disable-next-line
-    }, [hasMultiRoutes, routes?.map(r => r.EvCi_Tra).join('|')]);
-
-    // Single route fallback fetch
-    useEffect(() => {
-        if (hasMultiRoutes) return;
-        if (!route || !validPoints || validPoints.length < 2) return;
-
-        if (druhPresunu === 'LZT') {
-            setRouteCoords([]);
-            setLoading(false);
-            return;
-        }
-
-        setLoading(true);
-        setError(null);
-
-        fetchRouteCoords(validPoints, druhPresunu)
-            .then(coords => {
-                setRouteCoords(coords);
-                setLoading(false);
-            })
-            .catch(() => {
-                setError("Nepodařilo se načíst trasu.");
-                setRouteCoords([]);
-                setLoading(false);
-            });
-        // eslint-disable-next-line
-    }, [hasMultiRoutes, validPoints.length, validPoints.map(p => `${p.lat},${p.lon}`).join('|'), route, druhPresunu]);
+    }, [hasRoutes, route, routes?.map(r => r.key || r.EvCi_Tra).join('|')]);
 
     const center = validPoints[0]
         ? [validPoints[0].lat, validPoints[0].lon]
@@ -264,28 +222,18 @@ export function MapaTrasy({ data: { title = '', points, route, routes = null, dr
     const height = window.innerWidth > 768 ? 500 : 350;
 
     // Zjistit zda existuje alespoň jedna vykreslená trasa
-    const hasAnyRouteCoords = hasMultiRoutes
-        ? Object.values(multiRouteCoords).some(c => c.length > 1)
-        : routeCoords.length > 1;
+    const hasAnyRouteCoords = Object.values(routeCoords).some(c => c.length > 1);
 
     // Zjistit zda jsou všechny trasy lyžařské
-    const allRoutesLZT = hasMultiRoutes
-        ? routes.every(r => r.Druh_Presunu === 'LZT')
-        : druhPresunu === 'LZT';
+    const allRoutesLZT = hasRoutes && routes.every(r => r.Druh_Presunu === 'LZT');
+
+    // Výchozí mapset podle první trasy
+    const mapset = (hasRoutes && routes[0]?.Druh_Presunu === 'LZT') ? 'winter' : 'outdoor';
 
     return (
         <div style={{ minHeight: height, width: "100%", position: "relative" }}>
             <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold">{title}</h3>
-                {!loading && route && validPoints.length >= 2 && (
-                    <button
-                        onClick={() => window.open(getMapyCzRouteUrl(validPoints, mapset, type), '_blank')}
-                        className="btn btn--secondary flex items-center gap-2"
-                    >
-                        <IconMapShare size={14} />
-                        Mapy.cz
-                    </button>
-                )}
             </div>
 
             {loading && <Loader />}
@@ -347,33 +295,46 @@ export function MapaTrasy({ data: { title = '', points, route, routes = null, dr
                                 </Popup>
                             </Marker>
                         ))}
-                        {/* Multi-route polylines - bílý outline + barevná trasa */}
-                        {hasMultiRoutes && routes.map(r => {
-                            const coords = multiRouteCoords[r.EvCi_Tra];
+                        {/* Polylines tras s popupy */}
+                        {hasRoutes && routes.map(r => {
+                            const routeKey = r.key || r.EvCi_Tra;
+                            const coords = routeCoords[routeKey];
                             if (!coords || coords.length < 2) return null;
+                            const routeMapset = r.Druh_Presunu === 'LZT' ? 'winter' : 'outdoor';
+                            const routeType = getMapyRouteType(r.Druh_Presunu);
+                            const routeUrl = getMapyCzRouteUrl(r.points, routeMapset, routeType);
+                            const outlineColor = getOutlineColor(r.Druh_Presunu);
                             return (
-                                <React.Fragment key={r.EvCi_Tra}>
+                                <React.Fragment key={routeKey}>
                                     <Polyline
                                         positions={coords}
-                                        color="#ffffff"
-                                        weight={9}
+                                        color={outlineColor}
+                                        weight={10}
                                         opacity={0.9}
                                     />
                                     <Polyline
                                         positions={coords}
                                         color={getRouteColor(r.Barva_Kod)}
-                                        weight={5}
-                                    />
+                                        weight={4}
+                                    >
+                                        <Popup>
+                                            <div className="text-sm">
+                                                <p className="font-semibold mb-1">{r.Nazev_ZU ? replaceTextWithIcons(r.Nazev_ZU, 14) : r.EvCi_Tra}</p>
+                                                {routeUrl && (
+                                                    <button
+                                                        onClick={() => window.open(routeUrl, '_blank')}
+                                                        className="btn btn--secondary btn--small flex items-center gap-1 mt-2"
+                                                    >
+                                                        <IconMapShare size={14} />
+                                                        Mapy.cz
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </Popup>
+                                    </Polyline>
                                 </React.Fragment>
                             );
                         })}
-                        {/* Single route fallback polyline */}
-                        {!hasMultiRoutes && route && routeCoords.length > 1 && (
-                            <>
-                                <Polyline positions={routeCoords} color="#ffffff" weight={9} opacity={0.9} />
-                                <Polyline positions={routeCoords} color={DEFAULT_ROUTE_COLOR} weight={5} />
-                            </>
-                        )}
                         <FitBounds points={validPoints} />
                     </MapContainer>
 
