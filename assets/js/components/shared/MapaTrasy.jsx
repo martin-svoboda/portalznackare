@@ -56,10 +56,8 @@ function buildMapyRouteUrl(body, apiKey, type) {
     const end = rest.length ? rest[rest.length - 1] : start;
     const waypoints = rest.length > 1 ? rest.slice(0, -1) : [];
     const url = new URL("https://api.mapy.cz/v1/routing/route");
-    url.searchParams.append("start", `${start.lon}`);
-    url.searchParams.append("start", `${start.lat}`);
-    url.searchParams.append("end", `${end.lon}`);
-    url.searchParams.append("end", `${end.lat}`);
+    url.searchParams.append("start", `${start.lon},${start.lat}`);
+    url.searchParams.append("end", `${end.lon},${end.lat}`);
     url.searchParams.append("routeType", `${type}`);
     url.searchParams.append("lang", "cs");
     url.searchParams.append("format", "geojson");
