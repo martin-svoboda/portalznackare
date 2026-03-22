@@ -16,6 +16,7 @@ import { getAttachmentsAsArray, setAttachmentsFromArray } from '../utils/attachm
 import { calculateExecutionDate } from '../utils/compensationCalculator';
 import { useCompletionStatus } from '../hooks/useCompletionStatus';
 import { ValidationMessages } from './ValidationMessages';
+import { ConfirmDialog } from '../../../components/shared/ConfirmDialog';
 
 // Import debug funkcí
 const isDebugMode = () => {
@@ -62,14 +63,26 @@ export const StepContent = ({
     const fileUploadService = null;
     const polling = data.polling || null;
     
+    const [showSubmitConfirm, setShowSubmitConfirm] = React.useState(false);
+
     // Použití centralizované validace
-    const { 
-        canCompletePartA, 
+    const {
+        canCompletePartA,
         canCompletePartB,
         partAValidation,
         partBValidation,
         getValidationMessages
-    } = useCompletionStatus(formData, head, predmety, setFormData);
+    } = useCompletionStatus(formData, head, predmety, setFormData, useky);
+
+    // Submit s kontrolou varování
+    const handleSubmitClick = () => {
+        const hasUnrenewedSections = partBValidation?.warnings?.some(w => w.type === 'unrenewed_section');
+        if (hasUnrenewedSections) {
+            setShowSubmitConfirm(true);
+        } else {
+            onSubmit();
+        }
+    };
     // Generate storage path for route attachments
     const storagePath = React.useMemo(() => {
         if (!prikazId) return null;
@@ -317,10 +330,11 @@ export const StepContent = ({
                         />
                         
                         <ErrorBoundary sectionName="Souhrn části B">
-                            <PartBSummary 
-                                formData={formData} 
+                            <PartBSummary
+                                formData={formData}
                                 head={head}
                                 predmety={predmety}
+                                useky={useky}
                                 showValidation={true}
                                 compact={false}
                             />
@@ -456,7 +470,7 @@ export const StepContent = ({
                                 <button
                                     className="btn btn--primary btn--large"
                                     disabled={saving || disabled || !canCompletePartA || !canCompletePartB}
-                                    onClick={onSubmit}
+                                    onClick={handleSubmitClick}
                                     title={!canCompletePartA || !canCompletePartB ? 'Nejprve opravte všechny chyby v části A i B' : ''}
                                 >
                                     <IconSend size={20} className="mr-2"/>
@@ -466,6 +480,17 @@ export const StepContent = ({
                                      'Odeslat ke schválení'}
                                 </button>
                             </div>
+
+                            <ConfirmDialog
+                                isOpen={showSubmitConfirm}
+                                onClose={() => setShowSubmitConfirm(false)}
+                                onConfirm={onSubmit}
+                                title="Upozornění"
+                                message="V hlášení jsou neobnovené úseky. Opravdu chcete hlášení odeslat?"
+                                confirmText="Ano, odeslat"
+                                cancelText="Zpět k úpravám"
+                                confirmButtonClass="btn--warning"
+                            />
                         </div>
                     </div>
                 </div>

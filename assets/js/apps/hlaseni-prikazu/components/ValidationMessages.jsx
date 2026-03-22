@@ -1,4 +1,5 @@
 import React from 'react';
+import { renderHtmlContent } from '@utils/htmlUtils';
 
 /**
  * Centralizovaná komponenta pro zobrazování validačních zpráv
@@ -33,7 +34,7 @@ export const ValidationMessages = ({
                     <div className="mb-2"><strong>{errorTitle}</strong></div>
                     <ul className="list-disc list-inside space-y-1">
                         {errors.map((error, index) => (
-                            <li key={index} className="text-sm">{error.message}</li>
+                            <li key={index} className="text-sm">{renderHtmlContent(error.message)}</li>
                         ))}
                     </ul>
                 </div>
@@ -45,7 +46,7 @@ export const ValidationMessages = ({
                     <div className="mb-2"><strong>{warningTitle}</strong></div>
                     <ul className="list-disc list-inside space-y-1">
                         {warnings.map((warning, index) => (
-                            <li key={index} className="text-sm">{warning.message}</li>
+                            <li key={index} className="text-sm">{renderHtmlContent(warning.message)}</li>
                         ))}
                     </ul>
                 </div>

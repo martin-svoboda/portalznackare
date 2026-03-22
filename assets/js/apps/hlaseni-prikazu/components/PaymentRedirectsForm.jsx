@@ -9,15 +9,22 @@ export const PaymentRedirectsForm = ({
     isLeader,
     disabled = false
 }) => {
+    const redirects = Presmerovani_Vyplat || {};
+
+    // Členi, kteří jsou cílem přesměrování (nemohou sami přesměrovávat)
+    const redirectTargets = new Set(Object.values(redirects).map(String));
+    // Členi, kteří přesměrovávají (nemohou být cílem)
+    const redirectSources = new Set(Object.keys(redirects).map(String));
+
     const handleRedirectChange = (memberIntAdr, redirectToIntAdr) => {
-        const updated = { ...Presmerovani_Vyplat };
-        
+        const updated = { ...redirects };
+
         if (redirectToIntAdr && redirectToIntAdr !== memberIntAdr) {
             updated[memberIntAdr] = redirectToIntAdr;
         } else {
             delete updated[memberIntAdr];
         }
-        
+
         onPresmerovanivyplatChange(updated);
     };
 
@@ -47,7 +54,18 @@ export const PaymentRedirectsForm = ({
 
                 <div className="space-y-3">
                     {teamMembers.map((member) => {
+                        const memberIntAdr = String(member.INT_ADR);
                         const isCurrentUser = currentUser && member.INT_ADR == currentUser.INT_ADR;
+                        // Člen je cílem přesměrování → nemůže sám přesměrovávat
+                        const isTarget = redirectTargets.has(memberIntAdr);
+
+                        // Dostupní příjemci: ne on sám, ne ten kdo již přesměrovává
+                        const availableTargets = teamMembers.filter(m => {
+                            const targetIntAdr = String(m.INT_ADR);
+                            if (targetIntAdr === memberIntAdr) return false; // ne sám na sebe
+                            if (redirectSources.has(targetIntAdr)) return false; // ten kdo přesměrovává nemůže být cílem
+                            return true;
+                        });
 
                         return (
                             <div key={member.INT_ADR} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
@@ -60,19 +78,21 @@ export const PaymentRedirectsForm = ({
                                     <span className="text-sm text-gray-600">Přesměrovat na:</span>
                                     <select
                                         className="form__select w-48"
-                                        value={(Presmerovani_Vyplat || {})[member.INT_ADR] || ''}
+                                        value={redirects[member.INT_ADR] || ''}
                                         onChange={(e) => handleRedirectChange(member.INT_ADR, e.target.value)}
-                                        disabled={disabled}
+                                        disabled={disabled || isTarget}
+                                        title={isTarget ? 'Tento člen je příjemcem přesměrování a nemůže dále přesměrovávat' : ''}
                                     >
                                         <option value="">-- Bez přesměrování --</option>
-                                        {teamMembers
-                                            .filter(m => m.INT_ADR != member.INT_ADR) // Can't redirect to self
-                                            .map((targetMember) => (
-                                                <option key={targetMember.INT_ADR} value={targetMember.INT_ADR}>
-                                                    {targetMember.name || targetMember.Znackar}
-                                                </option>
-                                            ))}
+                                        {availableTargets.map((targetMember) => (
+                                            <option key={targetMember.INT_ADR} value={targetMember.INT_ADR}>
+                                                {targetMember.name || targetMember.Znackar}
+                                            </option>
+                                        ))}
                                     </select>
+                                    {isTarget && (
+                                        <span className="text-xs text-amber-600" title="Příjemce přesměrování">příjemce</span>
+                                    )}
                                 </div>
                             </div>
                         );

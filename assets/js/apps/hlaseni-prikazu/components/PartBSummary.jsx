@@ -1,19 +1,21 @@
 import React, { useMemo } from 'react';
-import { 
+import {
     IconMapPin,
-    IconFileText
+    IconFileText,
+    IconRoute
 } from '@tabler/icons-react';
-import {replaceTextWithIcons} from "@utils/htmlUtils";
+import {renderHtmlContent, replaceTextWithIcons} from "@utils/htmlUtils";
 
 /**
  * Komponenta pro zobrazení kompletního souhrnu části B hlášení
  * Zobrazuje detailní výpis všech hodnot z formuláře s validací
  * TIM stavy v tabulkovém formátu stejně jako ve formuláři ale kompaktněji
  */
-export const PartBSummary = ({ 
-    formData, 
+export const PartBSummary = ({
+    formData,
     head = null,
     predmety = null,
+    useky = [],
     compact = false
 }) => {
     // Detekce typu na základě dat - pokud má Stavy_Tim, je to TIM příkaz
@@ -177,15 +179,50 @@ export const PartBSummary = ({
             })}
 
             {/* Obnovené úseky */}
-            {formData.Obnovene_Useky && Object.keys(formData.Obnovene_Useky).length > 0 && (
+            {useky.length > 0 && (
                 <div className={blockStyle}>
-                    <h4 className={`font-medium ${textSize}`}>Obnovené úseky</h4>
-                    {Object.entries(formData.Obnovene_Useky).map(([usekId, usek]) => (
-                        <div key={usekId} className={`${smallTextSize} flex justify-between`}>
-                            <span>Úsek {usekId}:</span>
-                            <span>{usek.Usek_Obnoven ? 'Obnoven' : 'Neobnoven'}</span>
-                        </div>
-                    ))}
+                    <h4 className={`font-medium ${textSize} flex items-center`}>
+                        <IconRoute size={16} className="mr-2" />
+                        Obnovené úseky trasy
+                    </h4>
+                    <div className="overflow-x-auto">
+                        <table className="w-full border-collapse">
+                            <thead>
+                                <tr className="border-b border-gray-300 dark:border-gray-600">
+                                    <th className={`${smallTextSize} font-semibold text-gray-600 dark:text-gray-400 text-left py-1 pr-4`}>Úsek</th>
+                                    <th className={`${smallTextSize} font-semibold text-gray-600 dark:text-gray-400 text-right py-1 pr-4`}>Délka</th>
+                                    <th className={`${smallTextSize} font-semibold text-gray-600 dark:text-gray-400 text-left py-1`}>Stav</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {useky.map((usek, index) => {
+                                    const usekData = (formData.Obnovene_Useky || {})[usek.EvCi_Tra];
+                                    const isRenewed = usekData?.Usek_Obnoven === true;
+
+                                    return (
+                                        <tr key={usek.EvCi_Tra || index} className="border-b border-gray-200 dark:border-gray-700">
+                                            <td className={`${smallTextSize} py-2 pr-4`}>
+                                                <div className="flex items-center gap-2">
+                                                    {usek.Znacka_HTML && renderHtmlContent(usek.Znacka_HTML)}
+                                                    <span>{usek.Nazev_ZU ? replaceTextWithIcons(usek.Nazev_ZU, 12) : usek.EvCi_Tra}</span>
+                                                </div>
+                                            </td>
+                                            <td className={`${smallTextSize} py-2 pr-4 text-right`}>
+                                                {usek.Delka_ZU ? `${parseFloat(usek.Delka_ZU).toFixed(1)} km` : '—'}
+                                            </td>
+                                            <td className={`${smallTextSize} py-2`}>
+                                                {isRenewed ? (
+                                                    <span className="text-green-600 dark:text-green-400 font-medium">Obnoven</span>
+                                                ) : (
+                                                    <span className="text-red-500 font-medium">Neobnoven</span>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             )}
 

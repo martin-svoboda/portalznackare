@@ -727,7 +727,7 @@ export const extractValidationMessages = (validationResult) => {
  * @param {Array} predmety - TIM předměty
  * @returns {Object} Výsledek validace
  */
-export const validatePartB = (formData, head, predmety) => {
+export const validatePartB = (formData, head, predmety, useky = []) => {
     const errors = [];
     const warnings = [];
     
@@ -750,6 +750,9 @@ export const validatePartB = (formData, head, predmety) => {
         // Ostatní typy - validace hlášení o činnosti
         validateActivityReport(formData, errors, warnings);
     }
+
+    // Validace obnovených úseků (pro všechny typy příkazů)
+    validateRenewedSections(formData, useky, warnings);
     
     const isValid = errors.length === 0;
     const canComplete = errors.length === 0; // Varování neblokují dokončení
@@ -886,6 +889,27 @@ const validateActivityReport = (formData, errors, warnings) => {
             message: 'Doporučuje se přiložit fotografie dokumentující provedenou činnost'
         });
     }
+};
+
+/**
+ * Validace obnovených úseků - varování pokud žádný úsek není označen jako obnovený
+ */
+const validateRenewedSections = (formData, useky, warnings) => {
+    if (!useky || useky.length === 0) return;
+
+    const obnoveneUseky = formData.Obnovene_Useky || {};
+    const stripHtml = (str) => str ? str.replace(/<[^>]*>/g, '').trim() : '';
+
+    useky.forEach(usek => {
+        const record = obnoveneUseky[usek.EvCi_Tra];
+        if (!record || !record.Usek_Obnoven) {
+            const name = stripHtml(usek.Nazev_ZU) || usek.EvCi_Tra;
+            warnings.push({
+                type: 'unrenewed_section',
+                message: `Úsek ${name} nebyl označen jako obnovený`
+            });
+        }
+    });
 };
 
 /**
