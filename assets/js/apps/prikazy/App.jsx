@@ -43,14 +43,16 @@ const PrikazyProgressBar = ({ data, displayYear }) => {
     if (total === 0) return null;
 
     // Počty dle stavů
+    const odeslanySv = data.filter(p => p.Stav_Virtualni === 'Odeslaný').length;
     const provedeny = data.filter(p => p.Stav_ZP_Naz === 'Provedený').length;
     const zauctovany = data.filter(p => p.Stav_ZP_Naz === 'Zaúčtovaný').length;
     const predanyKKZ = data.filter(p => p.Stav_ZP_Naz === 'Předaný KKZ').length;
 
-    // Hotové = Provedený + Předaný KKZ + Zaúčtovaný
-    const hotoveCelkem = provedeny + predanyKKZ + zauctovany;
+    // Hotové = Odeslaný + Provedený + Předaný KKZ + Zaúčtovaný
+    const hotoveCelkem = odeslanySv + provedeny + predanyKKZ + zauctovany;
 
     // Procenta
+    const odeslanySvPct = (odeslanySv / total) * 100;
     const provedenyPct = (provedeny / total) * 100;
     const predanyKKZPct = (predanyKKZ / total) * 100;
     const zauctovanyPct = (zauctovany / total) * 100;
@@ -103,6 +105,12 @@ const PrikazyProgressBar = ({ data, displayYear }) => {
                         style={{ width: `${provedenyPct}%` }}
                         title={`Provedený: ${provedeny} (${provedenyPct.toFixed(1)}%)`}
                     />
+                    {/* Odeslaný - amber */}
+                    <div
+                        className="h-full bg-amber-400 dark:bg-amber-600"
+                        style={{ width: `${odeslanySvPct}%` }}
+                        title={`Odeslaný: ${odeslanySv} (${odeslanySvPct.toFixed(1)}%)`}
+                    />
                 </div>
 
                 {/* Milníky */}
@@ -139,6 +147,10 @@ const PrikazyProgressBar = ({ data, displayYear }) => {
                 <div className="flex items-center gap-1">
                     <div className="w-3 h-3 bg-red-400 dark:bg-red-600 rounded opacity-50"></div>
                     <span className="text-gray-600 dark:text-gray-400">Očekáváno ({expectedPct}%)</span>
+                </div>
+                <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 bg-amber-400 dark:bg-amber-600 rounded"></div>
+                    <span className="text-gray-600 dark:text-gray-400">Odeslaný ({odeslanySv})</span>
                 </div>
                 <div className="flex items-center gap-1">
                     <div className="w-3 h-3 bg-teal-500 dark:bg-teal-600 rounded"></div>
@@ -204,13 +216,13 @@ const PrikazyApp = () => {
     // Filtrování a řazení dat
     const sortedData = useMemo(() => {
         let result = [...data].sort((a, b) => {
-            const aActive = isNezpracovany(a.Stav_ZP_Naz);
-            const bActive = isNezpracovany(b.Stav_ZP_Naz);
+            const aActive = isNezpracovany(a.Stav_Virtualni);
+            const bActive = isNezpracovany(b.Stav_Virtualni);
             return aActive === bActive ? 0 : aActive ? -1 : 1;
         });
 
         if (showOnlyToProcess) {
-            result = result.filter(row => isNezpracovany(row.Stav_ZP_Naz));
+            result = result.filter(row => isNezpracovany(row.Stav_Virtualni));
         }
 
         if (isDashboardMode) {
@@ -262,11 +274,11 @@ const PrikazyApp = () => {
                     Cell: ({row}) => replaceTextWithIcons(row.original.Popis_ZP, 14),
                 },
                 {
-                    accessorKey: 'Stav_ZP_Naz',
+                    accessorKey: 'Stav_Virtualni',
                     header: 'Stav',
                     size: 150,
                     filterVariant: 'select',
-                    Cell: ({row}) => <PrikazStavBadge stav={row.original.Stav_ZP_Naz}/>,
+                    Cell: ({row}) => <PrikazStavBadge stav={row.original.Stav_Virtualni}/>,
                 },
                 {
                     accessorKey: 'Znackar',
@@ -348,7 +360,7 @@ const PrikazyApp = () => {
                 Trida_OTZ: false,
                 Druh_ZP_Naz: window.innerWidth > 768,
                 Popis_ZP: window.innerWidth > 460,
-                Stav_ZP_Naz: window.innerWidth > 768,
+                Stav_Virtualni: window.innerWidth > 768,
                 Znackar: window.innerWidth > 768,
                 Je_Vedouci: false,
                 Vyuctovani: window.innerWidth > 1280,
@@ -368,11 +380,11 @@ const PrikazyApp = () => {
         muiTableBodyRowProps: ({row}) => ({
             sx: {
                 cursor: 'pointer',
-                backgroundColor: isNezpracovany(row.original.Stav_ZP_Naz)
+                backgroundColor: isNezpracovany(row.original.Stav_Virtualni)
                     ? 'rgba(37, 99, 235, 0.07)'
                     : 'transparent',
-                opacity: isNezpracovany(row.original.Stav_ZP_Naz) ? 1 : 0.7,
-                fontWeight: isNezpracovany(row.original.Stav_ZP_Naz) ? 600 : 'normal'
+                opacity: isNezpracovany(row.original.Stav_Virtualni) ? 1 : 0.7,
+                fontWeight: isNezpracovany(row.original.Stav_Virtualni) ? 600 : 'normal'
             },
             onClick: () => {
                 const prikazId = row.original.ID_Znackarske_Prikazy;
@@ -419,7 +431,7 @@ const PrikazyApp = () => {
                         <PrikazTypeIcon type={row.original.Druh_ZP} size={28}/>
                         <span>{row.original.Druh_ZP_Naz}</span>
                     </div>
-                    <PrikazStavBadge stav={row.original.Stav_ZP_Naz}/>
+                    <PrikazStavBadge stav={row.original.Stav_Virtualni}/>
                     <div>
                         {[1, 2, 3].map(i => (
                             <Member

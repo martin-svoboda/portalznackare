@@ -5,7 +5,9 @@ import {
     IconEdit,
     IconCheckbox,
     IconCopyCheck,
-    IconCash, IconSquareX,
+    IconCash,
+    IconSquareX,
+    IconSend,
 } from '@tabler/icons-react';
 
 const stavMap = {
@@ -33,8 +35,12 @@ const stavMap = {
         icon: IconCash, 
         className: '!bg-lime-100 !text-lime-800 dark:!bg-lime-900 dark:!text-lime-200'
     },
+    'Odeslaný': {
+        icon: IconSend,
+        className: '!bg-amber-100 !text-amber-800 dark:!bg-amber-900 dark:!text-amber-200'
+    },
     'Stornovaný': {
-        icon: IconSquareX, 
+        icon: IconSquareX,
         className: '!bg-red-100 !text-red-800 dark:!bg-red-900 dark:!text-red-200'
     },
 };

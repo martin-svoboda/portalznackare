@@ -561,7 +561,7 @@ const App = () => {
                             isLeader={isLeader}
                         />
                         
-                        {head && head.Stav_ZP_Naz && isNezpracovany(head.Stav_ZP_Naz) && (
+                        {head && isNezpracovany(head.Stav_Virtualni) && (
                             <div className="mt-4 pt-4 border-t">
                                 <div className="flex gap-2">
                                     <button

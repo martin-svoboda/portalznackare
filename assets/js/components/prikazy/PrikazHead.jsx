@@ -45,7 +45,7 @@ export const PrikazHead = ({ head, simple = false }) => {
                     <div className="text-sm text-gray-500 dark:text-gray-400">
                         {head.Druh_ZP_Naz}
                     </div>
-                    {!simple && <PrikazStavBadge stav={head.Stav_ZP_Naz} />}
+                    {!simple && <PrikazStavBadge stav={head.Stav_Virtualni} />}
                 </div>
                 
                 {/* Značkaři */}

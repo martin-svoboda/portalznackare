@@ -201,6 +201,32 @@ class ReportRepository extends ServiceEntityRepository
         return array_values($statistics);
     }
 
+    /**
+     * Vrátí mapu id_zp => stav hlášení pro zadané ID příkazů
+     * @param int[] $idZpList
+     * @return array<int, string> mapa id_zp => stav (hodnota enumu)
+     */
+    public function getReportStatesForOrders(array $idZpList): array
+    {
+        if (empty($idZpList)) {
+            return [];
+        }
+
+        $results = $this->createQueryBuilder('r')
+            ->select('r.idZp', 'r.state')
+            ->where('r.idZp IN (:ids)')
+            ->setParameter('ids', $idZpList)
+            ->getQuery()
+            ->getResult();
+
+        $map = [];
+        foreach ($results as $row) {
+            $map[(int) $row['idZp']] = $row['state']->value;
+        }
+
+        return $map;
+    }
+
     public function save(Report $entity, bool $flush = false): void
     {
         $this->getEntityManager()->persist($entity);

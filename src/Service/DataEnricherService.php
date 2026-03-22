@@ -2,15 +2,25 @@
 
 namespace App\Service;
 
+use App\Enum\ReportStateEnum;
+use App\Repository\ReportRepository;
+use Doctrine\ORM\EntityManagerInterface;
+
 /**
  * Služba pro obohacování dat o HTML komponenty
  * Používá se v API controllerech
  */
 class DataEnricherService {
+	private const STAVY_PRO_ZPRACOVANI = ['Přidělený', 'Vystavený'];
+	private const HLASENI_ODESLANE_STAVY = ['send', 'submitted', 'approved'];
+	private const STAVY_ZPRACOVANE = ['Provedený', 'Předaný KKZ', 'Zaúčtovaný'];
+
 	public function __construct(
 		private ZnackaService $znackaService,
 		private TimService $timService,
-		private TransportIconService $transportIconService
+		private TransportIconService $transportIconService,
+		private ReportRepository $reportRepository,
+		private EntityManagerInterface $entityManager
 	) {
 	}
 
@@ -18,7 +28,29 @@ class DataEnricherService {
 	 * Obohatí data seznamu příkazů
 	 */
 	public function enrichPrikazyList( array $prikazy ): array {
-		return array_map( [ $this, 'enrichPrikazData' ], $prikazy );
+		$prikazy = array_map( [ $this, 'enrichPrikazData' ], $prikazy );
+
+		// Hromadně zpracovat stavy hlášení
+		$idZpMap = []; // id_zp => stav příkazu
+		foreach ( $prikazy as $prikaz ) {
+			$idZp = (int) ( $prikaz['ID_Znackarske_Prikazy'] ?? 0 );
+			if ( $idZp > 0 ) {
+				$idZpMap[ $idZp ] = $prikaz['Stav_ZP_Naz'] ?? '';
+			}
+		}
+
+		$this->syncReportStates( $idZpMap );
+		$reportStates = $this->reportRepository->getReportStatesForOrders( array_keys( $idZpMap ) );
+
+		foreach ( $prikazy as &$prikaz ) {
+			$idZp = (int) ( $prikaz['ID_Znackarske_Prikazy'] ?? 0 );
+			$prikaz['Stav_Virtualni'] = $this->resolveVirtualniStav(
+				$prikaz['Stav_ZP_Naz'] ?? '',
+				$reportStates[ $idZp ] ?? null
+			);
+		}
+
+		return $prikazy;
 	}
 
 	/**
@@ -44,8 +76,22 @@ class DataEnricherService {
 	public function enrichPrikazDetail( array $detail, bool $forPdf = false ): array {
 		// Obohatí hlavičku
 		if ( isset( $detail['head'] ) && isset( $detail['head']['Popis_ZP'] ) ) {
-			// nic co by se dalo obohatit
 			$detail['head']['Popis_ZP'] = $this->replaceIconsInText( $detail['head']['Popis_ZP'], $forPdf );
+		}
+
+		// Virtuální stav (klíč má různý case v seznamu vs detailu)
+		$idZp = $detail['head']['ID_Znackarske_Prikazy'] ?? $detail['head']['ID_Znackarske_prikazy'] ?? null;
+		if ( $idZp !== null ) {
+			$idZp = (int) $idZp;
+			$stavZp = $detail['head']['Stav_ZP_Naz'] ?? '';
+
+			$this->syncReportStates( [ $idZp => $stavZp ] );
+			$reportStates = $this->reportRepository->getReportStatesForOrders( [ $idZp ] );
+
+			$detail['head']['Stav_Virtualni'] = $this->resolveVirtualniStav(
+				$stavZp,
+				$reportStates[ $idZp ] ?? null
+			);
 		}
 
 		// Obohatí useky
@@ -109,6 +155,56 @@ class DataEnricherService {
 		}
 
 		return $detail;
+	}
+
+	/**
+	 * Určí virtuální stav příkazu na základě stavu v INSYZ a stavu hlášení.
+	 */
+	private function resolveVirtualniStav( string $stavZp, ?string $reportState ): string {
+		if (
+			in_array( $stavZp, self::STAVY_PRO_ZPRACOVANI, true ) &&
+			$reportState !== null &&
+			in_array( $reportState, self::HLASENI_ODESLANE_STAVY, true )
+		) {
+			return 'Odeslaný';
+		}
+
+		return $stavZp;
+	}
+
+	/**
+	 * Hromadná synchronizace stavů hlášení na základě INSYZ.
+	 * Pokud příkaz postoupil na Provedený/Předaný KKZ/Zaúčtovaný
+	 * a hlášení je ve stavu submitted, automaticky ho přepne na approved.
+	 *
+	 * @param array<int, string> $idZpToStav mapa id_zp => stav příkazu v INSYZ
+	 */
+	private function syncReportStates( array $idZpToStav ): void {
+		// Filtrovat jen zpracované stavy
+		$zpracovane = array_filter( $idZpToStav, fn( $stav ) => in_array( $stav, self::STAVY_ZPRACOVANE, true ) );
+		if ( empty( $zpracovane ) ) {
+			return;
+		}
+
+		$reports = $this->reportRepository->findBy( [
+			'idZp'  => array_keys( $zpracovane ),
+			'state' => ReportStateEnum::SUBMITTED,
+		] );
+
+		if ( empty( $reports ) ) {
+			return;
+		}
+
+		foreach ( $reports as $report ) {
+			$report->setState( ReportStateEnum::APPROVED );
+			$report->addHistoryEntry(
+				'auto_approved',
+				0,
+				'Automaticky schváleno na základě stavu příkazu v INSYZ: ' . $zpracovane[ $report->getIdZp() ]
+			);
+		}
+
+		$this->entityManager->flush();
 	}
 
 	/**
