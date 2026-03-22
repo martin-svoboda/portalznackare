@@ -158,6 +158,39 @@ function fetchRouteCoords(points, druhPresunu) {
         .catch(() => []);
 }
 
+function MapInfoText() {
+    const [showDetails, setShowDetails] = useState(false);
+
+    return (
+        <div className="alert alert--info mt-4">
+            <div className="alert__content">
+                <div className="flex items-start gap-2">
+                    <IconAlertTriangleFilled className="shrink-0 mt-0.5" />
+                    <div>
+                        <p>
+                            Mapa ukazuje TIMy uvedené ve značkařském příkazu.
+                            (Chybějící nebo chybně zakreslené prosím reklamujte u obvodu vlastnícího TIM).{' '}
+                            <span
+                                className="underline cursor-pointer text-blue-700 dark:text-blue-300"
+                                onClick={() => setShowDetails(!showDetails)}
+                            >
+                                Omezení zakreslené trasy pro jednotlivé typy zobrazení je zde.
+                            </span>
+                        </p>
+                        {showDetails && (
+                            <ul className="list-disc list-inside mt-2 space-y-1 text-sm">
+                                <li><strong>Pěší</strong> – někdy nedrží barvu a ukážou vám kratší spojnici TIMů (je to ale velmi vzácné)</li>
+                                <li><strong>Cyklistické</strong> – logika se údajně snaží minimalizovat nutnost otočit se s kolem a občas vyrobí podivnosti (hlaste prosím na insyz@kct.cz)</li>
+                                <li><strong>Lyžařské vč. souběhů s pěší, vozíčkářské</strong> – trasu nejde namalovat, zobrazujeme jen TIMy</li>
+                            </ul>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 export function MapaTrasy({ data: { title = '', points, route, routes = null } }) {
     const hasRoutes = Array.isArray(routes) && routes.length > 0;
 
@@ -336,30 +369,9 @@ export function MapaTrasy({ data: { title = '', points, route, routes = null } }
                         <FitBounds points={validPoints} />
                     </MapContainer>
 
-                    {route && hasAnyRouteCoords ? allRoutesLZT ? (
-                        <div className="alert alert--info mt-4">
-                            <div className="alert__content">
-                                <div className="flex items-start gap-2">
-                                    <IconAlertTriangleFilled />
-                                    <div>
-                                        Pro lyžařské trasy se zobrazují pouze pozice TIM. Trasa se neznázorňuje z důvodu nekompatibility s vyhledáváním tras.
-                                        Pro orientaci jsou aktuální lyžařské trasy vyobrazeny na mapě.
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="alert alert--warning mt-4">
-                            <div className="alert__content">
-                                <div className="flex items-start gap-2">
-                                    <IconAlertTriangleFilled />
-                                    <div>
-                                        Mapa je jen indikativní - zobrazuje nejkratší trasu mezi TIMy po turistické značce a výjimečně nemusí ukazovat trasu, kterou máte obnovovat.
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    ) : null}
+                    {route && (
+                        <MapInfoText />
+                    )}
                 </>
             )}
 
