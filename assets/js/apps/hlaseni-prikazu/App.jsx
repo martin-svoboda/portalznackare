@@ -18,6 +18,7 @@ const App = () => {
     const container = document.querySelector('[data-app="hlaseni-prikazu"]');
     const prikazId = container?.dataset?.prikazId;
     const currentUser = container?.dataset?.user ? JSON.parse(container.dataset.user) : null;
+    const isAdmin = container?.dataset?.isAdmin === 'true';
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
@@ -85,15 +86,20 @@ const App = () => {
     };
 
     const checkUserPermissions = (user, teamMembers, status) => {
+        // Admin má plný přístup k editaci
+        if (isAdmin) return true;
+
         if (!user || !teamMembers?.length) return false;
         if (!['draft', 'rejected'].includes(status)) return false;
-        
+
         const userInTeam = teamMembers.find(member => member.INT_ADR == user.INT_ADR);
-        // return !!userInTeam; // User is in team
-        return userInTeam?.isLeader || false; // jen leader může editovat
+        return userInTeam?.isLeader || false;
     };
 
     const checkUserIsLeader = (user, teamMembers) => {
+        // Admin se zobrazuje jako vedoucí
+        if (isAdmin) return true;
+
         if (!user || !teamMembers?.length) return false;
         const userInTeam = teamMembers.find(member => member.INT_ADR == user.INT_ADR);
         return userInTeam?.isLeader || false;

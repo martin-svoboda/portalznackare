@@ -7,7 +7,7 @@ import {
     getSortedRowModel,
     useReactTable,
 } from '@tanstack/react-table';
-import {IconEye, IconRefresh} from '@tabler/icons-react';
+import {IconEye, IconRefresh, IconClipboardList, IconFileText} from '@tabler/icons-react';
 import {StateBadge, getStateLabel} from '../../utils/stateBadge';
 import {Loader} from "@components/shared";
 
@@ -75,16 +75,33 @@ const App = () => {
         columnHelper.display({
             id: 'actions',
             header: 'Akce',
-            size: 100,
+            size: 250,
             cell: info => (
-                <a
-                    href={`/admin/hlaseni/${info.row.original.id}`}
-                    className="btn btn--sm btn--primary"
-                    title="Zobrazit detail"
-                >
-                    <IconEye size={16}/>
-                    Detail
-                </a>
+                <div className="flex gap-2">
+                    <a
+                        href={`/admin/hlaseni/${info.row.original.id}`}
+                        className="btn btn--sm btn--secondary"
+                        title="Admin detail"
+                    >
+                        <IconEye size={16}/>
+                    </a>
+                    <a
+                        href={`/prikaz/${info.row.original.idZp}`}
+                        className="btn btn--sm btn--secondary"
+                        title="Zobrazit příkaz"
+                    >
+                        <IconClipboardList size={16}/>
+                        Příkaz
+                    </a>
+                    <a
+                        href={`/prikaz/${info.row.original.idZp}/hlaseni`}
+                        className="btn btn--sm btn--primary"
+                        title="Zobrazit hlášení"
+                    >
+                        <IconFileText size={16}/>
+                        Hlášení
+                    </a>
+                </div>
             ),
         }),
     ];

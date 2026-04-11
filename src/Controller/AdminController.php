@@ -156,6 +156,7 @@ class AdminController extends AbstractController
         foreach ($reports as $report) {
             $data[] = [
                 'id' => $report->getId(),
+                'idZp' => $report->getIdZp(),
                 'cisloZp' => $report->getCisloZp(),
                 'znackari' => $report->getTeamMembers(),
                 'state' => $report->getState()->value,

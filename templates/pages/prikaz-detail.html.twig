@@ -39,10 +39,11 @@
                 ]
             } %}
         {% else %}
-            <div data-app="prikaz-detail" 
-                 data-prikaz-id="{{ id }}" 
+            <div data-app="prikaz-detail"
+                 data-prikaz-id="{{ id }}"
                  data-user-int-adr="{{ app.user ? app.user.intAdr : '' }}"
                  data-user-name="{{ app.user ? app.user.jmeno : '' }}"
+                 data-is-admin="{{ is_granted('ROLE_ADMIN') ? 'true' : 'false' }}"
                  data-debug="{{ app.request.server.get('DEBUG_APPS') == 'true' ? 'true' : 'false' }}">
                 <div class="card">
                     {% include 'components/loader.html.twig' %}

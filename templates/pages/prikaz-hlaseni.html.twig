@@ -46,6 +46,7 @@
             <div data-app="hlaseni-prikazu"
                  data-prikaz-id="{{ id }}"
                  data-user="{{ app.user ? {INT_ADR: app.user.intAdr, name: app.user.fullName}|json_encode|e('html_attr') : '{}' }}"
+                 data-is-admin="{{ is_granted('ROLE_ADMIN') ? 'true' : 'false' }}"
                  data-debug="{{ app.request.server.get('DEBUG_APPS') == 'true' ? 'true' : 'false' }}">
                 <div class="card">
                     {% include 'components/loader.html.twig' %}
