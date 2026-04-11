@@ -164,7 +164,8 @@ class AppController extends AbstractController
 
         try {
             // Načíst data z INSYZ
-            $prikazData = $insyzService->getPrikaz($user->getIntAdr(), $id);
+            $isAdmin = in_array('ROLE_ADMIN', $user->getRoles());
+            $prikazData = $insyzService->getPrikaz($user->getIntAdr(), $id, $isAdmin);
 
             // Obohatit data - PŘESNĚ stejně jako pro PDF
             $enrichedData = $dataEnricher->enrichPrikazDetail($prikazData, true);

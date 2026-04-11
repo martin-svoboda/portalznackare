@@ -525,7 +525,8 @@ class PortalController extends AbstractController
             ]);
 
             // Vygenerovat PDF
-            $pdfResult = $this->pdfGenerator->generateControlFormPdf($id, $user->getIntAdr());
+            $isAdmin = in_array('ROLE_ADMIN', $user->getRoles());
+            $pdfResult = $this->pdfGenerator->generateControlFormPdf($id, $user->getIntAdr(), $isAdmin);
             $pdfContent = $pdfResult['content'];
 
             // Název souboru z čísla příkazu a popisu

@@ -32,7 +32,7 @@ class PdfGeneratorService
      * @return array{content: string, cislo_zp: string|null, popis_zp: string|null}
      * @throws \Exception
      */
-    public function generateControlFormPdf(int $idZp, int $intAdr): array
+    public function generateControlFormPdf(int $idZp, int $intAdr, bool $skipOwnerCheck = false): array
     {
         $this->logger->info('Generování kontrolního formuláře PDF', [
             'id_zp' => $idZp,
@@ -41,7 +41,7 @@ class PdfGeneratorService
 
         try {
             // Načti data příkazu z INSYZ
-            $prikazData = $this->insyzService->getPrikaz($intAdr, $idZp);
+            $prikazData = $this->insyzService->getPrikaz($intAdr, $idZp, $skipOwnerCheck);
 
             // Obohatit data o HTML značky a TIM náhledy (forPdf = true pro PDF-kompatibilní SVG)
             $enrichedData = $this->dataEnricher->enrichPrikazDetail($prikazData, true);

@@ -107,16 +107,17 @@ class InsyzController extends AbstractController
         }
 
         $intAdr = $user->getIntAdr();
+        $isAdmin = in_array('ROLE_ADMIN', $user->getRoles());
 
         try {
-            $prikaz = $this->insyzService->getPrikaz((int) $intAdr, $id);
-            
+            $prikaz = $this->insyzService->getPrikaz((int) $intAdr, $id, $isAdmin);
+
             // Obohatí detail pouze pokud není raw parameter
             $raw = $request->query->get('raw');
             if (!$raw) {
                 $prikaz = $this->dataEnricher->enrichPrikazDetail($prikaz);
             }
-            
+
             return new JsonResponse($prikaz);
         } catch (Exception $e) {
             return new JsonResponse(['error' => $e->getMessage()], 500);

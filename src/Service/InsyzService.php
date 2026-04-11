@@ -303,7 +303,7 @@ class InsyzService
         });
     }
 
-    public function getPrikaz(int $intAdr, int $id): array
+    public function getPrikaz(int $intAdr, int $id, bool $skipOwnerCheck = false): array
     {
         if ($this->useTestData()) {
             $result = $this->getTestData('prikaz/' . $id, [$id]);
@@ -311,31 +311,32 @@ class InsyzService
                 throw new Exception('Chybí detail pro ID ' . $id);
             }
 
-            // Ověřit, že uživatel má oprávnění k příkazu
             $head = $result['head'] ?? [];
             if (empty($head)) {
                 throw new Exception('U tohoto příkazu se nenačetla žádná data v hlavičce.');
             }
 
-            // Hledání hodnoty INT_ADR v hlavičce
-            $found = array_filter(array_keys($head), fn($key) => str_starts_with($key, 'INT_ADR'));
-            $match = false;
+            // Ověřit, že uživatel má oprávnění k příkazu (admin bypass)
+            if (!$skipOwnerCheck) {
+                $found = array_filter(array_keys($head), fn($key) => str_starts_with($key, 'INT_ADR'));
+                $match = false;
 
-            foreach ($found as $key) {
-                if ((int) $head[$key] === $intAdr) {
-                    $match = true;
-                    break;
+                foreach ($found as $key) {
+                    if ((int) $head[$key] === $intAdr) {
+                        $match = true;
+                        break;
+                    }
                 }
-            }
 
-            if (!$match) {
-                throw new Exception('Tento příkaz vám nebyl přidělen a nemáte oprávnění k jeho nahlížení.');
+                if (!$match) {
+                    throw new Exception('Tento příkaz vám nebyl přidělen a nemáte oprávnění k jeho nahlížení.');
+                }
             }
 
             return $result;
         }
 
-        return $this->cacheService->getCachedPrikaz($intAdr, $id, function($intAdr, $prikazId) {
+        return $this->cacheService->getCachedPrikaz($intAdr, $id, function($intAdr, $prikazId) use ($skipOwnerCheck) {
             $result = $this->connect("trasy.ZP_Detail", [$prikazId], true);
 
             // Zkontrolovat skutečnou strukturu
@@ -354,19 +355,21 @@ class InsyzService
                 throw new Exception('U tohoto příkazu se nenačetla žádná data v hlavičce.');
             }
 
-            // Hledání hodnoty INT_ADR v hlavičce
-            $found = array_filter(array_keys($head), fn($key) => str_starts_with($key, 'INT_ADR'));
-            $match = false;
+            // Ověřit, že uživatel má oprávnění k příkazu (admin bypass)
+            if (!$skipOwnerCheck) {
+                $found = array_filter(array_keys($head), fn($key) => str_starts_with($key, 'INT_ADR'));
+                $match = false;
 
-            foreach ($found as $key) {
-                if ((int) $head[$key] === $intAdr) {
-                    $match = true;
-                    break;
+                foreach ($found as $key) {
+                    if ((int) $head[$key] === $intAdr) {
+                        $match = true;
+                        break;
+                    }
                 }
-            }
 
-            if (!$match) {
-                throw new Exception('Tento příkaz vám nebyl přidělen a nemáte oprávnění k jeho nahlížení.');
+                if (!$match) {
+                    throw new Exception('Tento příkaz vám nebyl přidělen a nemáte oprávnění k jeho nahlížení.');
+                }
             }
 
             return [
