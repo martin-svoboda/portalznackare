@@ -333,8 +333,9 @@ export function calculateCompensation(formData, tariffRates, userIntAdr = null, 
     // Spočítat dopravní náklady pro uživatele
     const transportCosts = calculateTransportCosts(formData, tariffRates, userIntAdr);
 
-    // Stravné a náhrada za práci - POUZE pokud má kvalifikaci ZZ
-    const mealAllowance = maKvalifikaciZZ && stravneTariff ? parseFloat(stravneTariff.Stravne || 0) : 0;
+    // Stravné - nárok mají všichni členové týmu bez ohledu na kvalifikaci
+    const mealAllowance = stravneTariff ? parseFloat(stravneTariff.Stravne || 0) : 0;
+    // Náhrada za práci - POUZE pokud má kvalifikaci ZZ
     const workAllowance = maKvalifikaciZZ && nahradyTariff ? parseFloat(nahradyTariff.Nahrada || 0) : 0;
     
     // Ubytování - pouze pro toho kdo platil
