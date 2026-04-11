@@ -376,7 +376,7 @@ class TimService
                     if ($forPdf) {
                         $html .= '<div style="display: block; width: 100%;">';
                     } else {
-                        $html .= '<div style="position: absolute; bottom: -2px; width: 120%;">';
+                        $html .= '<div style="position: absolute; bottom: -2px; width: 130%;">';
                     }
                     $html .= '<span style="text-align: center; font-weight: '.$fontWeight.'; font-size: '.$textSize.'; color: black; transform: scaleX('.$scaleCompressed.'); transform-origin: center; display: inline-block; width: 100%;">';
                     // $html .= $this->renderTextContent( $line['text'], true ); // hideIcon = true - původně odebírání ikon pro M typ

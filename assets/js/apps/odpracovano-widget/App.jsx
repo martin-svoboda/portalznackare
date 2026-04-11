@@ -6,6 +6,13 @@ const logger = createDebugLogger('OdpracovanoWidget');
 
 const MILNIKY = [50, 120, 250, 500];
 
+const MILESTONE_COLORS = {
+    50:  { badge: 'bg-yellow-500 border-yellow-600 dark:bg-yellow-500 dark:border-yellow-400', label: 'text-yellow-700 dark:text-yellow-400' },
+    120: { badge: 'bg-green-500 border-green-600 dark:bg-green-500 dark:border-green-400', label: 'text-green-700 dark:text-green-400' },
+    250: { badge: 'bg-blue-500 border-blue-600 dark:bg-blue-500 dark:border-blue-400', label: 'text-blue-700 dark:text-blue-400' },
+    500: { badge: 'bg-red-500 border-red-600 dark:bg-red-500 dark:border-red-400', label: 'text-red-700 dark:text-red-400' }
+};
+
 /**
  * Spočítá celkový součet km a seřadí data sestupně
  */
@@ -73,7 +80,7 @@ const ProgressBar = memo(function ProgressBar({ totalKm }) {
                             style={{ flex: seg.width / totalWidth }}
                         >
                             <div
-                                className="h-full rounded-full bg-green-500 dark:bg-green-400 transition-all duration-500"
+                                className="h-full rounded-full bg-lime-400 dark:bg-lime-500 transition-all duration-500"
                                 style={{ width: `${seg.progress * 100}%` }}
                             />
                         </div>
@@ -82,7 +89,7 @@ const ProgressBar = memo(function ProgressBar({ totalKm }) {
                         <div
                             className={`w-8 h-8 rounded-full flex items-center justify-center border-2 flex-shrink-0 -mx-1 z-10 ${
                                 seg.reached
-                                    ? 'bg-green-500 border-green-600 dark:bg-green-500 dark:border-green-400'
+                                    ? MILESTONE_COLORS[seg.milestone].badge
                                     : 'bg-gray-200 border-gray-300 dark:bg-gray-600 dark:border-gray-500'
                             }`}
                         >
@@ -104,7 +111,7 @@ const ProgressBar = memo(function ProgressBar({ totalKm }) {
                         <div className="flex-shrink-0 -mx-1 w-8 text-center">
                             <span className={`text-xs font-medium whitespace-nowrap ${
                                 seg.reached
-                                    ? 'text-green-700 dark:text-green-400'
+                                    ? MILESTONE_COLORS[seg.milestone].label
                                     : 'text-gray-500 dark:text-gray-400'
                             }`}>
                                 {seg.milestone}
