@@ -300,7 +300,9 @@ export const useFormSaving = (formData, head, prikazId, reportLoaded = false, us
     // Save as draft - s podporou pro automatické ukládání
     const saveDraft = useCallback(async (isAutoSave = false) => {
         // Pro automatické ukládání použít silent mode (bez notifikací)
-        const success = await handleSave(false, isAutoSave);
+        // Ochrana: onClick předává Event objekt jako argument — ten je truthy, proto explicitní kontrola
+        const silent = isAutoSave === true;
+        const success = await handleSave(false, silent);
         return success;
     }, [handleSave]);
 

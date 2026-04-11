@@ -822,14 +822,17 @@ const validateTimItems = (formData, predmety, errors, warnings) => {
             const isSponzor = item.Druh_Predmetu && 'P' === item.Druh_Predmetu.toUpperCase();
 
             // Required: Rok_Vyroby (for items that need additional data)
-            if (needsAdditionalData && !itemStatus.Rok_Vyroby && !isSponzor) {
-                missingItems++;
-                incompleteItems.push({
-                    itemId,
-                    timId,
-                    predmet: item.Druh_Predmetu_Naz || 'Neznámý předmět',
-                    missing: 'rok výroby'
-                });
+            if (needsAdditionalData && !isSponzor) {
+                const rok = parseInt(itemStatus.Rok_Vyroby);
+                if (!itemStatus.Rok_Vyroby || isNaN(rok) || rok < 1950 || rok > new Date().getFullYear() || String(itemStatus.Rok_Vyroby).length !== 4) {
+                    missingItems++;
+                    incompleteItems.push({
+                        itemId,
+                        timId,
+                        predmet: item.Druh_Predmetu_Naz || 'Neznámý předmět',
+                        missing: 'rok výroby (1950–' + new Date().getFullYear() + ')'
+                    });
+                }
             }
             
             // Required: Smerovani (for arrows that need additional data)

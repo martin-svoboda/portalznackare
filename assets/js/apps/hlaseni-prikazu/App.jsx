@@ -232,6 +232,40 @@ const App = () => {
                     formData.Zvysena_Sazba = true;
                 }
 
+                // Předvyplnění stavů předmětů z INSYZ dat (Rok_Vyroby, Smerovani)
+                // Pouze pokud Stavy_Tim je prázdný (nové hlášení nebo bez uložených stavů)
+                const predmetyList = orderData.predmety || [];
+                if (predmetyList.length > 0 && (!formData.Stavy_Tim || Object.keys(formData.Stavy_Tim).length === 0)) {
+                    const prefilled = {};
+                    predmetyList.forEach(item => {
+                        if (!item.EvCi_TIM || !item.ID_PREDMETY) return;
+                        const timId = item.EvCi_TIM;
+                        if (!prefilled[timId]) {
+                            prefilled[timId] = {
+                                EvCi_TIM: timId,
+                                Predmety: [],
+                                Prilohy_TIM: []
+                            };
+                        }
+                        const status = {
+                            ID_PREDMETY: item.ID_PREDMETY.toString(),
+                            Zachovalost: null,
+                            Rok_Vyroby: item.Rok_Vyroby || null,
+                            Smerovani: item.Smerovani || "",
+                            Koment: "",
+                            metadata: {
+                                ID_PREDMETY: item.ID_PREDMETY,
+                                EvCi_TIM: item.EvCi_TIM,
+                                Predmet_Index: item.Predmet_Index,
+                                Popis_Predmetu: item.Druh_Predmetu_Naz
+                            }
+                        };
+                        prefilled[timId].Predmety.push(status);
+                    });
+                    formData.Stavy_Tim = prefilled;
+                    log.info('Předvyplněny stavy předmětů z INSYZ dat', prefilled);
+                }
+
                 // Load tariff rates using shared parser
                 let tariffRates = null;
                 try {

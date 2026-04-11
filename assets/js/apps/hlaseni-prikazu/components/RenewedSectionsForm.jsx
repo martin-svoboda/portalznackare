@@ -163,27 +163,45 @@ export const RenewedSectionsForm = ({
                                                 </span>
                                             </div>
 
-                                            {/* Checkbox obnovy */}
+                                            {/* Toggle obnovy */}
                                             <div className="col-span-1 md:col-span-2">
                                                 <div className="md:hidden text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">
                                                     Obnoven
                                                 </div>
-                                                <label className="flex items-center">
-                                                    <input
-                                                        type="checkbox"
-                                                        className="form__checkbox mr-2"
-                                                        checked={usekData.Usek_Obnoven}
-                                                        onChange={(e) => handleSectionRenewalChange(
+                                                <div className="inline-flex rounded-md overflow-hidden border border-gray-300 dark:border-gray-600">
+                                                    <button
+                                                        type="button"
+                                                        className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+                                                            !usekData.Usek_Obnoven
+                                                                ? 'bg-red-600 text-white'
+                                                                : 'bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
+                                                        }`}
+                                                        onClick={() => handleSectionRenewalChange(
                                                             usek.EvCi_Tra,
                                                             'Usek_Obnoven',
-                                                            e.target.checked
+                                                            false
                                                         )}
                                                         disabled={disabled}
-                                                    />
-                                                    <span className="text-sm">
-                                                        {usekData.Usek_Obnoven ? 'Ano' : 'Ne'}
-                                                    </span>
-                                                </label>
+                                                    >
+                                                        Ne
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+                                                            usekData.Usek_Obnoven
+                                                                ? 'bg-green-600 text-white'
+                                                                : 'bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
+                                                        }`}
+                                                        onClick={() => handleSectionRenewalChange(
+                                                            usek.EvCi_Tra,
+                                                            'Usek_Obnoven',
+                                                            true
+                                                        )}
+                                                        disabled={disabled}
+                                                    >
+                                                        Ano
+                                                    </button>
+                                                </div>
                                             </div>
 
                                         </div>

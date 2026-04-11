@@ -45,10 +45,10 @@ export const PartBSummary = ({
     const blockStyle = compact ? "space-y-1" : "space-y-2 mb-4 border-b border-gray-200 dark:border-gray-700 pb-4";
     
     const statusOptions = {
-        "1": "1 - Nová",
-        "2": "2 - Zachovalá", 
-        "3": "3 - Nevyhovující",
-        "4": "4 - Zcela chybí"
+        "1": "1 - Správný text a dokonalý stav",
+        "2": "2 - Správný text a rozumné opotřebení",
+        "3": "3 - Nesprávný text nebo vysoké opotřebení (na výměnu)",
+        "4": "4 - Zcela chybí (nahradit)"
     };
     
     return (

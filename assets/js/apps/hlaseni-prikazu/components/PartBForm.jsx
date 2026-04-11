@@ -18,15 +18,16 @@ import {calculateExecutionDate} from '../utils/compensationCalculator';
 import {toISODateString} from '../../../utils/dateUtils';
 
 const statusOptions = [
-    {value: "1", label: "1 - Nová", color: "green"},
-    {value: "2", label: "2 - Zachovalá", color: "blue"},
-    {value: "3", label: "3 - Nevyhovující", color: "orange"},
-    {value: "4", label: "4 - Zcela chybí", color: "red"}
+    {value: "1", label: "1 - Správný text a dokonalý stav", color: "green"},
+    {value: "2", label: "2 - Správný text a rozumné opotřebení", color: "blue"},
+    {value: "3", label: "3 - Nesprávný text nebo vysoké opotřebení (na výměnu)", color: "orange"},
+    {value: "4", label: "4 - Zcela chybí (nahradit)", color: "red"}
 ];
 
 const arrowOrientationOptions = [
     {value: "L", label: "Levá (L)"},
-    {value: "P", label: "Pravá (P)"}
+    {value: "P", label: "Pravá (P)"},
+    {value: "N", label: "Nelze určit"}
 ];
 
 // Helper function for generating safe identifiers
@@ -465,16 +466,28 @@ export const PartBForm = ({formData, setFormData, head, useky, predmety, prikazI
                                                                                             type="number"
                                                                                             className="form__input"
                                                                                             placeholder="Rok"
-                                                                                            min="1990"
+                                                                                            min="1950"
                                                                                             max={new Date().getFullYear()}
+                                                                                            maxLength={4}
                                                                                             value={itemStatus?.Rok_Vyroby || ""}
                                                                                             onChange={(e) => {
-                                                                                                const year = e.target.value ? e.target.value : null;
+                                                                                                const val = e.target.value.slice(0, 4);
+                                                                                                const year = val || null;
                                                                                                 updateItemStatus(
                                                                                                     timGroup.EvCi_TIM,
                                                                                                     item,
                                                                                                     {Rok_Vyroby: year}
                                                                                                 );
+                                                                                            }}
+                                                                                            onBlur={(e) => {
+                                                                                                const val = parseInt(e.target.value);
+                                                                                                if (e.target.value && (val < 1950 || val > new Date().getFullYear() || e.target.value.length !== 4)) {
+                                                                                                    updateItemStatus(
+                                                                                                        timGroup.EvCi_TIM,
+                                                                                                        item,
+                                                                                                        {Rok_Vyroby: null}
+                                                                                                    );
+                                                                                                }
                                                                                             }}
                                                                                             disabled={disabled}
                                                                                             required={true}
@@ -492,7 +505,7 @@ export const PartBForm = ({formData, setFormData, head, useky, predmety, prikazI
                                                                                     className="md:hidden text-xs font-semibold text-gray-600 mb-1">
                                                                                     Orientace směrovky
                                                                                 </div>
-                                                                                {needsAdditionalData && isArrow ? (
+                                                                                {isArrow ? (
                                                                                     <>
                                                                                         <label
                                                                                             htmlFor={`item-orientation-${getItemIdentifier(item)}`}
@@ -510,7 +523,7 @@ export const PartBForm = ({formData, setFormData, head, useky, predmety, prikazI
                                                                                                 {Smerovani: e.target.value}
                                                                                             )}
                                                                                             disabled={disabled}
-                                                                                            required={true}
+                                                                                            required={needsAdditionalData}
                                                                                         >
                                                                                             <option value="">Vyberte směr
                                                                                             </option>

@@ -9,15 +9,16 @@ import { AdvancedFileUpload } from '../../../components/shared/forms/AdvancedFil
 import { renderHtmlContent, replaceTextWithIcons } from '../../../utils/htmlUtils';
 
 const statusOptions = [
-    { value: "1", label: "1 - Nová", color: "green" },
-    { value: "2", label: "2 - Zachovalá", color: "blue" },
-    { value: "3", label: "3 - Nevyhovující", color: "orange" },
-    { value: "4", label: "4 - Zcela chybí", color: "red" }
+    { value: "1", label: "1 - Správný text a dokonalý stav", color: "green" },
+    { value: "2", label: "2 - Správný text a rozumné opotřebení", color: "blue" },
+    { value: "3", label: "3 - Nesprávný text nebo vysoké opotřebení (na výměnu)", color: "orange" },
+    { value: "4", label: "4 - Zcela chybí (nahradit)", color: "red" }
 ];
 
 const arrowOrientationOptions = [
     { value: "L", label: "Levá (L)" },
-    { value: "P", label: "Pravá (P)" }
+    { value: "P", label: "Pravá (P)" },
+    { value: "N", label: "Nelze určit" }
 ];
 
 // Helper function for generating safe identifiers

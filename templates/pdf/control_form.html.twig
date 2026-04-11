@@ -183,23 +183,31 @@
                                         {% endif %}
                                     </td>
                                     <td style="width: 23%; font-size: 7pt; line-height: 1;">
-                                        {{ item.Radek1|default('')|raw }}{% if item.KM1|default('') %} {{ (item.KM1 + 0) }} km{% endif %}
+                                        {{ item.Radek1|default('')|raw }}{% if item.KM1|default('') and (item.KM1 + 0) > 0 %} {{ (item.KM1 + 0) }} km{% endif %}
                                         {% if item.Druh_Predmetu is same as('M') %}
                                             {% if item.Nadmorska_vyska|default('') %}
                                                 <br>{{ item.Nadmorska_vyska }} m n.m.{% endif %}
                                         {% endif %}
-                                        {% if item.Radek2|default('') %}<br>{{ item.Radek2|raw }}{% if item.KM2|default('') %} {{ (item.KM2 + 0) }} km{% endif %}{% endif %}
-                                        {% if item.Radek3|default('') %}<br>{{ item.Radek3|raw }}{% if item.KM3|default('') %} {{ (item.KM3 + 0) }} km{% endif %}{% endif %}
+                                        {% if item.Radek2|default('') %}<br>{{ item.Radek2|raw }}{% if item.KM2|default('') and (item.KM2 + 0) > 0 %} {{ (item.KM2 + 0) }} km{% endif %}{% endif %}
+                                        {% if item.Radek3|default('') %}<br>{{ item.Radek3|raw }}{% if item.KM3|default('') and (item.KM3 + 0) > 0 %} {{ (item.KM3 + 0) }} km{% endif %}{% endif %}
                                     </td>
-                                    <td style="width: 5%;"></td>
-                                    <td style="width: 10%;">
-                                        {% if item.Druh_Predmetu is same as('P') %}
-                                            —————
+                                    <td style="width: 5%; color: #999;">
+                                        {% if item.Zachovalost|default('') %}
+                                            {{ item.Zachovalost }}
                                         {% endif %}
                                     </td>
-                                    <td style="width: 5%;">
+                                    <td style="width: 10%; color: #999;">
+                                        {% if item.Druh_Predmetu is same as('P') %}
+                                            —————
+                                        {% elseif item.Rok_Vyroby|default('') %}
+                                            {{ item.Rok_Vyroby }}
+                                        {% endif %}
+                                    </td>
+                                    <td style="width: 5%; color: #999;">
                                         {% if item.Druh_Predmetu is same as('M') or item.Druh_Predmetu is same as('P') %}
                                             ——
+                                        {% elseif item.Smerovani|default('') %}
+                                            {{ item.Smerovani }}
                                         {% endif %}
                                     </td>
                                 {% else %}

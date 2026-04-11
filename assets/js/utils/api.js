@@ -146,9 +146,10 @@ export const api = {
             const params = {id_zp: id};
             return api.get('/portal/report', params);
         },
-        saveReport: (data) => api.post('/portal/report', data, {
+        saveReport: (data, options = {}) => api.post('/portal/report', data, {
             showSuccess: true,
-            successMessage: 'Hlášení bylo uloženo'
+            successMessage: 'Hlášení bylo uloženo',
+            ...options
         }),
         zpUseky: (id) => api.get(`/insyz/zp-useky/${id}`)
     },
