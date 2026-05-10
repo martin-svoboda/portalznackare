@@ -7,10 +7,21 @@
 ### trasy.WEB_Login
 **Parametry:**
 - `@Email` (varchar) - Email uživatele
-- `@WEBPwdHash` (varchar) - SHA1 hash hesla
+- `@WEBPwdHash` (varchar) - SHA1 hash hesla (uppercase hex)
 
-**Vrací:**
-- `INT_ADR` (int) - Interní id uživatele
+**Vrací jediný řádek se sjednocenou strukturou (i při neúspěchu):**
+- `INT_ADR` (int) - Interní id uživatele, **NULL pokud se přihlášení nezdařilo** (z bezpečnostních důvodů)
+- `Email_nalezen` (1/0) - Email existuje v INSYZ
+- `Heslo_se_shoduje` (1/0) - Hash hesla odpovídá uloženému
+- `WEBUser` (1/0) - Uživatel má povolen přístup k webovému rozhraní
+- `Zablokovano` (1/0) - Účet je zablokován
+- `Platnost` (text) - Stav platnosti hesla (informativní, např. `OK`/`EXPIRED`)
+- `Platnost_DO` (date) - Datum platnosti hesla
+- `KontrolaPlatnostiPwdWEB` (1/0) - Vyžadovat kontrolu data platnosti
+
+**Pravidlo úspěchu:** `INT_ADR != NULL && Email_nalezen=1 && Heslo_se_shoduje=1 && WEBUser=1 && Zablokovano=0` (a případně platná data, viz `KontrolaPlatnostiPwdWEB`).
+
+> Sjednocená struktura nasazena na DEV v dubnu 2026. Portál implementuje graceful fallback (`isset()` guardy), takže funguje i proti starší verzi SP, která neposílá nové flagy.
 
 ### trasy.ZNACKAR_DETAIL
 **Parametry:**

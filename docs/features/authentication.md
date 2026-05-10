@@ -307,40 +307,78 @@ if (result.success) {
 
 ### 2. **Security validation po WEB_Login**
 
-Po úspěšném volání MSSQL procedury `WEB_Login` se provádí bezpečnostní validace v tomto pořadí:
+Procedura `WEB_Login` vrací jeden řádek se sjednocenou strukturou jak při úspěchu,
+tak při neúspěchu (`INT_ADR=NULL` při chybě). `validateLoginResponse()` projde
+flagy v pořadí od nejzákladnější chyby k nejspecifičtější a hází českou hlášku
+určenou přímo pro uživatele:
 
 ```php
-// InsyzService::validateLoginResponse() - src/Service/InsyzService.php:470-495
+// InsyzService::validateLoginResponse() - src/Service/InsyzService.php
 
-1. Zablokovano - Je účet zablokován?
+1. Email_nalezen — Je email v INSYZ?
+   if (Email_nalezen !== '1')
+       → "Zadaný email nebyl v INSYZ nalezen."
+
+2. Heslo_se_shoduje — Sedne hash hesla?
+   if (Heslo_se_shoduje !== '1')
+       → "Zadané heslo je chybné — zkontrolujte zadané heslo,
+          případně kontaktujte svého předsedu pro reset hesla."
+
+3. WEBUser — Má uživatel povolen web přístup?
+   if (WEBUser !== '1')
+       → "Nemáte přístup k webovému rozhraní —
+          kontaktujte svého předsedu o povolení uživatele pro web."
+
+4. Zablokovano — Je účet zablokován?
    if (Zablokovano !== '0')
-       → throw "Účet je zablokován. Kontaktujte správce."
+       → "Váš přístup byl zablokován —
+          kontaktujte svého předsedu pro více informací."
 
-2. KontrolaPlatnostiPwdWEB + Platnost_DO - Je platnost hesla vypršelá?
-   if (KontrolaPlatnostiPwdWEB !== '0')  // Kontrola zapnuta
-       if (Platnost_DO < dnes)
-           → throw "Platnost hesla vypršela. Kontaktujte správce."
-   // Pokud KontrolaPlatnostiPwdWEB = '0', přeskočí se kontrola data
+5. KontrolaPlatnostiPwdWEB + Platnost_DO — Vypršela platnost hesla?
+   if (KontrolaPlatnostiPwdWEB !== '0' && Platnost_DO < dnes)
+       → "Platnost vašeho hesla vypršela —
+          kontaktujte svého předsedu pro reset hesla."
 
-3. Platnost - Je heslo platné?
-   if (Platnost !== 'OK')
-       → throw "Heslo není platné. Kontaktujte správce."
+6. Defense-in-depth: po všech kontrolách musí být INT_ADR neprázdné,
+   jinak fallback "Chyba přihlášení, zkontrolujte údaje a zkuste to znovu."
 ```
 
-**Audit logging:**
-- **Úspěšné přihlášení:** `status='success'`, INT_ADR = číslo uživatele
-- **Zamítnuté přihlášení:** `status='error'`, INT_ADR = číslo uživatele, `error_message` = konkrétní důvod zamítnutí
-- **Neplatné credentials:** `status='error'`, INT_ADR = 0, `error_message='Invalid credentials'`
+Všechny kontroly používají `isset()` guard — pokud starší verze SP některý
+flag neposílá, kontrola se přeskočí (graceful fallback během přechodu).
 
-**Response summary obsahuje:**
+**Audit logging:**
+- **Úspěšné přihlášení:** `status='success'`, `INT_ADR` = číslo uživatele
+- **Zamítnuté přihlášení:** `status='error'`, `INT_ADR` = číslo uživatele pokud SP vrátila (jinak NULL), `error_message` = konkrétní česká hláška z `validateLoginResponse()`
+
+**Příklad response (úspěšné přihlášení):**
 ```json
 {
   "records": 1,
   "sample": [{
     "INT_ADR": "4133",
+    "Email_nalezen": "1",
+    "Heslo_se_shoduje": "1",
+    "WEBUser": "1",
+    "Zablokovano": "0",
     "Platnost": "OK",
     "Platnost_DO": "2026-09-02",
+    "KontrolaPlatnostiPwdWEB": "0"
+  }]
+}
+```
+
+**Příklad response (špatné heslo):**
+```json
+{
+  "records": 1,
+  "sample": [{
+    "INT_ADR": null,
+    "Email_nalezen": "1",
+    "Heslo_se_shoduje": "0",
+    "WEBUser": "0",
     "Zablokovano": "0",
+    "Platnost": null,
+    "Platnost_DO": null,
     "KontrolaPlatnostiPwdWEB": "0"
   }]
 }
@@ -502,4 +540,4 @@ INSYZ_DB_PASS=complex_secure_password
 **INSYZ Integration:** [insyz-integration.md](insyz-integration.md)
 **API Reference:** [../api/insyz-api.md](../api/insyz-api.md)
 **Configuration:** [../configuration.md](../configuration.md)
-**Aktualizováno:** 2025-10-17 - Přidána bezpečnostní validace po WEB_Login
+**Aktualizováno:** 2026-05-10 - Sjednocená návratová struktura WEB_Login (Email_nalezen, Heslo_se_shoduje, WEBUser); konkrétní české chybové hlášky pro uživatele.

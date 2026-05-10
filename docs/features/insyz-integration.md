@@ -178,7 +178,10 @@ class InsyzAuditLogger {
 #### WEB_Login
 ```sql
 EXEC trasy.WEB_Login @Email='email@example.com', @WEBPwdHash='hashedPassword'
--- Vrací: INT_ADR pokud úspěch, jinak prázdný result
+-- Vrací jeden řádek se sjednocenou strukturou (i při neúspěchu):
+--   INT_ADR (NULL při chybě), Email_nalezen, Heslo_se_shoduje, WEBUser,
+--   Zablokovano, Platnost, Platnost_DO, KontrolaPlatnostiPwdWEB
+-- Detail: docs/api/insyz-stored-procedures.md a docs/features/authentication.md
 ```
 
 #### ZNACKAR_DETAIL  

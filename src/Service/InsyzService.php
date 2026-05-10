@@ -102,90 +102,114 @@ class InsyzService
             // Test login logic - akceptuj plain text "test123" nebo jeho SHA1 hash pro všechny test účty
             $testPasswordHash = strtoupper(sha1('test123'));
 
-            // Definuj test scénáře pro různé bezpečnostní kontroly
+            // Test scénáře simulující sjednocenou návratovou strukturu WEB_Login
+            // (pole: INT_ADR, Email_nalezen, Heslo_se_shoduje, WEBUser, Zablokovano,
+            //        Platnost, Platnost_DO, KontrolaPlatnostiPwdWEB)
             $testAccounts = [
                 'test@test.com' => [
                     "INT_ADR" => "4133",
+                    "Email_nalezen" => "1",
+                    "Heslo_se_shoduje" => "1",
+                    "WEBUser" => "1",
+                    "Zablokovano" => "0",
                     "Platnost" => "OK",
                     "Platnost_DO" => "2026-09-02",
-                    "Zablokovano" => "0",
-                    "KontrolaPlatnostiPwdWEB" => "0"
+                    "KontrolaPlatnostiPwdWEB" => "0",
                 ],
                 'test@blocked.com' => [
                     "INT_ADR" => "4134",
+                    "Email_nalezen" => "1",
+                    "Heslo_se_shoduje" => "1",
+                    "WEBUser" => "1",
+                    "Zablokovano" => "1",
                     "Platnost" => "OK",
                     "Platnost_DO" => "2026-09-02",
-                    "Zablokovano" => "1",  // ← Zablokovaný účet
-                    "KontrolaPlatnostiPwdWEB" => "0"
+                    "KontrolaPlatnostiPwdWEB" => "0",
                 ],
                 'test@expired.com' => [
                     "INT_ADR" => "4135",
-                    "Platnost" => "OK",
-                    "Platnost_DO" => "2020-01-01",  // ← Staré datum
+                    "Email_nalezen" => "1",
+                    "Heslo_se_shoduje" => "1",
+                    "WEBUser" => "1",
                     "Zablokovano" => "0",
-                    "KontrolaPlatnostiPwdWEB" => "1"  // ← Kontrola zapnuta
+                    "Platnost" => "OK",
+                    "Platnost_DO" => "2020-01-01",
+                    "KontrolaPlatnostiPwdWEB" => "1",
                 ],
                 'test@expired-nocheck.com' => [
                     "INT_ADR" => "4136",
+                    "Email_nalezen" => "1",
+                    "Heslo_se_shoduje" => "1",
+                    "WEBUser" => "1",
+                    "Zablokovano" => "0",
                     "Platnost" => "OK",
-                    "Platnost_DO" => "2020-01-01",  // ← Staré datum
-                    "Zablokovano" => "0",
-                    "KontrolaPlatnostiPwdWEB" => "0"  // ← Kontrola vypnuta → mělo by projít
+                    "Platnost_DO" => "2020-01-01",
+                    "KontrolaPlatnostiPwdWEB" => "0",
                 ],
-                'test@invalid.com' => [
-                    "INT_ADR" => "4137",
-                    "Platnost" => "EXPIRED",  // ← Neplatné heslo
-                    "Platnost_DO" => "2026-09-02",
+                'test@nowebuser.com' => [
+                    "INT_ADR" => null,
+                    "Email_nalezen" => "1",
+                    "Heslo_se_shoduje" => "1",
+                    "WEBUser" => "0",
                     "Zablokovano" => "0",
-                    "KontrolaPlatnostiPwdWEB" => "0"
-                ]
+                    "Platnost" => "OK",
+                    "Platnost_DO" => "2026-09-02",
+                    "KontrolaPlatnostiPwdWEB" => "0",
+                ],
             ];
 
-            // Zkontroluj, zda je email z test účtů a heslo je správné
-            $isValidCredentials = isset($testAccounts[$email]) &&
-                ($password === 'test123' || strtoupper($password) === $testPasswordHash);
+            // Email neexistující v INSYZ — sjednocená struktura, INT_ADR=NULL, Email_nalezen=0
+            $unknownEmailResponse = [
+                "INT_ADR" => null,
+                "Email_nalezen" => "0",
+                "Heslo_se_shoduje" => "0",
+                "WEBUser" => "0",
+                "Zablokovano" => "0",
+                "Platnost" => null,
+                "Platnost_DO" => null,
+                "KontrolaPlatnostiPwdWEB" => "0",
+            ];
 
-            if ($isValidCredentials) {
-	            $result = array( 0 => $testAccounts[$email] );
+            // Heslo nesedí — známý email, ale Heslo_se_shoduje=0, INT_ADR=NULL
+            $isKnownEmail = isset($testAccounts[$email]);
+            $isPasswordOk = $password === 'test123' || strtoupper($password) === $testPasswordHash;
 
-                try {
-                    // Validuj bezpečnostní parametry
-                    $this->validateLoginResponse($result[0]);
-
-                    // Log successful test login
-                    $this->logInsyzCall('login', 'trasy.WEB_Login',
-                        ['@Email' => $email, '@WEBPwdHash' => '[HIDDEN]'],
-                        $result,
-                        null,
-                        $startTime,
-                        null  // intAdr is NULL during login attempt
-                    );
-
-	                return (int) $result[0]['INT_ADR'];
-
-                } catch (Exception $e) {
-                    // Loguj zamítnuté přihlášení s důvodem
-                    $this->logInsyzCall('login', 'trasy.WEB_Login',
-                        ['@Email' => $email, '@WEBPwdHash' => '[HIDDEN]'],
-                        $result,
-                        $e->getMessage(), // "Účet je zablokován" atd.
-                        $startTime,
-                        (int) $result[0]['INT_ADR'] // INT_ADR i když zamítnuto
-                    );
-                    throw $e;
-                }
+            if ($isKnownEmail && $isPasswordOk) {
+                $loginData = $testAccounts[$email];
+            } elseif ($isKnownEmail && !$isPasswordOk) {
+                $loginData = $testAccounts[$email];
+                $loginData['INT_ADR'] = null;
+                $loginData['Heslo_se_shoduje'] = "0";
+            } else {
+                $loginData = $unknownEmailResponse;
             }
 
-            // Log failed test login attempt
-            $this->logInsyzCall('login', 'trasy.WEB_Login',
-                ['@Email' => $email, '@WEBPwdHash' => '[HIDDEN]'],
-                [],
-                'Invalid credentials',
-                $startTime,
-                null  // intAdr is NULL during login attempt
-            );
+            $result = [0 => $loginData];
 
-            throw new Exception('Chyba přihlášení, zkontrolujte údaje a zkuste to znovu.');
+            try {
+                $this->validateLoginResponse($loginData);
+
+                $this->logInsyzCall('login', 'trasy.WEB_Login',
+                    ['@Email' => $email, '@WEBPwdHash' => '[HIDDEN]'],
+                    $result,
+                    null,
+                    $startTime,
+                    null
+                );
+
+                return (int) $loginData['INT_ADR'];
+
+            } catch (Exception $e) {
+                $intAdrForLog = !empty($loginData['INT_ADR']) ? (int) $loginData['INT_ADR'] : null;
+                $this->logInsyzCall('login', 'trasy.WEB_Login',
+                    ['@Email' => $email, '@WEBPwdHash' => '[HIDDEN]'],
+                    $result,
+                    $e->getMessage(),
+                    $startTime,
+                    $intAdrForLog
+                );
+                throw $e;
+            }
         }
 
         // Pokud už je hash, použij přímo. Jinak vytvoř hash z plain textu.
@@ -196,28 +220,29 @@ class InsyzService
             '@WEBPwdHash' => $hash
         ]);
 
-        if (isset($result[0]['INT_ADR'])) {
-            try {
-                // Validuj bezpečnostní parametry
-                $this->validateLoginResponse($result[0]);
-
-                return (int) $result[0]['INT_ADR'];
-
-            } catch (Exception $e) {
-                // Loguj zamítnuté přihlášení s důvodem
-                // connect() už zalogoval success, teď loguj zamítnutí s důvodem
-                $this->logInsyzCall('login', 'trasy.WEB_Login',
-                    ['@Email' => $email, '@WEBPwdHash' => '[HIDDEN]'],
-                    $result,
-                    $e->getMessage(), // "Účet je zablokován" atd.
-                    $startTime,
-                    (int) $result[0]['INT_ADR'] // INT_ADR i když zamítnuto
-                );
-                throw $e;
-            }
+        // Sjednocená SP vrací VŽDY jeden řádek se všemi flagy (i při neúspěchu).
+        // Starší SP mohla vrátit prázdný výsledek — to ošetřujeme zde.
+        $loginData = $result[0] ?? null;
+        if (!is_array($loginData)) {
+            throw new Exception('Chyba přihlášení, zkontrolujte údaje a zkuste to znovu.');
         }
 
-        throw new Exception('Chyba přihlášení, zkontrolujte údaje a zkuste to znovu.');
+        try {
+            $this->validateLoginResponse($loginData);
+
+            return (int) $loginData['INT_ADR'];
+
+        } catch (Exception $e) {
+            $intAdrForLog = !empty($loginData['INT_ADR']) ? (int) $loginData['INT_ADR'] : null;
+            $this->logInsyzCall('login', 'trasy.WEB_Login',
+                ['@Email' => $email, '@WEBPwdHash' => '[HIDDEN]'],
+                $result,
+                $e->getMessage(),
+                $startTime,
+                $intAdrForLog
+            );
+            throw $e;
+        }
     }
 
     /**
@@ -652,35 +677,49 @@ class InsyzService
     }
 
     /**
-     * Validuje bezpečnostní parametry z WEB_Login odpovědi
+     * Validuje sjednocenou návratovou strukturu WEB_Login a hází konkrétní
+     * českou hlášku podle prvního selhání. Pořadí kontrol jde od nejzákladnější
+     * chyby (neexistující email) k té nejspecifičtější (expirace hesla).
      *
-     * @param array $loginData Data z WEB_Login (jeden řádek)
-     * @throws Exception Pokud účet nesplňuje bezpečnostní požadavky
+     * Pole `Email_nalezen`, `Heslo_se_shoduje`, `WEBUser` přidána v dubnu 2026.
+     * Použité `isset()` guardy zajišťují graceful fallback proti starší verzi SP,
+     * která tyto flagy ještě neposílá.
+     *
+     * @param array $loginData Jeden řádek z WEB_Login
+     * @throws Exception Konkrétní česká hláška určená pro zobrazení uživateli
      */
     private function validateLoginResponse(array $loginData): void
     {
-        // 1. Je účet zablokován?
-        if (isset($loginData['Zablokovano']) && $loginData['Zablokovano'] !== '0') {
-            throw new Exception('Účet je zablokován. Kontaktujte správce.');
+        if (isset($loginData['Email_nalezen']) && (string) $loginData['Email_nalezen'] !== '1') {
+            throw new Exception('Zadaný email nebyl v INSYZ nalezen.');
         }
 
-        // 2. Má se kontrolovat platnost hesla?
-        if (isset($loginData['KontrolaPlatnostiPwdWEB']) && $loginData['KontrolaPlatnostiPwdWEB'] !== '0') {
-            // ANO - kontroluj datum platnosti
+        if (isset($loginData['Heslo_se_shoduje']) && (string) $loginData['Heslo_se_shoduje'] !== '1') {
+            throw new Exception('Zadané heslo je chybné — zkontrolujte zadané heslo, případně kontaktujte svého předsedu pro reset hesla.');
+        }
+
+        if (isset($loginData['WEBUser']) && (string) $loginData['WEBUser'] !== '1') {
+            throw new Exception('Nemáte přístup k webovému rozhraní — kontaktujte svého předsedu o povolení uživatele pro web.');
+        }
+
+        if (isset($loginData['Zablokovano']) && (string) $loginData['Zablokovano'] !== '0') {
+            throw new Exception('Váš přístup byl zablokován — kontaktujte svého předsedu pro více informací.');
+        }
+
+        if (isset($loginData['KontrolaPlatnostiPwdWEB']) && (string) $loginData['KontrolaPlatnostiPwdWEB'] !== '0') {
             if (isset($loginData['Platnost_DO'])) {
                 $platnostDo = \DateTime::createFromFormat('Y-m-d', $loginData['Platnost_DO']);
-                $dnes = new \DateTime('today');
-
-                if ($platnostDo && $platnostDo < $dnes) {
-                    throw new Exception('Platnost hesla vypršela. Kontaktujte správce.');
+                if ($platnostDo && $platnostDo < new \DateTime('today')) {
+                    throw new Exception('Platnost vašeho hesla vypršela — kontaktujte svého předsedu pro reset hesla.');
                 }
             }
         }
-        // NE - přeskočit kontrolu data
 
-        // 3. Je heslo platné?
-        if (isset($loginData['Platnost']) && $loginData['Platnost'] !== 'OK') {
-            throw new Exception('Heslo není platné. Kontaktujte správce.');
+        // Defense-in-depth: po všech kontrolách musí být INT_ADR neprázdné.
+        // Pokud nová SP vrátí všechny flagy=1 ale INT_ADR=NULL (nemělo by se stát),
+        // nezalogujeme uživatele jen na základě flagů.
+        if (empty($loginData['INT_ADR'])) {
+            throw new Exception('Chyba přihlášení, zkontrolujte údaje a zkuste to znovu.');
         }
     }
 }

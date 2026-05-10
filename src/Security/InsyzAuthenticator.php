@@ -50,27 +50,29 @@ class InsyzAuthenticator extends AbstractAuthenticator
         }
 
         if (empty($username) || empty($password)) {
-            throw new CustomUserMessageAuthenticationException('Username and password are required');
+            throw new CustomUserMessageAuthenticationException('Vyplňte prosím email a heslo.');
         }
 
         try {
-            // Ověř přes INSYZ
+            // Ověř přes INSYZ — InsyzService hodí Exception s českou hláškou
+            // určenou pro zobrazení uživateli (z validateLoginResponse).
             $intAdr = $this->insyzService->loginUser($username, $password);
-            
+
             if (!$intAdr) {
-                throw new CustomUserMessageAuthenticationException('Invalid credentials');
+                throw new CustomUserMessageAuthenticationException('Chyba přihlášení, zkontrolujte údaje a zkuste to znovu.');
             }
 
-            // Vytvoř passport s user badge a remember me
             return new SelfValidatingPassport(
                 new UserBadge((string)$intAdr, function ($userIdentifier) {
                     return $this->userProvider->loadUserByIdentifier($userIdentifier);
                 }),
                 [new RememberMeBadge()]
             );
-            
+
+        } catch (CustomUserMessageAuthenticationException $e) {
+            throw $e;
         } catch (\Exception $e) {
-            throw new CustomUserMessageAuthenticationException('Authentication failed: ' . $e->getMessage());
+            throw new CustomUserMessageAuthenticationException($e->getMessage());
         }
     }
 
