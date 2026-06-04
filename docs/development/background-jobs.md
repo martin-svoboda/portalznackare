@@ -1,76 +1,39 @@
 # Background Jobs (Symfony Messenger)
 
-> **Asynchronní zpracování** úloh v pozadí pro náročné operace jako odesílání do INSYZ systému
+> **Asynchronní zpracování** úloh v pozadí — primárně odesílání hlášení do systému INSYZ.
 
 ## Přehled
 
-Symfony Messenger poskytuje asynchronní zpracování úloh v pozadí pomocí Message Bus pattern. Systém je optimalizovaný pro low-volume produkci (jednotky příkazů denně).
+Symfony Messenger zpracovává úlohy mimo HTTP request přes Message Bus pattern. Zprávy jsou persistované v PostgreSQL (`doctrine` transport) a konzumovány **trvalým systemd workerem**, jeden pro každé prostředí (prod, dev).
 
-## On-demand Worker Systém
+## Architektura
 
-**Kontext:** Optimalizace pro low-volume produkci místo trvalých workerů.
-
-### WorkerManagerService
-
-```php
-// src/Service/WorkerManagerService.php
-class WorkerManagerService {
-    public function startSingleTaskWorker(): bool {
-        $this->cleanupStuckWorkers(); // Vyčistí zaseknuté procesy > 5 minut
-        
-        if ($this->isWorkerRunning()) {
-            return true;
-        }
-        
-        // Spustí worker s timeout 60s pro jednu úlohu
-        $command = sprintf(
-            'cd %s && timeout 60 %s %s messenger:consume async --limit=1 --quiet > /dev/null 2>&1 &',
-            escapeshellarg($this->projectRoot),
-            escapeshellarg($phpBinary),
-            escapeshellarg($consolePath)
-        );
-        
-        exec($command);
-        return $this->waitForWorkerStart();
-    }
-}
+```
+HTTP request (PortalController)
+    │
+    ├─ dispatch(SendToInsyzMessage)        → uloží zprávu do messenger_messages
+    ├─ response → state='send'              (frontend pak sleduje změnu)
+    │
+    │  (asynchronně, na pozadí)
+    ▼
+systemd worker (portal-messenger-<env>)
+    │
+    └─ SendToInsyzHandler::__invoke()
+        │
+        ├─ generateReportXml()
+        ├─ InsyzService::submitReportToInsyz()  →  MSSQL: trasy.ZP_Zapis_XML
+        ├─ úspěch  →  state='submitted'  + history 'insyz_submitted'
+        └─ chyba   →  state='rejected'   + history 'insyz_error'
+                       (shouldRetry → re-throw → Messenger retry policy)
 ```
 
-### Smart Retry Logic
+**Žádný sync fallback ani on-demand worker přes `exec()`.** Pokud worker neběží, zprávy se hromadí ve frontě a po obnovení workeru se zpracují.
 
-```php
-#[AsMessageHandler]
-class SendToInsyzHandler {
-    private function shouldRetry(\Exception $e): bool {
-        $message = strtolower($e->getMessage());
-        
-        // Retry pro dočasné chyby
-        if (strpos($message, 'timeout') !== false ||
-            strpos($message, 'connection') !== false) {
-            return true;
-        }
-        
-        // No retry pro permanent chyby
-        if (strpos($message, 'authentication') !== false ||
-            strpos($message, 'invalid') !== false) {
-            return false;
-        }
-        
-        return true; // Default: retry
-    }
-}
-```
+## Messenger konfigurace
 
-## Timeout Protection (3-vrstvé)
-
-1. **Frontend:** 45s timeout s AbortController (useFormSaving.js)
-2. **Backend:** 30s database statement timeout (PortalController)  
-3. **Worker:** 60s process timeout (WorkerManagerService)
-
-## Konfigurace
+`config/packages/messenger.yaml`:
 
 ```yaml
-# config/packages/messenger.yaml
 framework:
     messenger:
         transports:
@@ -87,146 +50,168 @@ framework:
                     max_retries: 3
                     delay: 1000
                     multiplier: 2
+                    max_delay: 10000
 ```
 
-## INSYZ Submission Workflow
+## Retry logika
 
-```php
-// 1. Controller: dispatch + start worker
-if ($reportDto->state === 'send') {
-    $this->messageBus->dispatch($message);
-    $this->workerManager->startSingleTaskWorker();
-}
+Handler rozlišuje retryable a permanent chyby (`SendToInsyzHandler::shouldRetry()`):
 
-// 2. Handler: process with smart retry
-public function __invoke(SendToInsyzMessage $message): void {
-    try {
-        $xmlData = $this->xmlGenerator->generateReportXml($reportData);
-        $result = $this->insyzService->submitReportToInsyz($xmlData, $userIntAdr);
-        $report->setState(ReportStateEnum::SUBMITTED);
-    } catch (\Exception $e) {
-        if ($this->shouldRetry($e)) {
-            throw $e; // Re-throw pro retry
-        }
-        // Permanent failure - no retry
-    }
-}
-```
+- **Retry** — `timeout`, `connection`, `network`, `temporary`, `unavailable` a neznámé chyby
+- **No retry** — `authentication`, `authorization`, `invalid`, `malformed`, `parse error`
 
-## Database Transport
+Při permanent chybě se report označí `rejected` a zpráva NENÍ re-thrown → messenger ji nepokouší dál.
 
-- **Výhoda:** Spolehlivé ukládání jobs v PostgreSQL
-- **Konzumace:** Automatická přes on-demand worker
-- **Monitoring:** Jobs jsou viditelné v `messenger_messages` tabulce
-- **Cleanup:** Automatické odstraňování zaseknutých procesů
+## Production setup (systemd)
 
-## Error Handling Patterns
+Aplikace má dvě nezávislé instance na stejném serveru:
 
-```javascript
-// Frontend timeout protection
-const controller = new AbortController();
-const timeoutId = setTimeout(() => controller.abort(), 45000);
+| Prostředí | Cesta | Service |
+|---|---|---|
+| Produkce | `/www/hosting/portalznackare.cz/www` | `portal-messenger-prod` |
+| Dev | `/www/hosting/portalznackare.cz/dev` | `portal-messenger-dev` |
 
-try {
-    const response = await api.prikazy.saveReport(data, { 
-        signal: controller.signal,
-        timeout: 45000 
-    });
-} catch (error) {
-    if (error.name === 'AbortError') {
-        showNotification('warning', 'Odesílání trvá déle než obvykle...');
-    }
-} finally {
-    clearTimeout(timeoutId);
-}
-```
+Service soubory jsou v repu: `deploy/portal-messenger-prod.service`, `deploy/portal-messenger-dev.service`.
 
-## Development Commands
+### Instalace / aktualizace
+
+CI deploy (`.github/workflows/deploy.yml`) volá automaticky po nasazení kódu:
 
 ```bash
-# Test messenger worker
-php bin/console messenger:consume async --limit=1
+./deploy/setup-messenger.sh prod    # nebo dev
+```
 
-# Kontrola zaseknutých procesů
-ps aux | grep messenger:consume
+Skript zkopíruje aktuální `.service` soubor do `/etc/systemd/system/`, udělá `daemon-reload`, povolí a (re)startuje službu. Je idempotentní — opakované spuštění jen restartuje.
 
-# Sledování queue
+### Klíčové parametry workeru
+
+- `--time-limit=3600` — worker se sám ukončí po hodině (systemd ho restartuje); brání memory leakům dlouhoběžícího PHP
+- `--memory-limit=256M` — pokud worker překročí, sám se ukončí
+- `Restart=always`, `RestartSec=10` — automatický restart při pádu
+- Logy jdou do journalu (`journalctl -u portal-messenger-<env>`)
+
+### Bezpečnostní hardening
+
+V service souboru:
+- `ProtectSystem=strict` — write povolen jen v `ReadWritePaths`
+- `ProtectHome=true`, `PrivateTmp=true`, `NoNewPrivileges=true`
+- `ReadWritePaths=<projekt>/var` — worker zapisuje jen do `var/`
+
+### Citlivé proměnné
+
+Service soubor **nikdy** neobsahuje DATABASE_URL ani jiné credentials. Worker je spuštěn z `WorkingDirectory=` a Symfony si je načte z `.env.local` projektu.
+
+## Monitoring
+
+```bash
+# Stav workera
+systemctl status portal-messenger-prod
+systemctl status portal-messenger-dev
+
+# Živé logy
+sudo journalctl -u portal-messenger-prod -f
+sudo journalctl -u portal-messenger-prod --since "1 hour ago"
+
+# Velikost fronty
+php bin/console dbal:run-sql "SELECT COUNT(*), queue_name FROM messenger_messages GROUP BY queue_name"
+
+# Statistiky
 php bin/console messenger:stats
-
-# Vyčištění failed jobs
-php bin/console messenger:failed:retry
 ```
 
-## Production Setup
+## Frontend chování
 
-**On-demand systém funguje i v produkci** - worker se spouští automaticky při submit operacích přes `WorkerManagerService`.
-
-### Monitoring Checklist
-
-```bash
-# 1. Zkontroluj že PHP má práva spouštět procesy
-ps aux | grep php
-
-# 2. Zkontroluj timeout nástroje jsou dostupné
-which timeout
-
-# 3. Zkontroluj write práva pro logy
-ls -la var/log/
-
-# 4. Test on-demand worker
-php bin/console messenger:consume async --limit=1
-```
-
-### Production Troubleshooting
-
-**On-demand worker se nespouští:**
-```bash
-# Zkontroluj zaseknuté procesy
-ps aux | grep messenger:consume
-
-# Vyčisti zaseknuté procesy (WorkerManagerService to dělá automaticky)
-pkill -f "messenger:consume"
-```
-
-**Jobs se hromadí:**
-```bash
-# Zkontroluj queue
-php bin/console messenger:stats
-
-# Manuální zpracování při potřebě
-php bin/console messenger:consume async --limit=10
-```
+Frontend má 45s timeout (`useFormSaving.js`). Po `state='send'` ukáže "Odesílání do INSYZ probíhá..." a periodicky polluje stav reportu, dokud nepřejde na `submitted` nebo `rejected`.
 
 ## Troubleshooting
 
-### Worker neběží po submit
-```bash
-# Zkontroluj on-demand worker
-ps aux | grep messenger:consume
+### Hlášení zůstávají ve stavu `send` (Odesílání do INSYZ)
 
-# Manuální spuštění
-php bin/console messenger:consume async --limit=1
+Worker buď neběží, nebo padá v cyklu.
+
+```bash
+systemctl status portal-messenger-prod          # Active?
+sudo journalctl -u portal-messenger-prod --since "10 minutes ago" --no-pager
+
+# Pokud služba neexistuje vůbec:
+ls /etc/systemd/system/portal-messenger-*.service
+# pokud chybí, deploy.yml ji měl nainstalovat — viz Setup výše
 ```
 
-### Jobs se hromadí v queue
-```bash
-# Zkontroluj počet čekajících jobs
-php bin/console messenger:stats
+Klíčový diagnostický dotaz — kolik visí zpráv ve frontě a jaká je poslední history u stuck reportu:
 
-# Spusť více workerů
-php bin/console messenger:consume async --limit=5
+```bash
+php bin/console dbal:run-sql "SELECT COUNT(*) FROM messenger_messages WHERE queue_name='default'"
+
+php bin/console dbal:run-sql "SELECT r.id, r.state, (r.history::jsonb -> -1 ->> 'action') AS last_action FROM reports r WHERE r.state = 'send' ORDER BY r.date_updated DESC LIMIT 10"
+```
+
+Pokud `last_action = dispatch_to_insyz` a zpráva čeká ve frontě → worker není zapnutý nebo padá.
+
+### Manuální zpracování zaseknutých zpráv
+
+Pokud z nějakého důvodu worker nemůže běžet a chceš jednorázově dohnat frontu:
+
+```bash
+cd /www/hosting/portalznackare.cz/www
+php bin/console messenger:consume async --limit=100 --time-limit=600 -vv
 ```
 
 ### Failed jobs
-```bash
-# Zobraz failed jobs
-php bin/console messenger:failed:show
 
-# Retry failed jobs
-php bin/console messenger:failed:retry
+Zprávy, které vyčerpaly retry policy, jdou do transportu `failed`:
+
+```bash
+php bin/console messenger:failed:show
+php bin/console messenger:failed:retry         # zkusit znovu
+php bin/console messenger:failed:remove <id>   # zahodit
 ```
+
+### Restart workera bez deploye
+
+Po manuální úpravě konfigurace:
+
+```bash
+sudo systemctl restart portal-messenger-prod
+```
+
+### Audit chyb INSYZ submission
+
+Každé volání `trasy.ZP_Zapis_XML` se loguje do `insyz_audit_logs`:
+
+```bash
+php bin/console dbal:run-sql "SELECT created_at, status, error_message, duration_ms FROM insyz_audit_logs WHERE procedure_name = 'trasy.ZP_Zapis_XML' ORDER BY created_at DESC LIMIT 20"
+```
+
+## Development workflow
+
+Lokálně (DDEV) typicky spouštíš worker manuálně, ne přes systemd:
+
+```bash
+ddev exec php bin/console messenger:consume async --limit=10 -vv
+```
+
+Nebo zpracuj jednu zprávu a hned ukonči:
+
+```bash
+ddev exec php bin/console messenger:consume async --limit=1 --time-limit=30 -vvv
+```
+
+## Klíčové soubory
+
+| Soubor | Účel |
+|---|---|
+| `src/Message/SendToInsyzMessage.php` | DTO zprávy |
+| `src/MessageHandler/SendToInsyzHandler.php` | Handler — XML, MSSQL, state transitions |
+| `src/Controller/Api/PortalController.php` | Dispatch v `POST /api/portal/report` |
+| `src/Service/InsyzService.php` | `submitReportToInsyz()` — MSSQL `trasy.ZP_Zapis_XML` |
+| `src/Service/XmlGenerationService.php` | Generování XML pro INSYZ |
+| `config/packages/messenger.yaml` | Transport + retry config |
+| `deploy/portal-messenger-*.service` | systemd units |
+| `deploy/setup-messenger.sh` | Instalátor systemd unitů (volá CI) |
+| `.github/workflows/deploy.yml` | CI deploy včetně setup-messenger.sh |
 
 ---
 
-**Related:** [Hlášení příkazů](../features/hlaseni-prikazu.md) | [Development Guide](development.md)  
-**Updated:** 2025-08-07
+**Related:** [Hlášení příkazů](../features/hlaseni-prikazu.md) | [INSYZ Integration](../features/insyz-integration.md)
+**Updated:** 2026-06-04

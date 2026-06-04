@@ -1,19 +1,12 @@
-# Generic template — pro konkrétní nasazení viz:
-#   deploy/portal-messenger-prod.service  (produkční instance)
-#   deploy/portal-messenger-dev.service   (dev instance)
-#
-# DATABASE_URL a další citlivé env proměnné jsou v projektu v .env.local,
-# Symfony si je načte z WorkingDirectory automaticky. Nikdy je sem nedávat.
-
 [Unit]
-Description=Portal Znackar Messenger Worker
+Description=Portal Znackar Messenger Worker (prod)
 After=network.target postgresql.service
 
 [Service]
 Type=simple
 User=www-data
 Group=www-data
-WorkingDirectory=PLACEHOLDER_PATH
+WorkingDirectory=/www/hosting/portalznackare.cz/www
 Environment=APP_ENV=prod
 ExecStart=/usr/bin/php bin/console messenger:consume async --time-limit=3600 --memory-limit=256M -v
 ExecReload=/bin/kill -HUP $MAINPID
@@ -24,13 +17,13 @@ StartLimitBurst=5
 
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=portal-messenger
+SyslogIdentifier=portal-messenger-prod
 
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
 PrivateTmp=true
-ReadWritePaths=PLACEHOLDER_PATH/var
+ReadWritePaths=/www/hosting/portalznackare.cz/www/var
 
 [Install]
 WantedBy=multi-user.target

@@ -1,69 +1,57 @@
 #!/bin/bash
+#
+# Instaluje (nebo aktualizuje) systemd unit pro Symfony Messenger worker.
+#
+# Použití:
+#   ./deploy/setup-messenger.sh prod    # /www/hosting/portalznackare.cz/www
+#   ./deploy/setup-messenger.sh dev     # /www/hosting/portalznackare.cz/dev
+#
+# Skript je idempotentní — pokud služba už existuje, nakopíruje aktuální
+# unit soubor a službu restartuje.
 
-# Setup script for Messenger Worker on production/dev server
+set -euo pipefail
 
-set -e
-
-# Konfigurace
-SERVICE_NAME="portal-messenger"
-APP_PATH="/var/www/portalznackare"
-SERVICE_FILE="$APP_PATH/deploy/messenger-worker.service"
-SYSTEMD_PATH="/etc/systemd/system/$SERVICE_NAME.service"
-
-echo "🚀 Nastavuji Messenger Worker pro Portal Značkaře..."
-
-# 1. Kontrola že jsme ve správném adresáři
-if [ ! -f "bin/console" ]; then
-    echo "❌ Spusťte script z root adresáře aplikace"
+ENV_NAME="${1:-}"
+if [ "$ENV_NAME" != "prod" ] && [ "$ENV_NAME" != "dev" ]; then
+    echo "❌ Použití: $0 <prod|dev>"
     exit 1
 fi
 
-# 2. Kontrola systémových požadavků
+SERVICE_NAME="portal-messenger-${ENV_NAME}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SERVICE_FILE="$SCRIPT_DIR/${SERVICE_NAME}.service"
+SYSTEMD_PATH="/etc/systemd/system/${SERVICE_NAME}.service"
+
+if [ ! -f "$SERVICE_FILE" ]; then
+    echo "❌ Service file nenalezen: $SERVICE_FILE"
+    exit 1
+fi
+
 if ! command -v systemctl &> /dev/null; then
-    echo "❌ systemd není dostupný. Worker je potřeba spustit manuálně."
+    echo "❌ systemd není dostupný"
     exit 1
 fi
 
-# 3. Zastavení existujícího servisu (pokud běží)
-if systemctl is-active --quiet "$SERVICE_NAME"; then
-    echo "📥 Zastavuji existující worker..."
-    sudo systemctl stop "$SERVICE_NAME"
-fi
+echo "📋 Instaluji ${SERVICE_NAME} (zdroj: ${SERVICE_FILE})"
+cp "$SERVICE_FILE" "$SYSTEMD_PATH"
 
-# 4. Kopírování service souboru
-echo "📋 Kopíruji systemd service soubor..."
-sudo cp "$SERVICE_FILE" "$SYSTEMD_PATH"
+systemctl daemon-reload
 
-# 5. Úprava cest v service souboru
-echo "⚙️  Upravuji cesty v service souboru..."
-sudo sed -i "s|/var/www/portalznackare|$APP_PATH|g" "$SYSTEMD_PATH"
-
-# 6. Reload systemd a povolení služby
-echo "🔄 Restartуji systemd..."
-sudo systemctl daemon-reload
-sudo systemctl enable "$SERVICE_NAME"
-
-# 7. Spuštění služby
-echo "▶️  Spouštím Messenger Worker..."
-sudo systemctl start "$SERVICE_NAME"
-
-# 8. Kontrola stavu
-sleep 2
-if systemctl is-active --quiet "$SERVICE_NAME"; then
-    echo "✅ Messenger Worker běží úspěšně!"
-    echo "📊 Status: $(sudo systemctl is-active $SERVICE_NAME)"
-    echo ""
-    echo "🔧 Užitečné příkazy:"
-    echo "   sudo systemctl status $SERVICE_NAME     # Status workeru"
-    echo "   sudo systemctl restart $SERVICE_NAME    # Restart workeru"
-    echo "   sudo journalctl -u $SERVICE_NAME -f     # Živé logy"
-    echo "   sudo systemctl stop $SERVICE_NAME       # Zastavení"
+if systemctl is-enabled --quiet "$SERVICE_NAME" 2>/dev/null; then
+    echo "🔄 Služba již povolena, restartuji"
+    systemctl restart "$SERVICE_NAME"
 else
-    echo "❌ Worker se nepodařilo spustit!"
-    echo "🔍 Kontrola logů:"
-    sudo journalctl -u "$SERVICE_NAME" --lines=20
-    exit 1
+    echo "▶️  Povoluji a spouštím službu"
+    systemctl enable --now "$SERVICE_NAME"
 fi
 
-echo ""
-echo "🎯 Worker je nakonfigurován pro automatické spuštění při startu serveru."
+sleep 2
+
+if systemctl is-active --quiet "$SERVICE_NAME"; then
+    echo "✅ ${SERVICE_NAME} běží"
+    systemctl is-active "$SERVICE_NAME"
+else
+    echo "❌ ${SERVICE_NAME} se nepodařilo spustit"
+    journalctl -u "$SERVICE_NAME" --no-pager --lines=30
+    exit 1
+fi

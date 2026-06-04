@@ -39,7 +39,8 @@ class PortalController extends AbstractController {
         // Uloží hlášení jako draft nebo odešle ke zpracování
         if ($reportDto->state === 'send') {
             $this->messageBus->dispatch($message);
-            $this->workerManager->startSingleTaskWorker();
+            // Zpracování probíhá v systemd workeru (portal-messenger-<env>)
+            // Detail viz docs/development/background-jobs.md
         }
     }
 }
@@ -50,25 +51,6 @@ Report ukládá strukturovaná data jako JSON:
 - **Identifikace:** ID příkazu, číslo příkazu, uživatel
 - **Data:** Část A (vyúčtování), Část B (činnost), kompenzace
 - **Workflow:** draft → send → submitted → approved/rejected
-
-### 3. **WorkerManagerService** - On-demand zpracování
-```php
-// src/Service/WorkerManagerService.php
-class WorkerManagerService {
-    public function startSingleTaskWorker(): bool {
-        // Spustí worker pouze pro jednu úlohu
-        $this->cleanupStuckWorkers();
-        
-        if ($this->isWorkerRunning()) {
-            return true;
-        }
-        
-        // Timeout 60s, limit=1
-        exec($command);
-        return $this->waitForWorkerStart();
-    }
-}
-```
 
 ## ⚛️ React Frontend
 
@@ -190,26 +172,23 @@ onClick(saveDraft): {
     is_editable: true   // Lze pokračovat později
 }
 
-// Submit workflow  
+// Submit workflow
 onClick(submitForApproval): {
     state: 'send',            // Trigger async processing
-    workerManager.start(),    // Spustí on-demand worker
-    polling: true            // Sleduje stav zpracování
+    polling: true             // Sleduje změnu state → submitted/rejected
 }
 ```
 
 ## 📤 INSYZ Submission - Asynchronní zpracování
 
-### On-demand worker systém (2025-08-06)
-**Optimalizace:** Pro nízký objem (jednotky příkazů denně)
+Trvalý systemd worker (`portal-messenger-prod` / `-dev`) konzumuje frontu zpráv z `messenger_messages` a posílá hlášení do INSYZ přes stored procedure `trasy.ZP_Zapis_XML`. Kompletní popis architektury, retry policy a troubleshootingu: [docs/development/background-jobs.md](../development/background-jobs.md).
 
-```javascript
-// Workflow odeslání
-1. Frontend: "Odeslat ke schválení" 
-2. Backend: state='send' → dispatch message
-3. Worker: startSingleTaskWorker() → XML generace
-4. INSYZ: Submit přes stored procedure
-5. Status: submitted/rejected → frontend polling
+```
+1. Frontend: "Odeslat ke schválení"
+2. Backend: state='send' → messageBus->dispatch()
+3. Worker (systemd): XML generation → MSSQL submit
+4. Status: state='submitted' nebo 'rejected'
+5. Frontend: polling state → notifikace uživateli
 ```
 
 ### Smart retry logika

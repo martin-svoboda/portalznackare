@@ -1,0 +1,29 @@
+[Unit]
+Description=Portal Znackar Messenger Worker (dev)
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/www/hosting/portalznackare.cz/dev
+Environment=APP_ENV=dev
+ExecStart=/usr/bin/php bin/console messenger:consume async --time-limit=3600 --memory-limit=256M -v
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=10
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=portal-messenger-dev
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/www/hosting/portalznackare.cz/dev/var
+
+[Install]
+WantedBy=multi-user.target
