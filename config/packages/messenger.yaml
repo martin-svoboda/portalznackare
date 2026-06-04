@@ -27,11 +27,12 @@ framework:
         routing:
             App\Message\SendToInsyzMessage:
                 senders: ['async']
+                # INSYZ submission NENÍ idempotentní - každý retry vytvoří v MSSQL
+                # duplicitní záznam (stored procedure trasy.ZP_Zapis_XML nemá
+                # deduplikaci přes Cislo_ZP). Při selhání pošleme zprávu rovnou
+                # do failed transportu k ručnímu posouzení adminem.
                 retry_strategy:
-                    max_retries: 3
-                    delay: 1000
-                    multiplier: 2
-                    max_delay: 10000
+                    max_retries: 0
         
         # Failure transport for failed messages
         failure_transport: failed

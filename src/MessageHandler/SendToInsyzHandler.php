@@ -48,6 +48,18 @@ class SendToInsyzHandler
             return;
         }
 
+        // Idempotency guard - zpracovat jen pokud je report skutečně ve stavu 'send'.
+        // INSYZ submission NENÍ idempotentní (stored procedure vytvoří duplicitní záznam),
+        // takže pokud byla zpráva omylem doručena podruhé (restart workera, manuální
+        // re-dispatch), nesmíme report poslat znovu.
+        if ($report->getState() !== ReportStateEnum::SEND) {
+            $this->logger->warning('Skipping INSYZ submission - report not in send state', [
+                'report_id' => $reportId,
+                'current_state' => $report->getState()->value,
+            ]);
+            return;
+        }
+
         try {
             // Generovat XML z report dat
             $xmlData = $this->xmlGenerator->generateReportXml($reportData);

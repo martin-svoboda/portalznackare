@@ -6,6 +6,7 @@ use App\Entity\InsyzAuditLog;
 use App\Entity\User;
 use App\Repository\InsyzAuditLogRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\Persistence\ManagerRegistry;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -17,7 +18,8 @@ class InsyzAuditLogger
         private InsyzAuditLogRepository $auditLogRepository,
         private SystemOptionService $systemOptions,
         private RequestStack $requestStack,
-        private LoggerInterface $logger
+        private LoggerInterface $logger,
+        private ManagerRegistry $managerRegistry
     ) {
     }
 
@@ -94,7 +96,7 @@ class InsyzAuditLogger
             // Set request parameters (sanitized)
             if ($requestParams && $this->shouldLogRequestParams()) {
                 $sanitizedParams = $auditLog->sanitizeRequestParams($requestParams);
-                $auditLog->setRequestParams($sanitizedParams);
+                $auditLog->setRequestParams($this->scrubUtf8($sanitizedParams));
             }
 
             // Set response summary (not full response)
@@ -107,13 +109,13 @@ class InsyzAuditLogger
                 );
 
                 if ($isAlreadyProcessed) {
-                    // Už je to zpracovaný summary z InsyzService, použij přímo
-                    $auditLog->setResponseSummary($responseData);
+                    $summary = $responseData;
                 } else {
-                    // Raw data, zpracuj pomocí entity metody
-                    $responseSummary = $auditLog->createResponseSummary($responseData);
-                    $auditLog->setResponseSummary($responseSummary);
+                    $summary = $auditLog->createResponseSummary($responseData);
                 }
+                // MSSQL může vrátit data v jiné kolaci (Windows-1250) — bez scrub
+                // by JSON serializace selhala a uzavřela EntityManager
+                $auditLog->setResponseSummary($this->scrubUtf8($summary));
             }
 
             // Set request context from current HTTP request
@@ -123,15 +125,38 @@ class InsyzAuditLogger
             $this->entityManager->persist($auditLog);
             $this->entityManager->flush();
 
-        } catch (\Exception $e) {
-            // Never let audit logging break the application
+        } catch (\Throwable $e) {
+            // Audit logging selhání NIKDY nesmí rozbít hlavní operaci.
+            // Pokud flush uzavřel EntityManager, je třeba ho resetovat,
+            // jinak by všechny následující flushy (i z jiných services) padaly.
             $this->logger->error('Failed to log INSYZ API call', [
                 'endpoint' => $endpoint,
                 'method' => $method,
                 'int_adr' => $intAdr ?? $user?->getIntAdr(),
                 'error' => $e->getMessage()
             ]);
+
+            if (!$this->entityManager->isOpen()) {
+                $this->managerRegistry->resetManager();
+            }
         }
+    }
+
+    /**
+     * Recursively normalize strings to valid UTF-8 (PHP 8.0+ mb_scrub).
+     * MSSQL může vracet znaky v jiné kolaci (Windows-1250) — bez sanitizace
+     * by Doctrine při JSON enkódování pro `jsonb` sloupec selhal a EntityManager
+     * by se uzavřel.
+     */
+    private function scrubUtf8(mixed $value): mixed
+    {
+        if (is_string($value)) {
+            return mb_scrub($value, 'UTF-8');
+        }
+        if (is_array($value)) {
+            return array_map(fn($v) => $this->scrubUtf8($v), $value);
+        }
+        return $value;
     }
 
     /**
