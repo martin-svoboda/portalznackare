@@ -23,7 +23,7 @@ class TimService
      * - Explicitní fill barvy (ne currentColor)
      * - Base64 kódování pro použití v <img> tagu
      */
-    private function renderTimArrowShape(string $color, string $shape = 'PA', bool $forPdf = false): string
+    private function renderTimArrowShape(string $color, string $shape = 'PA', bool $forPdf = false, string $bgColor = '#fff'): string
     {
         $svg = '';
 
@@ -36,11 +36,18 @@ class TimService
 						</svg>';
                 break;
 
+            case 'JE':
+                // Jezdecká - kruh v barvě vedoucí trasy. Aktivuje se přesunem JZT.
+                $svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 26 26">
+							<circle cx="13" cy="13" r="13" fill="'.$color.'"/>
+						</svg>';
+                break;
+
             case 'NS':
             case 'SN':
                 $svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 26 26">
 							<rect x="0.905" y="0.758" width="24.979" height="25.018" fill="'.$color.'"/>
-							<path d="M1.621,7.261l17.864,17.864l-17.864,-0l0,-17.864Zm23.526,12.102l-17.865,-17.864l17.865,-0l-0,17.864Z" fill="#fff"/>
+							<path d="M1.621,7.261l17.864,17.864l-17.864,-0l0,-17.864Zm23.526,12.102l-17.865,-17.864l17.865,-0l-0,17.864Z" fill="'.$bgColor.'"/>
 						</svg>';
                 break;
 
@@ -71,7 +78,7 @@ class TimService
             case 'MI':
                 $svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 26 26">
 							<rect x="0.02" y="0.758" width="24.979" height="25.018" fill="'.$color.'"/>
-							<path d="M0.649,1.151l24.06,24.06l-24.06,0l-0,-24.06Z" fill="#fff"/>
+							<path d="M0.649,1.151l24.06,24.06l-24.06,0l-0,-24.06Z" fill="'.$bgColor.'"/>
 						</svg>';
                 break;
 
@@ -231,6 +238,13 @@ class TimService
     {
         $html = '';
         $shape = ($item['Druh_Odbocky_Kod'] ?? null) ?: ($item['Druh_Znaceni_Kod'] ?? null) ?: 'PA';
+        $presun = $item['Druh_Presunu'] ?? null;
+
+        // JZT (jezdecká) má vždy kruh v hrotu, bez ohledu na shape - řízeno přesunem.
+        if ('JZT' === strtoupper($presun ?? '')) {
+            $shape = 'JE';
+        }
+
         $html .= '<table class="shape-table" style="width: 50px; text-align: center; ">';
         $html .= '<tr><td style="padding: 0;">';
 
@@ -247,7 +261,10 @@ class TimService
         }
 
         $html .= '<div style="margin: 4px; float:'.('L' === $direction ? 'right' : 'left').'; '.('P' === $direction && $pasova ? 'transform: scaleX(-1);' : '').'">';
-        $html .= $this->renderTimArrowShape($vedouciBarva, $shape, true);
+        // Podklad vyřezávaných detailů (NS/SN/MI) = upozorňovací barva přesunu (jako uvnitř značek):
+        // PZT → bílá, CZT/CZS → žlutá, LZT → oranžová. NE tabulkový podklad ($barvaPodkladu).
+        $upozornovaci = $this->colorService->barvaDlePresunu($presun);
+        $html .= $this->renderTimArrowShape($vedouciBarva, $shape, true, $upozornovaci);
         $html .= '</div>';
 
         if ($forPdf) {

@@ -16,6 +16,7 @@ import {
 } from '../utils/attachmentUtils';
 import {calculateExecutionDate} from '../utils/compensationCalculator';
 import {toISODateString} from '../../../utils/dateUtils';
+import {PREDMETY_BEZ_LETOPOCTU} from '../utils/validationUtils';
 
 const statusOptions = [
     {value: "1", label: "1 - Správný text a dokonalý stav", color: "green"},
@@ -227,8 +228,8 @@ export const PartBForm = ({formData, setFormData, head, useky, predmety, prikazI
             const originalItem = timData.items.find(item => item.ID_PREDMETY?.toString() === status.ID_PREDMETY?.toString());
 
             // For states 1-2, additional data is needed
-            const isSponzor = originalItem?.Druh_Predmetu && 'P' === originalItem.Druh_Predmetu.toUpperCase();
-            const hasYear = isSponzor || (status.Rok_Vyroby !== null && status.Rok_Vyroby !== undefined);
+            const bezLetopoctu = originalItem?.Druh_Predmetu && PREDMETY_BEZ_LETOPOCTU.includes(originalItem.Druh_Predmetu.toUpperCase());
+            const hasYear = bezLetopoctu || (status.Rok_Vyroby !== null && status.Rok_Vyroby !== undefined);
 
             // Najdeme původní item aby mohli zkontrolovat jestli je to směrovka
             const isArrow = originalItem?.Druh_Predmetu && 'S' === originalItem.Druh_Predmetu.toUpperCase();
@@ -358,7 +359,8 @@ export const PartBForm = ({formData, setFormData, head, useky, predmety, prikazI
                                                             {timGroup.items.map((item, index) => {
                                                                 const itemStatus = getItemStatus(timGroup.EvCi_TIM, item);
                                                                 const isArrow = item.Druh_Predmetu_Naz?.toLowerCase().includes('směrovka');
-                                                                const needsAdditionalData = itemStatus?.Zachovalost !== 4 && item?.Druh_Predmetu !== 'P' && item?.Druh_Predmetu !== 'I';
+                                                                const needsAdditionalData = itemStatus?.Zachovalost !== 4
+                                                                    && !PREDMETY_BEZ_LETOPOCTU.includes(item?.Druh_Predmetu?.toUpperCase());
 
                                                                 return (
                                                                     <div key={getItemIdentifier(item)}

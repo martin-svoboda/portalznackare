@@ -67,9 +67,8 @@ class ZnackaService {
 		$tvar = $tvar ?? 'PA';
 		$presun = $presun ?? 'PZT';
 
-		// NS je vždy zelená pěší
+		// NS je vždy zelená (přesun může být cyklo i pěší).
 		if ( $tvar === "NS" || $tvar === "SN" ) {
-			$presun   = "PZT";
 			$barvaKod = "ZE";
 		}
 
@@ -81,6 +80,11 @@ class ZnackaService {
 
 		$vedouci    = $this->colorService->barvaDleKodu( $barvaKod );
 		$nazevBarvy = $this->colorService->nazevBarvy( $barvaKod );
+
+		// Jezdecká (JZT) má vždy stejný tvar bez ohledu na shape - kruh v bílém čtverci.
+		if ( "JZT" === strtoupper( $presun ) ) {
+			return $this->renderJezdeckaZnacka( $vedouci, $nazevBarvy, $size, $forPdf );
+		}
 
 		switch ( strtoupper( $tvar ) ) {
 			case "PA":
@@ -147,8 +151,8 @@ class ZnackaService {
 	private function renderZriceninaZnacka( string $upozornovaci, string $vedouci, string $nazev, int $size, bool $forPdf = false ): string {
 		$svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" title="' . $nazev . ' odbočka ke zřícenině">
 					<rect x="0" y="0" width="120" height="120" fill="' . $this->colorService->barvaDleKodu( "KH" ) . '"/>
-					<path d="M60.981,60.835l0,-30l-30,-0l0,60l60,-0l0,-30l-30,-0Z" fill="' . $vedouci . '"/>
-					<path d="M110.981,10.822l-100,0l0,100l100,0l0,-100Zm-45.057,15.013l-39.943,-0l0,70l70,-0l0,-39.939l-30.057,0l0,-30.061Z" fill="' . $upozornovaci . '"/>
+					<path d="M60,60l0,-30l-30,0l0,60l60,0l0,-30l-30,0Z" fill="' . $vedouci . '"/>
+					<path d="M110,10l-100,0l0,100l100,0l0,-100Zm-45,15l-40,0l0,70l70,0l0,-40l-30,0l0,-30Z" fill="' . $upozornovaci . '" fill-rule="evenodd"/>
 				</svg>';
 		return $forPdf ? $this->wrapSvgForPdf($svg, $size) : '<svg width="' . $size . '" height="' . $size . '" viewBox="0 0 120 120" title="' . $nazev . ' odbočka ke zřícenině">' . substr($svg, strpos($svg, '>') + 1);
 	}
@@ -159,8 +163,8 @@ class ZnackaService {
 	private function renderStudankaZnacka( string $upozornovaci, string $vedouci, string $nazev, int $size, bool $forPdf = false ): string {
 		$svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" title="' . $nazev . ' odbočka k prameni">
 					<rect x="0" y="0" width="120" height="120" fill="' . $this->colorService->barvaDleKodu( "KH" ) . '"/>
-					<path d="M90.525,60.822l0,0.013c0,16.557 -13.443,30 -30,30c-16.557,-0 -30,-13.443 -30,-30l0,-0.013l60,0Z" fill="' . $vedouci . '"/>
-					<path d="M110.525,10.822l-100,0l0,100l100,0l0,-100Zm-15.041,45c0,1.702 0.041,3.311 0.041,5.013c0,19.317 -15.683,35 -35,35c-19.317,-0 -35,-15.683 -35,-35l0,-5.013l69.959,0Z" fill="' . $upozornovaci . '"/>
+					<path d="M90,60c0,16.57 -13.43,30 -30,30c-16.57,0 -30,-13.43 -30,-30l60,0Z" fill="' . $vedouci . '"/>
+					<path d="M110,10l-100,0l0,100l100,0l0,-100Zm-15,45l0,5c0,19.33 -15.67,35 -35,35c-19.33,0 -35,-15.67 -35,-35l0,-5l70,0Z" fill="' . $upozornovaci . '"/>
 				</svg>';
 		return $forPdf ? $this->wrapSvgForPdf($svg, $size) : '<svg width="' . $size . '" height="' . $size . '" viewBox="0 0 120 120" title="' . $nazev . ' odbočka k prameni">' . substr($svg, strpos($svg, '>') + 1);
 	}
@@ -171,8 +175,8 @@ class ZnackaService {
 	private function renderVrcholZnacka( string $upozornovaci, string $vedouci, string $nazev, int $size, bool $forPdf = false ): string {
 		$svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" title="' . $nazev . ' odbočka k vyhlídce/vrcholu">
 					<rect x="0" y="0" width="120" height="120" fill="' . $this->colorService->barvaDleKodu( "KH" ) . '"/>
-					<path d="M60.948,35.835l30,55l-60,-0l30,-55Z" fill="' . $vedouci . '"/>
-					<path d="M110.948,10.822l-100,0l0,100l100,0l0,-100Zm-50,14.062l38.669,70.893l-77.337,0l38.668,-70.893Z" fill="' . $upozornovaci . '"/>
+					<polygon points="60,36 90,91 30,91" fill="' . $vedouci . '"/>
+					<path d="M110,10l-100,0l0,100l100,0l0,-100Zm-50,15l-38,71l76,0Z" fill="' . $upozornovaci . '" fill-rule="evenodd"/>
 				</svg>';
 		return $forPdf ? $this->wrapSvgForPdf($svg, $size) : '<svg width="' . $size . '" height="' . $size . '" viewBox="0 0 120 120" title="' . $nazev . ' odbočka k vyhlídce/vrcholu">' . substr($svg, strpos($svg, '>') + 1);
 	}
@@ -183,9 +187,9 @@ class ZnackaService {
 	private function renderPomnikZnacka( string $upozornovaci, string $vedouci, string $nazev, int $size, bool $forPdf = false ): string {
 		$svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" title="' . $nazev . ' odbočka k jinému zajímavému místu">
 					<rect x="0" y="0" width="120" height="120" fill="' . $this->colorService->barvaDleKodu( "KH" ) . '"/>
-					<path d="M75.565,60.835l0,-30l-30,-0l0,30l-35,-0l0,30l100,-0l0,-30l-35,-0Z" fill="' . $vedouci . '"/>
-					<path d="M110.565,55.835l0,-45.013l-100,0l0,45.013l30,-0l0,-30.013l40,0l0,30.013l30,-0Z" fill="' . $upozornovaci . '"/>
-					<rect x="10.565" y="95.835" width="100" height="15" fill="' . $upozornovaci . '"/>
+					<path d="M75,60l0,-30l-30,0l0,30l-35,0l0,30l100,0l0,-30l-35,0Z" fill="' . $vedouci . '"/>
+					<path d="M110,55l0,-45l-100,0l0,45l30,0l0,-30l40,0l0,30l30,0Z" fill="' . $upozornovaci . '"/>
+					<rect x="10" y="95" width="100" height="15" fill="' . $upozornovaci . '"/>
 				</svg>';
 		return $forPdf ? $this->wrapSvgForPdf($svg, $size) : '<svg width="' . $size . '" height="' . $size . '" viewBox="0 0 120 120" title="' . $nazev . ' odbočka k jinému zajímavému místu">' . substr($svg, strpos($svg, '>') + 1);
 	}
@@ -196,8 +200,8 @@ class ZnackaService {
 	private function renderMistniZnacka( string $upozornovaci, string $vedouci, string $nazev, int $size, bool $forPdf = false ): string {
 		$svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" title="' . $nazev . ' místní značka">
 					<rect x="0" y="0" width="120" height="120" fill="' . $this->colorService->barvaDleKodu( "KH" ) . '"/>
-					<polygon points="10,110 10,10 105,105 105,110" fill="' . $upozornovaci . '"/>
-					<polygon points="110,10 110,110 15,15 15,10" fill="' . $vedouci . '"/>
+					<polygon points="10,110 10,10 110,110" fill="' . $upozornovaci . '"/>
+					<polygon points="110,10 110,103 17,10" fill="' . $vedouci . '"/>
 				</svg>';
 		return $forPdf ? $this->wrapSvgForPdf($svg, $size) : '<svg width="' . $size . '" height="' . $size . '" viewBox="0 0 120 120" title="' . $nazev . ' místní značka">' . substr($svg, strpos($svg, '>') + 1);
 	}
@@ -212,6 +216,22 @@ class ZnackaService {
 					<path d="M10.048,38.416l71.716,71.716l-71.716,0l0,-71.716Zm100,43.432l-71.716,-71.716l71.716,0l0,71.716Z" fill="' . $upozornovaci . '"/>
 				</svg>';
 		return $forPdf ? $this->wrapSvgForPdf($svg, $size) : '<svg width="' . $size . '" height="' . $size . '" viewBox="0 0 120 120" title="Naučná stezka">' . substr($svg, strpos($svg, '>') + 1);
+	}
+
+	/**
+	 * Jezdecká značka (JZT) - kruh v bílém čtverci.
+	 * Aktivuje se přesunem JZT (řízeno v renderZnacka), ne tvarem.
+	 */
+	private function renderJezdeckaZnacka( string $vedouci, string $nazev, int $size, bool $forPdf = false ): string {
+		$khaki = $this->colorService->barvaDleKodu( "KH" );
+		$bila  = $this->colorService->barvaDleKodu( "BI" );
+		$svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" title="' . $nazev . ' jezdecká značka">
+					<rect x="0" y="0" width="120" height="120" fill="' . $khaki . '"/>
+					<rect x="10" y="10" width="100" height="100" fill="' . $bila . '"/>
+					<circle cx="60" cy="60" r="35" fill="' . $khaki . '"/>
+					<circle cx="60" cy="60" r="30" fill="' . $vedouci . '"/>
+				</svg>';
+		return $forPdf ? $this->wrapSvgForPdf($svg, $size) : '<svg width="' . $size . '" height="' . $size . '" viewBox="0 0 120 120" title="' . $nazev . ' jezdecká značka">' . substr($svg, strpos($svg, '>') + 1);
 	}
 
 	/**

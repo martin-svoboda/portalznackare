@@ -7,6 +7,11 @@ import { extractTeamMembers, calculateExecutionDate } from './compensationCalcul
 import { toISODateString } from '../../../utils/dateUtils';
 
 /**
+ * Typy předmětů (Druh_Predmetu), u kterých se nesbírá ani nevyžaduje letopočet (Rok_Vyroby)
+ */
+export const PREDMETY_BEZ_LETOPOCTU = ['K', 'T', 'I', 'B', 'Q', 'P', 'V', 'N'];
+
+/**
  * Validace minimálního počtu jízd za den pro každého člena
  */
 const validateMinimumTripsPerDay = (formData, head) => {
@@ -819,10 +824,10 @@ const validateTimItems = (formData, predmety, errors, warnings) => {
             // Conditional required fields based on item type and status
             const needsAdditionalData = itemStatus.Zachovalost && [1, 2].includes(parseInt(itemStatus.Zachovalost));
             const isArrow = item.Druh_Predmetu && 'S' === item.Druh_Predmetu.toUpperCase();
-            const isSponzor = item.Druh_Predmetu && 'P' === item.Druh_Predmetu.toUpperCase();
+            const bezLetopoctu = item.Druh_Predmetu && PREDMETY_BEZ_LETOPOCTU.includes(item.Druh_Predmetu.toUpperCase());
 
             // Required: Rok_Vyroby (for items that need additional data)
-            if (needsAdditionalData && !isSponzor) {
+            if (needsAdditionalData && !bezLetopoctu) {
                 const rok = parseInt(itemStatus.Rok_Vyroby);
                 if (!itemStatus.Rok_Vyroby || isNaN(rok) || rok < 1950 || rok > new Date().getFullYear() || String(itemStatus.Rok_Vyroby).length !== 4) {
                     missingItems++;

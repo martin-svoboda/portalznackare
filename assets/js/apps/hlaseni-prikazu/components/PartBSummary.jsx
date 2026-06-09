@@ -5,6 +5,7 @@ import {
     IconRoute
 } from '@tabler/icons-react';
 import {renderHtmlContent, replaceTextWithIcons} from "@utils/htmlUtils";
+import {PREDMETY_BEZ_LETOPOCTU} from '../utils/validationUtils';
 
 /**
  * Komponenta pro zobrazení kompletního souhrnu části B hlášení
@@ -82,7 +83,7 @@ export const PartBSummary = ({
                                         const itemId = item.ID_PREDMETY?.toString();
                                         const itemStatus = predmetyInTim[itemId];
                                         const isArrow = item.Druh_Predmetu && 'S' === item.Druh_Predmetu.toUpperCase();
-                                        const isSponzor = item.Druh_Predmetu && 'P' === item.Druh_Predmetu.toUpperCase();
+                                        const bezLetopoctu = item.Druh_Predmetu && PREDMETY_BEZ_LETOPOCTU.includes(item.Druh_Predmetu.toUpperCase());
                                         const needsAdditionalData = itemStatus?.Zachovalost && ['1', '2'].includes(itemStatus.Zachovalost?.toString());
                                         
                                         return (
@@ -105,7 +106,7 @@ export const PartBSummary = ({
                                                     )}
                                                 </td>
                                                 <td className={`${smallTextSize} py-2 pr-4`}>
-                                                    {needsAdditionalData && !isSponzor ? (
+                                                    {needsAdditionalData && !bezLetopoctu ? (
                                                         itemStatus?.Rok_Vyroby ? (
                                                             <span>{itemStatus.Rok_Vyroby}</span>
                                                         ) : (
