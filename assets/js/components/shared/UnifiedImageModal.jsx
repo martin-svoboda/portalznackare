@@ -11,7 +11,8 @@ import {
 } from '../../utils/imageEditorUtils';
 
 // Worker je kopírovaný webpackem z node_modules/pdfjs-dist/build (viz webpack.config.js)
-pdfjs.GlobalWorkerOptions.workerSrc = '/build/pdf-worker/pdf.worker.min.mjs';
+// Pozn.: ukládá se s příponou .js (ne .mjs), aby nginx vrátil application/javascript
+pdfjs.GlobalWorkerOptions.workerSrc = '/build/pdf-worker/pdf.worker.min.js';
 
 /**
  * Unifikovaný modal pro náhled a editaci obrázků

@@ -36,9 +36,11 @@ Encore
     .enableTypeScriptLoader()
 
     // Kopírovat PDF.js worker pro react-pdf náhledy
+    // Pozn.: kopírujeme jako .js (ne .mjs), aby nginx odeslal correct MIME type
+    // application/javascript místo application/octet-stream
     .copyFiles({
         from: './node_modules/pdfjs-dist/build',
-        to: 'pdf-worker/[name].[ext]',
+        to: 'pdf-worker/[name].js',
         pattern: /pdf\.worker\.min\.mjs$/,
     })
 
