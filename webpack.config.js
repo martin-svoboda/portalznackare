@@ -35,6 +35,13 @@ Encore
     .enableReactPreset()
     .enableTypeScriptLoader()
 
+    // Kopírovat PDF.js worker pro react-pdf náhledy
+    .copyFiles({
+        from: './node_modules/pdfjs-dist/build',
+        to: 'pdf-worker/[name].[ext]',
+        pattern: /pdf\.worker\.min\.mjs$/,
+    })
+
     .enableSingleRuntimeChunk()
     .cleanupOutputBeforeBuild()
     .enableBuildNotifications()

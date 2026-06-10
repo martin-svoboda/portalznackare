@@ -1,11 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { IconRotateClockwise, IconCrop, IconX, IconCheck, IconLoader2, IconEdit, IconEye, IconTrash } from '@tabler/icons-react';
+import { IconRotateClockwise, IconCrop, IconX, IconCheck, IconLoader2, IconEdit, IconEye, IconTrash, IconChevronLeft, IconChevronRight, IconAlertTriangle } from '@tabler/icons-react';
+import { Document, Page, pdfjs } from 'react-pdf';
+import 'react-pdf/dist/Page/AnnotationLayer.css';
+import 'react-pdf/dist/Page/TextLayer.css';
 import { log } from '../../utils/debug';
 import { showErrorToast, showSuccessToast } from '../../utils/notifications';
-import { 
-    calculateCropCoordinates, 
+import {
+    calculateCropCoordinates,
     validateCropArea
 } from '../../utils/imageEditorUtils';
+
+// Worker je kopírovaný webpackem z node_modules/pdfjs-dist/build (viz webpack.config.js)
+pdfjs.GlobalWorkerOptions.workerSrc = '/build/pdf-worker/pdf.worker.min.mjs';
 
 /**
  * Unifikovaný modal pro náhled a editaci obrázků
@@ -37,6 +43,11 @@ const UnifiedImageModal = ({
     const [dragStart, setDragStart] = useState(null);
     const [previewCrop, setPreviewCrop] = useState(null);
     const [isEditingCrop, setIsEditingCrop] = useState(false);
+    const pdfContainerRef = useRef(null);
+    const [numPages, setNumPages] = useState(null);
+    const [pageNumber, setPageNumber] = useState(1);
+    const [pdfError, setPdfError] = useState(null);
+    const [pdfPageWidth, setPdfPageWidth] = useState(800);
 
     const isPdf = file?.fileType === 'application/pdf';
 
@@ -59,6 +70,34 @@ const UnifiedImageModal = ({
             img.src = file.url || file.preview;
         }
     }, [isOpen, file, isPdf]);
+
+    // Reset PDF stavu při otevření nového souboru
+    useEffect(() => {
+        if (isOpen && isPdf) {
+            setNumPages(null);
+            setPageNumber(1);
+            setPdfError(null);
+        }
+    }, [isOpen, isPdf, file?.id]);
+
+    // Měření šířky kontejneru pro PDF stránku (responsivní render)
+    useEffect(() => {
+        if (!isPdf || !isOpen) return;
+
+        const updateWidth = () => {
+            if (pdfContainerRef.current) {
+                const containerWidth = pdfContainerRef.current.clientWidth - 32; // padding
+                setPdfPageWidth(Math.max(280, Math.min(containerWidth, 1100)));
+            }
+        };
+
+        updateWidth();
+        const resizeObserver = new ResizeObserver(updateWidth);
+        if (pdfContainerRef.current) {
+            resizeObserver.observe(pdfContainerRef.current);
+        }
+        return () => resizeObserver.disconnect();
+    }, [isPdf, isOpen, numPages]);
 
     // Resetovat stav při změně módu
     useEffect(() => {
@@ -650,15 +689,79 @@ const UnifiedImageModal = ({
 
                 {/* Content */}
                 {isPdf ? (
-                    // PDF mód - zobrazení v iframe
+                    // PDF mód - render pomocí react-pdf (PDF.js) místo iframe (CSP/prohlížeč problémy)
                     <div className="p-4">
-                        <div className="bg-gray-100 dark:bg-gray-900 rounded-lg overflow-hidden" style={{ height: '70vh' }}>
-                            <iframe
-                                src={file.url}
-                                title={file.fileName}
-                                className="w-full h-full border-0"
-                            />
+                        <div
+                            ref={pdfContainerRef}
+                            className="bg-gray-100 dark:bg-gray-900 rounded-lg overflow-auto flex justify-center p-4"
+                            style={{ height: '70vh' }}
+                        >
+                            <Document
+                                file={file.url}
+                                onLoadSuccess={({ numPages: total }) => {
+                                    log.info('UnifiedImageModal: PDF načteno', { numPages: total, fileName: file.fileName });
+                                    setNumPages(total);
+                                    setPageNumber(1);
+                                    setPdfError(null);
+                                }}
+                                onLoadError={(error) => {
+                                    log.error('UnifiedImageModal: Nepodařilo se načíst PDF', error);
+                                    setPdfError(error?.message || 'Neznámá chyba');
+                                }}
+                                loading={
+                                    <div className="flex flex-col items-center justify-center text-gray-600 dark:text-gray-300 py-12">
+                                        <IconLoader2 size={32} className="animate-spin mb-2" />
+                                        <span>Načítám PDF…</span>
+                                    </div>
+                                }
+                                error={
+                                    <div className="flex flex-col items-center justify-center text-red-600 dark:text-red-400 py-12">
+                                        <IconAlertTriangle size={32} className="mb-2" />
+                                        <span>Nepodařilo se načíst PDF{pdfError ? `: ${pdfError}` : ''}</span>
+                                        <a
+                                            href={file.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="btn btn--secondary mt-3"
+                                        >
+                                            Otevřít v novém okně
+                                        </a>
+                                    </div>
+                                }
+                            >
+                                <Page
+                                    pageNumber={pageNumber}
+                                    width={pdfPageWidth}
+                                    renderTextLayer={true}
+                                    renderAnnotationLayer={true}
+                                />
+                            </Document>
                         </div>
+
+                        {/* Navigace stránek + odkaz otevřít v novém okně */}
+                        {numPages > 1 && (
+                            <div className="flex items-center justify-center gap-3 mt-3">
+                                <button
+                                    onClick={() => setPageNumber(p => Math.max(1, p - 1))}
+                                    disabled={pageNumber <= 1}
+                                    className="btn btn--secondary"
+                                    aria-label="Předchozí stránka"
+                                >
+                                    <IconChevronLeft size={16} />
+                                </button>
+                                <span className="text-sm text-gray-700 dark:text-gray-300">
+                                    Stránka {pageNumber} z {numPages}
+                                </span>
+                                <button
+                                    onClick={() => setPageNumber(p => Math.min(numPages, p + 1))}
+                                    disabled={pageNumber >= numPages}
+                                    className="btn btn--secondary"
+                                    aria-label="Další stránka"
+                                >
+                                    <IconChevronRight size={16} />
+                                </button>
+                            </div>
+                        )}
 
                         {/* Footer pro PDF */}
                         <div className="flex justify-between mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
@@ -674,13 +777,23 @@ const UnifiedImageModal = ({
                                 <div></div>
                             )}
 
-                            <button
-                                onClick={handleClose}
-                                className="btn btn--secondary"
-                            >
-                                <IconX size={16} />
-                                Zavřít
-                            </button>
+                            <div className="flex gap-2">
+                                <a
+                                    href={file.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="btn btn--secondary"
+                                >
+                                    Otevřít v novém okně
+                                </a>
+                                <button
+                                    onClick={handleClose}
+                                    className="btn btn--secondary"
+                                >
+                                    <IconX size={16} />
+                                    Zavřít
+                                </button>
+                            </div>
                         </div>
                     </div>
                 ) : mode === 'preview' ? (
