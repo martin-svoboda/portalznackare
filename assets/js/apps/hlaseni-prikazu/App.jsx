@@ -3,6 +3,7 @@ import {Loader} from '../../components/shared/Loader';
 import {PrikazHead} from '../../components/prikazy/PrikazHead';
 import {StepNavigation} from './components/StepNavigation';
 import {StepContent} from './components/StepContent';
+import {TeamMismatchWarning} from './components/TeamMismatchWarning';
 import {useFormSaving} from './hooks/useFormSaving';
 import {useStatusPolling} from './hooks/useStatusPolling';
 import {useStepNavigation} from './hooks/useStepNavigation';
@@ -410,6 +411,80 @@ const App = () => {
         }
     );
 
+    // Příznak: po sjednocení složení značkařů vynutit uložení draftu
+    const [pendingTeamSyncSave, setPendingTeamSyncSave] = useState(false);
+
+    // Detekce nesouladu složení značkařů: aktuální hlavička příkazu vs. uložené hlášení
+    const teamMismatch = useMemo(() => {
+        if (!appData.head || !appData.teamMembers) return { added: [], removed: [] };
+        const headMembers = extractTeamMembers(appData.head);
+        const headAdrs = new Set(headMembers.map(m => m.INT_ADR));
+        const teamAdrs = new Set(appData.teamMembers.map(m => m.INT_ADR));
+        return {
+            added: headMembers.filter(m => !teamAdrs.has(m.INT_ADR)),
+            removed: appData.teamMembers.filter(m => !headAdrs.has(m.INT_ADR)),
+        };
+    }, [appData.head, appData.teamMembers]);
+
+    // Sjednocení složení značkařů s aktuální hlavičkou (po potvrzení uživatelem)
+    const handleSyncTeam = () => {
+        const headMembers = extractTeamMembers(appData.head);
+        const headAdrs = new Set(headMembers.map(m => m.INT_ADR));
+        const removedAdrs = new Set(
+            (appData.teamMembers || [])
+                .filter(m => !headAdrs.has(m.INT_ADR))
+                .map(m => m.INT_ADR)
+        );
+
+        setAppData(prev => {
+            const fd = { ...prev.formData };
+
+            // Odebrat reference na odebrané značkaře (přidané se jen zpřístupní k výběru)
+            if (Array.isArray(fd.Skupiny_Cest)) {
+                fd.Skupiny_Cest = fd.Skupiny_Cest.map(group => ({
+                    ...group,
+                    Cestujci: (group.Cestujci || []).filter(adr => !removedAdrs.has(adr)),
+                    Ridic: removedAdrs.has(group.Ridic) ? null : group.Ridic,
+                }));
+            }
+            if (removedAdrs.has(fd.Hlavni_Ridic)) {
+                fd.Hlavni_Ridic = null;
+            }
+            if (Array.isArray(fd.Noclezne)) {
+                fd.Noclezne = fd.Noclezne.map(n =>
+                    removedAdrs.has(n.Zaplatil) ? { ...n, Zaplatil: '' } : n
+                );
+            }
+            if (Array.isArray(fd.Vedlejsi_Vydaje)) {
+                fd.Vedlejsi_Vydaje = fd.Vedlejsi_Vydaje.map(e =>
+                    removedAdrs.has(e.Zaplatil) ? { ...e, Zaplatil: '' } : e
+                );
+            }
+            if (fd.Presmerovani_Vyplat && typeof fd.Presmerovani_Vyplat === 'object') {
+                const pv = { ...fd.Presmerovani_Vyplat };
+                Object.keys(pv).forEach(key => {
+                    if (removedAdrs.has(parseInt(key, 10)) || removedAdrs.has(pv[key])) {
+                        delete pv[key];
+                    }
+                });
+                fd.Presmerovani_Vyplat = pv;
+            }
+
+            return { ...prev, teamMembers: headMembers, formData: fd };
+        });
+
+        // saveDraft se po změně teamMembers přegeneruje (závisí na nich) -> uložit v effectu
+        setPendingTeamSyncSave(true);
+    };
+
+    // Po sjednocení složení uložit draft s aktualizovaným týmem a shodit příznak
+    useEffect(() => {
+        if (pendingTeamSyncSave && !saving) {
+            saveDraft(false);
+            setPendingTeamSyncSave(false);
+        }
+    }, [pendingTeamSyncSave, saving, saveDraft]);
+
 
     if (appData.loading) {
         return (
@@ -459,6 +534,16 @@ const App = () => {
                         <PrikazHead head={appData.head}/>
                     </div>
                 </div>
+
+                {/* Varování při změně složení značkařů v příkazu oproti uloženému hlášení */}
+                {appData.canEdit && (teamMismatch.added.length > 0 || teamMismatch.removed.length > 0) && (
+                    <TeamMismatchWarning
+                        added={teamMismatch.added}
+                        removed={teamMismatch.removed}
+                        onConfirm={handleSyncTeam}
+                        disabled={saving}
+                    />
+                )}
 
                 {/* Step Navigation */}
                 <StepNavigation

@@ -242,8 +242,9 @@ export const PartAForm = ({
                                                     name={`accommodation-amount-${accommodation.id}`}
                                                     type="number"
                                                     className="form__input"
-                                                    value={accommodation.Castka || 0}
+                                                    value={accommodation.Castka || ''}
                                                     onChange={(e) => updateAccommodation(accommodation.id, { Castka: Number(e.target.value) || 0 })}
+                                                    placeholder="0"
                                                     min="0"
                                                     step="1"
                                                     disabled={disabled}
@@ -368,8 +369,9 @@ export const PartAForm = ({
                                                     name={`expense-amount-${expense.id}`}
                                                     type="number"
                                                     className="form__input"
-                                                    value={expense.Castka || 0}
+                                                    value={expense.Castka || ''}
                                                     onChange={(e) => updateExpense(expense.id, { Castka: Number(e.target.value) || 0 })}
+                                                    placeholder="0"
                                                     min="0"
                                                     step="1"
                                                     disabled={disabled}

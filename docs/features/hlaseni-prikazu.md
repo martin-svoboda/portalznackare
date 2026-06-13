@@ -154,6 +154,17 @@ export function calculateCompensation(formData, priceList, userIntAdr) {
 4. Inicializace formuláře (prázdný nebo draft)
 ```
 
+#### Zdroj složení značkařů + varování při změně
+Tým značkařů (`teamMembers`) řídí členy skupin cest, plátce nocležného/výdajů i výpočet náhrad:
+- **Nové hlášení** → tým z živé hlavičky příkazu (`extractTeamMembers`, sloty `INT_ADR_1..3`).
+- **Existující hlášení** → tým z uloženého snapshotu `reportData.znackari` (zazálohuje se při každém uložení v `useFormSaving`).
+
+Když se po vzniku hlášení změní složení značkařů v příkazu (přidání/odebrání), snapshot je zastaralý. `App.jsx` proto detekuje nesoulad (`teamMismatch`) a pod hlavičkou zobrazí komponentu **`TeamMismatchWarning`** s výpisem *Přidáni / Odebráni* a tlačítkem **„Načíst aktuální složení z příkazu"**:
+- Tým se sjednotí s aktuální hlavičkou a draft se uloží (`handleSyncTeam`).
+- **Odebraní** značkaři se vyčistí z `Cestujci`, `Ridic`, `Hlavni_Ridic`, `Zaplatil` (nocležné/výdaje) a `Presmerovani_Vyplat`.
+- **Přidaní** se pouze zpřístupní k výběru — do skupin cest je vedoucí zařadí ručně.
+- Banner se zobrazí jen pro editovatelné hlášení (`canEdit`).
+
 ### 2. **Vyplnění formuláře**
 **Uživatel postupně vyplní:**
 1. Cestovní segmenty (odkud, kam, čas, doprava)
@@ -332,4 +343,4 @@ Frontend zobrazí: "Odesílání trvá déle než obvykle"
 **Propojené funkcionality:** [File Management](file-management.md) | [INSYZ Integration](insyz-integration.md)  
 **API Reference:** [../api/portal-api.md](../api/portal-api.md)  
 **Technical details:** [../development/background-jobs.md](../development/background-jobs.md)  
-**Aktualizováno:** 2025-08-07
+**Aktualizováno:** 2026-06-13
