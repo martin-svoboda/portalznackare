@@ -184,11 +184,14 @@
                                     </td>
                                     <td style="width: 23%; font-size: 7pt; line-height: 1;">
                                         {{ item.Radek1|default('')|raw }}{% if item.KM1|default('') and (item.KM1 + 0) > 0 %} {{ (item.KM1 + 0) }} km{% endif %}
-                                        {% if item.Druh_Predmetu is same as('M') %}
-                                            {% if item.Nadmorska_vyska|default('') %}
-                                                <br>{{ item.Nadmorska_vyska }} m n.m.{% endif %}
+                                        {% set skip_radek2 = false %}
+                                        {% if item.Druh_Predmetu is same as('M') and item.Nadmorska_vyska|default('') %}
+                                            {% set vyska = item.Nadmorska_vyska|trim|trim('0')|trim('.') %}
+                                            <br>{{ vyska }} m n.m.
+                                            {% set r2 = item.Radek2|default('') %}
+                                            {% set skip_radek2 = r2 and (vyska in r2 or 'm n.m.' in r2 or 'm n. m.' in r2) %}
                                         {% endif %}
-                                        {% if item.Radek2|default('') %}<br>{{ item.Radek2|raw }}{% if item.KM2|default('') and (item.KM2 + 0) > 0 %} {{ (item.KM2 + 0) }} km{% endif %}{% endif %}
+                                        {% if item.Radek2|default('') and not skip_radek2 %}<br>{{ item.Radek2|raw }}{% if item.KM2|default('') and (item.KM2 + 0) > 0 %} {{ (item.KM2 + 0) }} km{% endif %}{% endif %}
                                         {% if item.Radek3|default('') %}<br>{{ item.Radek3|raw }}{% if item.KM3|default('') and (item.KM3 + 0) > 0 %} {{ (item.KM3 + 0) }} km{% endif %}{% endif %}
                                     </td>
                                     <td style="width: 5%; color: #999;">
