@@ -46,13 +46,19 @@ class PdfGeneratorService
             // Obohatit data o HTML značky a TIM náhledy (forPdf = true pro PDF-kompatibilní SVG)
             $enrichedData = $this->dataEnricher->enrichPrikazDetail($prikazData, true);
 
+            // Načti self-hostovaný font Oswald (regular pro TIM tabulky, bold pro H1) a zakóduj do base64
+            // (DomPDF neumí stahovat fonty z CDN - musí být embedovaný přímo v HTML)
+            $fontDir = dirname(__DIR__, 2).'/assets/fonts/oswald';
+
             // Render HTML template
             $html = $this->twig->render('pdf/control_form.html.twig', [
                 'prikaz' => $enrichedData,
                 'head' => $enrichedData['head'] ?? [],
                 'useky' => $enrichedData['useky'] ?? [],
                 'predmety' => $enrichedData['predmety'] ?? [],
-                'generated_at' => new \DateTime()
+                'generated_at' => new \DateTime(),
+                'font_oswald_regular' => base64_encode((string) @file_get_contents($fontDir.'/Oswald-400.ttf')),
+                'font_oswald_bold' => base64_encode((string) @file_get_contents($fontDir.'/Oswald-700.ttf')),
             ]);
 
             // Konfigurace DomPDF

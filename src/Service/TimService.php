@@ -335,7 +335,7 @@ class TimService
         }
 
         // Začátek HTML
-        $html = '<table style="width: 270px; text-align: center; '.$tableStyle.'"><tr><td style="padding: 0;">';
+        $html = '<table style="width: 270px; text-align: center; font-family: \'Oswald\', sans-serif; '.$tableStyle.'"><tr><td style="padding: 0;">';
 
         // Šipka L pro pdf pokud je potřeba
         if ($showArrow && 'L' === $direction) {
@@ -354,14 +354,16 @@ class TimService
         if (count($lines) > 0) {
             foreach ($lines as $idx => $line) {
                 // Konstanty pro scale transformaci
+                // Bez horizontálního stlačení - font Oswald je sám o sobě condensed,
+                // takže scaleX by text stlačoval podruhé a byl by přeúzký.
                 $longTextThreshold = 24;
-                $scaleCompressed = 0.75;
-                $scaleNormal = 0.85;
+                $scaleCompressed = 1;
+                $scaleNormal = 1;
                 $currentScale = strlen($line['text'] ?? '') > $longTextThreshold ? $scaleCompressed : $scaleNormal;
 
                 // Velikost textu
                 $textSize = ($item['Druh_Predmetu'] ?? '') === 'M' ? (0 === $idx ? '20px' : '12px') : '14px';
-                $fontWeight = '700';
+                $fontWeight = '400';
 
                 if ($forPdf) {
                     $html .= '<div style="display: block; text-align: center; width: 100%; min-height: 16px; position: relative;">';

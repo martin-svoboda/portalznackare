@@ -5,12 +5,39 @@
     <meta charset="UTF-8">
     <title>Kontrolní formulář {{ head.Cislo_ZP ?? 'Příkaz' }}</title>
     <style>
+        /* Self-hostovaný font Oswald embedovaný v base64 (DomPDF neumí CDN) */
+        @font-face {
+            font-family: 'Oswald';
+            font-style: normal;
+            font-weight: normal;
+            src: url(data:font/truetype;charset=utf-8;base64,{{ font_oswald_regular }}) format('truetype');
+        }
+        @font-face {
+            font-family: 'Oswald';
+            font-style: normal;
+            font-weight: bold;
+            src: url(data:font/truetype;charset=utf-8;base64,{{ font_oswald_bold }}) format('truetype');
+        }
+
         /* Základní styling pro PDF - optimalizováno pro DomPDF */
         body {
             font-family: 'DejaVu Sans', sans-serif;
             font-size: 10pt;
             line-height: 1.2;
             color: #000;
+        }
+
+        /* Oswald bold na H1 */
+        h1 {
+            font-family: 'Oswald', 'DejaVu Sans', sans-serif;
+            font-weight: bold;
+        }
+
+        /* Tabulky úseků i TIM v Oswaldu regular (vizuální Tim_HTML náhled je v PDF vypnutý) */
+        .lined-table,
+        .lined-table th {
+            font-family: 'Oswald', 'DejaVu Sans', sans-serif;
+            font-weight: normal;
         }
 
         h1 {

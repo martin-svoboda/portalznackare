@@ -1,0 +1,19 @@
+// Oswald - self-hostovaný font (Google Fonts, licence OFL)
+// Použití: regular řez na náhledy/tabulky TIM, bold řez na H1 a název webu.
+// Stažené statické řezy v assets/fonts/oswald/ (pokrývají i českou diakritiku - latin-ext)
+
+@font-face {
+  font-family: 'Oswald';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../../fonts/oswald/Oswald-400.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Oswald';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('../../fonts/oswald/Oswald-700.ttf') format('truetype');
+}

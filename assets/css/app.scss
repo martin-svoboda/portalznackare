@@ -3,6 +3,9 @@
 @import 'tailwindcss/components';
 @import 'tailwindcss/utilities';
 
+// Import self-hosted fonts first
+@import 'components/fonts';
+
 // Import CSS variables first
 @import 'components/variables';
 

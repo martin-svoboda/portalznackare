@@ -36,6 +36,7 @@
 
 // Logo component
 .logo {
+  font-family: 'Oswald', system-ui, sans-serif;
   @apply text-lg font-bold text-gray-900 dark:text-white no-underline cursor-pointer;
 }
 
