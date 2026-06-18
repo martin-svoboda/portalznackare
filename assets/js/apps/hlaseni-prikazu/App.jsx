@@ -13,6 +13,7 @@ import {AppProvider} from './contexts/AppContext';
 import {api} from '../../utils/api';
 import {log} from '../../utils/debug';
 import {parseTariffRatesFromAPI, calculateExecutionDate} from './utils/compensationCalculator';
+import {computeTimMismatch} from './utils/timMismatch';
 
 const App = () => {
     // Get prikaz ID and user from HTML data attributes
@@ -20,6 +21,18 @@ const App = () => {
     const prikazId = container?.dataset?.prikazId;
     const currentUser = container?.dataset?.user ? JSON.parse(container.dataset.user) : null;
     const isAdmin = container?.dataset?.isAdmin === 'true';
+    const insyzView = container?.dataset?.insyzView === 'true';
+
+    // Bootstrap data ze serveru (anonymní INSYZ náhled) – nahrazuje /api/* volání
+    const insyzBootstrap = (() => {
+        if (!insyzView) return null;
+        try {
+            const el = document.getElementById('insyz-bootstrap');
+            return el ? JSON.parse(el.textContent) : null;
+        } catch (e) {
+            return null;
+        }
+    })();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
@@ -116,24 +129,30 @@ const App = () => {
 
             try {
                 // Load order data (head, predmety, useky)
-                const orderData = await api.prikazy.detail(prikazId);
-                
+                const orderData = insyzBootstrap
+                    ? insyzBootstrap.orderData
+                    : await api.prikazy.detail(prikazId);
+
                 // Try to load existing report
                 let reportData = null;
-                try {
-                    reportData = await api.prikazy.report(prikazId);
-                    // Kontrola, zda jsme dostali skutečná data hlášení nebo jen null/prázdnou odpověď
-                    if (!reportData || !reportData.id || (reportData.id_zp && Object.keys(reportData).length === 1)) {
-                        reportData = null;
-                        log.info('Hlášení ještě neexistuje, bude vytvořeno nové');
-                    } else {
-                        log.info('Načteno existující hlášení', reportData);
+                if (insyzBootstrap) {
+                    reportData = insyzBootstrap.reportData || null;
+                } else {
+                    try {
+                        reportData = await api.prikazy.report(prikazId);
+                        // Kontrola, zda jsme dostali skutečná data hlášení nebo jen null/prázdnou odpověď
+                        if (!reportData || !reportData.id || (reportData.id_zp && Object.keys(reportData).length === 1)) {
+                            reportData = null;
+                            log.info('Hlášení ještě neexistuje, bude vytvořeno nové');
+                        } else {
+                            log.info('Načteno existující hlášení', reportData);
+                        }
+                    } catch (error) {
+                        // Při chybě načítání NEVYTVÁŘET nový report, zobrazit chybu
+                        log.error('Chyba při načítání reportu', error);
+                        setAppData(prev => ({...prev, loading: false, error: 'Chyba při načítání dat hlášení'}));
+                        return;
                     }
-                } catch (error) {
-                    // Při chybě načítání NEVYTVÁŘET nový report, zobrazit chybu
-                    log.error('Chyba při načítání reportu', error);
-                    setAppData(prev => ({...prev, loading: false, error: 'Chyba při načítání dat hlášení'}));
-                    return;
                 }
 
                 // Vytvořit nový report POUZE když skutečně neexistuje (ne při chybách)
@@ -177,12 +196,12 @@ const App = () => {
                 }
 
                 // Check permissions
-                const canEdit = checkUserPermissions(
-                    currentUser, 
-                    teamMembers, 
+                const canEdit = insyzView ? false : checkUserPermissions(
+                    currentUser,
+                    teamMembers,
                     reportData?.state || 'draft'
                 );
-                const isLeader = checkUserIsLeader(currentUser, teamMembers);
+                const isLeader = insyzView ? true : checkUserIsLeader(currentUser, teamMembers);
 
                 // Load saved form data if exists, otherwise create defaults
                 let formData;
@@ -276,12 +295,16 @@ const App = () => {
                 // Load tariff rates using shared parser
                 let tariffRates = null;
                 try {
-                    // Získat datum provedení z formData
-                    const executionDate = calculateExecutionDate(formData);
-                    const dateParam = executionDate ? executionDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
-                    log.info('Načítám sazby pro datum:', dateParam);
-                    
-                    const priceResponse = await api.insyz.sazby(dateParam);
+                    let priceResponse;
+                    if (insyzBootstrap) {
+                        priceResponse = insyzBootstrap.sazby;
+                    } else {
+                        // Získat datum provedení z formData
+                        const executionDate = calculateExecutionDate(formData);
+                        const dateParam = executionDate ? executionDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+                        log.info('Načítám sazby pro datum:', dateParam);
+                        priceResponse = await api.insyz.sazby(dateParam);
+                    }
                     tariffRates = parseTariffRatesFromAPI(priceResponse);
                     log.info('Sazby úspěšně načteny', tariffRates);
                 } catch (error) {
@@ -290,29 +313,33 @@ const App = () => {
 
                 // Load user details for all team members
                 let usersDetails = {};
-                try {
-                    // Načti detaily pro všechny značkaře paralelně
-                    const detailsPromises = teamMembers.map(member =>
-                        api.insyz.user(member.INT_ADR)
-                            .then(detail => ({ intAdr: member.INT_ADR, detail }))
-                            .catch(error => {
-                                log.error(`Chyba při načítání detailů uživatele ${member.INT_ADR}`, error);
-                                return null; // Vrať null při chybě, aby se ostatní načetly
-                            })
-                    );
+                if (insyzBootstrap) {
+                    usersDetails = insyzBootstrap.usersDetails || {};
+                } else {
+                    try {
+                        // Načti detaily pro všechny značkaře paralelně
+                        const detailsPromises = teamMembers.map(member =>
+                            api.insyz.user(member.INT_ADR)
+                                .then(detail => ({ intAdr: member.INT_ADR, detail }))
+                                .catch(error => {
+                                    log.error(`Chyba při načítání detailů uživatele ${member.INT_ADR}`, error);
+                                    return null; // Vrať null při chybě, aby se ostatní načetly
+                                })
+                        );
 
-                    const detailsArray = await Promise.all(detailsPromises);
-                    // Odfiltruj případné null hodnoty a převeď na objekt s INT_ADR jako klíčem
-                    usersDetails = detailsArray
-                        .filter(item => item !== null)
-                        .reduce((acc, item) => {
-                            acc[item.intAdr] = item.detail;
-                            return acc;
-                        }, {});
+                        const detailsArray = await Promise.all(detailsPromises);
+                        // Odfiltruj případné null hodnoty a převeď na objekt s INT_ADR jako klíčem
+                        usersDetails = detailsArray
+                            .filter(item => item !== null)
+                            .reduce((acc, item) => {
+                                acc[item.intAdr] = item.detail;
+                                return acc;
+                            }, {});
 
-                    log.info(`Načteny detaily ${Object.keys(usersDetails).length} uživatelů`, usersDetails);
-                } catch (error) {
-                    log.error('Chyba při načítání detailů uživatelů', error);
+                        log.info(`Načteny detaily ${Object.keys(usersDetails).length} uživatelů`, usersDetails);
+                    } catch (error) {
+                        log.error('Chyba při načítání detailů uživatelů', error);
+                    }
                 }
 
                 // Update state with all data
@@ -425,6 +452,11 @@ const App = () => {
             removed: appData.teamMembers.filter(m => !headAdrs.has(m.INT_ADR)),
         };
     }, [appData.head, appData.teamMembers]);
+
+    const timMismatch = useMemo(
+        () => computeTimMismatch(appData.formData, appData.predmety),
+        [appData.formData, appData.predmety]
+    );
 
     // Sjednocení složení značkařů s aktuální hlavičkou (po potvrzení uživatelem)
     const handleSyncTeam = () => {
@@ -559,6 +591,7 @@ const App = () => {
                 {/* Step Content */}
                 <StepContent
                     data={appData}
+                    timMismatch={timMismatch}
                     setFormData={setFormData}
                     activeStep={activeStep}
                     onStepChange={changeStep}

@@ -34,7 +34,8 @@ export const StepContent = ({
     saving,
     prikazId,
     reportId,
-    getNextId
+    getNextId,
+    timMismatch = {}
 }) => {
     // Rozbalení dat z jednoho objektu
     const formData = data.formData;
@@ -184,6 +185,7 @@ export const StepContent = ({
                         prikazId={prikazId}
                         reportId={reportId}
                         disabled={disabled}
+                        timMismatch={timMismatch}
                     />
                 ) : (
                     <div className="space-y-6">
@@ -337,6 +339,7 @@ export const StepContent = ({
                                 useky={useky}
                                 showValidation={true}
                                 compact={false}
+                                timMismatch={timMismatch}
                             />
                         </ErrorBoundary>
                     </div>

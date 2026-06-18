@@ -5,14 +5,20 @@ namespace App\Controller;
 use App\Enum\PageContentTypeEnum;
 use App\Enum\PageStatusEnum;
 use App\Repository\PageRepository;
+use App\Repository\ReportRepository;
 use App\Service\CzechVocativeService;
 use App\Service\InsyzService;
+use App\Service\InsyzReportHashService;
 use App\Service\DataEnricherService;
+use App\Entity\Report;
 use App\Entity\User;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Core\Security;
+use Symfony\Component\Serializer\SerializerInterface;
 use Twig\Environment;
 
 class AppController extends AbstractController
@@ -82,11 +88,140 @@ class AppController extends AbstractController
     }
 
     #[Route('/prikaz/{id}/hlaseni', name: 'app_prikaz_hlaseni')]
-    public function prikazHlaseni(int $id): Response
-    {
+    public function prikazHlaseni(
+        int $id,
+        Request $request,
+        ReportRepository $reportRepository,
+        InsyzReportHashService $hashService,
+        InsyzService $insyzService,
+        DataEnricherService $dataEnricher,
+        SerializerInterface $serializer
+    ): Response {
+        // Přihlášený uživatel → dnešní chování (plná appka, editace dle práv)
+        if ($this->getUser() instanceof User) {
+            return $this->render('pages/prikaz-hlaseni.html.twig', [
+                'id' => $id,
+                'insyz_view' => false,
+                'insyz_bootstrap_json' => null,
+            ]);
+        }
+
+        // Anonym → povolit pouze s platným insyz-hash
+        $hash = (string) $request->query->get('insyz-hash', '');
+        if ($hash === '') {
+            return $this->render('pages/prikaz-hlaseni.html.twig', [
+                'id' => $id,
+                'insyz_view' => false,
+                'insyz_bootstrap_json' => null,
+            ]);
+        }
+
+        $report = $reportRepository->findOneBy(['idZp' => $id]);
+        if (!$report) {
+            throw $this->createNotFoundException('Hlášení nenalezeno');
+        }
+
+        if (!$hashService->verify($report->getCisloZp(), $hash)) {
+            // Čistý 403 (ne security AccessDenied, který by anonyma redirectoval na login)
+            throw new AccessDeniedHttpException('Neplatný podpis URL');
+        }
+
+        $bootstrap = $this->buildInsyzBootstrap(
+            $report, $insyzService, $dataEnricher, $serializer
+        );
+
+        // Bezpečné enkódování pro vložení do <script type="application/json">:
+        // JSON_HEX_TAG zabrání </script> breakoutu.
+        $bootstrapJson = json_encode(
+            $bootstrap,
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+                | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
+        );
+
         return $this->render('pages/prikaz-hlaseni.html.twig', [
-            'id' => $id
+            'id' => $id,
+            'insyz_view' => true,
+            'insyz_bootstrap_json' => $bootstrapJson,
         ]);
+    }
+
+    /**
+     * Sestaví data, která React aplikace běžně získává ze 4 chráněných
+     * /api/* volání. Volá tytéž services, takže se neduplikuje logika.
+     */
+    private function buildInsyzBootstrap(
+        Report $report,
+        InsyzService $insyzService,
+        DataEnricherService $dataEnricher,
+        SerializerInterface $serializer
+    ): array {
+        $ownerIntAdr = $report->getIntAdr();
+        $idZp = $report->getIdZp();
+
+        // 1) Detail příkazu z INSYZ + enrich (= GET /api/insyz/prikaz/{id})
+        $orderData = $dataEnricher->enrichPrikazDetail(
+            $insyzService->getPrikaz($ownerIntAdr, $idZp, true)
+        );
+
+        // 2) Uložené hlášení (= GET /api/portal/report) – stejná serializace
+        $reportData = json_decode(
+            $serializer->serialize($report, 'json', ['groups' => ['report:read']]),
+            true
+        );
+
+        // 3) Sazby pro datum provedení (= GET /api/insyz/sazby)
+        $date = $this->resolveExecutionDate($report, $orderData);
+        $sazby = $insyzService->getSazby($date);
+
+        // 4) Detaily členů týmu (= GET /api/insyz/user pro každého)
+        $usersDetails = [];
+        foreach (($report->getTeamMembers() ?: []) as $member) {
+            $intAdr = (int) ($member['INT_ADR'] ?? 0);
+            if ($intAdr > 0 && !isset($usersDetails[$intAdr])) {
+                try {
+                    $usersDetails[$intAdr] = $insyzService->getUser($intAdr);
+                } catch (\Throwable $e) {
+                    // detail jednoho uživatele není kritický
+                }
+            }
+        }
+
+        return [
+            'orderData' => $orderData,
+            'reportData' => $reportData,
+            'sazby' => $sazby,
+            'usersDetails' => $usersDetails,
+        ];
+    }
+
+    /**
+     * Datum pro načtení sazeb: nejpozdější datum segmentu z hlášení (dataA),
+     * fallback Provedeni z hlavičky, fallback dnešek.
+     */
+    private function resolveExecutionDate(Report $report, array $orderData): string
+    {
+        $latest = null;
+        $dataA = $report->getDataA() ?: [];
+        foreach (($dataA['Skupiny_Cest'] ?? []) as $group) {
+            foreach (($group['Cesty'] ?? []) as $segment) {
+                $datum = $segment['Datum'] ?? null;
+                if (!$datum) {
+                    continue;
+                }
+                $ts = strtotime((string) $datum);
+                if ($ts !== false && ($latest === null || $ts > $latest)) {
+                    $latest = $ts;
+                }
+            }
+        }
+        if ($latest !== null) {
+            return date('Y-m-d', $latest);
+        }
+        $provedeni = $orderData['head']['Provedeni'] ?? null;
+        if ($provedeni) {
+            return date('Y-m-d', strtotime((string) $provedeni));
+        }
+        return date('Y-m-d');
     }
 
     #[Route('/metodika', name: 'app_metodika')]

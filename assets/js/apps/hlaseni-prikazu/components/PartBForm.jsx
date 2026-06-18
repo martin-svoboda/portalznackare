@@ -17,6 +17,7 @@ import {
 import {calculateExecutionDate} from '../utils/compensationCalculator';
 import {toISODateString} from '../../../utils/dateUtils';
 import {PREDMETY_BEZ_LETOPOCTU} from '../utils/validationUtils';
+import {TimMismatchNote} from './TimMismatchNote';
 
 const statusOptions = [
     {value: "1", label: "1 - Správný text a dokonalý stav", color: "green"},
@@ -101,7 +102,7 @@ const groupItemsByTIM = (predmety) => {
     return Object.values(groups);
 };
 
-export const PartBForm = ({formData, setFormData, head, useky, predmety, prikazId, reportId, disabled = false}) => {
+export const PartBForm = ({formData, setFormData, head, useky, predmety, prikazId, reportId, disabled = false, timMismatch = {}}) => {
     // Generate storage path for this report
     const generateStoragePath = () => {
         if (!prikazId) return null;
@@ -494,6 +495,10 @@ export const PartBForm = ({formData, setFormData, head, useky, predmety, prikazI
                                                                                             disabled={disabled}
                                                                                             required={true}
                                                                                         />
+                                                                                        <TimMismatchNote
+                                                                                            diff={timMismatch[String(itemStatus?.ID_PREDMETY)]}
+                                                                                            field="Rok_Vyroby"
+                                                                                        />
                                                                                     </>
                                                                                 ) : (
                                                                                     <span
@@ -536,6 +541,10 @@ export const PartBForm = ({formData, setFormData, head, useky, predmety, prikazI
                                                                                                 </option>
                                                                                             ))}
                                                                                         </select>
+                                                                                        <TimMismatchNote
+                                                                                            diff={timMismatch[String(itemStatus?.ID_PREDMETY)]}
+                                                                                            field="Smerovani"
+                                                                                        />
                                                                                     </>
                                                                                 ) : (
                                                                                     <span

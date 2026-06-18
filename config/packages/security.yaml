@@ -57,6 +57,8 @@ security:
 
         # Protected pages - require login
         - { path: ^/prikazy, roles: ROLE_USER }
+        # Náhled hlášení přes INSYZ hash – přístup řeší controller (login NEBO platný hash)
+        - { path: '^/prikaz/\d+/hlaseni$', roles: PUBLIC_ACCESS }
         - { path: ^/prikaz/, roles: ROLE_USER }
         - { path: ^/profil, roles: ROLE_USER }
         - { path: ^/metodika, roles: ROLE_USER }

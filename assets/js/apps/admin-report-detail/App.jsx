@@ -2,13 +2,18 @@ import React, {useState, useEffect} from 'react';
 import {IconArrowLeft, IconRefresh, IconSend2} from '@tabler/icons-react';
 import {CompensationSummary} from '../hlaseni-prikazu/components/CompensationSummary';
 import {PartBSummary} from '../hlaseni-prikazu/components/PartBSummary';
+import {AppProvider} from '../hlaseni-prikazu/contexts/AppContext';
+import {parseTariffRatesFromAPI, calculateExecutionDate} from '../hlaseni-prikazu/utils/compensationCalculator';
 import {StateBadge, getStateLabel} from '../../utils/stateBadge';
+import {api} from '../../utils/api';
+import {log} from '../../utils/debug';
 import {Loader} from "@components/shared";
 
 const App = () => {
     const [activeTab, setActiveTab] = useState('info');
     const [loading, setLoading] = useState(true);
     const [reportDetail, setReportDetail] = useState(null);
+    const [tariffRates, setTariffRates] = useState(null);
 
     // Získat ID hlášení z URL nebo data attributu
     const container = document.querySelector('[data-app="admin-report-detail"]');
@@ -26,6 +31,17 @@ const App = () => {
             const response = await fetch(`/admin/api/reports/${reportId}`);
             const data = await response.json();
             setReportDetail(data);
+
+            // Načíst sazby pro datum provedení - CompensationSummary je potřebuje
+            // z kontextu pro zobrazení detailů náhrad (i v readOnly režimu)
+            try {
+                const executionDate = calculateExecutionDate(data.dataA);
+                const dateParam = (executionDate || new Date()).toISOString().split('T')[0];
+                const priceResponse = await api.insyz.sazby(dateParam);
+                setTariffRates(parseTariffRatesFromAPI(priceResponse));
+            } catch (error) {
+                log.error('Chyba při načítání ceníku', error);
+            }
         } catch (error) {
             console.error('Chyba při načítání detailu hlášení:', error);
         } finally {
@@ -224,14 +240,19 @@ const App = () => {
 
                 {/* Část A & Kalkulace */}
                 {activeTab === 'compensation' && (
-                    <div>
+                    <AppProvider initialData={{
+                        usersDetails: {},
+                        tariffRates,
+                        teamMembers: reportDetail.znackari || [],
+                        currentUser: null,
+                        isLeader: true, // Admin vidí kompenzace všech členů týmu
+                    }}>
                         <CompensationSummary
                             formData={reportDetail.dataA}
                             calculation={reportDetail.calculation}
-                            teamMembers={reportDetail.znackari}
                             readOnly={true}
                         />
-                    </div>
+                    </AppProvider>
                 )}
 
                 {/* Část B */}

@@ -6,6 +6,7 @@ import {
 } from '@tabler/icons-react';
 import {renderHtmlContent, replaceTextWithIcons} from "@utils/htmlUtils";
 import {PREDMETY_BEZ_LETOPOCTU} from '../utils/validationUtils';
+import {TimMismatchNote} from './TimMismatchNote';
 
 /**
  * Komponenta pro zobrazení kompletního souhrnu části B hlášení
@@ -17,7 +18,8 @@ export const PartBSummary = ({
     head = null,
     predmety = null,
     useky = [],
-    compact = false
+    compact = false,
+    timMismatch = {}
 }) => {
     // Detekce typu na základě dat - pokud má Stavy_Tim, je to TIM příkaz
     const isTIMOrder = formData?.Stavy_Tim && Object.keys(formData.Stavy_Tim).length > 0;
@@ -108,7 +110,13 @@ export const PartBSummary = ({
                                                 <td className={`${smallTextSize} py-2 pr-4`}>
                                                     {needsAdditionalData && !bezLetopoctu ? (
                                                         itemStatus?.Rok_Vyroby ? (
-                                                            <span>{itemStatus.Rok_Vyroby}</span>
+                                                            <span>
+                                                                {itemStatus.Rok_Vyroby}
+                                                                <TimMismatchNote
+                                                                    diff={timMismatch[String(itemStatus?.ID_PREDMETY)]}
+                                                                    field="Rok_Vyroby"
+                                                                />
+                                                            </span>
                                                         ) : (
                                                             <span dangerouslySetInnerHTML={{ __html: '<span class="text-red-500 font-bold">chybí rok</span>' }} />
                                                         )
@@ -119,7 +127,13 @@ export const PartBSummary = ({
                                                 <td className={`${smallTextSize} py-2`}>
                                                     {needsAdditionalData && isArrow ? (
                                                         itemStatus?.Smerovani ? (
-                                                            <span>{itemStatus.Smerovani === 'L' ? 'Levá (L)' : 'Pravá (P)'}</span>
+                                                            <span>
+                                                                {itemStatus.Smerovani === 'L' ? 'Levá (L)' : 'Pravá (P)'}
+                                                                <TimMismatchNote
+                                                                    diff={timMismatch[String(itemStatus?.ID_PREDMETY)]}
+                                                                    field="Smerovani"
+                                                                />
+                                                            </span>
                                                         ) : (
                                                             <span dangerouslySetInnerHTML={{ __html: '<span class="text-red-500 font-bold">chybí orientace</span>' }} />
                                                         )

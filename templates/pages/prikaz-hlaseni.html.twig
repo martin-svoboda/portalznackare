@@ -30,29 +30,23 @@
             ]
         } %}
 
-        {% if not app.user %}
-            {% include 'components/alert.html.twig' with {
-                type: 'warning',
-                title: 'Přihlášení vyžadováno',
-                message: 'Pro vyplnění hlášení příkazu se musíte přihlásit.',
-                actions: [
-                    {
-                        url: path('app_index'),
-                        text: 'Přihlásit se'
-                    }
-                ]
-            } %}
-        {% else %}
+        {% if app.user or insyz_view %}
             <div data-app="hlaseni-prikazu"
                  data-prikaz-id="{{ id }}"
                  data-user="{{ app.user ? {INT_ADR: app.user.intAdr, name: app.user.fullName}|json_encode|e('html_attr') : '{}' }}"
                  data-is-admin="{{ is_granted('ROLE_ADMIN') ? 'true' : 'false' }}"
+                 data-insyz-view="{{ insyz_view ? 'true' : 'false' }}"
                  data-debug="{{ app.request.server.get('DEBUG_APPS') == 'true' ? 'true' : 'false' }}">
                 <div class="card">
                     {% include 'components/loader.html.twig' %}
                 </div>
             </div>
-            
+
+            {% if insyz_view and insyz_bootstrap_json is not null %}
+                {# JSON je už bezpečně zakódovaný v controlleru (JSON_HEX_TAG) #}
+                <script type="application/json" id="insyz-bootstrap">{{ insyz_bootstrap_json|raw }}</script>
+            {% endif %}
+
             <script>
                 // Debug renderování šablony
                 if (window.debugTwig) {
@@ -78,6 +72,18 @@
                     });
                 }
             </script>
+        {% else %}
+            {% include 'components/alert.html.twig' with {
+                type: 'warning',
+                title: 'Přihlášení vyžadováno',
+                message: 'Pro vyplnění hlášení příkazu se musíte přihlásit.',
+                actions: [
+                    {
+                        url: path('app_index'),
+                        text: 'Přihlásit se'
+                    }
+                ]
+            } %}
         {% endif %}
     </div>
 {% endblock %}
