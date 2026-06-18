@@ -1,5 +1,5 @@
 import React, {useState, useEffect} from 'react';
-import {IconArrowLeft, IconRefresh, IconSend2} from '@tabler/icons-react';
+import {IconArrowLeft, IconRefresh, IconSend2, IconCopy, IconExternalLink} from '@tabler/icons-react';
 import {CompensationSummary} from '../hlaseni-prikazu/components/CompensationSummary';
 import {PartBSummary} from '../hlaseni-prikazu/components/PartBSummary';
 import {AppProvider} from '../hlaseni-prikazu/contexts/AppContext';
@@ -14,10 +14,22 @@ const App = () => {
     const [loading, setLoading] = useState(true);
     const [reportDetail, setReportDetail] = useState(null);
     const [tariffRates, setTariffRates] = useState(null);
+    const [copied, setCopied] = useState(false);
 
     // Získat ID hlášení z URL nebo data attributu
     const container = document.querySelector('[data-app="admin-report-detail"]');
     const reportId = container?.dataset?.reportId;
+
+    const copyNahledUrl = async () => {
+        if (!reportDetail?.nahledUrl) return;
+        try {
+            await navigator.clipboard.writeText(reportDetail.nahledUrl);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        } catch (e) {
+            alert('Nepodařilo se zkopírovat. Odkaz:\n' + reportDetail.nahledUrl);
+        }
+    };
 
     useEffect(() => {
         if (reportId) {
@@ -209,6 +221,44 @@ const App = () => {
                                         ))}
                                     </ul>
                                 </div>
+
+                                {/* Náhled pro INSYZ */}
+                                {reportDetail.nahledUrl && (
+                                    <div className="border-t pt-4">
+                                        <strong>Náhled pro INSYZ (read-only):</strong>
+                                        <div className="flex items-center gap-2 mt-2">
+                                            <input
+                                                type="text"
+                                                readOnly
+                                                value={reportDetail.nahledUrl}
+                                                onFocus={e => e.target.select()}
+                                                className="form__input flex-1 text-xs font-mono"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={copyNahledUrl}
+                                                className="btn btn--secondary btn--sm"
+                                                title="Kopírovat odkaz"
+                                            >
+                                                <IconCopy size={16} />
+                                                {copied ? 'Zkopírováno' : 'Kopírovat'}
+                                            </button>
+                                            <a
+                                                href={reportDetail.nahledUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="btn btn--secondary btn--sm"
+                                                title="Otevřít náhled v nové záložce"
+                                            >
+                                                <IconExternalLink size={16} />
+                                                Otevřít
+                                            </a>
+                                        </div>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                            Bezpečný odkaz na kompletní hlášení pro správce INSYZ. Funguje i bez přihlášení.
+                                        </p>
+                                    </div>
+                                )}
 
                                 {/* Akce */}
                                 <div className="border-t pt-4">

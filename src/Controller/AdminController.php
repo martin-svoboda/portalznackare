@@ -7,7 +7,9 @@ use App\Entity\AuditLog;
 use App\Entity\InsyzAuditLog;
 use App\Entity\Report;
 use App\Service\SystemOptionService;
+use App\Service\InsyzReportHashService;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -170,13 +172,21 @@ class AdminController extends AbstractController
     }
 
     #[Route('/api/reports/{id}', name: 'admin_api_report_detail', methods: ['GET'])]
-    public function apiReportDetail(int $id): Response
+    public function apiReportDetail(int $id, InsyzReportHashService $hashService): Response
     {
         $report = $this->entityManager->getRepository(Report::class)->find($id);
-        
+
         if (!$report) {
             return $this->json(['error' => 'Hlášení nenalezeno'], 404);
         }
+
+        // Bezpečná read-only URL náhledu pro správce INSYZ (hash z čísla příkazu)
+        $nahledUrl = $report->getCisloZp() !== ''
+            ? $this->generateUrl('app_prikaz_hlaseni', [
+                'id' => $report->getIdZp(),
+                'insyz-hash' => $hashService->generate($report->getCisloZp()),
+            ], UrlGeneratorInterface::ABSOLUTE_URL)
+            : null;
 
         return $this->json([
             'id' => $report->getId(),
@@ -190,6 +200,7 @@ class AdminController extends AbstractController
             'dataB' => $report->getDataB(),
             'calculation' => $report->getCalculation(),
             'history' => $report->getHistory(),
+            'nahledUrl' => $nahledUrl,
         ]);
     }
 
