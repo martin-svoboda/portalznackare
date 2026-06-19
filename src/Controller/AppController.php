@@ -18,7 +18,6 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Core\Security;
-use Symfony\Component\Serializer\SerializerInterface;
 use Twig\Environment;
 
 class AppController extends AbstractController
@@ -94,8 +93,7 @@ class AppController extends AbstractController
         ReportRepository $reportRepository,
         InsyzReportHashService $hashService,
         InsyzService $insyzService,
-        DataEnricherService $dataEnricher,
-        SerializerInterface $serializer
+        DataEnricherService $dataEnricher
     ): Response {
         // Přihlášený uživatel → dnešní chování (plná appka, editace dle práv)
         if ($this->getUser() instanceof User) {
@@ -127,7 +125,7 @@ class AppController extends AbstractController
         }
 
         $bootstrap = $this->buildInsyzBootstrap(
-            $report, $insyzService, $dataEnricher, $serializer
+            $report, $insyzService, $dataEnricher
         );
 
         // Bezpečné enkódování pro vložení do <script type="application/json">:
@@ -152,8 +150,7 @@ class AppController extends AbstractController
     private function buildInsyzBootstrap(
         Report $report,
         InsyzService $insyzService,
-        DataEnricherService $dataEnricher,
-        SerializerInterface $serializer
+        DataEnricherService $dataEnricher
     ): array {
         $ownerIntAdr = $report->getIntAdr();
         $idZp = $report->getIdZp();
@@ -163,11 +160,20 @@ class AppController extends AbstractController
             $insyzService->getPrikaz($ownerIntAdr, $idZp, true)
         );
 
-        // 2) Uložené hlášení (= GET /api/portal/report) – stejná serializace
-        $reportData = json_decode(
-            $serializer->serialize($report, 'json', ['groups' => ['report:read']]),
-            true
-        );
+        // 2) Uložené hlášení. POZOR: React app čte snake_case klíče
+        //    (data_a, data_b, id_zp, znackari, state) – serializer entity by
+        //    vrátil camelCase (dataA, idZp, teamMembers), proto sestavujeme
+        //    payload explicitně tak, jak ho aplikace v loadAllData očekává.
+        $reportData = [
+            'id' => $report->getId(),
+            'id_zp' => $report->getIdZp(),
+            'cislo_zp' => $report->getCisloZp(),
+            'data_a' => $report->getDataA(),
+            'data_b' => $report->getDataB(),
+            'znackari' => $report->getTeamMembers(),
+            'calculation' => $report->getCalculation(),
+            'state' => $report->getState()->value,
+        ];
 
         // 3) Sazby pro datum provedení (= GET /api/insyz/sazby)
         $date = $this->resolveExecutionDate($report, $orderData);
