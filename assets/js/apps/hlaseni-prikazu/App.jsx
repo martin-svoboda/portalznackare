@@ -459,9 +459,14 @@ const App = () => {
     );
 
     // Sjednocení složení značkařů s aktuální hlavičkou (po potvrzení uživatelem)
-    const handleSyncTeam = () => {
+    const handleSyncTeam = async () => {
         const headMembers = extractTeamMembers(appData.head);
         const headAdrs = new Set(headMembers.map(m => m.INT_ADR));
+        // Nově přidaní značkaři bez načtených detailů (kvůli kvalifikaci ZZ ve výpočtu náhrad)
+        const oldAdrs = new Set((appData.teamMembers || []).map(m => m.INT_ADR));
+        const addedAdrs = headMembers
+            .map(m => m.INT_ADR)
+            .filter(adr => !oldAdrs.has(adr) && !appData.usersDetails?.[adr]);
         const removedAdrs = new Set(
             (appData.teamMembers || [])
                 .filter(m => !headAdrs.has(m.INT_ADR))
@@ -473,9 +478,17 @@ const App = () => {
 
             // Odebrat reference na odebrané značkaře (přidané se jen zpřístupní k výběru)
             if (Array.isArray(fd.Skupiny_Cest)) {
+                // U jediné skupiny cest se zaškrtávač lidí nezobrazuje (TravelGroupsForm
+                // ukazuje výběr jen při >1 skupině) – přidaného značkaře proto nelze
+                // přiřadit ručně. Do jediné skupiny tedy dáme celý aktuální tým, čímž
+                // se nový značkař zařadí automaticky.
+                const allAdrs = headMembers.map(m => m.INT_ADR);
+                const singleGroup = fd.Skupiny_Cest.length === 1;
                 fd.Skupiny_Cest = fd.Skupiny_Cest.map(group => ({
                     ...group,
-                    Cestujci: (group.Cestujci || []).filter(adr => !removedAdrs.has(adr)),
+                    Cestujci: singleGroup
+                        ? allAdrs
+                        : (group.Cestujci || []).filter(adr => !removedAdrs.has(adr)),
                     Ridic: removedAdrs.has(group.Ridic) ? null : group.Ridic,
                 }));
             }
@@ -507,6 +520,29 @@ const App = () => {
 
         // saveDraft se po změně teamMembers přegeneruje (závisí na nich) -> uložit v effectu
         setPendingTeamSyncSave(true);
+
+        // Doplnit detaily nově přidaných značkařů, aby výpočet náhrad znal jejich
+        // kvalifikaci (ZZ → zvýšená sazba) hned, bez nutnosti reloadu stránky.
+        if (addedAdrs.length > 0) {
+            try {
+                const details = await Promise.all(
+                    addedAdrs.map(adr =>
+                        api.insyz.user(adr)
+                            .then(detail => ({ adr, detail }))
+                            .catch(() => null)
+                    )
+                );
+                setAppData(prev => {
+                    const merged = { ...prev.usersDetails };
+                    details.filter(Boolean).forEach(({ adr, detail }) => {
+                        merged[adr] = detail;
+                    });
+                    return { ...prev, usersDetails: merged };
+                });
+            } catch (e) {
+                log.error('Chyba při načítání detailů přidaných značkařů', e);
+            }
+        }
     };
 
     // Po sjednocení složení uložit draft s aktualizovaným týmem a shodit příznak

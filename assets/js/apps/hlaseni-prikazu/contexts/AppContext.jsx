@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext } from 'react';
 import { log } from '../../../utils/debug';
 
 // Vytvoření Context pro read-only aplikační data
@@ -19,17 +19,19 @@ const AppContext = createContext(null);
  * @param {ReactNode} props.children - Child komponenty
  */
 export function AppProvider({ children, initialData }) {
-    const [appData] = useState(initialData);
-
-    log.info('AppProvider mounted', {
-        hasUsersDetails: !!appData?.usersDetails,
-        hasTariffRates: !!appData?.tariffRates,
-        hasHead: !!appData?.head,
-        teamMembersCount: appData?.teamMembers?.length || 0
+    // POZOR: nepoužívat useState(initialData) – to zamrzne hodnotu při prvním
+    // mountu a ignoruje pozdější změny (např. po sjednocení týmu se výpočet
+    // náhrad neaktualizoval, dokud se stránka nereloadla). Předáváme aktuální
+    // initialData přímo, aby context reflektoval změny (teamMembers, usersDetails…).
+    log.info('AppProvider render', {
+        hasUsersDetails: !!initialData?.usersDetails,
+        hasTariffRates: !!initialData?.tariffRates,
+        hasHead: !!initialData?.head,
+        teamMembersCount: initialData?.teamMembers?.length || 0
     });
 
     return (
-        <AppContext.Provider value={appData}>
+        <AppContext.Provider value={initialData}>
             {children}
         </AppContext.Provider>
     );
