@@ -1,233 +1,188 @@
-import React, {useState, useEffect} from 'react';
-import {
-    createColumnHelper,
-    flexRender,
-    getCoreRowModel,
-    getFilteredRowModel,
-    getSortedRowModel,
-    useReactTable,
-} from '@tanstack/react-table';
-import {IconEye, IconRefresh, IconClipboardList, IconFileText} from '@tabler/icons-react';
-import {StateBadge, getStateLabel} from '../../utils/stateBadge';
-import {Loader} from "@components/shared";
+import React, {useEffect, useMemo, useState} from 'react';
+import {MaterialReactTable, useMaterialReactTable} from 'material-react-table';
+import {MRT_Localization_CS} from 'material-react-table/locales/cs';
+import {createTheme, ThemeProvider} from '@mui/material/styles';
+import {IconEye, IconClipboardList, IconFileText, IconRefresh} from '@tabler/icons-react';
+import {StateBadge} from '../../utils/stateBadge';
+import {parseCisloZp, getPrikazDescription} from '../../utils/prikaz';
+import {PrikazTypeIcon} from '../../components/prikazy/PrikazTypeIcon';
+import {ReportCompensationPanel} from './components/ReportCompensationPanel';
 
-const columnHelper = createColumnHelper();
+const formatDate = (value) => value ? new Date(value).toLocaleString('cs-CZ') : '-';
 
 const App = () => {
     const [reports, setReports] = useState([]);
     const [loading, setLoading] = useState(true);
-
-    // Načítání dat
-    useEffect(() => {
-        loadReports();
-    }, []);
+    const [isDarkMode, setIsDarkMode] = useState(
+        document.documentElement.classList.contains('dark')
+    );
 
     const loadReports = async () => {
         setLoading(true);
         try {
             const response = await fetch('/admin/api/reports');
             const data = await response.json();
-            setReports(data);
+            setReports(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error('Chyba při načítání hlášení:', error);
+            setReports([]);
         } finally {
             setLoading(false);
         }
     };
 
-    // Definice sloupců
-    const columns = [
-        columnHelper.accessor('id', {
-            header: 'ID',
-            size: 80,
-        }),
-        columnHelper.accessor('cisloZp', {
-            header: 'Číslo ZP',
-            size: 120,
-            filterFn: 'includesString',
-        }),
-        columnHelper.accessor('znackari', {
-            header: 'Značkaři',
-            size: 200,
-            cell: info => {
-                const znackari = info.getValue() || [];
-                return znackari.map(z => z.Znackar || z.name).join(', ');
-            },
-            filterFn: 'includesString',
-        }),
-        columnHelper.accessor('state', {
-            header: 'Stav',
-            size: 100,
-            cell: info => <StateBadge state={info.getValue()}/>,
-            filterFn: (row, columnId, value) => {
-                if (value === 'all') return true;
-                return row.getValue(columnId) === value;
-            },
-        }),
-        columnHelper.accessor('dateUpdated', {
-            header: 'Datum aktualizace',
-            size: 150,
-            cell: info => {
-                const date = info.getValue();
-                return date ? new Date(date).toLocaleString('cs-CZ') : '-';
-            },
-        }),
-        columnHelper.display({
-            id: 'actions',
-            header: 'Akce',
-            size: 250,
-            cell: info => (
-                <div className="flex gap-2">
-                    <a
-                        href={`/admin/hlaseni/${info.row.original.id}`}
-                        className="btn btn--sm btn--secondary"
-                        title="Admin detail"
-                    >
-                        <IconEye size={16}/>
-                    </a>
-                    <a
-                        href={`/prikaz/${info.row.original.idZp}`}
-                        className="btn btn--sm btn--secondary"
-                        title="Zobrazit příkaz"
-                    >
-                        <IconClipboardList size={16}/>
-                        Příkaz
-                    </a>
-                    <a
-                        href={`/prikaz/${info.row.original.idZp}/hlaseni`}
-                        className="btn btn--sm btn--primary"
-                        title="Zobrazit hlášení"
-                    >
-                        <IconFileText size={16}/>
-                        Hlášení
-                    </a>
-                </div>
-            ),
-        }),
-    ];
+    useEffect(() => {
+        loadReports();
+    }, []);
 
-    const table = useReactTable({
-        data: reports,
+    useEffect(() => {
+        const observer = new MutationObserver(() => {
+            setIsDarkMode(document.documentElement.classList.contains('dark'));
+        });
+        observer.observe(document.documentElement, {attributes: true, attributeFilter: ['class']});
+        return () => observer.disconnect();
+    }, []);
+
+    const columns = useMemo(() => [
+        {
+            accessorKey: 'cisloZp',
+            header: 'Číslo ZP',
+            size: 140,
+        },
+        {
+            accessorKey: 'idZp',
+            header: 'INSYZ ID',
+            size: 110,
+        },
+        {
+            id: 'kraj',
+            header: 'Kraj',
+            accessorFn: (row) => parseCisloZp(row.cisloZp).kraj || '',
+            size: 90,
+            filterVariant: 'select',
+            Cell: ({cell}) => cell.getValue() || '-',
+        },
+        {
+            id: 'obvod',
+            header: 'Obvod',
+            accessorFn: (row) => parseCisloZp(row.cisloZp).obvod || '',
+            size: 90,
+            filterVariant: 'select',
+            Cell: ({cell}) => cell.getValue() || '-',
+        },
+        {
+            id: 'typ',
+            header: 'Typ',
+            accessorFn: (row) => parseCisloZp(row.cisloZp).typ || '',
+            size: 90,
+            filterVariant: 'select',
+            Cell: ({row}) => {
+                const typ = parseCisloZp(row.original.cisloZp).typ;
+                if (!typ) return '-';
+                return (
+                    <div className="flex items-center gap-2" title={getPrikazDescription(typ)}>
+                        <PrikazTypeIcon type={typ} size={24}/>
+                        <span>{typ}</span>
+                    </div>
+                );
+            },
+        },
+        {
+            id: 'znackari',
+            header: 'Značkaři',
+            accessorFn: (row) => (row.znackari || []).map(z => z.Znackar || z.name).join(', '),
+            size: 220,
+        },
+        {
+            accessorKey: 'state',
+            header: 'Stav',
+            size: 120,
+            filterVariant: 'select',
+            Cell: ({cell}) => <StateBadge state={cell.getValue()}/>,
+        },
+        {
+            accessorKey: 'dateSend',
+            header: 'Odesláno',
+            size: 150,
+            Cell: ({cell}) => formatDate(cell.getValue()),
+        },
+        {
+            accessorKey: 'dateCreated',
+            header: 'Vytvořeno',
+            size: 150,
+            Cell: ({cell}) => formatDate(cell.getValue()),
+        },
+        {
+            accessorKey: 'dateUpdated',
+            header: 'Aktualizováno',
+            size: 150,
+            Cell: ({cell}) => formatDate(cell.getValue()),
+        },
+    ], []);
+
+    const table = useMaterialReactTable({
         columns,
-        getCoreRowModel: getCoreRowModel(),
-        getFilteredRowModel: getFilteredRowModel(),
-        getSortedRowModel: getSortedRowModel(),
+        data: reports,
+        localization: MRT_Localization_CS,
+        enableFacetedValues: true,
+        enableColumnFilters: true,
+        enableGlobalFilter: true,
+        enableHiding: true,
+        enableColumnActions: true,
+        enableDensityToggle: false,
+        enableFullScreenToggle: false,
+        enablePagination: reports.length > 20,
+        state: {isLoading: loading},
+        initialState: {
+            showColumnFilters: false,
+            columnVisibility: {
+                dateCreated: false,
+                dateUpdated: false,
+            },
+        },
+        muiTablePaperProps: {
+            elevation: 0,
+            sx: {backgroundColor: 'transparent', backgroundImage: 'none', border: 'none'},
+        },
+        muiTopToolbarProps: {sx: {backgroundColor: 'transparent'}},
+        muiBottomToolbarProps: {sx: {backgroundColor: 'transparent'}},
+        muiTableHeadRowProps: {sx: {backgroundColor: 'transparent'}},
+        renderRowActions: ({row}) => (
+            <div className="flex gap-2">
+                <a href={`/admin/hlaseni/${row.original.id}`} className="btn btn--sm btn--secondary" title="Admin detail">
+                    <IconEye size={16}/>
+                </a>
+                <a href={`/prikaz/${row.original.idZp}`} className="btn btn--sm btn--secondary" title="Zobrazit příkaz">
+                    <IconClipboardList size={16}/>
+                </a>
+                <a href={`/prikaz/${row.original.idZp}/hlaseni`} className="btn btn--sm btn--primary" title="Zobrazit hlášení">
+                    <IconFileText size={16}/>
+                </a>
+            </div>
+        ),
+        enableRowActions: true,
+        positionActionsColumn: 'last',
+        renderTopToolbarCustomActions: () => (
+            <button onClick={loadReports} className="btn btn--secondary btn--sm" disabled={loading}>
+                <IconRefresh size={16}/>
+                Obnovit
+            </button>
+        ),
+        renderDetailPanel: ({row}) => (
+            <ReportCompensationPanel reportId={row.original.id}/>
+        ),
     });
 
-    if (loading) {
-        return (
-            <div className="card">
-                <Loader/>
-            </div>
-        );
-    }
+    const theme = useMemo(() => createTheme({
+        palette: {mode: isDarkMode ? 'dark' : 'light'},
+    }), [isDarkMode]);
 
     return (
-        <div className="space-y-6">
-            {/* Header */}
-
-
-            {/* Filtry */}
-            <div className="card">
-                <div className="card__content">
-                    <div className="flex-layout flex-layout--between flex-layout--wrap">
-
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div>
-                                <label className="form__label">Číslo ZP</label>
-                                <input
-                                    type="text"
-                                    className="form__input"
-                                    placeholder="Vyhledat podle čísla ZP..."
-                                    value={table.getColumn('cisloZp')?.getFilterValue() ?? ''}
-                                    onChange={e => table.getColumn('cisloZp')?.setFilterValue(e.target.value)}
-                                />
-                            </div>
-                            <div>
-                                <label className="form__label">Značkaři</label>
-                                <input
-                                    type="text"
-                                    className="form__input"
-                                    placeholder="Vyhledat podle značkařů..."
-                                    value={table.getColumn('znackari')?.getFilterValue() ?? ''}
-                                    onChange={e => table.getColumn('znackari')?.setFilterValue(e.target.value)}
-                                />
-                            </div>
-                            <div>
-                                <label className="form__label">Stav</label>
-                                <select
-                                    className="form__select"
-                                    value={table.getColumn('state')?.getFilterValue() ?? 'all'}
-                                    onChange={e => table.getColumn('state')?.setFilterValue(e.target.value === 'all' ? undefined : e.target.value)}
-                                >
-                                    <option value="all">Všechny stavy</option>
-                                    <option value="draft">{getStateLabel('draft')}</option>
-                                    <option value="send">{getStateLabel('send')}</option>
-                                    <option value="submitted">{getStateLabel('submitted')}</option>
-                                    <option value="approved">{getStateLabel('approved')}</option>
-                                    <option value="rejected">{getStateLabel('rejected')}</option>
-                                </select>
-                            </div>
-                        </div>
-                        <button
-                            onClick={loadReports}
-                            className="btn btn--secondary"
-                            disabled={loading}
-                        >
-                            <IconRefresh size={16}/>
-                            Obnovit
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            {/* Tabulka */}
-            <div className="card">
-                <div className="card__content">
-                    <div className="overflow-x-auto">
-                        <table className="table">
-                            <thead>
-                            {table.getHeaderGroups().map(headerGroup => (
-                                <tr key={headerGroup.id}>
-                                    {headerGroup.headers.map(header => (
-                                        <th key={header.id} style={{width: header.column.getSize()}}>
-                                            {header.isPlaceholder ? null : (
-                                                <div
-                                                    className={header.column.getCanSort() ? 'cursor-pointer select-none' : ''}
-                                                    onClick={header.column.getToggleSortingHandler()}
-                                                >
-                                                    {flexRender(header.column.columnDef.header, header.getContext())}
-                                                    {{
-                                                        asc: ' ↑',
-                                                        desc: ' ↓',
-                                                    }[header.column.getIsSorted()] ?? null}
-                                                </div>
-                                            )}
-                                        </th>
-                                    ))}
-                                </tr>
-                            ))}
-                            </thead>
-                            <tbody>
-                            {table.getRowModel().rows.map(row => (
-                                <tr key={row.id}>
-                                    {row.getVisibleCells().map(cell => (
-                                        <td key={cell.id}>
-                                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                        </td>
-                                    ))}
-                                </tr>
-                            ))}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    {table.getRowModel().rows.length === 0 && (
-                        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                            Žádná hlášení nenalezena
-                        </div>
-                    )}
-                </div>
+        <div className="card">
+            <div className="card__content">
+                <ThemeProvider theme={theme}>
+                    <MaterialReactTable table={table}/>
+                </ThemeProvider>
             </div>
         </div>
     );

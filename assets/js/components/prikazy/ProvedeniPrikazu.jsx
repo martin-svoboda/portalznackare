@@ -6,11 +6,12 @@ import {
     IconPlus,
     IconAlertTriangle,
     IconUser,
-    IconCalendar, IconCrown
+    IconCalendar
 } from '@tabler/icons-react';
 import {api} from '../../utils/api';
 import {log} from '../../utils/debug';
 import {StateBadge} from "@utils/stateBadge";
+import {ReportProvedeniSummary} from './ReportProvedeniSummary';
 
 export const ProvedeniPrikazu = ({prikazId, head, currentUser, isLeader}) => {
     const [reportData, setReportData] = useState(null);
@@ -96,24 +97,6 @@ export const ProvedeniPrikazu = ({prikazId, head, currentUser, isLeader}) => {
         );
     };
 
-    const getCompletionSummary = (report) => {
-        if (!report?.data_a && !report?.data_b) return null;
-
-        const partACompleted = report.data_a?.Cast_A_Dokoncena || false;
-        const partBCompleted = report.data_b?.Cast_B_Dokoncena || false;
-
-        return (
-            <>
-                <span className={`badge badge--sm ${partACompleted ? 'badge--success' : 'badge--danger'}`}>
-                    Část A: {partACompleted ? 'Dokončeno' : 'Nedokončeno'}
-                </span>
-                <span className={`badge badge--sm ${partBCompleted ? 'badge--success' : 'badge--danger'}`}>
-                    Část B: {partBCompleted ? 'Dokončeno' : 'Nedokončeno'}
-                </span>
-            </>
-        );
-    };
-
     if (loading) {
         return (
             <div className="flex justify-between items-center mb-4">
@@ -142,99 +125,16 @@ export const ProvedeniPrikazu = ({prikazId, head, currentUser, isLeader}) => {
             )}
 
             {reportData ? (
-                <div className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-
-                        <StateBadge state={reportData.state}/>
-                        {getCompletionSummary(reportData)}
-
-                        <div className="space-y-2">
-                            <span className="text-sm text-gray-600">Provedení:</span>
-                            {reportData.data_a?.Datum_Provedeni && (
-                                <span className="text-sm">
-                                    {new Date(reportData.data_a.Datum_Provedeni).toLocaleDateString('cs-CZ')}
-                                </span>
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="space-y-2">
-                        {reportData.znackari && reportData.znackari.length > 0 && (
-                            <>
-                                {reportData.znackari.map((znackar, i) => (
-                                    <div
-                                        key={i}
-                                        className="mt-2 p-3 bg-gray-50 dark:bg-gray-800 rounded-md border dark:border-gray-700 text-sm">
-
-                                        {/* Detaily kalkulace pro daného značkaře */}
-                                        {(currentUser.intAdr == znackar.INT_ADR || isLeader) && reportData.calculation && reportData.calculation[znackar.INT_ADR] ? (
-                                            <>
-                                                <div
-                                                    className="mb-3 pb-3 border-b border-gray-200 dark:border-gray-700 flex gap-4 items-center">
-                                                    <div className="flex items-center gap-1">
-                                                        <span className="font-bold">{znackar.Znackar}</span>
-                                                        {znackar.Je_Vedouci && (
-                                                            <IconCrown
-                                                                size={18}
-                                                                color="#ffd700"
-                                                                title="Vedoucí"
-                                                                aria-label="Vedoucí"
-                                                            />
-                                                        )}
-                                                    </div>
-                                                    <div>
-                                                        <strong>Celkem: {reportData.calculation[znackar.INT_ADR].Celkem_Kc || 0} Kč</strong>
-                                                    </div>
-
-                                                </div>
-                                                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                                                    <div>
-                                                        <strong>Čas
-                                                            práce:</strong> {reportData.calculation[znackar.INT_ADR].Cas_Prace_Celkem || 0} h
-                                                    </div>
-                                                    <div>
-                                                        <strong>Náhrada
-                                                            práce:</strong> {reportData.calculation[znackar.INT_ADR].Nahrada_Prace || 0} Kč
-                                                    </div>
-                                                    <div>
-                                                        <strong>Jízdné:</strong> {reportData.calculation[znackar.INT_ADR].Jizdne_Celkem || 0} Kč
-                                                        {reportData.calculation[znackar.INT_ADR].Zvysena_Sazba && (
-                                                            <span className="badge badge--light badge--warning">
-                                                                    Zvýšené
-                                                                </span>
-                                                        )}
-                                                    </div>
-                                                    <div>
-                                                        <strong>Stravné:</strong> {reportData.calculation[znackar.INT_ADR].Stravne || 0} Kč
-                                                    </div>
-                                                    <div>
-                                                        <strong>Noclezné:</strong> {reportData.calculation[znackar.INT_ADR].Noclezne_Celkem || 0} Kč
-                                                    </div>
-                                                    <div>
-                                                        <strong>Vedlejší
-                                                            výdaje:</strong> {reportData.calculation[znackar.INT_ADR].Vedlejsi_Vydaje_Celkem || 0} Kč
-                                                    </div>
-                                                </div>
-                                            </>
-                                        ) : (
-                                            <div className="flex items-center gap-1">
-                                                <span className="font-bold">{znackar.Znackar}</span>
-                                                {znackar.Je_Vedouci && (
-                                                    <IconCrown
-                                                        size={18}
-                                                        color="#ffd700"
-                                                        title="Vedoucí"
-                                                        aria-label="Vedoucí"
-                                                    />
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                ))}
-                            </>
-                        )}
-                    </div>
-                </div>
+                <ReportProvedeniSummary
+                    state={reportData.state}
+                    znackari={reportData.znackari}
+                    calculation={reportData.calculation}
+                    datumProvedeni={reportData.data_a?.Datum_Provedeni}
+                    castADokoncena={reportData.data_a?.Cast_A_Dokoncena || false}
+                    castBDokoncena={reportData.data_b?.Cast_B_Dokoncena || false}
+                    showAll={isLeader}
+                    currentUserIntAdr={currentUser?.intAdr}
+                />
             ) : (
                 <div className="text-gray-600">
                     Hlášení ještě nebylo vytvořeno

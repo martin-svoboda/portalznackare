@@ -15,6 +15,41 @@ export function getPrikazDescription(druhZP) {
 }
 
 /**
+ * Rozparsuje číslo příkazu (tvar "kraj/obvod/typ/číslo", např. "P/PS/O/26032")
+ * na jednotlivé segmenty. Při nestandardním/prázdném čísle vrací nully.
+ *
+ * @param {string} cisloZp
+ * @returns {{kraj: string|null, obvod: string|null, typ: string|null, cislo: string|null}}
+ */
+export function parseCisloZp(cisloZp) {
+    const empty = {kraj: null, obvod: null, typ: null, cislo: null};
+    if (!cisloZp || typeof cisloZp !== 'string') {
+        return empty;
+    }
+    const parts = cisloZp.split('/');
+    if (parts.length < 4) {
+        return empty;
+    }
+    const clean = (s) => (s || '').trim() || null;
+    return {
+        kraj: clean(parts[0]),
+        obvod: clean(parts[1]),
+        typ: clean(parts[2]),
+        cislo: clean(parts[3]),
+    };
+}
+
+/**
+ * Z čísla příkazu vrátí kód typu (3. segment, např. "O") nebo null.
+ *
+ * @param {string} cisloZp
+ * @returns {string|null} kód typu (O/J/S/N…) nebo null
+ */
+export function parseCisloZpTyp(cisloZp) {
+    return parseCisloZp(cisloZp).typ;
+}
+
+/**
  * Sestaví pole tras pro mapu z dat ZP_Useky, predmetů (groupedData) a úseků (useky).
  *
  * @param {Array} zpUseky - Data z /api/insyz/zp-useky/{id}
