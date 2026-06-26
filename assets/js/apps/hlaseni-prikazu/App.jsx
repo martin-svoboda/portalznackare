@@ -269,12 +269,15 @@ const App = () => {
                         if (!prefilled[timId]) {
                             prefilled[timId] = {
                                 EvCi_TIM: timId,
-                                Predmety: [],
+                                // Predmety jako objekt klíčovaný ID_PREDMETY (shodně s editací
+                                // v PartBForm) – jinak vzniknou v XML duplicitní <Predmet>
+                                Predmety: {},
                                 Prilohy_TIM: []
                             };
                         }
+                        const predmetId = item.ID_PREDMETY.toString();
                         const status = {
-                            ID_PREDMETY: item.ID_PREDMETY.toString(),
+                            ID_PREDMETY: predmetId,
                             Zachovalost: null,
                             Rok_Vyroby: item.Rok_Vyroby || null,
                             Smerovani: item.Smerovani || "",
@@ -286,7 +289,7 @@ const App = () => {
                                 Popis_Predmetu: item.Druh_Predmetu_Naz
                             }
                         };
-                        prefilled[timId].Predmety.push(status);
+                        prefilled[timId].Predmety[predmetId] = status;
                     });
                     formData.Stavy_Tim = prefilled;
                     log.info('Předvyplněny stavy předmětů z INSYZ dat', prefilled);

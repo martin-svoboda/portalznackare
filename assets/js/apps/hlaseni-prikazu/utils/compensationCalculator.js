@@ -406,6 +406,7 @@ export function calculateCompensation(formData, tariffRates, userIntAdr = null, 
         .filter(acc => acc.Zaplatil === userIntAdr && acc.Castka > 0)
         .map(acc => ({
             id: acc.id,
+            Datum: acc.Datum ? toISODateString(acc.Datum) : "",
             Misto: acc.Misto || "",
             Zarizeni: acc.Zarizeni || "",
             Kc: acc.Castka || 0

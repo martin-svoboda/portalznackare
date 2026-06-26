@@ -10,6 +10,7 @@ import {StateBadge} from '@utils/stateBadge';
  * @param {string} state - stav hlášení
  * @param {Array} znackari - členové týmu (s INT_ADR, Znackar, Je_Vedouci)
  * @param {Object} calculation - uložená kalkulace klíčovaná INT_ADR
+ * @param {Object} [presmerovani] - přesměrování výplat z dataA.Presmerovani_Vyplat ({ z_INT_ADR: na_INT_ADR })
  * @param {string} [datumProvedeni] - ISO datum provedení (z dataA.Datum_Provedeni)
  * @param {boolean} [castADokoncena]
  * @param {boolean} [castBDokoncena]
@@ -20,12 +21,19 @@ export const ReportProvedeniSummary = ({
     state,
     znackari = [],
     calculation = {},
+    presmerovani = {},
     datumProvedeni = null,
     castADokoncena = false,
     castBDokoncena = false,
     showAll = false,
     currentUserIntAdr = null,
 }) => {
+    const jmenoZnackare = (intAdr) =>
+        (znackari || []).find(z => z.INT_ADR == intAdr)?.Znackar || `INT_ADR ${intAdr}`;
+
+    const presmerovaniList = Object.entries(presmerovani || {})
+        .filter(([, naIntAdr]) => naIntAdr);
+
     return (
         <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -93,6 +101,19 @@ export const ReportProvedeniSummary = ({
                     );
                 })}
             </div>
+
+            {presmerovaniList.length > 0 && (
+                <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-md border dark:border-gray-700 text-sm">
+                    <div className="font-bold mb-2">Přesměrování výplat</div>
+                    <ul className="space-y-1">
+                        {presmerovaniList.map(([zIntAdr, naIntAdr]) => (
+                            <li key={zIntAdr}>
+                                {jmenoZnackare(zIntAdr)} → {jmenoZnackare(naIntAdr)}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
         </div>
     );
 };

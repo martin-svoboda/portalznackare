@@ -5,6 +5,7 @@ import {
     IconRoute
 } from '@tabler/icons-react';
 import {renderHtmlContent, replaceTextWithIcons} from "@utils/htmlUtils";
+import {getUsekId} from "@utils/prikaz";
 import {PREDMETY_BEZ_LETOPOCTU} from '../utils/validationUtils';
 import {TimMismatchNote} from './TimMismatchNote';
 
@@ -211,11 +212,11 @@ export const PartBSummary = ({
                             </thead>
                             <tbody>
                                 {useky.map((usek, index) => {
-                                    const usekData = (formData.Obnovene_Useky || {})[usek.EvCi_Tra];
+                                    const usekData = (formData.Obnovene_Useky || {})[getUsekId(usek)];
                                     const isRenewed = usekData?.Usek_Obnoven === true;
 
                                     return (
-                                        <tr key={usek.EvCi_Tra || index} className="border-b border-gray-200 dark:border-gray-700">
+                                        <tr key={getUsekId(usek) || index} className="border-b border-gray-200 dark:border-gray-700">
                                             <td className={`${smallTextSize} py-2 pr-4`}>
                                                 <div className="flex items-center gap-2">
                                                     {usek.Znacka_HTML && renderHtmlContent(usek.Znacka_HTML)}

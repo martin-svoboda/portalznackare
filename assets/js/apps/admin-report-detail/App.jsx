@@ -1,5 +1,5 @@
 import React, {useState, useEffect} from 'react';
-import {IconArrowLeft, IconRefresh, IconSend2, IconCopy, IconExternalLink} from '@tabler/icons-react';
+import {IconArrowLeft, IconRefresh, IconSend2, IconCopy, IconExternalLink, IconFileCode} from '@tabler/icons-react';
 import {CompensationSummary} from '../hlaseni-prikazu/components/CompensationSummary';
 import {PartBSummary} from '../hlaseni-prikazu/components/PartBSummary';
 import {AppProvider} from '../hlaseni-prikazu/contexts/AppContext';
@@ -15,10 +15,55 @@ const App = () => {
     const [reportDetail, setReportDetail] = useState(null);
     const [tariffRates, setTariffRates] = useState(null);
     const [copied, setCopied] = useState(false);
+    const [xml, setXml] = useState(null);
+    const [xmlLoading, setXmlLoading] = useState(false);
+    const [xmlError, setXmlError] = useState(null);
+    const [xmlCopied, setXmlCopied] = useState(false);
 
     // Získat ID hlášení z URL nebo data attributu
     const container = document.querySelector('[data-app="admin-report-detail"]');
     const reportId = container?.dataset?.reportId;
+    const xmlUrl = `/admin/api/reports/${reportId}/xml`;
+
+    const loadXml = async () => {
+        setXmlLoading(true);
+        setXmlError(null);
+        try {
+            const response = await fetch(xmlUrl);
+            if (!response.ok) {
+                let msg = 'Nepodařilo se vygenerovat XML';
+                try {
+                    const err = await response.json();
+                    if (err?.error) msg = err.error;
+                } catch (e) { /* odpověď není JSON */ }
+                throw new Error(msg);
+            }
+            setXml(await response.text());
+        } catch (error) {
+            log.error('Chyba při načítání XML', error);
+            setXmlError(error.message || 'Chyba při načítání XML');
+        } finally {
+            setXmlLoading(false);
+        }
+    };
+
+    const copyXml = async () => {
+        if (!xml) return;
+        try {
+            await navigator.clipboard.writeText(xml);
+            setXmlCopied(true);
+            setTimeout(() => setXmlCopied(false), 2000);
+        } catch (e) {
+            alert('Nepodařilo se zkopírovat XML');
+        }
+    };
+
+    // Lazy načtení XML při prvním otevření tabu
+    useEffect(() => {
+        if (activeTab === 'xml' && xml === null && !xmlLoading && !xmlError) {
+            loadXml();
+        }
+    }, [activeTab]);
 
     const copyNahledUrl = async () => {
         if (!reportDetail?.nahledUrl) return;
@@ -39,6 +84,9 @@ const App = () => {
 
     const loadReportDetail = async () => {
         setLoading(true);
+        // Invalidovat dříve načtené XML – po obnovení dat se přegeneruje
+        setXml(null);
+        setXmlError(null);
         try {
             const response = await fetch(`/admin/api/reports/${reportId}`);
             const data = await response.json();
@@ -176,6 +224,12 @@ const App = () => {
                     onClick={() => setActiveTab('history')}
                 >
                     Historie
+                </button>
+                <button
+                    className={`tabs__item tabs__link ${activeTab === 'xml' ? 'tabs__link--active' : ''}`}
+                    onClick={() => setActiveTab('xml')}
+                >
+                    XML pro INSYZ
                 </button>
             </div>
 
@@ -348,6 +402,61 @@ const App = () => {
                                     Žádná historie nenalezena
                                 </div>
                             )}
+                        </div>
+                    </div>
+                )}
+
+                {/* XML pro INSYZ */}
+                {activeTab === 'xml' && (
+                    <div className="card">
+                        <div className="card__content">
+                            <div className="flex items-center gap-2 mb-4 flex-wrap">
+                                <button
+                                    type="button"
+                                    onClick={copyXml}
+                                    className="btn btn--secondary btn--sm"
+                                    disabled={!xml || xmlLoading}
+                                    title="Kopírovat XML"
+                                >
+                                    <IconCopy size={16}/>
+                                    {xmlCopied ? 'Zkopírováno' : 'Kopírovat XML'}
+                                </button>
+                                <a
+                                    href={xmlUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="btn btn--secondary btn--sm"
+                                    title="Otevřít XML v nové záložce"
+                                >
+                                    <IconExternalLink size={16}/>
+                                    Otevřít raw
+                                </a>
+                                <button
+                                    type="button"
+                                    onClick={loadXml}
+                                    className="btn btn--secondary btn--sm"
+                                    disabled={xmlLoading}
+                                    title="Znovu vygenerovat XML"
+                                >
+                                    <IconRefresh size={16}/>
+                                    Obnovit
+                                </button>
+                            </div>
+
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                                <IconFileCode size={14} className="inline mr-1"/>
+                                Náhled XML generovaného z aktuálních dat hlášení – stejná struktura, jaká se odesílá do INSYZ.
+                            </p>
+
+                            {xmlLoading ? (
+                                <Loader/>
+                            ) : xmlError ? (
+                                <div className="alert alert--danger">{xmlError}</div>
+                            ) : xml ? (
+                                <pre className="text-xs bg-gray-50 dark:bg-gray-900 border dark:border-gray-700 rounded-md p-3 overflow-auto max-h-[70vh] whitespace-pre-wrap break-all">
+                                    {xml}
+                                </pre>
+                            ) : null}
                         </div>
                     </div>
                 )}

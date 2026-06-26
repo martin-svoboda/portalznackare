@@ -1,4 +1,16 @@
 /**
+ * Vrátí ID úseku z INSYZ pro klíčování Obnovene_Useky (a tedy atribut <Usek id="…"> v XML).
+ * U odbočky je to ID_TRASY_Odbocky, u běžného úseku ID_Trasy_ZU.
+ * EvCi_Tra (evidenční číslo trasy) je až poslední fallback pro mock/dev data,
+ * která tato ID nemají – do INSYZ se má posílat ID úseku, ne číslo trasy.
+ * @param {Object} usek - objekt úseku z INSYZ
+ * @returns {string} ID úseku (string)
+ */
+export function getUsekId(usek) {
+    return String(usek?.ID_TRASY_Odbocky ?? usek?.ID_Trasy_ZU ?? usek?.EvCi_Tra ?? '');
+}
+
+/**
  * Získá popis příkazu podle druhu ZP
  * @param {string} druhZP - Druh značkařského příkazu (O, J, S, N)
  * @returns {string} Popis příkazu

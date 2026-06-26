@@ -202,6 +202,9 @@ Trvalý systemd worker (`portal-messenger-prod` / `-dev`) konzumuje frontu zprá
 5. Frontend: polling state → notifikace uživateli
 ```
 
+### Náhled XML v administraci
+Na detailu hlášení (`/admin/hlaseni/{id}`, app [`admin-report-detail`](../../assets/js/apps/admin-report-detail/App.jsx)) je tab **„XML pro INSYZ"** – zobrazí XML vygenerované z aktuálních dat hlášení (stejná struktura jako při odeslání), s možností kopírovat a otevřít raw. Endpoint: `GET /admin/api/reports/{id}/xml` (vrací `application/xml`), generuje [`XmlGenerationService`](../../src/Service/XmlGenerationService.php). Slouží k ladění/kontrole obsahu před i po odeslání.
+
 ### Smart retry logika
 ```php
 // SendToInsyzHandler rozlišuje chyby
@@ -254,6 +257,33 @@ private function shouldRetry(\Exception $e): bool {
     "state": "send"
 }
 ```
+
+### Datové kontrakty pro INSYZ XML (důležité)
+XML se generuje v `XmlGenerationService` z `data_a` + `data_b` + `calculation`. Tvar vstupních dat musí být konzistentní, jinak vzniknou chyby v XML:
+
+- **`Stavy_Tim[EvCi_TIM].Predmety`** = **objekt klíčovaný `ID_PREDMETY`** (NE pole). Předvyplnění z INSYZ ([App.jsx](../../assets/js/apps/hlaseni-prikazu/App.jsx)) i editace ([PartBForm.jsx](../../assets/js/apps/hlaseni-prikazu/components/PartBForm.jsx)) musí používat stejný tvar – jinak se v XML objeví každý `<Predmet>` dvakrát (klíče `0,1,2` z pole + reálná ID).
+- **`Obnovene_Useky`** = objekt klíčovaný **ID úseku z INSYZ** – `ID_TRASY_Odbocky` (odbočka), jinak `ID_Trasy_ZU`. NE `EvCi_Tra` (to je evidenční číslo trasy). Helper `getUsekId()` v [RenewedSectionsForm.jsx](../../assets/js/apps/hlaseni-prikazu/components/RenewedSectionsForm.jsx).
+- **`calculation[INT_ADR].Noclezne[]`** musí obsahovat i pole **`Datum`** (z `data_a.Noclezne[].Datum`) – doplňuje [compensationCalculator.js](../../assets/js/apps/hlaseni-prikazu/utils/compensationCalculator.js). Bez něj se datum noclehu do XML nedostane.
+- **`Presmerovani_Vyplat`** (`{ z_INT_ADR: na_INT_ADR }`) z `data_a` jde do XML i do přehledu ZP – zobrazuje [ReportProvedeniSummary.jsx](../../assets/js/components/prikazy/ReportProvedeniSummary.jsx).
+
+> Pozn.: opravy ve frontendu platí pro **nová/znovuuložená hlášení**. Pro hromadnou opravu už uložených dat slouží konzolový příkaz níže.
+
+### Hromadná oprava uložených dat (CLI)
+Příkaz [`app:reports:fix-xml-data`](../../src/Command/FixReportXmlDataCommand.php) převede uložená data hlášení do konzistentního tvaru pro INSYZ XML (datum noclehu, de-duplikace předmětů, překlíčování `Obnovene_Useky` z `EvCi_Tra` na ID úseku). Logika je v [`ReportXmlDataFixer`](../../src/Service/ReportXmlDataFixer.php), je idempotentní.
+
+```bash
+# DRY-RUN (výchozí, nic nezapíše) – vypíše, co by se změnilo
+ddev exec php bin/console app:reports:fix-xml-data
+
+# Zápis všech hlášení (se zálohou původních dat do history)
+ddev exec php bin/console app:reports:fix-xml-data --force
+
+# Jen konkrétní hlášení / jen daný stav
+ddev exec php bin/console app:reports:fix-xml-data 16 --force
+ddev exec php bin/console app:reports:fix-xml-data --state=draft --force
+```
+
+Bezpečnost: dry-run je default; před zápisem se původní `data_a`/`data_b`/`calculation` uloží do `history` (akce `admin_data_fix`) pro případný rollback; příkaz **nikdy znovu neodesílá do INSYZ** (stav se nemění). Překlíčování úseků potřebuje úseky příkazu z INSYZ – nejednoznačné odbočky (sdílené `EvCi_Tra`) i nenalezené úseky vynechá a vypíše jako varování.
 
 ### Report states
 - **draft** - Rozpracováno (editovatelné)
@@ -343,4 +373,4 @@ Frontend zobrazí: "Odesílání trvá déle než obvykle"
 **Propojené funkcionality:** [File Management](file-management.md) | [INSYZ Integration](insyz-integration.md)  
 **API Reference:** [../api/portal-api.md](../api/portal-api.md)  
 **Technical details:** [../development/background-jobs.md](../development/background-jobs.md)  
-**Aktualizováno:** 2026-06-13
+**Aktualizováno:** 2026-06-26

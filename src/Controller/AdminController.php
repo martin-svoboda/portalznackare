@@ -8,6 +8,7 @@ use App\Entity\InsyzAuditLog;
 use App\Entity\Report;
 use App\Service\SystemOptionService;
 use App\Service\InsyzReportHashService;
+use App\Service\XmlGenerationService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -201,6 +202,34 @@ class AdminController extends AbstractController
             'calculation' => $report->getCalculation(),
             'history' => $report->getHistory(),
             'nahledUrl' => $nahledUrl,
+        ]);
+    }
+
+    #[Route('/api/reports/{id}/xml', name: 'admin_api_report_xml', methods: ['GET'])]
+    public function apiReportXml(int $id, XmlGenerationService $xmlGenerator): Response
+    {
+        $report = $this->entityManager->getRepository(Report::class)->find($id);
+
+        if (!$report) {
+            return $this->json(['error' => 'Hlášení nenalezeno'], 404);
+        }
+
+        // Stejná struktura dat jako při odesílání do INSYZ (viz PortalController dispatch)
+        try {
+            $xml = $xmlGenerator->generateReportXml([
+                'id_zp' => $report->getIdZp(),
+                'cislo_zp' => $report->getCisloZp(),
+                'znackari' => $report->getTeamMembers(),
+                'data_a' => $report->getDataA(),
+                'data_b' => $report->getDataB(),
+                'calculation' => $report->getCalculation(),
+            ]);
+        } catch (\Throwable $e) {
+            return $this->json(['error' => 'Chyba při generování XML: ' . $e->getMessage()], 500);
+        }
+
+        return new Response($xml, 200, [
+            'Content-Type' => 'application/xml; charset=UTF-8',
         ]);
     }
 

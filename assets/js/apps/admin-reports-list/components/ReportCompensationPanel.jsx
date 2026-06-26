@@ -50,6 +50,7 @@ export const ReportCompensationPanel = ({reportId}) => {
             state={detail.state}
             znackari={detail.znackari}
             calculation={detail.calculation}
+            presmerovani={detail.dataA?.Presmerovani_Vyplat}
             datumProvedeni={detail.dataA?.Datum_Provedeni}
             castADokoncena={detail.dataA?.Cast_A_Dokoncena || false}
             castBDokoncena={detail.dataB?.Cast_B_Dokoncena || false}

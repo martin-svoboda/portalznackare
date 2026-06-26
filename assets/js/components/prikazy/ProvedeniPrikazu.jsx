@@ -129,6 +129,7 @@ export const ProvedeniPrikazu = ({prikazId, head, currentUser, isLeader}) => {
                     state={reportData.state}
                     znackari={reportData.znackari}
                     calculation={reportData.calculation}
+                    presmerovani={reportData.data_a?.Presmerovani_Vyplat}
                     datumProvedeni={reportData.data_a?.Datum_Provedeni}
                     castADokoncena={reportData.data_a?.Cast_A_Dokoncena || false}
                     castBDokoncena={reportData.data_b?.Cast_B_Dokoncena || false}

@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import {IconRoute, IconInfoCircle} from '@tabler/icons-react';
 import {renderHtmlContent, replaceTextWithIcons} from "../../../utils/htmlUtils";
+import {getUsekId} from "../../../utils/prikaz";
 
 export const RenewedSectionsForm = ({
                                         useky = [],
@@ -21,7 +22,7 @@ export const RenewedSectionsForm = ({
             let hasChanges = false;
             
             Object.keys(updated).forEach(usekId => {
-                const usek = useky.find(u => u.EvCi_Tra === usekId);
+                const usek = useky.find(u => getUsekId(u) === usekId);
                 if (usek?.Delka_ZU && typeof updated[usekId].Usek_Delka === 'undefined') {
                     updated[usekId].Usek_Delka = parseFloat(usek.Delka_ZU);
                     hasChanges = true;
@@ -39,7 +40,7 @@ export const RenewedSectionsForm = ({
         const updated = {...Obnovene_Useky};
 
         // Najít úsek pro získání délky
-        const usek = useky.find(u => u.EvCi_Tra === usekId);
+        const usek = useky.find(u => getUsekId(u) === usekId);
 
         if (!updated[usekId]) {
             updated[usekId] = {
@@ -113,12 +114,13 @@ export const RenewedSectionsForm = ({
                         {/* Úseky */}
                         <div className="space-y-4">
                             {useky.map((usek, index) => {
-                                const usekData = Obnovene_Useky[usek.EvCi_Tra] || {
+                                const usekId = getUsekId(usek);
+                                const usekData = Obnovene_Useky[usekId] || {
                                     Usek_Obnoven: false
                                 };
 
                                 return (
-                                    <div key={usek.EvCi_Tra || index}
+                                    <div key={usekId || index}
                                          className="border-b border-gray-200 dark:border-gray-700 pb-4">
                                         <div className="grid grid-cols-1 md:grid-cols-9 gap-4 items-center">
                                             {/* Informace o úseku */}
@@ -177,7 +179,7 @@ export const RenewedSectionsForm = ({
                                                                 : 'bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
                                                         }`}
                                                         onClick={() => handleSectionRenewalChange(
-                                                            usek.EvCi_Tra,
+                                                            usekId,
                                                             'Usek_Obnoven',
                                                             false
                                                         )}
@@ -193,7 +195,7 @@ export const RenewedSectionsForm = ({
                                                                 : 'bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
                                                         }`}
                                                         onClick={() => handleSectionRenewalChange(
-                                                            usek.EvCi_Tra,
+                                                            usekId,
                                                             'Usek_Obnoven',
                                                             true
                                                         )}

@@ -5,6 +5,7 @@
 
 import { extractTeamMembers, calculateExecutionDate } from './compensationCalculator';
 import { toISODateString } from '../../../utils/dateUtils';
+import { getUsekId } from '../../../utils/prikaz';
 
 /**
  * Typy předmětů (Druh_Predmetu), u kterých se nesbírá ani nevyžaduje letopočet (Rok_Vyroby)
@@ -909,7 +910,7 @@ const validateRenewedSections = (formData, useky, warnings) => {
     const stripHtml = (str) => str ? str.replace(/<[^>]*>/g, '').trim() : '';
 
     useky.forEach(usek => {
-        const record = obnoveneUseky[usek.EvCi_Tra];
+        const record = obnoveneUseky[getUsekId(usek)];
         if (!record || !record.Usek_Obnoven) {
             const name = stripHtml(usek.Nazev_ZU) || usek.EvCi_Tra;
             warnings.push({
