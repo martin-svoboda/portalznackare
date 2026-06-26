@@ -5,6 +5,7 @@ namespace App\Service;
 use Doctrine\DBAL\Connection;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
+use Symfony\Component\HttpKernel\KernelInterface;
 
 /**
  * Service pro získání dat příloh podle ID
@@ -14,8 +15,33 @@ class AttachmentLookupService
     public function __construct(
         private Connection $connection,
         private LoggerInterface $logger,
-        private RequestStack $requestStack
+        private RequestStack $requestStack,
+        private KernelInterface $kernel
     ) {}
+
+    /**
+     * Základ absolutní URL: host z HTTP requestu, jinak veřejná doména dle prostředí
+     * (CLI/worker kontext, kde request neexistuje – jinak by odkaz v INSYZ XML spadl
+     * na http://localhost). Doména je daná a neměnná: dev → dev.portalznackare.cz,
+     * prod → portalznackare.cz.
+     */
+    private function resolveBaseUrl(): string
+    {
+        $request = $this->requestStack->getCurrentRequest();
+        if ($request) {
+            return $request->getSchemeAndHttpHost();
+        }
+
+        return 'https://' . ($this->kernel->getEnvironment() === 'dev' ? 'dev.' : '') . 'portalznackare.cz';
+    }
+
+    /**
+     * Veřejně servírovatelná cesta přílohy (vč. bezpečnostního tokenu pro neveřejné soubory).
+     */
+    private function publicPath(array $result): string
+    {
+        return $result['public_url'] ?: ('/uploads/' . $result['path']);
+    }
 
     /**
      * Získá data přílohy podle ID
@@ -34,12 +60,7 @@ class AttachmentLookupService
                 return null;
             }
 
-            // Získat base URL z requestu
-            $baseUrl = '';
-            $request = $this->requestStack->getCurrentRequest();
-            if ($request) {
-                $baseUrl = $request->getSchemeAndHttpHost();
-            }
+            $baseUrl = $this->resolveBaseUrl();
 
             // Převést na strukturu kompatibilní s XML generátorem
             $attachment = [
@@ -47,21 +68,21 @@ class AttachmentLookupService
                 'fileName' => $result['original_name'],
                 'fileType' => $result['mime_type'],
                 'fileSize' => (int)$result['size'],
-                'url' => $baseUrl . '/uploads/' . $result['path'], // kompletní URL
+                'url' => $baseUrl . $this->publicPath($result), // kompletní veřejná URL
                 'isPublic' => (bool)$result['is_public']
             ];
-            
+
             // Add thumbnail URL if exists
             if ($result['thumbnail_path']) {
                 $attachment['thumbnailUrl'] = $baseUrl . '/uploads/' . $result['thumbnail_path'];
             }
-            
+
             // Add usage count if usage_info exists
             if ($result['usage_info']) {
                 $usageInfo = json_decode($result['usage_info'], true) ?: [];
                 $attachment['usageCount'] = array_sum(array_map('count', $usageInfo));
             }
-            
+
             return $attachment;
         } catch (\Exception $e) {
             $this->logger->error('Failed to fetch attachment', [
@@ -98,12 +119,7 @@ class AttachmentLookupService
                 $validIds
             );
 
-            // Získat base URL z requestu
-            $baseUrl = '';
-            $request = $this->requestStack->getCurrentRequest();
-            if ($request) {
-                $baseUrl = $request->getSchemeAndHttpHost();
-            }
+            $baseUrl = $this->resolveBaseUrl();
 
             // Převést na strukturu kompatibilní s XML generátorem
             return array_map(function ($result) use ($baseUrl) {
@@ -112,10 +128,10 @@ class AttachmentLookupService
                     'fileName' => $result['original_name'],
                     'fileType' => $result['mime_type'],
                     'fileSize' => (int)$result['size'],
-                    'url' => $baseUrl . '/uploads/' . $result['path'], // kompletní URL
+                    'url' => $baseUrl . $this->publicPath($result), // kompletní veřejná URL
                     'isPublic' => (bool)$result['is_public']
                 ];
-                
+
                 // Add thumbnail URL if exists
                 if ($result['thumbnail_path']) {
                     $attachment['thumbnailUrl'] = $baseUrl . '/uploads/' . $result['thumbnail_path'];

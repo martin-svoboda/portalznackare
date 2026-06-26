@@ -116,6 +116,13 @@ Database model s tabulkou `file_attachments` (ne "attachments").
 ### FileServeController
 Controller pro serving souborů s podporou public/private přístupu a security tokenů.
 
+### Absolutní URL příloh (INSYZ XML / worker)
+[`AttachmentLookupService`](../../src/Service/AttachmentLookupService.php) staví URL z DB sloupce `public_url` (obsahuje bezpečnostní token pro neveřejné soubory) — **ne** z `path` (ten token nemá). Základ URL je host z HTTP requestu, a v CLI/worker kontextu (odeslání hlášení do INSYZ, kde request neexistuje) veřejná doména dle prostředí (`resolveBaseUrl()`):
+- `dev` → `https://dev.portalznackare.cz`
+- `prod` → `https://portalznackare.cz`
+
+Bez toho by odkazy v INSYZ XML spadly na `http://localhost` (zvenku nedostupné) a bez tokenu by se neveřejné přílohy stejně nevydaly.
+
 
 ## ⚛️ React Frontend - AdvancedFileUpload
 
