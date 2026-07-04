@@ -6,6 +6,16 @@ import {
 import {log} from '../../../utils/debug';
 import {useAppData} from '../contexts/AppContext';
 
+// Přílohy mohou být POLE (uložený tvar – pole ID) nebo OBJEKT (rozpracovaný tvar
+// z formuláře, keyed přes setAttachmentsFromArray). Doklad je „přítomen", pokud je
+// v libovolném z těchto tvarů aspoň jedna položka. Bez toho hlásí falešně
+// „chybí doklad" u čerstvě přiložených dokladů, dokud se hlášení nenačte znovu.
+const hasAttachments = (prilohy) => {
+    if (Array.isArray(prilohy)) return prilohy.length > 0;
+    if (prilohy && typeof prilohy === 'object') return Object.keys(prilohy).length > 0;
+    return false;
+};
+
 // Member compensation detail component for compact mode
 const MemberCompensationDetail = ({
                                       member,
@@ -181,7 +191,7 @@ const MemberCompensationDetail = ({
                         }
 
                         if (!compact) {
-                            const prilohy = segment.Prilohy && segment.Prilohy.length > 0 ?
+                            const prilohy = hasAttachments(segment.Prilohy) ?
                                 '<span class="text-green-600">(✓ doklad)</span>' :
                                 '<span class="text-orange-500">(⚠ chybí doklad)</span>'
 
@@ -279,7 +289,7 @@ const MemberCompensationDetail = ({
                                         ${noc.Zarizeni || '<span class="text-red-500 font-bold">chybí zařízení</span>'} 
                                         v ${noc.Misto || '<span class="text-red-500 font-bold">chybí místo</span>'}
                                         za <strong>${formatCurrency(noc.Castka || 0)}</strong>
-                                        ${noc.Prilohy && noc.Prilohy.length > 0 ?
+                                        ${hasAttachments(noc.Prilohy) ?
                                             `<span class="text-green-600">(✓ doklad)</span>` :
                                             '<span class="text-orange-500">(⚠ chybí doklad)</span>'}
                                     `
@@ -312,7 +322,7 @@ const MemberCompensationDetail = ({
                                         ${vydaj.Datum ? new Date(vydaj.Datum).toLocaleDateString('cs-CZ') : '<span class="text-red-500 font-bold">chybí datum</span>'}:
                                         ${vydaj.Polozka || '<span class="text-red-500 font-bold">chybí popis položky</span>'}
                                         za <strong>${formatCurrency(vydaj.Castka || 0)}</strong>
-                                        ${vydaj.Prilohy && vydaj.Prilohy.length > 0 ?
+                                        ${hasAttachments(vydaj.Prilohy) ?
                                             `<span class="text-green-600">(✓ doklad)</span>` :
                                             '<span class="text-orange-500">(⚠ chybí doklad)</span>'}
                                     `
@@ -410,6 +420,33 @@ export const CompensationSummary = ({
             return null;
         }
     }, [readOnly, calculation, formData, tariffRates, isLeader, teamMembers, currentUser, usersDetails, calculateForAllMembers, calculateForSingleUser]);
+
+    // DIAGNOSTIKA chyby "0 h / Žádný počátek a konec cesty" (jen v debug módu):
+    // pokud je člen přiřazen do skupiny, která má segmenty s časy, ale přepočet
+    // vrátil prázdný Cas_Prace, vypíše přesné tvary dat (typy INT_ADR/Cestujci,
+    // časy, Datum) – to odhalí, proč párování člen↔segment v tom okamžiku selhalo.
+    useEffect(() => {
+        if (readOnly || !compensation || !Array.isArray(formData?.Skupiny_Cest)) return;
+        Object.entries(compensation).forEach(([intAdr, comp]) => {
+            const maPraci = Array.isArray(comp?.Cas_Prace) && comp.Cas_Prace.length > 0;
+            if (maPraci) return;
+            const skupinyClena = formData.Skupiny_Cest.filter(
+                g => (g.Cestujci || []).some(c => c == intAdr) // loose: čísla vs stringy
+            );
+            const segmentySCasy = skupinyClena.flatMap(g =>
+                (g.Cesty || []).filter(s => s.Cas_Odjezdu && s.Cas_Prijezdu)
+            );
+            if (segmentySCasy.length === 0) return; // legitimně 0 h – nelogovat
+            log.warn(`CompensationSummary: člen ${intAdr} má 0 h práce, přestože má ${segmentySCasy.length} segment(ů) s časy – kontrola tvaru dat`, {
+                intAdr, intAdrTyp: typeof intAdr,
+                cestujci: skupinyClena.map(g => ({ hodnoty: g.Cestujci, typy: (g.Cestujci || []).map(c => typeof c) })),
+                segmenty: segmentySCasy.map(s => ({
+                    Cas_Odjezdu: s.Cas_Odjezdu, Cas_Prijezdu: s.Cas_Prijezdu,
+                    DatumTyp: Object.prototype.toString.call(s.Datum), Datum: s.Datum,
+                })),
+            });
+        });
+    }, [readOnly, compensation, formData]);
 
 
     // Determine which members to show based on permissions
