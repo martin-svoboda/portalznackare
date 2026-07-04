@@ -10,6 +10,7 @@ use App\Service\CzechVocativeService;
 use App\Service\InsyzService;
 use App\Service\InsyzReportHashService;
 use App\Service\DataEnricherService;
+use App\Service\AttachmentLookupService;
 use App\Entity\Report;
 use App\Entity\User;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -93,7 +94,8 @@ class AppController extends AbstractController
         ReportRepository $reportRepository,
         InsyzReportHashService $hashService,
         InsyzService $insyzService,
-        DataEnricherService $dataEnricher
+        DataEnricherService $dataEnricher,
+        AttachmentLookupService $attachmentService
     ): Response {
         // Přihlášený uživatel → dnešní chování (plná appka, editace dle práv)
         if ($this->getUser() instanceof User) {
@@ -125,7 +127,7 @@ class AppController extends AbstractController
         }
 
         $bootstrap = $this->buildInsyzBootstrap(
-            $report, $insyzService, $dataEnricher
+            $report, $insyzService, $dataEnricher, $attachmentService
         );
 
         // Bezpečné enkódování pro vložení do <script type="application/json">:
@@ -150,7 +152,8 @@ class AppController extends AbstractController
     private function buildInsyzBootstrap(
         Report $report,
         InsyzService $insyzService,
-        DataEnricherService $dataEnricher
+        DataEnricherService $dataEnricher,
+        AttachmentLookupService $attachmentService
     ): array {
         $ownerIntAdr = $report->getIntAdr();
         $idZp = $report->getIdZp();
@@ -168,8 +171,8 @@ class AppController extends AbstractController
             'id' => $report->getId(),
             'id_zp' => $report->getIdZp(),
             'cislo_zp' => $report->getCisloZp(),
-            'data_a' => $report->getDataA(),
-            'data_b' => $report->getDataB(),
+            'data_a' => $report->getEnrichedDataA($attachmentService),
+            'data_b' => $report->getEnrichedDataB($attachmentService),
             'znackari' => $report->getTeamMembers(),
             'calculation' => $report->getCalculation(),
             'state' => $report->getState()->value,

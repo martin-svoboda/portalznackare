@@ -84,13 +84,51 @@ class ImageProcessingService
      */
     private function loadImage(string $filePath, string $mimeType): ?\GdImage
     {
-        return match ($mimeType) {
+        $image = match ($mimeType) {
             'image/jpeg' => imagecreatefromjpeg($filePath),
             'image/png' => imagecreatefrompng($filePath),
             'image/webp' => imagecreatefromwebp($filePath),
             'image/gif' => imagecreatefromgif($filePath),
             default => null
         };
+
+        // JPEG může nést EXIF orientaci, kterou GD ignoruje (na rozdíl od prohlížeče
+        // i od upload pipeline). Bez srovnání by editor pracoval s jinou orientací,
+        // než jakou uživatel vidí, a uložil by originál otočený.
+        if ($image && $mimeType === 'image/jpeg') {
+            $image = $this->applyExifOrientation($image, $filePath);
+        }
+
+        return $image;
+    }
+
+    /**
+     * Srovná pixely obrázku podle EXIF orientace (JPEG). Soubory po uploadu už jsou
+     * srovnané a EXIF nemají, takže se u nich nic neděje (žádná dvojitá rotace).
+     */
+    private function applyExifOrientation(\GdImage $image, string $filePath): \GdImage
+    {
+        if (!function_exists('exif_read_data')) {
+            return $image;
+        }
+
+        $exif = @exif_read_data($filePath);
+        $orientation = (int) ($exif['Orientation'] ?? 1);
+
+        // GD imagerotate rotuje proti směru hodinových ručiček (kladný úhel).
+        $rotated = match ($orientation) {
+            3 => imagerotate($image, 180, 0),
+            6 => imagerotate($image, -90, 0), // 90° po směru hod. ručiček
+            8 => imagerotate($image, 90, 0),  // 90° proti směru hod. ručiček
+            default => null,
+        };
+
+        if ($rotated instanceof \GdImage) {
+            imagedestroy($image);
+            return $rotated;
+        }
+
+        return $image;
     }
 
     /**
