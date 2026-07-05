@@ -19,7 +19,7 @@ class XmlGenerationService
     /**
      * Generuje XML z dat hlášení pro INSYZ API
      */
-    public function generateReportXml(array $reportData): string
+    public function generateReportXml(array $reportData, array $meta = []): string
     {
         // Store reportData for lookup operations
         $this->currentReportData = $reportData;
@@ -41,7 +41,16 @@ class XmlGenerationService
         }
         
         $xml->appendChild($root);
-        
+
+        // Metadata odeslání (kdy a kdo) – pro schvalovací workflow v INSYZ
+        foreach (['Datum_Odeslani', 'Odeslal'] as $metaKey) {
+            if (isset($meta[$metaKey]) && $meta[$metaKey] !== '' && $meta[$metaKey] !== null) {
+                $metaEl = $xml->createElement($metaKey);
+                $metaEl->appendChild($xml->createTextNode((string)$meta[$metaKey]));
+                $root->appendChild($metaEl);
+            }
+        }
+
         // Přestrukturovat data - odebrání cast_a a cast_b
         $restructuredData = $this->restructureReportData($reportData);
         Logger::debug('XmlGeneration: Po restrukturalizaci, klíče: ' . implode(', ', array_keys($restructuredData)));

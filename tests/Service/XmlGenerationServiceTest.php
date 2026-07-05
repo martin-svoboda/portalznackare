@@ -111,4 +111,23 @@ class XmlGenerationServiceTest extends TestCase
         $this->assertStringContainsString('<Presmerovani_Vyplat>', $xml);
         $this->assertStringContainsString('<Vyplatit INT_ADR="1234">5678</Vyplatit>', $xml);
     }
+
+    public function testMetaOdeslaniVeXml(): void
+    {
+        $xml = $this->makeService()->generateReportXml($this->sampleReportData(), [
+            'Datum_Odeslani' => '2026-07-05 10:00:30',
+            'Odeslal' => 4133,
+        ]);
+
+        $this->assertStringContainsString('<Datum_Odeslani>2026-07-05 10:00:30</Datum_Odeslani>', $xml);
+        $this->assertStringContainsString('<Odeslal>4133</Odeslal>', $xml);
+    }
+
+    public function testBezMetaSeElementyNevypisuji(): void
+    {
+        $xml = $this->makeService()->generateReportXml($this->sampleReportData());
+
+        $this->assertStringNotContainsString('<Datum_Odeslani>', $xml);
+        $this->assertStringNotContainsString('<Odeslal>', $xml);
+    }
 }

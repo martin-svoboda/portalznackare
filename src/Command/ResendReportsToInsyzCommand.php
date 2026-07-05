@@ -32,6 +32,7 @@ class ResendReportsToInsyzCommand extends Command
     protected function configure(): void
     {
         $this->addOption('force', null, InputOption::VALUE_NONE, 'Skutečně odeslat (jinak jen výpis)');
+        $this->addOption('by', null, InputOption::VALUE_REQUIRED, 'INT_ADR toho, kdo odeslání spouští (zapíše se do XML jako Odeslal; jinak vlastník hlášení)');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -65,6 +66,8 @@ class ResendReportsToInsyzCommand extends Command
         }
         $this->entityManager->flush();
 
+        $by = $input->getOption('by');
+
         foreach ($reports as $report) {
             $this->messageBus->dispatch(new SendToInsyzMessage(
                 $report->getId(),
@@ -75,6 +78,7 @@ class ResendReportsToInsyzCommand extends Command
                     'data_a' => $report->getDataA(),
                     'data_b' => $report->getDataB(),
                     'calculation' => $report->getCalculation(),
+                    'submitted_by' => $by !== null ? (int) $by : $report->getIntAdr(),
                 ],
                 $this->kernel->getEnvironment()
             ));

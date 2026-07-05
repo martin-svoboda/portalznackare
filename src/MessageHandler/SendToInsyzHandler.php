@@ -61,8 +61,15 @@ class SendToInsyzHandler
         }
 
         try {
+            // Metadata odeslání: timestamp = okamžik skutečného odeslání do INSYZ,
+            // Odeslal = INT_ADR toho, kdo odeslání spustil (fallback vlastník hlášení).
+            $meta = [
+                'Datum_Odeslani' => date('Y-m-d H:i:s'),
+                'Odeslal' => $reportData['submitted_by'] ?? $report->getIntAdr(),
+            ];
+
             // Generovat XML z report dat
-            $xmlData = $this->xmlGenerator->generateReportXml($reportData);
+            $xmlData = $this->xmlGenerator->generateReportXml($reportData, $meta);
             
             $this->logger->info('Generated XML for INSYZ submission', [
                 'report_id' => $reportId,

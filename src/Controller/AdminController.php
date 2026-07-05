@@ -9,6 +9,8 @@ use App\Entity\Report;
 use App\Service\SystemOptionService;
 use App\Service\InsyzReportHashService;
 use App\Service\XmlGenerationService;
+use App\Message\SendToInsyzMessage;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -23,7 +25,8 @@ class AdminController extends AbstractController
 {
     public function __construct(
         private EntityManagerInterface $entityManager,
-        private SystemOptionService $systemOptionService
+        private SystemOptionService $systemOptionService,
+        private MessageBusInterface $messageBus
     ) {}
 
     #[Route('/', name: 'admin_dashboard')]
@@ -223,6 +226,10 @@ class AdminController extends AbstractController
                 'data_a' => $report->getDataA(),
                 'data_b' => $report->getDataB(),
                 'calculation' => $report->getCalculation(),
+            ], [
+                // Náhled – ilustrační hodnoty (kdy = teď, kdo = přihlášený admin)
+                'Datum_Odeslani' => date('Y-m-d H:i:s'),
+                'Odeslal' => $this->getUser()->getIntAdr(),
             ]);
         } catch (\Throwable $e) {
             return $this->json(['error' => 'Chyba při generování XML: ' . $e->getMessage()], 500);
@@ -271,6 +278,25 @@ class AdminController extends AbstractController
             );
 
             $this->entityManager->flush();
+
+            // REÁLNÉ odeslání do INSYZ: při přechodu na 'send' dispatchni worker
+            // (stejně jako PortalController) – jinak by admin změnil jen stav a nic
+            // by se neodeslalo. Admin se zapíše jako odesílatel (Odeslal v XML).
+            if ($newState === 'send' && $oldState !== 'send') {
+                $this->messageBus->dispatch(new SendToInsyzMessage(
+                    $report->getId(),
+                    [
+                        'id_zp' => $report->getIdZp(),
+                        'cislo_zp' => $report->getCisloZp(),
+                        'znackari' => $report->getTeamMembers(),
+                        'data_a' => $report->getDataA(),
+                        'data_b' => $report->getDataB(),
+                        'calculation' => $report->getCalculation(),
+                        'submitted_by' => $this->getUser()->getIntAdr(),
+                    ],
+                    $this->getParameter('kernel.environment')
+                ));
+            }
 
             return $this->json(['success' => true]);
 

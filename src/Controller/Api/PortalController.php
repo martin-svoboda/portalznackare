@@ -240,7 +240,8 @@ class PortalController extends AbstractController
                             'znackari' => $report->getTeamMembers(),
                             'data_a' => $report->getDataA(),
                             'data_b' => $report->getDataB(),
-                            'calculation' => $report->getCalculation()
+                            'calculation' => $report->getCalculation(),
+                            'submitted_by' => $intAdr, // kdo odeslal (aktuální uživatel)
                         ],
                         $this->getParameter('kernel.environment')
                     );
