@@ -77,7 +77,7 @@ export const ReportProvedeniSummary = ({
                                     </div>
                                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                                         <div><strong>Čas práce:</strong> {calc.Cas_Prace_Celkem || 0} h</div>
-                                        <div><strong>Náhrada práce:</strong> {calc.Nahrada_Prace || 0} Kč</div>
+                                        <div><strong>Náhrady:</strong> {calc.Nahrada_Prace || 0} Kč</div>
                                         <div>
                                             <strong>Jízdné:</strong> {calc.Jizdne_Celkem || 0} Kč
                                             {calc.Zvysena_Sazba && (

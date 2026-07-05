@@ -255,7 +255,7 @@ const MemberCompensationDetail = ({
             <div className={blockStyle}>
                 <div className="flex justify-between">
                     <span className={`${textSize} font-medium`}>
-                        Náhrada za práci
+                        Náhrady
                     </span>
                     <span className={textSize}>{formatCurrency(memberCompensation?.Nahrada_Prace || 0)}</span>
                 </div>
