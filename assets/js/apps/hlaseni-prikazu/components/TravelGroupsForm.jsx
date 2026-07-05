@@ -735,7 +735,10 @@ export const TravelGroupsForm = ({
                                                                     <div className="space-y-2">
                                                                         {group.Cestujci.map(intAdr => {
                                                                             const member = teamMembers?.find(m => m.INT_ADR == intAdr);
-                                                                            const currentValue = typeof segment.Naklady === 'object' ? (segment.Naklady[intAdr] || '') : '';
+                                                                            // Default = ABSOLUTNĚ PRÁZDNO (null) – žádná 0, žádný placeholder.
+                                                                            // 0 lze zadat ručně (volná jízda) a je to platná hodnota (černě, ne chyba).
+                                                                            const rawNaklad = (typeof segment.Naklady === 'object' && segment.Naklady) ? segment.Naklady[intAdr] : undefined;
+                                                                            const currentValue = (rawNaklad === undefined || rawNaklad === null) ? '' : rawNaklad;
 
                                                                             return (
                                                                                 <div key={intAdr}
@@ -749,22 +752,21 @@ export const TravelGroupsForm = ({
                                                                                             className="form__input flex-1"
                                                                                             value={currentValue}
                                                                                             onChange={(e) => {
-                                                                                                const value = parseFloat(e.target.value) || 0;
-                                                                                                const newNaklady = typeof segment.Naklady === 'object'
+                                                                                                const str = e.target.value;
+                                                                                                const newNaklady = (typeof segment.Naklady === 'object' && segment.Naklady)
                                                                                                     ? {...segment.Naklady}
                                                                                                     : {};
-
-                                                                                                if (value > 0) {
-                                                                                                    newNaklady[intAdr] = value;
-                                                                                                } else {
+                                                                                                // Prázdné = default (null), nic neukládat; jinak uložit i "0"
+                                                                                                if (str === '') {
                                                                                                     delete newNaklady[intAdr];
+                                                                                                } else {
+                                                                                                    const num = parseFloat(str);
+                                                                                                    newNaklady[intAdr] = (isNaN(num) || num < 0) ? 0 : num;
                                                                                                 }
-
                                                                                                 updateSegmentField(group.id, segment.id, {
                                                                                                     Naklady: Object.keys(newNaklady).length > 0 ? newNaklady : undefined
                                                                                                 });
                                                                                             }}
-                                                                                            placeholder="0"
                                                                                             min="0"
                                                                                             step="1"
                                                                                             disabled={disabled}

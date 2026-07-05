@@ -183,14 +183,22 @@ const MemberCompensationDetail = ({
                             detail = `${detail}: Autem ${kilometry} jako ${ridic}`;
                         }
                     } else if (segment.Druh_Dopravy === "V") {
-                        const naklady = member?.INT_ADR && segment.Naklady && segment.Naklady[member.INT_ADR] > 0 ? segment.Naklady[member.INT_ADR] : 0;
-                        detail = `${detail}: Jízdné <strong>${formatCurrency(naklady)}</strong>`;
-
-                        if (!compact && naklady == 0) {
-                            detail = `${detail} <span class="text-red-500 font-bold">bez nákaladů</span>`;
+                        // ROZLIŠIT NULL vs. 0: NULL (nevyplněné) = žluté "nezadáno" (varování);
+                        // zadaná 0 (volná jízda) = platná hodnota, černě, bez varování.
+                        const rawNaklad = (member?.INT_ADR && segment.Naklady && typeof segment.Naklady === 'object')
+                            ? segment.Naklady[member.INT_ADR] : undefined;
+                        const jeNull = rawNaklad === undefined || rawNaklad === null;
+                        if (jeNull) {
+                            detail = `${detail}: Jízdné ${!compact ? '<span class="text-yellow-600">nezadáno</span>' : '<strong>—</strong>'}`;
+                        } else {
+                            detail = `${detail}: Jízdné <strong>${formatCurrency(rawNaklad)}</strong>`;
                         }
 
-                        if (!compact) {
+                        // Doklad vyžadovat jen když někdo na segmentu vykázal >0
+                        // (když oba/všichni vykážou 0, doklad se nevyžaduje)
+                        const nekdoPlati = segment.Naklady && typeof segment.Naklady === 'object'
+                            && Object.values(segment.Naklady).some(v => v > 0);
+                        if (!compact && nekdoPlati) {
                             const prilohy = hasAttachments(segment.Prilohy) ?
                                 '<span class="text-green-600">(✓ doklad)</span>' :
                                 '<span class="text-orange-500">(⚠ chybí doklad)</span>'

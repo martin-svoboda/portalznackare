@@ -122,65 +122,35 @@ const validatePublicTransportTickets = (formData) => {
     formData.Skupiny_Cest?.forEach((group, groupIndex) => {
         group.Cesty?.forEach((segment, segmentIndex) => {
             if (segment.Druh_Dopravy !== "V") return;
-            
-            // Pokud nejsou cestující, není co kontrolovat
             if (!group.Cestujci || group.Cestujci.length === 0) return;
-            
-            // Kontrola že má každý cestující vyplněnou částku
-            if (typeof segment.Naklady !== 'object' || !segment.Naklady) {
+
+            const naklady = (typeof segment.Naklady === 'object' && segment.Naklady) ? segment.Naklady : {};
+
+            // ROZLIŠIT NULL vs. zadanou 0:
+            //  - NULL/nevyplněné → VAROVÁNÍ (uživatel to nevyplnil, mohl zapomenout)
+            //  - zadaná 0 (volná jízda) → platná hodnota, ŽÁDNÉ varování
+            const membersEmpty = group.Cestujci.filter(intAdr =>
+                !(intAdr in naklady) || naklady[intAdr] === undefined || naklady[intAdr] === null
+            );
+            const membersWithCosts = group.Cestujci.filter(intAdr => naklady[intAdr] > 0);
+
+            if (membersEmpty.length > 0) {
                 details.push({
-                    type: 'missing_costs_object',
+                    type: 'unfilled_ticket_costs',
                     group: groupIndex + 1,
-                    segment: segmentIndex + 1
+                    segment: segmentIndex + 1,
+                    count: membersEmpty.length
                 });
-                // Nekončit zde - pokračovat kontrolou příloh
             }
-            
-            // Kontrola nákladů a příloh podle stavu proplácení
-            if (typeof segment.Naklady === 'object' && segment.Naklady) {
-                // Rozdělit cestující podle zadaných částek
-                const membersWithCosts = group.Cestujci.filter(intAdr => 
-                    segment.Naklady[intAdr] > 0
-                );
-                const membersWithZeroCosts = group.Cestujci.filter(intAdr => 
-                    segment.Naklady[intAdr] === 0
-                );
-                const membersWithoutCosts = group.Cestujci.filter(intAdr => 
-                    !(intAdr in segment.Naklady) || segment.Naklady[intAdr] === undefined || segment.Naklady[intAdr] === null
-                );
-                
-                // Varování pro chybějící částky
-                if (membersWithoutCosts.length > 0) {
-                    details.push({
-                        type: 'missing_ticket_costs',
-                        group: groupIndex + 1,
-                        segment: segmentIndex + 1,
-                        missingFor: membersWithoutCosts.length
-                    });
-                }
-                
-                // Varování pro nulové částky
-                if (membersWithZeroCosts.length > 0) {
-                    details.push({
-                        type: 'zero_ticket_costs',
-                        group: groupIndex + 1,
-                        segment: segmentIndex + 1,
-                        zeroFor: membersWithZeroCosts.length
-                    });
-                }
-                
-                // Přílohy kontrolovat jen pokud někdo má částku > 0 (chce proplácení)
-                if (membersWithCosts.length > 0 && (!segment.Prilohy || segment.Prilohy.length === 0)) {
-                    details.push({
-                        type: 'missing_ticket_attachments',
-                        group: groupIndex + 1,
-                        segment: segmentIndex + 1
-                    });
-                }
-            } else {
-                // Chybí celý objekt nákladů - varování pro všechny cestující
+
+            // Doklad se vyžaduje jen když někdo vykázal > 0 (když všichni 0/prázdno, doklad ne)
+            const hasDoklad = Array.isArray(segment.Prilohy)
+                ? segment.Prilohy.length > 0
+                : (segment.Prilohy && typeof segment.Prilohy === 'object' ? Object.keys(segment.Prilohy).length > 0 : false);
+
+            if (membersWithCosts.length > 0 && !hasDoklad) {
                 details.push({
-                    type: 'missing_costs_object',
+                    type: 'missing_ticket_attachments',
                     group: groupIndex + 1,
                     segment: segmentIndex + 1
                 });
@@ -539,22 +509,10 @@ export const validatePartA = (formData, head) => {
     const ticketValidation = validatePublicTransportTickets(formData);
     if (!ticketValidation.isValid) {
         ticketValidation.details.forEach(detail => {
-            if (detail.type === 'missing_costs_object') {
+            if (detail.type === 'unfilled_ticket_costs') {
                 warnings.push({
-                    type: 'missing_ticket_costs',
-                    message: `Chybí data s náklady pro veřejnou dopravu ve skupině ${detail.group}, cesta ${detail.segment} - jízdné nebude proplaceno`
-                });
-            }
-            if (detail.type === 'missing_ticket_costs') {
-                warnings.push({
-                    type: 'missing_ticket_costs', 
-                    message: `Chybí ceny jízdenek pro ${detail.missingFor} cestující ve skupině ${detail.group}, cesta ${detail.segment} - jízdné nebude proplaceno`
-                });
-            }
-            if (detail.type === 'zero_ticket_costs') {
-                warnings.push({
-                    type: 'zero_ticket_costs',
-                    message: `Jízdné není uvedeno ve skupině ${detail.group}, cesta ${detail.segment} - jízdné nebude proplaceno`
+                    type: 'unfilled_ticket_costs',
+                    message: `Jízdné veřejnou dopravou ve skupině ${detail.group}, cesta ${detail.segment} není vyplněné (${detail.count}×). Vyplňte částku; u volné jízdy zadejte 0.`
                 });
             }
             if (detail.type === 'missing_ticket_attachments') {
