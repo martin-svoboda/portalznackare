@@ -715,12 +715,13 @@ export const TravelGroupsForm = ({
                                                                     className="form__input"
                                                                     value={segment.Kilometry || ''}
                                                                     onChange={(e) => {
-                                                                        const value = e.target.value === '' ? undefined : parseFloat(e.target.value) || 0;
+                                                                        // Kilometry jen v celých číslech
+                                                                        const value = e.target.value === '' ? undefined : (parseInt(e.target.value, 10) || 0);
                                                                         updateSegmentField(group.id, segment.id, {Kilometry: value});
                                                                     }}
                                                                     placeholder="0"
                                                                     min="0"
-                                                                    step="0.1"
+                                                                    step="1"
                                                                     disabled={disabled}
                                                                     required={true}
                                                                 />
