@@ -243,7 +243,14 @@ class XmlGenerationService
             if (!is_array($item)) {
                 continue;
             }
-            
+
+            // Obnovené úseky: do INSYZ nesmí protéct neplatné ID úseku. Chybná data
+            // z INSYZ (např. „Nedostupná odbočka" → EvCi_Tra „N/A", ID = null) by jinak
+            // skončila jako <Usek id="N/A">. ID úseku je vždy číselné → ostatní přeskočit.
+            if ($key === 'Obnovene_Useky' && !ctype_digit(ltrim((string) $itemKey, '_'))) {
+                continue;
+            }
+
             $elementName = $this->sanitizeElementName($config['element']);
             $element = $xml->createElement($elementName);
             

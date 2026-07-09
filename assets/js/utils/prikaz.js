@@ -11,6 +11,18 @@ export function getUsekId(usek) {
 }
 
 /**
+ * Úsek je použitelný jen s reálným ID. Chybná data z INSYZ (např. „Nedostupná odbočka"
+ * – všechna ID null, EvCi_Tra „N/A") ignorujeme, aby se nenabízela k obnově ani neskončila
+ * v XML jako id="N/A".
+ * @param {Object} usek
+ * @returns {boolean}
+ */
+export function isValidUsek(usek) {
+    const id = getUsekId(usek);
+    return id !== '' && id !== 'N/A';
+}
+
+/**
  * Získá popis příkazu podle druhu ZP
  * @param {string} druhZP - Druh značkařského příkazu (O, J, S, N)
  * @returns {string} Popis příkazu

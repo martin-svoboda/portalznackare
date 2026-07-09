@@ -189,6 +189,7 @@ class ReportXmlDataFixer
         $map = $usekMap['map'];
         $validIds = $usekMap['validIds'];
         $ambiguous = $usekMap['ambiguous'];
+        $byEvciAll = $usekMap['byEvciAll'];
 
         $new = [];
         foreach ($dataB['Obnovene_Useky'] as $key => $record) {
@@ -199,8 +200,19 @@ class ReportXmlDataFixer
                 continue;
             }
             if (isset($ambiguous[$k])) {
-                $new[$k] = $record;
-                $warnings[] = sprintf('Úsek %s: EvCi_Tra sdílí %d úseků (odbočky) – nelze jednoznačně přiřadit, ponechán beze změny', $k, $ambiguous[$k]);
+                // Staré FE klíčovalo podle EvCi_Tra a všechny úseky/odbočky trasy slilo
+                // do jednoho záznamu. Hlášení se odevzdává jen při plné obnově, takže
+                // slitá hodnota platí pro všechny úseky té trasy → rozgnout na reálná ID.
+                // Usek_Delka bereme z INSYZ (Delka_ZU), Usek_Obnoven z legacy záznamu.
+                $ids = [];
+                foreach ($byEvciAll[$k] as $u) {
+                    $new[$u['id']] = [
+                        'Usek_Obnoven' => $record['Usek_Obnoven'] ?? false,
+                        'Usek_Delka' => $u['delka'],
+                    ];
+                    $ids[] = $u['id'];
+                }
+                $changes[] = sprintf('Obnovene_Useky: EvCi_Tra %s rozgnuto na %d úseků (%s)', $k, count($ids), implode(', ', $ids));
                 continue;
             }
             if (isset($map[$k])) {
@@ -221,13 +233,21 @@ class ReportXmlDataFixer
     /**
      * Sestaví mapu EvCi_Tra → ID úseku z úseků příkazu. Pracuje jen se skutečnými ID
      * (ID_TRASY_Odbocky ?? ID_Trasy_ZU), aby se EvCi_Tra-klíče nezaměnily za „už migrované".
+     * Úseky bez reálného ID (chybná data z INSYZ, např. „Nedostupná odbočka" s ID = null
+     * a EvCi_Tra „N/A") se ignorují.
      *
-     * @return array{map: array<string,string>, validIds: array<string,bool>, ambiguous: array<string,int>}
+     * @return array{
+     *   map: array<string,string>,
+     *   validIds: array<string,bool>,
+     *   ambiguous: array<string,int>,
+     *   byEvciAll: array<string, list<array{id: string, delka: float}>>
+     * }
      */
     public function buildUsekMap(array $useky): array
     {
         $counts = [];
         $byEvci = [];
+        $byEvciAll = [];
         $validIds = [];
 
         foreach ($useky as $usek) {
@@ -236,7 +256,7 @@ class ReportXmlDataFixer
             }
             $usekId = $usek['ID_TRASY_Odbocky'] ?? $usek['ID_Trasy_ZU'] ?? null;
             if ($usekId === null || $usekId === '') {
-                continue;
+                continue; // neplatný úsek (N/A) – ignorujeme
             }
             $usekId = (string) $usekId;
             $validIds[$usekId] = true;
@@ -247,6 +267,10 @@ class ReportXmlDataFixer
             }
             $counts[$evci] = ($counts[$evci] ?? 0) + 1;
             $byEvci[$evci] = $usekId;
+            $byEvciAll[$evci][] = [
+                'id' => $usekId,
+                'delka' => isset($usek['Delka_ZU']) ? (float) $usek['Delka_ZU'] : 0.0,
+            ];
         }
 
         $map = [];
@@ -259,7 +283,7 @@ class ReportXmlDataFixer
             }
         }
 
-        return ['map' => $map, 'validIds' => $validIds, 'ambiguous' => $ambiguous];
+        return ['map' => $map, 'validIds' => $validIds, 'ambiguous' => $ambiguous, 'byEvciAll' => $byEvciAll];
     }
 
     /**

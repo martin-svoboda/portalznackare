@@ -144,20 +144,47 @@ class ReportXmlDataFixerTest extends TestCase
         $this->assertArrayHasKey('79029', $result['data_b']['Obnovene_Useky']);
     }
 
-    public function testNejednoznacnaOdbockaSeVynecha(): void
+    public function testNejednoznacnaOdbockaSeRozgne(): void
     {
-        // Dva úseky sdílí stejné EvCi_Tra (hlavní úsek + odbočka)
+        // Dva úseky sdílí stejné EvCi_Tra (hlavní úsek 79029 + odbočka 88888).
+        // Staré FE je slilo do jednoho záznamu; při plné obnově platí pro oba →
+        // rozgnout na obě reálná ID, Usek_Delka z INSYZ (Delka_ZU).
         $useky = [
-            ['EvCi_Tra' => '121097', 'ID_Trasy_ZU' => '79029', 'ID_TRASY_Odbocky' => null],
-            ['EvCi_Tra' => '121097', 'ID_Trasy_ZU' => '79029', 'ID_TRASY_Odbocky' => '88888'],
+            ['EvCi_Tra' => '121097', 'ID_Trasy_ZU' => '79029', 'ID_TRASY_Odbocky' => null, 'Delka_ZU' => '.000'],
+            ['EvCi_Tra' => '121097', 'ID_Trasy_ZU' => '79029', 'ID_TRASY_Odbocky' => '88888', 'Delka_ZU' => '2.5'],
         ];
-        $dataB = ['Obnovene_Useky' => ['121097' => ['Usek_Obnoven' => 1]]];
+        $dataB = ['Obnovene_Useky' => ['121097' => ['Usek_Obnoven' => true, 'Usek_Delka' => 4]]];
 
         $result = $this->fixer->fix([], $dataB, [], $useky);
+        $obnovene = $result['data_b']['Obnovene_Useky'];
 
-        $this->assertFalse($result['changed'], 'Nejednoznačné EvCi_Tra se nepřeklíčuje');
-        $this->assertArrayHasKey('121097', $result['data_b']['Obnovene_Useky']);
-        $this->assertNotEmpty($result['warnings']);
+        $this->assertTrue($result['changed']);
+        $this->assertArrayNotHasKey('121097', $obnovene, 'EvCi_Tra klíč se rozgne');
+        $this->assertArrayHasKey('79029', $obnovene);
+        $this->assertArrayHasKey('88888', $obnovene);
+        $this->assertTrue($obnovene['79029']['Usek_Obnoven']);
+        $this->assertTrue($obnovene['88888']['Usek_Obnoven']);
+        // Usek_Delka z INSYZ, ne z původního záznamu
+        $this->assertSame(0.0, $obnovene['79029']['Usek_Delka']);
+        $this->assertSame(2.5, $obnovene['88888']['Usek_Delka']);
+    }
+
+    public function testNeplatnyNAUsekSeIgnoruje(): void
+    {
+        // Chybný úsek z INSYZ (Nedostupná odbočka): všechna ID null, EvCi_Tra „N/A".
+        // Nesmí ovlivnit mapu ani skončit v datech.
+        $useky = [
+            ['EvCi_Tra' => '110002', 'ID_Trasy_ZU' => '42274', 'ID_TRASY_Odbocky' => null, 'Delka_ZU' => '.000'],
+            ['EvCi_Tra' => 'N/A', 'ID_Trasy_ZU' => null, 'ID_TRASY_Odbocky' => null, 'Nazev_ZU' => 'Nedostupná odbočka'],
+        ];
+        $dataB = ['Obnovene_Useky' => ['110002' => ['Usek_Obnoven' => true]]];
+
+        $result = $this->fixer->fix([], $dataB, [], $useky);
+        $obnovene = $result['data_b']['Obnovene_Useky'];
+
+        $this->assertArrayHasKey('42274', $obnovene, 'Platný úsek se překlíčuje na reálné ID');
+        $this->assertArrayNotHasKey('N/A', $obnovene);
+        $this->assertArrayNotHasKey('110002', $obnovene);
     }
 
     public function testUsekyNedostupneZachovaData(): void

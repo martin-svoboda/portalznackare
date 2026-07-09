@@ -77,6 +77,21 @@ class XmlGenerationServiceTest extends TestCase
         $this->assertStringContainsString('<Usek_Delka>3.9</Usek_Delka>', $xml);
     }
 
+    public function testNeplatneUsekIdNejdeDoXml(): void
+    {
+        // Chybná data z INSYZ (N/A) nesmí protéct jako <Usek id="N/A"> – ID úseku je číselné.
+        $data = $this->sampleReportData();
+        $data['data_b']['Obnovene_Useky'] = [
+            '79029' => ['Usek_Obnoven' => true, 'Usek_Delka' => 3.9],
+            'N/A'   => ['Usek_Obnoven' => true, 'Usek_Delka' => 0],
+        ];
+
+        $xml = $this->makeService()->generateReportXml($data);
+
+        $this->assertStringContainsString('<Usek id="79029">', $xml);
+        $this->assertStringNotContainsString('id="N/A"', $xml, 'Neplatné ID úseku nesmí být v XML');
+    }
+
     public function testPredmetyNejsouDuplicitni(): void
     {
         $xml = $this->makeService()->generateReportXml($this->sampleReportData());

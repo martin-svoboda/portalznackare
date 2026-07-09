@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import {IconRoute, IconInfoCircle} from '@tabler/icons-react';
 import {renderHtmlContent, replaceTextWithIcons} from "../../../utils/htmlUtils";
-import {getUsekId} from "../../../utils/prikaz";
+import {getUsekId, isValidUsek} from "../../../utils/prikaz";
 
 export const RenewedSectionsForm = ({
                                         useky = [],
@@ -9,6 +9,9 @@ export const RenewedSectionsForm = ({
                                         onObnoveneUsekyChange,
                                         disabled = false
                                     }) => {
+
+    // Ignorovat úseky bez platného ID (chybná data z INSYZ)
+    const validUseky = useky.filter(isValidUsek);
     
     // Inicializace - doplnit Usek_Delka do existujících záznamů
     useEffect(() => {
@@ -17,12 +20,12 @@ export const RenewedSectionsForm = ({
             return typeof record.Usek_Delka === 'undefined';
         });
         
-        if (needsUpdate && useky.length > 0) {
+        if (needsUpdate && validUseky.length > 0) {
             const updated = { ...Obnovene_Useky };
             let hasChanges = false;
             
             Object.keys(updated).forEach(usekId => {
-                const usek = useky.find(u => getUsekId(u) === usekId);
+                const usek = validUseky.find(u => getUsekId(u) === usekId);
                 if (usek?.Delka_ZU && typeof updated[usekId].Usek_Delka === 'undefined') {
                     updated[usekId].Usek_Delka = parseFloat(usek.Delka_ZU);
                     hasChanges = true;
@@ -40,7 +43,7 @@ export const RenewedSectionsForm = ({
         const updated = {...Obnovene_Useky};
 
         // Najít úsek pro získání délky
-        const usek = useky.find(u => getUsekId(u) === usekId);
+        const usek = validUseky.find(u => getUsekId(u) === usekId);
 
         if (!updated[usekId]) {
             updated[usekId] = {
@@ -66,7 +69,7 @@ export const RenewedSectionsForm = ({
 
 
     // Pokud nejsou k dispozici žádné úseky
-    if (!useky || useky.length === 0) {
+    if (!validUseky || validUseky.length === 0) {
         return (
             <div className="card">
                 <div className="card__header">
@@ -113,7 +116,7 @@ export const RenewedSectionsForm = ({
 
                         {/* Úseky */}
                         <div className="space-y-4">
-                            {useky.map((usek, index) => {
+                            {validUseky.map((usek, index) => {
                                 const usekId = getUsekId(usek);
                                 const usekData = Obnovene_Useky[usekId] || {
                                     Usek_Obnoven: false
