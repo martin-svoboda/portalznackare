@@ -279,10 +279,13 @@ class AdminController extends AbstractController
 
             $this->entityManager->flush();
 
-            // REÁLNÉ odeslání do INSYZ: při přechodu na 'send' dispatchni worker
-            // (stejně jako PortalController) – jinak by admin změnil jen stav a nic
-            // by se neodeslalo. Admin se zapíše jako odesílatel (Odeslal v XML).
-            if ($newState === 'send' && $oldState !== 'send') {
+            // REÁLNÉ odeslání do INSYZ: nastavení stavu na 'send' je explicitní admin
+            // akce ("Odeslat do INSYZ"), takže dispatchni worker VŽDY - i když už je
+            // hlášení v 'send' (např. zaseklé nebo dříve neúspěšné odeslání), aby šlo
+            // znovu odeslat bez oklik přes draft. Duplicitnímu odeslání brání idempotency
+            // guard v SendToInsyzHandleru (zpracuje jen stav 'send' a hned ho přepne na
+            // submitted/rejected). Admin se zapíše jako odesílatel (Odeslal v XML).
+            if ($newState === 'send') {
                 $this->messageBus->dispatch(new SendToInsyzMessage(
                     $report->getId(),
                     [

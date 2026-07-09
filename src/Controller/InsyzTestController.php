@@ -17,9 +17,12 @@ class InsyzTestController extends AbstractController
     #[Route('/test-insyz-api', name: 'insyz_test')]
     public function index(): Response
     {
-        // Povolit pouze v dev prostředí
-        if ($this->getParameter('kernel.environment') !== 'dev') {
-            throw new NotFoundHttpException('Tato stránka je dostupná pouze ve vývojovém prostředí.');
+        // Ve vývoji dostupné komukoli; na produkci pouze super adminům.
+        // (Nástroj volá reálné INSYZ procedury; mimo dev navíc jen čtecí endpointy,
+        //  viz getInsyzEndpoints.)
+        $isDev = $this->getParameter('kernel.environment') === 'dev';
+        if (!$isDev && !$this->isGranted('ROLE_SUPER_ADMIN')) {
+            throw new NotFoundHttpException('Tato stránka není dostupná.');
         }
 
         // Načíst endpointy dynamicky z routeru
@@ -34,17 +37,27 @@ class InsyzTestController extends AbstractController
     {
         $routes = $this->router->getRouteCollection();
         $endpoints = [];
-        
+
+        // Mimo dev (tj. na produkci) povolit v testeru jen čtecí (GET) endpointy,
+        // aby přes něj nešlo spustit zápis do INSYZ (submit-report, update-password, login).
+        $readOnly = $this->getParameter('kernel.environment') !== 'dev';
+
         foreach ($routes as $route) {
             $path = $route->getPath();
-            
+
             // Filtrovat pouze INSYZ API endpointy (kromě export endpointů)
             if (str_starts_with($path, '/api/insyz/') && !str_contains($path, '/export')) {
                 $methods = $route->getMethods();
-                
+                $method = !empty($methods) ? $methods[0] : 'GET';
+
+                // Na produkci vynechat zápisové endpointy
+                if ($readOnly && $method !== 'GET') {
+                    continue;
+                }
+
                 $endpoints[] = [
                     'path' => $path,
-                    'method' => !empty($methods) ? $methods[0] : 'GET'
+                    'method' => $method,
                 ];
             }
         }
