@@ -224,7 +224,7 @@ class XmlGenerationService
             } else {
                 $elementName = $this->sanitizeElementName($key);
                 $element = $xml->createElement($elementName);
-                $element->appendChild($xml->createTextNode((string)$value));
+                $element->appendChild($xml->createTextNode($this->sanitizeText((string)$value)));
                 $parent->appendChild($element);
             }
         }
@@ -264,6 +264,25 @@ class XmlGenerationService
         }
     }
     
+    /**
+     * Odstraní z textu znaky nepřevoditelné do kolace INSYZ (Windows-1250).
+     *
+     * Stored procedura trasy.ZP_Zapis_XML převádí XML do cílové kolace (CP1250)
+     * a na znaku, který v ní neexistuje (např. odrážka „●" U+25CF, emoji, šipky),
+     * spadne s chybou "Převod jednoho či více znaků z XML do cílové kolace nelze provést."
+     * Celá česká diakritika v CP1250 je, takže se zachová; zahodí se jen znaky mimo ni.
+     */
+    private function sanitizeText(string $text): string
+    {
+        $converted = @iconv('UTF-8', 'Windows-1250//TRANSLIT//IGNORE', $text);
+        if ($converted === false) {
+            // Fallback: radši původní text než prázdný řetězec
+            return $text;
+        }
+
+        return iconv('Windows-1250', 'UTF-8', $converted);
+    }
+
     /**
      * Sanitizace názvu elementu pro XML
      */
@@ -380,7 +399,7 @@ class XmlGenerationService
                 $this->arrayToXml($xml, $element, $filteredItem, $key);
             } else {
                 // Jednoduchá hodnota
-                $element->appendChild($xml->createTextNode((string)$item));
+                $element->appendChild($xml->createTextNode($this->sanitizeText((string)$item)));
             }
         }
     }

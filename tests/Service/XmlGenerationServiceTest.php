@@ -130,4 +130,37 @@ class XmlGenerationServiceTest extends TestCase
         $this->assertStringNotContainsString('<Datum_Odeslani>', $xml);
         $this->assertStringNotContainsString('<Odeslal>', $xml);
     }
+
+    /**
+     * Znaky nepřevoditelné do kolace INSYZ (Windows-1250) musí být z textu
+     * odstraněny, jinak trasy.ZP_Zapis_XML spadne na konverzi kolace.
+     * Regrese k reportu S/PY/O/26029 (odrážka „●" v komentáři TIM).
+     */
+    public function testNeprevoditelneZnakySeOdstrani(): void
+    {
+        $data = $this->sampleReportData();
+        $data['data_b']['Stavy_Tim']['BN098']['Koment_TIM'] = "● PY099a: nesedí km 😀 → konec";
+
+        $xml = $this->makeService()->generateReportXml($data);
+
+        // Text komentáře zůstane, ale bez znaků mimo CP1250
+        $this->assertStringContainsString('<Koment_TIM>', $xml);
+        $this->assertStringNotContainsString('●', $xml, 'Odrážka U+25CF nesmí zůstat v XML');
+        $this->assertStringNotContainsString('😀', $xml, 'Emoji nesmí zůstat v XML');
+        $this->assertStringContainsString('nesedí km', $xml, 'Česká diakritika se musí zachovat');
+    }
+
+    /**
+     * Celá česká diakritika je v CP1250 – nesmí ji sanitizace poškodit.
+     */
+    public function testCeskaDiakritikaZustavaZachovana(): void
+    {
+        $data = $this->sampleReportData();
+        $data['data_b']['Stavy_Tim']['BN098']['Predmety']['498']['metadata'] = null;
+        $data['data_b']['Stavy_Tim']['BN098']['Koment_TIM'] = 'ZBOŘENÝ KOSTELEC (ZŘÍC.) ěščřžýáíé ůú';
+
+        $xml = $this->makeService()->generateReportXml($data);
+
+        $this->assertStringContainsString('ZBOŘENÝ KOSTELEC (ZŘÍC.) ěščřžýáíé ůú', $xml);
+    }
 }
