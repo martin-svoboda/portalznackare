@@ -169,6 +169,23 @@ class ReportXmlDataFixerTest extends TestCase
         $this->assertSame(2.5, $obnovene['88888']['Usek_Delka']);
     }
 
+    public function testExpanzeZachovaExtraPole(): void
+    {
+        // Starší formát se navíc nese Usek_Obnoven_Km – expanze ho nesmí zahodit.
+        $useky = [
+            ['EvCi_Tra' => '121097', 'ID_Trasy_ZU' => '79029', 'ID_TRASY_Odbocky' => null, 'Delka_ZU' => '3.5'],
+            ['EvCi_Tra' => '121097', 'ID_Trasy_ZU' => '79029', 'ID_TRASY_Odbocky' => '88888', 'Delka_ZU' => '.000'],
+        ];
+        $dataB = ['Obnovene_Useky' => ['121097' => ['Usek_Obnoven' => true, 'Usek_Obnoven_Km' => 5]]];
+
+        $result = $this->fixer->fix([], $dataB, [], $useky);
+        $obnovene = $result['data_b']['Obnovene_Useky'];
+
+        $this->assertSame(5, $obnovene['79029']['Usek_Obnoven_Km']);
+        $this->assertSame(3.5, $obnovene['79029']['Usek_Delka']);
+        $this->assertTrue($obnovene['88888']['Usek_Obnoven']);
+    }
+
     public function testNeplatnyNAUsekSeIgnoruje(): void
     {
         // Chybný úsek z INSYZ (Nedostupná odbočka): všechna ID null, EvCi_Tra „N/A".

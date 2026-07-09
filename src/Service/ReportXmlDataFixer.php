@@ -206,10 +206,9 @@ class ReportXmlDataFixer
                 // Usek_Delka bereme z INSYZ (Delka_ZU), Usek_Obnoven z legacy záznamu.
                 $ids = [];
                 foreach ($byEvciAll[$k] as $u) {
-                    $new[$u['id']] = [
-                        'Usek_Obnoven' => $record['Usek_Obnoven'] ?? false,
-                        'Usek_Delka' => $u['delka'],
-                    ];
+                    // Zachovat původní pole záznamu (Usek_Obnoven i případné Usek_Obnoven_Km),
+                    // přepsat jen Usek_Delka z INSYZ.
+                    $new[$u['id']] = array_merge($record, ['Usek_Delka' => $u['delka']]);
                     $ids[] = $u['id'];
                 }
                 $changes[] = sprintf('Obnovene_Useky: EvCi_Tra %s rozgnuto na %d úseků (%s)', $k, count($ids), implode(', ', $ids));

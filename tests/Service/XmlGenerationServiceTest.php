@@ -77,6 +77,24 @@ class XmlGenerationServiceTest extends TestCase
         $this->assertStringContainsString('<Usek_Delka>3.9</Usek_Delka>', $xml);
     }
 
+    public function testNeobnovenyUsekJeVXmlSPrazdnymObnoven(): void
+    {
+        // Konvence (jako Souhlasi_STP): obnoven → 1, neobnoven → prázdný <Usek_Obnoven/>.
+        // Neobnovený úsek ale MUSÍ v XML zůstat (posílají se všechny úseky).
+        $data = $this->sampleReportData();
+        $data['data_b']['Obnovene_Useky'] = [
+            '79029' => ['Usek_Obnoven' => true, 'Usek_Delka' => 3.9],
+            '80208' => ['Usek_Obnoven' => false, 'Usek_Delka' => 0],
+        ];
+
+        $xml = $this->makeService()->generateReportXml($data);
+
+        $this->assertStringContainsString('<Usek id="79029">', $xml);
+        $this->assertStringContainsString('<Usek id="80208">', $xml, 'Neobnovený úsek musí být v XML');
+        $this->assertStringContainsString('<Usek_Obnoven>1</Usek_Obnoven>', $xml, 'Obnovený = 1');
+        $this->assertStringNotContainsString('<Usek_Obnoven>0</Usek_Obnoven>', $xml, 'Neobnovený = prázdno, ne 0');
+    }
+
     public function testNeplatneUsekIdNejdeDoXml(): void
     {
         // Chybná data z INSYZ (N/A) nesmí protéct jako <Usek id="N/A"> – ID úseku je číselné.

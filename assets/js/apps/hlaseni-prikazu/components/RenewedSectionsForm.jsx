@@ -13,28 +13,31 @@ export const RenewedSectionsForm = ({
     // Ignorovat úseky bez platného ID (chybná data z INSYZ)
     const validUseky = useky.filter(isValidUsek);
     
-    // Inicializace - doplnit Usek_Delka do existujících záznamů
+    // Zajistit, že Obnovene_Useky obsahuje VŠECHNY platné úseky příkazu – do INSYZ XML
+    // musí jít všechny (obnovené i neobnovené). Chybějící doplní jako neobnovené
+    // (Usek_Obnoven: false → v XML prázdný <Usek_Obnoven/>, konzistentní se Souhlasi_STP),
+    // u existujících doplní chybějící Usek_Delka z INSYZ.
     useEffect(() => {
-        const needsUpdate = Object.keys(Obnovene_Useky).some(usekId => {
-            const record = Obnovene_Useky[usekId];
-            return typeof record.Usek_Delka === 'undefined';
-        });
-        
-        if (needsUpdate && validUseky.length > 0) {
-            const updated = { ...Obnovene_Useky };
-            let hasChanges = false;
-            
-            Object.keys(updated).forEach(usekId => {
-                const usek = validUseky.find(u => getUsekId(u) === usekId);
-                if (usek?.Delka_ZU && typeof updated[usekId].Usek_Delka === 'undefined') {
-                    updated[usekId].Usek_Delka = parseFloat(usek.Delka_ZU);
-                    hasChanges = true;
-                }
-            });
-            
-            if (hasChanges) {
-                onObnoveneUsekyChange(updated);
+        if (validUseky.length === 0) return;
+
+        const updated = { ...Obnovene_Useky };
+        let hasChanges = false;
+
+        validUseky.forEach(usek => {
+            const id = getUsekId(usek);
+            const delka = usek?.Delka_ZU ? parseFloat(usek.Delka_ZU) : 0;
+
+            if (!updated[id]) {
+                updated[id] = { Usek_Obnoven: false, Usek_Delka: delka };
+                hasChanges = true;
+            } else if (typeof updated[id].Usek_Delka === 'undefined') {
+                updated[id] = { ...updated[id], Usek_Delka: delka };
+                hasChanges = true;
             }
+        });
+
+        if (hasChanges) {
+            onObnoveneUsekyChange(updated);
         }
     }, [useky, Obnovene_Useky, onObnoveneUsekyChange]);
     
@@ -59,10 +62,8 @@ export const RenewedSectionsForm = ({
 
         updated[usekId][field] = value;
 
-        // Odebrat prázdné záznamy (pokud není označen jako obnoven)
-        if (!updated[usekId].Usek_Obnoven) {
-            delete updated[usekId];
-        }
+        // Neobnovené záznamy se NEMAŽOU – všechny úseky musí zůstat v datech i XML
+        // (Usek_Obnoven: false → prázdný <Usek_Obnoven/>).
 
         onObnoveneUsekyChange(updated);
     };
