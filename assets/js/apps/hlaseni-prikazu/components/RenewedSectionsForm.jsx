@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import {IconRoute, IconInfoCircle} from '@tabler/icons-react';
 import {renderHtmlContent, replaceTextWithIcons} from "../../../utils/htmlUtils";
 import {getUsekId, isValidUsek} from "../../../utils/prikaz";
+import {STAV_PROVEDENI, jeProvedena} from "../../../utils/stavProvedeni";
 
 export const RenewedSectionsForm = ({
                                         useky = [],
@@ -14,9 +15,8 @@ export const RenewedSectionsForm = ({
     const validUseky = useky.filter(isValidUsek);
     
     // Zajistit, že Obnovene_Useky obsahuje VŠECHNY platné úseky příkazu – do INSYZ XML
-    // musí jít všechny (obnovené i neobnovené). Chybějící doplní jako neobnovené
-    // (Usek_Obnoven: false → v XML prázdný <Usek_Obnoven/>, konzistentní se Souhlasi_STP),
-    // u existujících doplní chybějící Usek_Delka z INSYZ.
+    // musí jít všechny. Chybějící doplní jako Neprovedena (Usek_Obnoven=2 dle číselníku
+    // StavProvedeniEnum), u existujících doplní chybějící Usek_Delka a Typ_Useku z INSYZ.
     useEffect(() => {
         if (validUseky.length === 0) return;
 
@@ -26,13 +26,19 @@ export const RenewedSectionsForm = ({
         validUseky.forEach(usek => {
             const id = getUsekId(usek);
             const delka = usek?.Delka_ZU ? parseFloat(usek.Delka_ZU) : 0;
+            const typ = usek?.Typ_Useku ?? '';
 
             if (!updated[id]) {
-                updated[id] = { Usek_Obnoven: false, Usek_Delka: delka };
+                updated[id] = { Usek_Obnoven: STAV_PROVEDENI.NEPROVEDENA, Usek_Delka: delka, Typ_Useku: typ };
                 hasChanges = true;
-            } else if (typeof updated[id].Usek_Delka === 'undefined') {
-                updated[id] = { ...updated[id], Usek_Delka: delka };
-                hasChanges = true;
+            } else {
+                const patch = {};
+                if (typeof updated[id].Usek_Delka === 'undefined') patch.Usek_Delka = delka;
+                if (!updated[id].Typ_Useku && typ) patch.Typ_Useku = typ;
+                if (Object.keys(patch).length) {
+                    updated[id] = { ...updated[id], ...patch };
+                    hasChanges = true;
+                }
             }
         });
 
@@ -50,20 +56,24 @@ export const RenewedSectionsForm = ({
 
         if (!updated[usekId]) {
             updated[usekId] = {
-                Usek_Obnoven: false,
-                Usek_Delka: usek?.Delka_ZU ? parseFloat(usek.Delka_ZU) : 0
+                Usek_Obnoven: STAV_PROVEDENI.NEPROVEDENA,
+                Usek_Delka: usek?.Delka_ZU ? parseFloat(usek.Delka_ZU) : 0,
+                Typ_Useku: usek?.Typ_Useku ?? ''
             };
         }
 
-        // Vždy aktualizovat délku úseku (pro případ změn v datech příkazu)
+        // Vždy aktualizovat délku a typ úseku z aktuálních INSYZ dat
         if (usek?.Delka_ZU) {
             updated[usekId].Usek_Delka = parseFloat(usek.Delka_ZU);
+        }
+        if (usek?.Typ_Useku) {
+            updated[usekId].Typ_Useku = usek.Typ_Useku;
         }
 
         updated[usekId][field] = value;
 
-        // Neobnovené záznamy se NEMAŽOU – všechny úseky musí zůstat v datech i XML
-        // (Usek_Obnoven: false → prázdný <Usek_Obnoven/>).
+        // Neprovedené záznamy se NEMAŽOU – všechny úseky musí zůstat v datech i XML
+        // (Usek_Obnoven = 2 Neprovedena).
 
         onObnoveneUsekyChange(updated);
     };
@@ -120,8 +130,9 @@ export const RenewedSectionsForm = ({
                             {validUseky.map((usek, index) => {
                                 const usekId = getUsekId(usek);
                                 const usekData = Obnovene_Useky[usekId] || {
-                                    Usek_Obnoven: false
+                                    Usek_Obnoven: STAV_PROVEDENI.NEPROVEDENA
                                 };
+                                const provedena = jeProvedena(usekData.Usek_Obnoven);
 
                                 return (
                                     <div key={usekId || index}
@@ -178,14 +189,14 @@ export const RenewedSectionsForm = ({
                                                     <button
                                                         type="button"
                                                         className={`px-3 py-1.5 text-sm font-medium transition-colors ${
-                                                            !usekData.Usek_Obnoven
+                                                            !provedena
                                                                 ? 'bg-red-600 text-white'
                                                                 : 'bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
                                                         }`}
                                                         onClick={() => handleSectionRenewalChange(
                                                             usekId,
                                                             'Usek_Obnoven',
-                                                            false
+                                                            STAV_PROVEDENI.NEPROVEDENA
                                                         )}
                                                         disabled={disabled}
                                                     >
@@ -194,14 +205,14 @@ export const RenewedSectionsForm = ({
                                                     <button
                                                         type="button"
                                                         className={`px-3 py-1.5 text-sm font-medium transition-colors ${
-                                                            usekData.Usek_Obnoven
+                                                            provedena
                                                                 ? 'bg-green-600 text-white'
                                                                 : 'bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
                                                         }`}
                                                         onClick={() => handleSectionRenewalChange(
                                                             usekId,
                                                             'Usek_Obnoven',
-                                                            true
+                                                            STAV_PROVEDENI.PROVEDENA
                                                         )}
                                                         disabled={disabled}
                                                     >

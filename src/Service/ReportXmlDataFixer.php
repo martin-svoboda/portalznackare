@@ -2,6 +2,8 @@
 
 namespace App\Service;
 
+use App\Enum\StavProvedeniEnum;
+
 /**
  * Čistá (bezstavová) transformace uložených dat hlášení na konzistentní tvar
  * pro generování XML do INSYZ. Opravuje tři historické chyby v datech:
@@ -207,8 +209,12 @@ class ReportXmlDataFixer
                 $ids = [];
                 foreach ($byEvciAll[$k] as $u) {
                     // Zachovat původní pole záznamu (Usek_Obnoven i případné Usek_Obnoven_Km),
-                    // přepsat jen Usek_Delka z INSYZ.
-                    $new[$u['id']] = array_merge($record, ['Usek_Delka' => $u['delka']]);
+                    // přepsat Usek_Delka z INSYZ a doplnit příznak Typ_Useku (Úsek/Odbočka).
+                    // Usek_Obnoven znormalizuje finální průchol níže.
+                    $new[$u['id']] = array_merge($record, [
+                        'Usek_Delka' => $u['delka'],
+                        'Typ_Useku' => $u['typ'],
+                    ]);
                     $ids[] = $u['id'];
                 }
                 $changes[] = sprintf('Obnovene_Useky: EvCi_Tra %s rozgnuto na %d úseků (%s)', $k, count($ids), implode(', ', $ids));
@@ -222,6 +228,23 @@ class ReportXmlDataFixer
 
             $new[$k] = $record;
             $warnings[] = sprintf('Úsek %s: nenalezen v aktuálních datech příkazu z INSYZ, ponechán beze změny', $k);
+        }
+
+        // Migrace Usek_Obnoven na číselník StavProvedeniEnum ve VŠECH úsecích
+        // (starý boolean true/false → 3/2). Číselné kódy zůstanou beze změny (idempotentní).
+        $migrated = 0;
+        foreach ($new as $id => $rec) {
+            if (!array_key_exists('Usek_Obnoven', $rec)) {
+                continue;
+            }
+            $kod = StavProvedeniEnum::normalize($rec['Usek_Obnoven'])->value;
+            if ($rec['Usek_Obnoven'] !== $kod) {
+                $new[$id]['Usek_Obnoven'] = $kod;
+                $migrated++;
+            }
+        }
+        if ($migrated > 0) {
+            $changes[] = sprintf('Obnovene_Useky: Usek_Obnoven převeden na číselník u %d úseků', $migrated);
         }
 
         $dataB['Obnovene_Useky'] = $new;
@@ -269,6 +292,7 @@ class ReportXmlDataFixer
             $byEvciAll[$evci][] = [
                 'id' => $usekId,
                 'delka' => isset($usek['Delka_ZU']) ? (float) $usek['Delka_ZU'] : 0.0,
+                'typ' => isset($usek['Typ_Useku']) ? (string) $usek['Typ_Useku'] : '',
             ];
         }
 

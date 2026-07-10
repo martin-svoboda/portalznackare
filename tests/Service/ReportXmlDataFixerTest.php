@@ -123,7 +123,7 @@ class ReportXmlDataFixerTest extends TestCase
 
     public function testPreklicovaniUseku(): void
     {
-        $dataB = ['Obnovene_Useky' => ['121097' => ['Usek_Obnoven' => 1, 'Usek_Delka' => 3.9]]];
+        $dataB = ['Obnovene_Useky' => ['121097' => ['Usek_Obnoven' => true, 'Usek_Delka' => 3.9]]];
 
         $result = $this->fixer->fix([], $dataB, [], $this->useky());
         $obnovene = $result['data_b']['Obnovene_Useky'];
@@ -135,13 +135,33 @@ class ReportXmlDataFixerTest extends TestCase
 
     public function testUsekIdempotentni(): void
     {
-        // Už překlíčované na ID úseku
-        $dataB = ['Obnovene_Useky' => ['79029' => ['Usek_Obnoven' => 1]]];
+        // Už překlíčované na ID úseku a už jako kód číselníku → žádná změna
+        $dataB = ['Obnovene_Useky' => ['79029' => ['Usek_Obnoven' => 3]]];
 
         $result = $this->fixer->fix([], $dataB, [], $this->useky());
 
         $this->assertFalse($result['changed']);
         $this->assertArrayHasKey('79029', $result['data_b']['Obnovene_Useky']);
+    }
+
+    public function testMigraceUsekObnovenNaCiselnik(): void
+    {
+        // Report s už správným ID úseku, ale starým boolean Usek_Obnoven → migrace na kód.
+        $dataB = ['Obnovene_Useky' => [
+            '79029' => ['Usek_Obnoven' => true],
+            '88888' => ['Usek_Obnoven' => false],
+        ]];
+        $useky = [
+            ['EvCi_Tra' => '121097', 'ID_Trasy_ZU' => '79029', 'ID_TRASY_Odbocky' => null],
+            ['EvCi_Tra' => '121098', 'ID_Trasy_ZU' => '88888', 'ID_TRASY_Odbocky' => null],
+        ];
+
+        $result = $this->fixer->fix([], $dataB, [], $useky);
+        $obnovene = $result['data_b']['Obnovene_Useky'];
+
+        $this->assertTrue($result['changed'], 'Migrace boolean→kód je změna');
+        $this->assertSame(3, $obnovene['79029']['Usek_Obnoven']);
+        $this->assertSame(2, $obnovene['88888']['Usek_Obnoven']);
     }
 
     public function testNejednoznacnaOdbockaSeRozgne(): void
@@ -162,8 +182,9 @@ class ReportXmlDataFixerTest extends TestCase
         $this->assertArrayNotHasKey('121097', $obnovene, 'EvCi_Tra klíč se rozgne');
         $this->assertArrayHasKey('79029', $obnovene);
         $this->assertArrayHasKey('88888', $obnovene);
-        $this->assertTrue($obnovene['79029']['Usek_Obnoven']);
-        $this->assertTrue($obnovene['88888']['Usek_Obnoven']);
+        // Usek_Obnoven jako kód číselníku: legacy true → 3 (Provedena)
+        $this->assertSame(3, $obnovene['79029']['Usek_Obnoven']);
+        $this->assertSame(3, $obnovene['88888']['Usek_Obnoven']);
         // Usek_Delka z INSYZ, ne z původního záznamu
         $this->assertSame(0.0, $obnovene['79029']['Usek_Delka']);
         $this->assertSame(2.5, $obnovene['88888']['Usek_Delka']);
@@ -183,7 +204,22 @@ class ReportXmlDataFixerTest extends TestCase
 
         $this->assertSame(5, $obnovene['79029']['Usek_Obnoven_Km']);
         $this->assertSame(3.5, $obnovene['79029']['Usek_Delka']);
-        $this->assertTrue($obnovene['88888']['Usek_Obnoven']);
+        $this->assertSame(3, $obnovene['88888']['Usek_Obnoven']);
+    }
+
+    public function testExpanzeDoplniTypUseku(): void
+    {
+        $useky = [
+            ['EvCi_Tra' => '130002', 'ID_Trasy_ZU' => '94488', 'ID_TRASY_Odbocky' => null, 'Delka_ZU' => '4.350', 'Typ_Useku' => 'Úsek'],
+            ['EvCi_Tra' => '130002', 'ID_Trasy_ZU' => '94488', 'ID_TRASY_Odbocky' => '14899', 'Delka_ZU' => '.360', 'Typ_Useku' => 'Odbočka'],
+        ];
+        $dataB = ['Obnovene_Useky' => ['130002' => ['Usek_Obnoven' => true]]];
+
+        $result = $this->fixer->fix([], $dataB, [], $useky);
+        $obnovene = $result['data_b']['Obnovene_Useky'];
+
+        $this->assertSame('Úsek', $obnovene['94488']['Typ_Useku']);
+        $this->assertSame('Odbočka', $obnovene['14899']['Typ_Useku']);
     }
 
     public function testNeplatnyNAUsekSeIgnoruje(): void

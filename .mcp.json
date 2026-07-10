@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "postgres-portal": {
+      "command": "uvx",
+      "args": ["postgres-mcp", "--access-mode", "unrestricted"],
+      "env": {
+        "DATABASE_URI": "${PORTAL_DATABASE_URI:-postgresql://db:db@127.0.0.1:5433/db}"
+      }
+    }
+  }
+}

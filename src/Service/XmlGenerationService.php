@@ -2,6 +2,7 @@
 
 namespace App\Service;
 
+use App\Enum\StavProvedeniEnum;
 use App\Utils\Logger;
 use Symfony\Component\HttpFoundation\RequestStack;
 
@@ -262,7 +263,31 @@ class XmlGenerationService
             } elseif (isset($item[$config['idField']])) {
                 $element->setAttribute('id', (string)$item[$config['idField']]);
             }
-            
+
+            if ($key === 'Obnovene_Useky') {
+                // Příznak Úsek/Odbočka jde jen jako zkratka do atributu typ (U/O).
+                // Typ_Useku držíme v datech kvůli odvození zkratky, ale jako element ho
+                // nevypisujeme (INSYZ stačí to písmeno v hlavičce).
+                if (!empty($item['Typ_Useku'])) {
+                    $kod = (mb_strtoupper(mb_substr((string) $item['Typ_Useku'], 0, 1)) === 'O') ? 'O' : 'U';
+                    $element->setAttribute('typ', $kod);
+                }
+                unset($item['Typ_Useku']);
+                // Usek_Obnoven → kód číselníku StavProvedeniEnum (3=Provedena, 2=Neprovedena,
+                // 0=nevyhodnoceno). Zvládne i starý boolean formát (true→3, false→2).
+                $item['Usek_Obnoven'] = StavProvedeniEnum::normalize($item['Usek_Obnoven'] ?? null)->value;
+            }
+
+            if ($key === 'Vyuctovani') {
+                // SPZ řidiče: značkař, který je Ridic v některé skupině cest, dostane
+                // ve vyúčtování vedle Zvysena_Sazba i SPZ auta (z data_a.Skupiny_Cest).
+                $intAdr = (int) ltrim((string) $itemKey, '_');
+                $spz = $this->findSpzForZnackar($intAdr);
+                if ($spz !== null) {
+                    $item = $this->insertAfterKey($item, 'Zvysena_Sazba', 'SPZ', $spz);
+                }
+            }
+
             $container->appendChild($element);
             
             // Přeskočit metadata objekty
@@ -270,7 +295,47 @@ class XmlGenerationService
             $this->arrayToXml($xml, $element, $filteredItem, $key);
         }
     }
-    
+
+    /**
+     * Najde SPZ auta pro daného značkaře – bere se ze skupiny cest, kde je řidičem.
+     * Vrátí null, pokud značkař v žádné skupině řidičem není (spolujezdec bez SPZ).
+     */
+    private function findSpzForZnackar(int $intAdr): ?string
+    {
+        foreach ($this->currentReportData['data_a']['Skupiny_Cest'] ?? [] as $group) {
+            if (isset($group['Ridic']) && (int) $group['Ridic'] === $intAdr) {
+                $spz = trim((string) ($group['SPZ'] ?? ''));
+                if ($spz !== '') {
+                    return $spz;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Vloží novou dvojici klíč/hodnota hned za daný klíč (kvůli pořadí elementů v XML).
+     * Pokud klíč neexistuje, přidá na konec.
+     */
+    private function insertAfterKey(array $arr, string $afterKey, string $newKey, mixed $newValue): array
+    {
+        $result = [];
+        $inserted = false;
+        foreach ($arr as $k => $v) {
+            $result[$k] = $v;
+            if ($k === $afterKey) {
+                $result[$newKey] = $newValue;
+                $inserted = true;
+            }
+        }
+        if (!$inserted) {
+            $result[$newKey] = $newValue;
+        }
+
+        return $result;
+    }
+
     /**
      * Odstraní z textu znaky nepřevoditelné do kolace INSYZ (Windows-1250).
      *

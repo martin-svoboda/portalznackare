@@ -53,7 +53,7 @@ class XmlGenerationServiceTest extends TestCase
                     ],
                 ],
                 'Obnovene_Useky' => [
-                    '79029' => ['Usek_Obnoven' => 1, 'Usek_Delka' => 3.9],
+                    '79029' => ['Usek_Obnoven' => true, 'Usek_Delka' => 3.9],
                 ],
             ],
             'calculation' => [
@@ -77,22 +77,64 @@ class XmlGenerationServiceTest extends TestCase
         $this->assertStringContainsString('<Usek_Delka>3.9</Usek_Delka>', $xml);
     }
 
-    public function testNeobnovenyUsekJeVXmlSPrazdnymObnoven(): void
+    public function testUsekObnovenCiselnik(): void
     {
-        // Konvence (jako Souhlasi_STP): obnoven → 1, neobnoven → prázdný <Usek_Obnoven/>.
-        // Neobnovený úsek ale MUSÍ v XML zůstat (posílají se všechny úseky).
+        // Usek_Obnoven jde do XML jako kód StavProvedeniEnum: 3=Provedena (Ano),
+        // 2=Neprovedena (Ne). Zvládne i starý boolean (true→3, false→2).
+        // Všechny úseky (i neprovedené) musí v XML zůstat.
         $data = $this->sampleReportData();
         $data['data_b']['Obnovene_Useky'] = [
-            '79029' => ['Usek_Obnoven' => true, 'Usek_Delka' => 3.9],
-            '80208' => ['Usek_Obnoven' => false, 'Usek_Delka' => 0],
+            '79029' => ['Usek_Obnoven' => true, 'Usek_Delka' => 3.9],   // legacy boolean → 3
+            '80208' => ['Usek_Obnoven' => 2, 'Usek_Delka' => 0],        // Neprovedena
+            '99999' => ['Usek_Obnoven' => 3, 'Usek_Delka' => 1],        // Provedena
         ];
 
         $xml = $this->makeService()->generateReportXml($data);
 
         $this->assertStringContainsString('<Usek id="79029">', $xml);
-        $this->assertStringContainsString('<Usek id="80208">', $xml, 'Neobnovený úsek musí být v XML');
-        $this->assertStringContainsString('<Usek_Obnoven>1</Usek_Obnoven>', $xml, 'Obnovený = 1');
-        $this->assertStringNotContainsString('<Usek_Obnoven>0</Usek_Obnoven>', $xml, 'Neobnovený = prázdno, ne 0');
+        $this->assertStringContainsString('<Usek id="80208">', $xml, 'Neprovedený úsek musí být v XML');
+        $this->assertSame(2, substr_count($xml, '<Usek_Obnoven>3</Usek_Obnoven>'), 'Provedena → 3');
+        $this->assertSame(1, substr_count($xml, '<Usek_Obnoven>2</Usek_Obnoven>'), 'Neprovedena → 2');
+        $this->assertStringNotContainsString('<Usek_Obnoven>1</Usek_Obnoven>', $xml);
+        $this->assertStringNotContainsString('<Usek_Obnoven></Usek_Obnoven>', $xml, 'Už žádný prázdný stav');
+    }
+
+    public function testTypUsekuJenVAtributu(): void
+    {
+        // <Usek> nese příznak jen jako zkratku v atributu typ (U/O).
+        // Element <Typ_Useku> se do XML NEvypisuje.
+        $data = $this->sampleReportData();
+        $data['data_b']['Obnovene_Useky'] = [
+            '94488' => ['Usek_Obnoven' => true, 'Usek_Delka' => 4.35, 'Typ_Useku' => 'Úsek'],
+            '14899' => ['Usek_Obnoven' => true, 'Usek_Delka' => 0.36, 'Typ_Useku' => 'Odbočka'],
+        ];
+
+        $xml = $this->makeService()->generateReportXml($data);
+
+        $this->assertStringContainsString('<Usek id="94488" typ="U">', $xml);
+        $this->assertStringContainsString('<Usek id="14899" typ="O">', $xml);
+        $this->assertStringNotContainsString('<Typ_Useku>', $xml, 'Typ_Useku už není element, jen atribut');
+    }
+
+    public function testSpzRidiceVeVyuctovani(): void
+    {
+        // SPZ jde do Vyuctovani k řidiči (Ridic ve skupině cest), vedle Zvysena_Sazba.
+        // Spolujezdec SPZ nedostane.
+        $data = $this->sampleReportData();
+        $data['data_a']['Skupiny_Cest'] = [
+            ['id' => '001', 'Ridic' => 1990, 'SPZ' => '1CH0879', 'Cesty' => []],
+        ];
+        $data['calculation'] = [
+            '1955' => ['INT_ADR' => 1955, 'Zvysena_Sazba' => false, 'Stravne' => 170],
+            '1990' => ['INT_ADR' => 1990, 'Zvysena_Sazba' => false, 'Stravne' => 170],
+        ];
+
+        $xml = $this->makeService()->generateReportXml($data);
+
+        $this->assertStringContainsString('<SPZ>1CH0879</SPZ>', $xml);
+        $this->assertSame(1, substr_count($xml, '<SPZ>'), 'SPZ jen u řidiče, ne u spolujezdce');
+        // SPZ je uvnitř bloku řidiče (Znackar 1990)
+        $this->assertMatchesRegularExpression('#<Znackar id="1990">.*?<SPZ>1CH0879</SPZ>.*?</Znackar>#s', $xml);
     }
 
     public function testNeplatneUsekIdNejdeDoXml(): void
