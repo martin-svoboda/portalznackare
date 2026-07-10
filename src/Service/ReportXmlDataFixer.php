@@ -192,6 +192,7 @@ class ReportXmlDataFixer
         $validIds = $usekMap['validIds'];
         $ambiguous = $usekMap['ambiguous'];
         $byEvciAll = $usekMap['byEvciAll'];
+        $byId = $usekMap['byId'];
 
         $new = [];
         foreach ($dataB['Obnovene_Useky'] as $key => $record) {
@@ -230,21 +231,31 @@ class ReportXmlDataFixer
             $warnings[] = sprintf('Úsek %s: nenalezen v aktuálních datech příkazu z INSYZ, ponechán beze změny', $k);
         }
 
-        // Migrace Usek_Obnoven na číselník StavProvedeniEnum ve VŠECH úsecích
-        // (starý boolean true/false → 3/2). Číselné kódy zůstanou beze změny (idempotentní).
+        // Finální průchod přes VŠECHNY úseky:
+        //  a) Usek_Obnoven na číselník StavProvedeniEnum (starý boolean true/false → 3/2).
+        //  b) doplnit chybějící Typ_Useku (Úsek/Odbočka) z INSYZ, aby se do XML dostal
+        //     příznak typ i u neexpandovaných úseků.
+        // Číselné kódy / už vyplněný Typ_Useku zůstanou beze změny (idempotentní).
         $migrated = 0;
+        $typDoplneno = 0;
         foreach ($new as $id => $rec) {
-            if (!array_key_exists('Usek_Obnoven', $rec)) {
-                continue;
+            if (array_key_exists('Usek_Obnoven', $rec)) {
+                $kod = StavProvedeniEnum::normalize($rec['Usek_Obnoven'])->value;
+                if ($rec['Usek_Obnoven'] !== $kod) {
+                    $new[$id]['Usek_Obnoven'] = $kod;
+                    $migrated++;
+                }
             }
-            $kod = StavProvedeniEnum::normalize($rec['Usek_Obnoven'])->value;
-            if ($rec['Usek_Obnoven'] !== $kod) {
-                $new[$id]['Usek_Obnoven'] = $kod;
-                $migrated++;
+            if (empty($rec['Typ_Useku']) && !empty($byId[(string) $id]['typ'])) {
+                $new[$id]['Typ_Useku'] = $byId[(string) $id]['typ'];
+                $typDoplneno++;
             }
         }
         if ($migrated > 0) {
             $changes[] = sprintf('Obnovene_Useky: Usek_Obnoven převeden na číselník u %d úseků', $migrated);
+        }
+        if ($typDoplneno > 0) {
+            $changes[] = sprintf('Obnovene_Useky: doplněn Typ_Useku u %d úseků', $typDoplneno);
         }
 
         $dataB['Obnovene_Useky'] = $new;
@@ -270,6 +281,7 @@ class ReportXmlDataFixer
         $counts = [];
         $byEvci = [];
         $byEvciAll = [];
+        $byId = [];
         $validIds = [];
 
         foreach ($useky as $usek) {
@@ -282,6 +294,10 @@ class ReportXmlDataFixer
             }
             $usekId = (string) $usekId;
             $validIds[$usekId] = true;
+            $byId[$usekId] = [
+                'delka' => isset($usek['Delka_ZU']) ? (float) $usek['Delka_ZU'] : 0.0,
+                'typ' => isset($usek['Typ_Useku']) ? (string) $usek['Typ_Useku'] : '',
+            ];
 
             $evci = isset($usek['EvCi_Tra']) ? (string) $usek['EvCi_Tra'] : '';
             if ($evci === '') {
@@ -306,7 +322,7 @@ class ReportXmlDataFixer
             }
         }
 
-        return ['map' => $map, 'validIds' => $validIds, 'ambiguous' => $ambiguous, 'byEvciAll' => $byEvciAll];
+        return ['map' => $map, 'validIds' => $validIds, 'ambiguous' => $ambiguous, 'byEvciAll' => $byEvciAll, 'byId' => $byId];
     }
 
     /**

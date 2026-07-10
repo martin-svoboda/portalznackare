@@ -222,6 +222,23 @@ class ReportXmlDataFixerTest extends TestCase
         $this->assertSame('Odbočka', $obnovene['14899']['Typ_Useku']);
     }
 
+    public function testDoplneniTypUsekuUNeexpandovaneho(): void
+    {
+        // Úsek je už správné ID (neexpanduje se), ale chybí mu Typ_Useku → fixer ho
+        // doplní z INSYZ, aby se do XML dostal příznak typ i u neexpandovaných úseků.
+        $useky = [
+            ['EvCi_Tra' => '130002', 'ID_Trasy_ZU' => '109338', 'ID_TRASY_Odbocky' => null, 'Delka_ZU' => '6.139', 'Typ_Useku' => 'Úsek'],
+        ];
+        $dataB = ['Obnovene_Useky' => ['109338' => ['Usek_Obnoven' => 3, 'Usek_Delka' => 6.139]]];
+
+        $result = $this->fixer->fix([], $dataB, [], $useky);
+        $obnovene = $result['data_b']['Obnovene_Useky'];
+
+        $this->assertTrue($result['changed'], 'Doplnění Typ_Useku je změna');
+        $this->assertSame('Úsek', $obnovene['109338']['Typ_Useku']);
+        $this->assertSame(3, $obnovene['109338']['Usek_Obnoven']);
+    }
+
     public function testNeplatnyNAUsekSeIgnoruje(): void
     {
         // Chybný úsek z INSYZ (Nedostupná odbočka): všechna ID null, EvCi_Tra „N/A".
