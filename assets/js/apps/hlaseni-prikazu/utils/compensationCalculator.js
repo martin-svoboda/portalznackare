@@ -2,12 +2,20 @@ import {toISODateString} from '../../../utils/dateUtils.js';
 import {log} from '../../../utils/debug';
 
 /**
- * Kontrola zda má uživatel kvalifikaci Zaškolený značkař (ZZ)
+ * Kvalifikace opravňující k náhradě za práci (dohodnuto s INSYZ):
+ *   ZZ – Zaškolený značkař, VZ – Vedoucí značkař, IZ – Instruktor značení, ZT.
+ * Pozor: vyšší kvalifikace (VZ) NEMÁ v INSYZ datech samostatný ZZ záznam, ale nárok má –
+ * proto se kontroluje celá množina, ne jen doslovné "ZZ".
+ */
+export const KVALIFIKACE_S_NAROKEM_NA_NAHRADY = ['ZZ', 'VZ', 'IZ', 'ZT'];
+
+/**
+ * Kontrola, zda má uživatel kvalifikaci opravňující k náhradě za práci.
  * @param {Object} usersDetails - Data uživatelů z API (usersDetails[INT_ADR])
  * @param {number} userIntAdr - INT_ADR uživatele ke kontrole
- * @returns {boolean} - true pokud má kvalifikaci ZZ, jinak false
+ * @returns {boolean}
  */
-export function hasQualificationZZ(usersDetails, userIntAdr) {
+export function maNarokNaNahrady(usersDetails, userIntAdr) {
     if (!usersDetails || !userIntAdr) {
         return false;
     }
@@ -23,8 +31,7 @@ export function hasQualificationZZ(usersDetails, userIntAdr) {
         return false;
     }
 
-    // Zkontrolovat zda existuje kvalifikace s Zkratka_Kval === "ZZ"
-    return kvalifikace.some(kval => kval.Zkratka_Kval === "ZZ");
+    return kvalifikace.some(kval => KVALIFIKACE_S_NAROKEM_NA_NAHRADY.includes(kval.Zkratka_Kval));
 }
 
 /**
@@ -313,13 +320,13 @@ export function calculateTransportDetails(formData, tariffRates, userIntAdr = nu
 export function calculateCompensation(formData, tariffRates, userIntAdr = null, usersDetails = null) {
     if (!tariffRates || !userIntAdr) return null;
 
-    // Kontrola kvalifikace ZZ - uživatel musí být zaškolený pro náhrady
-    const maKvalifikaciZZ = hasQualificationZZ(usersDetails, userIntAdr);
+    // Kontrola kvalifikace - uživatel musí mít kvalifikaci opravňující k náhradám
+    const maNarok = maNarokNaNahrady(usersDetails, userIntAdr);
 
     log.info('calculateCompensation: kontrola nároku na náhrady', {
         userIntAdr,
-        maKvalifikaciZZ,
-        budouNahrady: maKvalifikaciZZ ? 'ANO' : 'NE (chybí kvalifikace ZZ)'
+        maNarok,
+        budouNahrady: maNarok ? 'ANO' : 'NE (chybí kvalifikace pro náhrady)'
     });
 
     // Spočítat pracovní dny a celkové hodiny pro uživatele
@@ -335,8 +342,8 @@ export function calculateCompensation(formData, tariffRates, userIntAdr = null, 
 
     // Stravné - nárok mají všichni členové týmu bez ohledu na kvalifikaci
     const mealAllowance = stravneTariff ? parseFloat(stravneTariff.Stravne || 0) : 0;
-    // Náhrada za práci - POUZE pokud má kvalifikaci ZZ
-    const workAllowance = maKvalifikaciZZ && nahradyTariff ? parseFloat(nahradyTariff.Nahrada || 0) : 0;
+    // Náhrada za práci - POUZE pokud má kvalifikaci opravňující k náhradám
+    const workAllowance = maNarok && nahradyTariff ? parseFloat(nahradyTariff.Nahrada || 0) : 0;
     
     // Ubytování - pouze pro toho kdo platil
     const accommodationCosts = (formData.Noclezne || [])

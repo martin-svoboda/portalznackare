@@ -13,7 +13,7 @@ import {log} from '../../utils/debug';
 import {StateBadge} from "@utils/stateBadge";
 import {ReportProvedeniSummary} from './ReportProvedeniSummary';
 
-export const ProvedeniPrikazu = ({prikazId, head, currentUser, isLeader}) => {
+export const ProvedeniPrikazu = ({prikazId, head, currentUser, isLeader, isAdmin = false}) => {
     const [reportData, setReportData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -133,7 +133,7 @@ export const ProvedeniPrikazu = ({prikazId, head, currentUser, isLeader}) => {
                     datumProvedeni={reportData.data_a?.Datum_Provedeni}
                     castADokoncena={reportData.data_a?.Cast_A_Dokoncena || false}
                     castBDokoncena={reportData.data_b?.Cast_B_Dokoncena || false}
-                    showAll={isLeader}
+                    showAll={isLeader || isAdmin}
                     currentUserIntAdr={currentUser?.intAdr}
                 />
             ) : (

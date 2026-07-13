@@ -6,6 +6,7 @@ import {
 } from '@tabler/icons-react';
 import {renderHtmlContent, replaceTextWithIcons} from "@utils/htmlUtils";
 import {getUsekId} from "@utils/prikaz";
+import {jeProvedena} from "@utils/stavProvedeni";
 import {PREDMETY_BEZ_LETOPOCTU} from '../utils/validationUtils';
 import {TimMismatchNote} from './TimMismatchNote';
 
@@ -213,7 +214,8 @@ export const PartBSummary = ({
                             <tbody>
                                 {useky.map((usek, index) => {
                                     const usekData = (formData.Obnovene_Useky || {})[getUsekId(usek)];
-                                    const isRenewed = usekData?.Usek_Obnoven === true;
+                                    // Usek_Obnoven je kód číselníku (3=Provedena); jeProvedena zvládne i starý boolean
+                                    const isRenewed = jeProvedena(usekData?.Usek_Obnoven);
 
                                     return (
                                         <tr key={getUsekId(usek) || index} className="border-b border-gray-200 dark:border-gray-700">

@@ -123,7 +123,10 @@ const App = () => {
     const table = useMaterialReactTable({
         columns,
         data: reports,
-        localization: MRT_Localization_CS,
+        // Krátký placeholder filtru (výchozí „Filtrovat podle sloupce …" roztahoval sloupce)
+        localization: {...MRT_Localization_CS, filterByColumn: 'Filtr'},
+        // Sloupce respektují size a filtr se do nich vejde (nesemantický grid layout)
+        layoutMode: 'grid',
         enableFacetedValues: true,
         enableColumnFilters: true,
         enableGlobalFilter: true,

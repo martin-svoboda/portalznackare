@@ -134,6 +134,8 @@ const App = () => {
         intAdr: parseInt(container?.dataset?.userIntAdr || '0'),
         name: container?.dataset?.userName || ''
     };
+    // Admin vidí v přehledu částky všech značkařů (ne jen vedoucí/sebe)
+    const isAdmin = container?.dataset?.isAdmin === 'true';
 
     const [head, setHead] = useState(null);
     const [predmety, setPredmety] = useState([]);
@@ -554,11 +556,12 @@ const App = () => {
                 {/* Hlášení příkazu */}
                 <div className="card">
                     <div className="card__content">
-                        <ProvedeniPrikazu 
+                        <ProvedeniPrikazu
                             prikazId={prikazId}
                             head={head}
                             currentUser={currentUser}
                             isLeader={isLeader}
+                            isAdmin={isAdmin}
                         />
                         
                         {head && isNezpracovany(head.Stav_Virtualni) && (
