@@ -286,6 +286,9 @@ class XmlGenerationService
                 if ($spz !== null) {
                     $item = $this->insertAfterKey($item, 'Zvysena_Sazba', 'SPZ', $spz);
                 }
+                // Ucetni_Dny je prezentační rozpad stravného po dnech (pro UI souhrn),
+                // do INSYZ XML nepatří – INSYZ dostává jen Stravne/Nahrada_Prace + Cas_Prace.
+                unset($item['Ucetni_Dny']);
             }
 
             $container->appendChild($element);

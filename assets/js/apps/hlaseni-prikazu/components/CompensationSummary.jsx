@@ -3,6 +3,7 @@ import {
     calculateCompensation,
     calculateCompensationForAllMembers
 } from '../utils/compensationCalculator';
+import {formatHodinyMinuty} from '../utils/vicedenniVypocet.js';
 import {log} from '../../../utils/debug';
 import {useAppData} from '../contexts/AppContext';
 
@@ -29,7 +30,12 @@ const MemberCompensationDetail = ({
                                   }) => {
     if (!memberCompensation) return null;
 
-    const workHours = memberCompensation.Cas_Prace_Celkem || 0;
+    // Souhrn „Práce" jede z účetních dnů (doba cesty po dnech, přechod přes půlnoc) –
+    // stejná čísla jako stravné/náhrady. Fallback na Cas_Prace u starších hlášení bez Ucetni_Dny.
+    const ucetniDny = (memberCompensation.Ucetni_Dny && memberCompensation.Ucetni_Dny.length > 0)
+        ? memberCompensation.Ucetni_Dny
+        : (memberCompensation.Cas_Prace || []);
+    const workHours = ucetniDny.reduce((sum, d) => sum + (d?.Cas || 0), 0);
 
     const textSize = compact ? "text-sm" : "text-base";
     const smallTextSize = compact ? "text-xs" : "text-sm";
@@ -44,11 +50,11 @@ const MemberCompensationDetail = ({
             <div className={blockStyle}>
                 <div className="flex justify-between">
                     <span className={`${textSize} font-medium`}>Práce celkem</span>
-                    <span className={textSize}>{workHours.toFixed(1)} h</span>
+                    <span className={textSize}>{formatHodinyMinuty(workHours)}</span>
                 </div>
                 {!compact && (
-                    memberCompensation.Cas_Prace && memberCompensation.Cas_Prace.length > 0 ?
-                        memberCompensation.Cas_Prace.map((den, index) => {
+                    ucetniDny.length > 0 ?
+                        ucetniDny.map((den, index) => {
                             if (!den) return <span key={index} className="text-red-500 font-bold">Žádný počátek a konec cesty - nelze vypočítat</span>;
 
                             return (
@@ -61,8 +67,9 @@ const MemberCompensationDetail = ({
                                             <span className="text-red-500">chybí čas</span>}</strong></span>
                                         <span> do <strong>{den.Do ||
                                             <span className="text-red-500">chybí čas</span>}</strong></span>
+                                        {den.Typ === 'pobyt' && <span className="ml-1">(celý den pobytu)</span>}
                                     </div>
-                                    <span>{den.Cas} h</span>
+                                    <span>{formatHodinyMinuty(den.Cas)}</span>
                                 </div>
                             );
                         }) :
@@ -230,24 +237,14 @@ const MemberCompensationDetail = ({
                     </span>
                     <span className={textSize}>{formatCurrency(memberCompensation?.Stravne || 0)}</span>
                 </div>
-                {!compact && memberCompensation?.Cas_Prace_Celkem > 0 && (
+                {!compact && (memberCompensation?.Ucetni_Dny?.length > 0) && (
                     <div className={`${smallTextSize} text-muted ml-4`}>
-                        Celkem <strong>{memberCompensation.Cas_Prace_Celkem || 0} hodin</strong> práce:
-                        {!compact && tariffRates && memberCompensation?.Stravne && (() => {
-                            // Najít tarif podle uplatněné výše stravného
-                            const tarif = tariffRates.stravneTariffs.find(t =>
-                                parseFloat(t.Stravne) === memberCompensation.Stravne
-                            );
-
-                            if (tarif) {
-                                return (
-                                    <span className={`${smallTextSize} text-muted ml-1`}>
-                                        {`Uplatněn tarif za ${tarif.Trvani_Od} – ${tarif.Trvani_Do} hodin`}
-                                    </span>
-                                );
-                            }
-                            return <span className="text-red-500 font-bold">Chybý údaje k výpočtu</span>;
-                        })()}
+                        {memberCompensation.Ucetni_Dny.map((den, i) => (
+                            <div key={i} className="flex justify-between">
+                                <span>{den.Datum ? new Date(den.Datum).toLocaleDateString('cs-CZ') : '—'} — {formatHodinyMinuty(den.Cas)}{den.Typ === 'pobyt' ? ' (celý den pobytu)' : ''}</span>
+                                <span>{formatCurrency(den.Stravne || 0)}</span>
+                            </div>
+                        ))}
                     </div>
                 )}
             </div>
@@ -259,24 +256,14 @@ const MemberCompensationDetail = ({
                     </span>
                     <span className={textSize}>{formatCurrency(memberCompensation?.Nahrada_Prace || 0)}</span>
                 </div>
-                {!compact && memberCompensation?.Cas_Prace_Celkem > 0 && (
+                {!compact && memberCompensation?.Nahrada_Prace > 0 && (memberCompensation?.Ucetni_Dny?.length > 0) && (
                     <div className={`${smallTextSize} text-muted ml-4`}>
-                        Celkem <strong>{memberCompensation.Cas_Prace_Celkem || 0} hodin</strong> práce:
-                        {!compact && tariffRates && memberCompensation?.Stravne && (() => {
-                            // Najít tarif podle uplatněné výše stravného
-                            const tarif = tariffRates.nahradyTariffs.find(t =>
-                                parseFloat(t.Nahrada) === memberCompensation.Nahrada_Prace
-                            );
-
-                            if (tarif) {
-                                return (
-                                    <span className={`${smallTextSize} text-muted ml-1`}>
-                                        {`Uplatněn tarif za ${tarif.Trvani_Od} – ${tarif.Trvani_Do} hodin`}
-                                    </span>
-                                );
-                            }
-                            return <span className="text-red-500 font-bold">Chybý údaje k výpočtu</span>;
-                        })()}
+                        {memberCompensation.Ucetni_Dny.map((den, i) => (
+                            <div key={i} className="flex justify-between">
+                                <span>{den.Datum ? new Date(den.Datum).toLocaleDateString('cs-CZ') : '—'} — {formatHodinyMinuty(den.Cas)}{den.Typ === 'pobyt' ? ' (celý den pobytu)' : ''}</span>
+                                <span>{formatCurrency(den.Nahrada || 0)}</span>
+                            </div>
+                        ))}
                     </div>
                 )}
             </div>

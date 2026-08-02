@@ -4,6 +4,7 @@
  */
 
 import { extractTeamMembers, calculateExecutionDate } from './compensationCalculator';
+import { pocetCestovnichDnu } from './vicedenniVypocet.js';
 import { toISODateString } from '../../../utils/dateUtils';
 import { getUsekId, isValidUsek } from '../../../utils/prikaz';
 import { jeProvedena } from '../../../utils/stavProvedeni';
@@ -18,6 +19,11 @@ export const PREDMETY_BEZ_LETOPOCTU = ['K', 'T', 'I', 'B', 'Q', 'P', 'V', 'N'];
  */
 const validateMinimumTripsPerDay = (formData, head) => {
     if (!formData.Skupiny_Cest || !head) return { isValid: true, details: [] };
+
+    // Vícedenní pobyt: den výjezdu i den návratu má legitimně jen 1 cestu (tam / zpět).
+    // Pravidlo „2 jízdy za den" platí jen pro jednodenní hlášení; úplnost vícedenního
+    // řeší soft varování (detekujVicedenniProblemy), ne tvrdý blok v části A.
+    if (pocetCestovnichDnu(formData.Skupiny_Cest) >= 2) return { isValid: true, details: [] };
 
     const details = [];
 
@@ -1029,3 +1035,5 @@ export const memberHasTimeConflictInGroup = (timeConflicts, memberIntAdr, groupI
     if (!memberConflicts) return false;
     return memberConflicts.includes(groupId);
 };
+
+export { detekujVicedenniProblemy, pocetCestovnichDnu } from './vicedenniVypocet.js';

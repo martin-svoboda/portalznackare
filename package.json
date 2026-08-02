@@ -15,6 +15,7 @@
         "autoprefixer": "^10.4.16",
         "dayjs": "^1.11.0",
         "file-loader": "^6.2.0",
+        "jsdom": "^26.1.0",
         "postcss-loader": "^8.1.1",
         "react": "^18.2.0",
         "react-dom": "^18.2.0",
@@ -24,6 +25,7 @@
         "tailwindcss": "^3.4.0",
         "ts-loader": "^9.5.2",
         "typescript": "^5.0.0",
+        "vitest": "^3.2.7",
         "webpack-notifier": "^1.15.0"
     },
     "license": "UNLICENSED",
@@ -32,7 +34,9 @@
         "dev-server": "encore dev-server",
         "dev": "encore dev",
         "watch": "encore dev --watch",
-        "build": "encore production --progress"
+        "build": "encore production --progress",
+        "test": "vitest run",
+        "test:watch": "vitest"
     },
     "dependencies": {
         "@dnd-kit/core": "^6.3.1",

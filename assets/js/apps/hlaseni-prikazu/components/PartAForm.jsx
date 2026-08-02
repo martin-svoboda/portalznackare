@@ -13,6 +13,7 @@ import {
 } from '../utils/attachmentUtils';
 import { calculateExecutionDate } from '../utils/compensationCalculator';
 import { toISODateString } from '../../../utils/dateUtils';
+import { pocetCestovnichDnu, detekujVicedenniProblemy } from '../utils/vicedenniVypocet.js';
 
 
 export const PartAForm = ({
@@ -160,6 +161,10 @@ export const PartAForm = ({
         setFormData(prev => ({ ...prev, Presmerovani_Vyplat }));
     };
 
+    // Vícedenní hlášení - zobrazení nocležného a soft varování
+    const vicedenni = pocetCestovnichDnu(formData.Skupiny_Cest) >= 2;
+    const vicedenniVarovani = detekujVicedenniProblemy(formData.Skupiny_Cest, formData.Noclezne);
+
 
     return (
         <div className="space-y-6">
@@ -181,7 +186,19 @@ export const PartAForm = ({
             />
             </ErrorBoundary>
 
+            {/* Vícedenní varování */}
+            {vicedenniVarovani.length > 0 && (
+                <div className="space-y-2">
+                    {vicedenniVarovani.map((v, i) => (
+                        <div key={i} className="alert alert--warning" role="status">
+                            {v.text}
+                        </div>
+                    ))}
+                </div>
+            )}
+
             {/* Accommodation */}
+            {vicedenni && (
             <ErrorBoundary sectionName="Nocležné">
                 <div className="card">
                 <div className="card__content">
@@ -322,6 +339,7 @@ export const PartAForm = ({
                 </div>
             </div>
             </ErrorBoundary>
+            )}
 
             {/* Additional expenses */}
             <ErrorBoundary sectionName="Vedlejší výdaje">

@@ -143,6 +143,13 @@ export function calculateCompensation(formData, priceList, userIntAdr) {
 }
 ```
 
+### Vícedenní stravné a náhrady (od 2026-07)
+Stravné i časové náhrady se počítají **za každý kalendářní den samostatně** a sčítají (potvrzeno KČT). Rozlišení scénářů řídí **nocleh**:
+- **bez noclehu** = samostatné dny s návratem (scénář I) – každý den se tiéruje podle svého okna;
+- **s noclehem** (i 0 Kč) = souvislý pobyt (scénář II) – přechod přes půlnoc: den odjezdu → 24:00, plné mezidny 24 h, den návratu 00:00 → příjezd. Uzavřený okruh (návrat kam vyjel) se počítá skutečným oknem.
+
+Jádro je čistý modul [`utils/vicedenniVypocet.js`](../../assets/js/apps/hlaseni-prikazu/utils/vicedenniVypocet.js) (`budujUcetniDny`), pokrytý jednotkovými testy (Vitest, `assets/js/**/*.test.js`, spouští `ddev npm run test`). `calculateWorkDays` doplňuje `Misto_Od/Misto_Do/Uzavreny`; `calculateCompensation` vrací navíc `Ucetni_Dny` (rozpad po dnech pro souhrn). Nocležné se v části A zobrazí jen u 2+ denních hlášení, doprovázené soft varováními (`detekujVicedenniProblemy`). Detaily: [spec](../superpowers/specs/2026-07-26-vicedenni-stravne-nahrady-hlaseni-design.md).
+
 ## 🔄 Workflow procesu
 
 ### 1. **Inicializace hlášení**
@@ -265,6 +272,7 @@ XML se generuje v `XmlGenerationService` z `data_a` + `data_b` + `calculation`. 
 - **`Obnovene_Useky`** = objekt klíčovaný **ID úseku z INSYZ** – `ID_TRASY_Odbocky` (odbočka), jinak `ID_Trasy_ZU`. NE `EvCi_Tra` (to je evidenční číslo trasy). Helper `getUsekId()` v [RenewedSectionsForm.jsx](../../assets/js/apps/hlaseni-prikazu/components/RenewedSectionsForm.jsx).
 - **`calculation[INT_ADR].Noclezne[]`** musí obsahovat i pole **`Datum`** (z `data_a.Noclezne[].Datum`) – doplňuje [compensationCalculator.js](../../assets/js/apps/hlaseni-prikazu/utils/compensationCalculator.js). Bez něj se datum noclehu do XML nedostane.
 - **`Presmerovani_Vyplat`** (`{ z_INT_ADR: na_INT_ADR }`) z `data_a` jde do XML i do přehledu ZP – zobrazuje [ReportProvedeniSummary.jsx](../../assets/js/components/prikazy/ReportProvedeniSummary.jsx).
+- **`calculation[INT_ADR].Ucetni_Dny`** je pouze prezentační rozpad stravného po dnech (pro souhrn v UI) – do INSYZ XML **nepatří** a [`XmlGenerationService`](../../src/Service/XmlGenerationService.php) ho z Vyúčtování odfiltruje (`unset`). `Cas_Prace` drží původní štíhlý tvar `{Datum, Od, Do, Cas}` kvůli stabilitě XML.
 
 > Pozn.: opravy ve frontendu platí pro **nová/znovuuložená hlášení**. Pro hromadnou opravu už uložených dat slouží konzolový příkaz níže.
 
@@ -373,4 +381,4 @@ Frontend zobrazí: "Odesílání trvá déle než obvykle"
 **Propojené funkcionality:** [File Management](file-management.md) | [INSYZ Integration](insyz-integration.md)  
 **API Reference:** [../api/portal-api.md](../api/portal-api.md)  
 **Technical details:** [../development/background-jobs.md](../development/background-jobs.md)  
-**Aktualizováno:** 2026-06-26
+**Aktualizováno:** 2026-07-26 (vícedenní stravné a náhrady po dnech)

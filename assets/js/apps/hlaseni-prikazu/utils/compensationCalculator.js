@@ -1,5 +1,6 @@
 import {toISODateString} from '../../../utils/dateUtils.js';
 import {log} from '../../../utils/debug';
+import { budujUcetniDny, naIsoDatum } from './vicedenniVypocet.js';
 
 /**
  * Kvalifikace opravňující k náhradě za práci (dohodnuto s INSYZ):
@@ -130,19 +131,17 @@ export function calculateWorkDays(formData, userIntAdr) {
         // Použít správný formát data bez časové zóny - yyyy-mm-dd HH:mm
         let earliestTime = null;
         let latestTime = null;
-        
+        let segOdjezd = null;   // segment s nejdřívějším odjezdem
+        let segPrijezd = null;  // segment s nejpozdějším příjezdem
+
         segments.forEach(s => {
-            if (s.Cas_Odjezdu) {
-                const startTime = s.Cas_Odjezdu;
-                if (!earliestTime || startTime < earliestTime) {
-                    earliestTime = startTime;
-                }
+            if (s.Cas_Odjezdu && (!earliestTime || s.Cas_Odjezdu < earliestTime)) {
+                earliestTime = s.Cas_Odjezdu;
+                segOdjezd = s;
             }
-            if (s.Cas_Prijezdu) {
-                const endTime = s.Cas_Prijezdu;
-                if (!latestTime || endTime > latestTime) {
-                    latestTime = endTime;
-                }
+            if (s.Cas_Prijezdu && (!latestTime || s.Cas_Prijezdu > latestTime)) {
+                latestTime = s.Cas_Prijezdu;
+                segPrijezd = s;
             }
         });
         
@@ -156,19 +155,25 @@ export function calculateWorkDays(formData, userIntAdr) {
             dateObj = new Date();
         }
         
-        // Formátovat datum pomocí globální utils
-        const dateFormatted = toISODateString(dateObj);
+        // Lokální ISO datum (konzistentní s párováním noclehu ve vicedenniVypocet;
+        // vyhne se UTC posunu u Date s lokálním časem přes půlnoc).
+        const dateFormatted = naIsoDatum(dateObj);
         
         // Spočítat hodiny - parsovat časy správně
         const [startHour, startMin] = earliestTime.split(':').map(Number);
         const [endHour, endMin] = latestTime.split(':').map(Number);
         const hoursWorked = (endHour + endMin/60) - (startHour + startMin/60);
         
+        const mistoOd = (segOdjezd?.Misto_Odjezdu || '').trim();
+        const mistoDo = (segPrijezd?.Misto_Prijezdu || '').trim();
         return {
             Datum: dateFormatted,
             Od: earliestTime,
             Do: latestTime,
-            Cas: Math.round(Math.max(0, hoursWorked) * 100) / 100
+            Cas: Math.round(Math.max(0, hoursWorked) * 100) / 100,
+            Misto_Od: mistoOd,
+            Misto_Do: mistoDo,
+            Uzavreny: !!mistoOd && !!mistoDo && mistoOd.toLowerCase() === mistoDo.toLowerCase(),
         };
     }).filter(day => day.Cas > 0);
 }
@@ -329,21 +334,28 @@ export function calculateCompensation(formData, tariffRates, userIntAdr = null, 
         budouNahrady: maNarok ? 'ANO' : 'NE (chybí kvalifikace pro náhrady)'
     });
 
-    // Spočítat pracovní dny a celkové hodiny pro uživatele
+    // Pracovní dny (obohacené o Uzavreny/místo) a účetní dny (per-den, přechod přes půlnoc dle noclehu)
     const workDays = calculateWorkDays(formData, userIntAdr);
     const totalWorkHours = workDays.reduce((total, day) => total + day.Cas, 0);
+    const ucetniDnyRaw = budujUcetniDny(workDays, formData.Noclezne || []);
 
-    // Najít tarify pro stravné a náhrady odděleně
-    const stravneTariff = findTariffByWorkTime(totalWorkHours, tariffRates.stravneTariffs);
-    const nahradyTariff = findTariffByWorkTime(totalWorkHours, tariffRates.nahradyTariffs);
+    // Stravné a náhrady se počítají VŽDY po dnech a sčítají (potvrzeno KČT).
+    // Ke každému účetnímu dni připojíme i jeho částku (Stravne/Nahrada) pro rozpad v souhrnu.
+    let mealAllowance = 0;
+    let workAllowance = 0;
+    const ucetniDny = ucetniDnyRaw.map(den => {
+        const st = findTariffByWorkTime(den.Cas, tariffRates.stravneTariffs);
+        const stravneDne = st ? parseFloat(st.Stravne || 0) : 0;
+        const nt = findTariffByWorkTime(den.Cas, tariffRates.nahradyTariffs);
+        // Náhrada za práci — POUZE pokud má kvalifikaci opravňující k náhradám
+        const nahradaDne = (maNarok && nt) ? parseFloat(nt.Nahrada || 0) : 0;
+        mealAllowance += stravneDne;
+        workAllowance += nahradaDne;
+        return { ...den, Stravne: stravneDne, Nahrada: nahradaDne };
+    });
 
     // Spočítat dopravní náklady pro uživatele
     const transportCosts = calculateTransportCosts(formData, tariffRates, userIntAdr);
-
-    // Stravné - nárok mají všichni členové týmu bez ohledu na kvalifikaci
-    const mealAllowance = stravneTariff ? parseFloat(stravneTariff.Stravne || 0) : 0;
-    // Náhrada za práci - POUZE pokud má kvalifikaci opravňující k náhradám
-    const workAllowance = maNarok && nahradyTariff ? parseFloat(nahradyTariff.Nahrada || 0) : 0;
     
     // Ubytování - pouze pro toho kdo platil
     const accommodationCosts = (formData.Noclezne || [])
@@ -431,7 +443,11 @@ export function calculateCompensation(formData, tariffRates, userIntAdr = null, 
         Vedlejsi_Vydaje: vedlejsiVydajeDetails,
         Vedlejsi_Vydaje_Celkem: Math.round(additionalExpenses * 100) / 100,
         Cas_Prace_Celkem: Math.round(totalWorkHours * 100) / 100,
-        Cas_Prace: workDays,
+        // Cas_Prace drží původní štíhlý tvar (Datum/Od/Do/Cas) kvůli stabilitě INSYZ XML;
+        // obohacená pole (Misto_*/Uzavreny) slouží jen internímu výpočtu účetních dnů.
+        Cas_Prace: workDays.map(d => ({ Datum: d.Datum, Od: d.Od, Do: d.Do, Cas: d.Cas })),
+        // Ucetni_Dny slouží UI (rozpad po dnech); z INSYZ XML se odfiltruje v XmlGenerationService.
+        Ucetni_Dny: ucetniDny,
         Celkem_Kc: Math.round(total * 100) / 100
     };
     
