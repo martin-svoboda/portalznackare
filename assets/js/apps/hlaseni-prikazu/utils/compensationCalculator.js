@@ -336,7 +336,6 @@ export function calculateCompensation(formData, tariffRates, userIntAdr = null, 
 
     // Pracovní dny (obohacené o Uzavreny/místo) a účetní dny (per-den, přechod přes půlnoc dle noclehu)
     const workDays = calculateWorkDays(formData, userIntAdr);
-    const totalWorkHours = workDays.reduce((total, day) => total + day.Cas, 0);
     const ucetniDnyRaw = budujUcetniDny(workDays, formData.Noclezne || []);
 
     // Stravné a náhrady se počítají VŽDY po dnech a sčítají (potvrzeno KČT).
@@ -353,6 +352,9 @@ export function calculateCompensation(formData, tariffRates, userIntAdr = null, 
         workAllowance += nahradaDne;
         return { ...den, Stravne: stravneDne, Nahrada: nahradaDne };
     });
+
+    // Celková doba práce = součet účetních hodin po dnech (včetně přechodu přes půlnoc)
+    const totalWorkHours = ucetniDny.reduce((total, den) => total + den.Cas, 0);
 
     // Spočítat dopravní náklady pro uživatele
     const transportCosts = calculateTransportCosts(formData, tariffRates, userIntAdr);
@@ -443,9 +445,15 @@ export function calculateCompensation(formData, tariffRates, userIntAdr = null, 
         Vedlejsi_Vydaje: vedlejsiVydajeDetails,
         Vedlejsi_Vydaje_Celkem: Math.round(additionalExpenses * 100) / 100,
         Cas_Prace_Celkem: Math.round(totalWorkHours * 100) / 100,
-        // Cas_Prace drží původní štíhlý tvar (Datum/Od/Do/Cas) kvůli stabilitě INSYZ XML;
-        // obohacená pole (Misto_*/Uzavreny) slouží jen internímu výpočtu účetních dnů.
-        Cas_Prace: workDays.map(d => ({ Datum: d.Datum, Od: d.Od, Do: d.Do, Cas: d.Cas })),
+        // Cas_Prace jde do INSYZ jako ÚČETNÍ okna po dnech (přechod přes půlnoc), protože
+        // INSYZ neumí dopočítat půlnoc – posílá se den výjezdu 07:00–23:59 a den návratu
+        // 00:00–15:00 (24:00 → 23:59). Štíhlý tvar {Datum, Od, Do, Cas} kvůli stabilitě XML.
+        Cas_Prace: ucetniDny.map(d => ({
+            Datum: d.Datum,
+            Od: d.Od,
+            Do: d.Do === '24:00' ? '23:59' : d.Do,
+            Cas: d.Cas,
+        })),
         // Ucetni_Dny slouží UI (rozpad po dnech); z INSYZ XML se odfiltruje v XmlGenerationService.
         Ucetni_Dny: ucetniDny,
         Celkem_Kc: Math.round(total * 100) / 100

@@ -272,7 +272,8 @@ XML se generuje v `XmlGenerationService` z `data_a` + `data_b` + `calculation`. 
 - **`Obnovene_Useky`** = objekt klíčovaný **ID úseku z INSYZ** – `ID_TRASY_Odbocky` (odbočka), jinak `ID_Trasy_ZU`. NE `EvCi_Tra` (to je evidenční číslo trasy). Helper `getUsekId()` v [RenewedSectionsForm.jsx](../../assets/js/apps/hlaseni-prikazu/components/RenewedSectionsForm.jsx).
 - **`calculation[INT_ADR].Noclezne[]`** musí obsahovat i pole **`Datum`** (z `data_a.Noclezne[].Datum`) – doplňuje [compensationCalculator.js](../../assets/js/apps/hlaseni-prikazu/utils/compensationCalculator.js). Bez něj se datum noclehu do XML nedostane.
 - **`Presmerovani_Vyplat`** (`{ z_INT_ADR: na_INT_ADR }`) z `data_a` jde do XML i do přehledu ZP – zobrazuje [ReportProvedeniSummary.jsx](../../assets/js/components/prikazy/ReportProvedeniSummary.jsx).
-- **`calculation[INT_ADR].Ucetni_Dny`** je pouze prezentační rozpad stravného po dnech (pro souhrn v UI) – do INSYZ XML **nepatří** a [`XmlGenerationService`](../../src/Service/XmlGenerationService.php) ho z Vyúčtování odfiltruje (`unset`). `Cas_Prace` drží původní štíhlý tvar `{Datum, Od, Do, Cas}` kvůli stabilitě XML.
+- **`calculation[INT_ADR].Ucetni_Dny`** je prezentační rozpad po dnech (Datum/Od/Do/Cas + částky Stravne/Nahrada) pro souhrn v UI – do INSYZ XML **nepatří** a [`XmlGenerationService`](../../src/Service/XmlGenerationService.php) ho z Vyúčtování odfiltruje (`unset`).
+- **`calculation[INT_ADR].Cas_Prace`** se do INSYZ posílá jako **účetní okna po dnech s přechodem přes půlnoc** (INSYZ neumí půlnoc dopočítat): den výjezdu `07:00–23:59`, mezidny pobytu `00:00–23:59`, den návratu `00:00–15:00` (interní `24:00` → `23:59`). Štíhlý tvar `{Datum, Od, Do, Cas}` zůstává kvůli stabilitě XML; UI souhrn zobrazuje `24:00` z `Ucetni_Dny`.
 
 > Pozn.: opravy ve frontendu platí pro **nová/znovuuložená hlášení**. Pro hromadnou opravu už uložených dat slouží konzolový příkaz níže.
 

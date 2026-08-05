@@ -112,4 +112,13 @@ describe('per-den agregace náhrad (kvalifikovaný) + 24h pobyt', () => {
         const c = calculateCompensation(triDny, tariffRates, 100, usersDetails);
         expect(Object.keys(c.Cas_Prace[0]).sort()).toEqual(['Cas', 'Datum', 'Do', 'Od']);
     });
+
+    it('Cas_Prace do INSYZ = účetní okna s půlnocí jako 23:59 / 00:00', () => {
+        const c = calculateCompensation(triDny, tariffRates, 100, usersDetails);
+        expect(c.Cas_Prace.map(d => [d.Datum, d.Od, d.Do, d.Cas])).toEqual([
+            ['2026-04-05', '15:00', '23:59', 9],   // den výjezdu → do 23:59
+            ['2026-04-06', '00:00', '23:59', 24],  // celý den pobytu
+            ['2026-04-07', '00:00', '13:00', 13],  // den návratu od 00:00
+        ]);
+    });
 });
