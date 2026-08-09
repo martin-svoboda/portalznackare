@@ -102,13 +102,13 @@ describe('budujUcetniDny', () => {
         ], []);
         expect(cas(out)).toEqual([10, 8]);
     });
-    it('override: uzavřený mezidenní den (okruh z ubytování) → skutečné okno místo 24 h', () => {
+    it('uzavřený okruh v den uvnitř pobytu (mezi noclehy) → vždy 24 h', () => {
         const out = budujUcetniDny([
             den('2026-04-05', '15:00', '18:00', 3, false),
-            den('2026-04-06', '08:00', '14:00', 6, true),
+            den('2026-04-06', '08:00', '14:00', 6, true),  // okruh z ubytování a zpět
             den('2026-04-07', '08:00', '12:00', 4, false),
         ], [{ Datum: '2026-04-05' }, { Datum: '2026-04-06' }]);
-        expect(out.map(d => d.Cas)).toEqual([9, 6, 12]);
+        expect(out.map(d => d.Cas)).toEqual([9, 24, 12]);
     });
     it('smíšené: souvislý blok + samostatný výjezd bez noclehu', () => {
         const out = budujUcetniDny([

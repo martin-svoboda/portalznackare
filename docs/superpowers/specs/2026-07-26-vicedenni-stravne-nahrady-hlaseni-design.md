@@ -84,9 +84,9 @@ Stravne_Celkem      = Σ stravnePerDen(den)     // přes všechny dny všech ús
 
 Michal: *„Když není druhá cesta, počítá se to až do půlnoci."* Z toho plynou tři typy dne:
 
-- **Uzavřený den** (cesta tam i zpět, končí kde začal — doma i na ubytování): okno = skutečné `Odjezd → Prijezd`. Takto se počítá scénář I (*„n× jako dnes"*) i denní výlet z ubytování a zpět.
+- **Uzavřený den mimo vnitřek pobytu** (samostatný den scénáře I, nebo krajní den): okno = skutečné `Odjezd → Prijezd`. Takto se počítá scénář I (*„n× jako dnes"*).
 - **Otevřený den** (bez návratu, kryto noclehem): `Odjezd → 24:00`; navazující návratový den `00:00 → Prijezd`.
-- **Prázdný den pobytu** (mezi navazujícími dny, bez úseků): `00:00 → 24:00` = **24 h včetně spánku** — potvrzeno (Martin: *„veškeré dny mezi tím od půlnoci do půlnoci (24 h)"*). Chce-li značkař u konkrétního dne počítat jen čas v terénu, přidá si cesty ubytování→terén→ubytování — tím den uzavře a počítá se skutečné okno místo 24 h (přirozený důsledek, žádná zvláštní logika ani tlačítka).
+- **Den uvnitř pobytu** (mezi navazujícími dny, tj. **obě noci kryté noclehem**): vždy `00:00 → 24:00` = **24 h včetně spánku** — potvrzeno (Martin). Platí **i když má den cesty tvořící uzavřený okruh** (z ubytování a zpět) — takový den se **nepočítá jen jako terén, ale celých 24 h**. (Dřívější „override na terén" pro dny uvnitř pobytu byl na Martinovu žádost zrušen; case-y v terénu se stále proplatí přes jízdné.)
 
 **Scénář I je určený jednoznačně** (samé uzavřené dny → tiér na den, sečíst), plně shodně s Michalovým doporučením *„u I. nic nehádat"*.
 

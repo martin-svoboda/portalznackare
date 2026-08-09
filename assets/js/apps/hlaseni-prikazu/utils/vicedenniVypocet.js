@@ -139,12 +139,17 @@ export function budujUcetniDny(workDays, noclezne) {
 
 // Účetní okno dne (Od/Do/Cas) pro tiér stravného/náhrad:
 //  - prázdný den pobytu → 00:00–24:00 (24 h)
-//  - uzavřený okruh → skutečné okno dne (Od/Do/Cas)
+//  - den UVNITŘ pobytu (obě noci kryté noclehem) → vždy 00:00–24:00 (24 h),
+//    i když jsou cesty uzavřený okruh (z ubytování a zpět)
+//  - uzavřený okruh mimo vnitřek pobytu (samostatný/krajní den) → skutečné okno dne
 //  - jinak: začátek = 00:00 při kryté předchozí noci, jinak odjezd;
 //           konec = 24:00 při kryté této noci, jinak příjezd
 function ucetniOkno(denObj, prevKryta, tatoKryta) {
     if (!denObj) return { Od: '00:00', Do: '24:00', Cas: 24 };
-    if (denObj.Uzavreny) return { Od: denObj.Od, Do: denObj.Do, Cas: denObj.Cas };
+    const uvnitrPobytu = prevKryta && tatoKryta;
+    if (denObj.Uzavreny && !uvnitrPobytu) {
+        return { Od: denObj.Od, Do: denObj.Do, Cas: denObj.Cas };
+    }
     const Od = prevKryta ? '00:00' : denObj.Od;
     const Do = tatoKryta ? '24:00' : denObj.Do;
     return { Od, Do, Cas: Math.max(0, hodinyZCasu(Do) - hodinyZCasu(Od)) };
