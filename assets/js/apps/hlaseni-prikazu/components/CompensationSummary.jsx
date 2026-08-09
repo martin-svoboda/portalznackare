@@ -36,6 +36,8 @@ const MemberCompensationDetail = ({
         ? memberCompensation.Ucetni_Dny
         : (memberCompensation.Cas_Prace || []);
     const workHours = ucetniDny.reduce((sum, d) => sum + (d?.Cas || 0), 0);
+    // U vícedenních hlášení ukázat rozpad hodin po dnech i v compact sidebaru (část A)
+    const jeVicedenni = ucetniDny.length >= 2;
 
     const textSize = compact ? "text-sm" : "text-base";
     const smallTextSize = compact ? "text-xs" : "text-sm";
@@ -52,7 +54,7 @@ const MemberCompensationDetail = ({
                     <span className={`${textSize} font-medium`}>Práce celkem</span>
                     <span className={textSize}>{formatHodinyMinuty(workHours)}</span>
                 </div>
-                {!compact && (
+                {(!compact || jeVicedenni) && (
                     ucetniDny.length > 0 ?
                         ucetniDny.map((den, index) => {
                             if (!den) return <span key={index} className="text-red-500 font-bold">Žádný počátek a konec cesty - nelze vypočítat</span>;
