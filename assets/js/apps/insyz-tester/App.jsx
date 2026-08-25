@@ -185,9 +185,14 @@ const App = ({ endpoints }) => {
             const yearParam = params.find(p => p.key.toLowerCase().includes('year') || p.key === 'year');
             const year = yearParam ? yearParam.value : new Date().getFullYear();
 
+            // INT_ADR z parametrů - export pak běží pod tímto značkařem (jen super admin),
+            // aby se seznam i detaily uložily pod stejnou identitou jako dotaz.
+            const intAdrParam = params.find(p => p.key.toLowerCase() === 'int_adr');
+
             const batchData = {
                 prikazy: response,
-                year: year
+                year: year,
+                ...(intAdrParam?.value ? { int_adr: intAdrParam.value } : {})
             };
 
             const res = await fetch('/api/insyz/export/batch-prikazy', {

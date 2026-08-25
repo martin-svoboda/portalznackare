@@ -79,8 +79,16 @@ class InsyzController extends AbstractController
 
         $year = $request->query->get('year');
 
+        // Super admin může načíst příkazy jiného značkaře (INSYZ API Tester,
+        // stahování mock dat). Běžný uživatel vidí vždy jen své příkazy.
+        $intAdr = (int) $user->getIntAdr();
+        $requestedIntAdr = $request->query->get('int_adr');
+        if ($requestedIntAdr && $this->isGranted('ROLE_SUPER_ADMIN')) {
+            $intAdr = (int) $requestedIntAdr;
+        }
+
         try {
-            $prikazy = $this->insyzService->getPrikazy((int) $user->getIntAdr(), $year ? (int) $year : null);
+            $prikazy = $this->insyzService->getPrikazy($intAdr, $year ? (int) $year : null);
 
             // Obohatí data pouze pokud není raw parameter
             $raw = $request->query->get('raw');
@@ -222,7 +230,12 @@ class InsyzController extends AbstractController
         }
 
         try {
+            // Super admin může exportovat data jiného značkaře (stahování mock dat).
             $intAdr = (int) $user->getIntAdr();
+            if (!empty($data['int_adr']) && $this->isGranted('ROLE_SUPER_ADMIN')) {
+                $intAdr = (int) $data['int_adr'];
+            }
+
             $prikazy = $data['prikazy'];
             $year = $data['year'];
             $exported = [];

@@ -20,7 +20,7 @@ class TestController extends AbstractController
 	public function getInsyzUser(): JsonResponse
 	{
 		try {
-			$user = $this->insyzService->getUser(4133);
+			$user = $this->insyzService->getUser(5620);
 			return new JsonResponse($user);
 		} catch (Exception $e) {
 			return new JsonResponse(['error' => $e->getMessage()], 500);
@@ -31,7 +31,7 @@ class TestController extends AbstractController
 	public function getInsyzPrikazy(): JsonResponse
 	{
 		try {
-			$prikazy = $this->insyzService->getPrikazy(4133, 2025);
+			$prikazy = $this->insyzService->getPrikazy(5620, 2026);
 			return new JsonResponse($prikazy);
 		} catch (Exception $e) {
 			return new JsonResponse(['error' => $e->getMessage()], 500);

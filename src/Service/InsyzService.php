@@ -107,7 +107,7 @@ class InsyzService
             //        Platnost, Platnost_DO, KontrolaPlatnostiPwdWEB)
             $testAccounts = [
                 'test@test.com' => [
-                    "INT_ADR" => "4133",
+                    "INT_ADR" => "5620",
                     "Email_nalezen" => "1",
                     "Heslo_se_shoduje" => "1",
                     "WEBUser" => "1",
