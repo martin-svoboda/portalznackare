@@ -224,9 +224,9 @@ class InsyzController extends AbstractController
         }
 
         $data = json_decode($request->getContent(), true);
-        
-        if (!isset($data['prikazy']) || !isset($data['year'])) {
-            return new JsonResponse(['error' => 'Vyžadované parametry: prikazy, year'], 400);
+
+        if (!isset($data['year'])) {
+            return new JsonResponse(['error' => 'Vyžadovaný parametr: year'], 400);
         }
 
         try {
@@ -236,10 +236,22 @@ class InsyzController extends AbstractController
                 $intAdr = (int) $data['int_adr'];
             }
 
-            $prikazy = $data['prikazy'];
-            $year = $data['year'];
+            $year = (int) $data['year'];
+
+            // Seznam si načteme sami podle stejného INT_ADR a roku, pod kterým ukládáme.
+            // Kdybychom brali seznam z požadavku, mohl by pocházet z jiného dotazu než
+            // je INT_ADR v názvu souboru (uživatel mezitím změní parametry ve formuláři)
+            // a do mock dat by se uložila data cizího značkaře.
+            $prikazy = $this->insyzService->getPrikazy($intAdr, $year);
+
+            if (empty($prikazy)) {
+                return new JsonResponse([
+                    'error' => sprintf('INSYZ nevrátil pro INT_ADR %d a rok %d žádné příkazy - nic k exportu.', $intAdr, $year)
+                ], 404);
+            }
+
             $exported = [];
-            
+
             // Export seznamu příkazů
             $filesystem = new Filesystem();
             $exportDir = $this->getParameter('kernel.project_dir') . '/var/mock-data/api/insyz/prikazy';
@@ -256,6 +268,7 @@ class InsyzController extends AbstractController
 
             $detailsExported = 0;
             $usekyExported = 0;
+            $preskoceno = [];
             foreach ($prikazy as $prikaz) {
                 if (isset($prikaz['ID_Znackarske_Prikazy'])) {
                     $id = $prikaz['ID_Znackarske_Prikazy'];
@@ -270,7 +283,9 @@ class InsyzController extends AbstractController
 
                         $detailsExported++;
                     } catch (Exception $e) {
-                        // Pokračovat i při chybě u jednotlivého příkazu
+                        // Pokračovat i při chybě u jednotlivého příkazu, ale nahlásit ji -
+                        // typicky jde o příkaz, který danému značkaři nepatří.
+                        $preskoceno[] = ($prikaz['Cislo_ZP'] ?? $id) . ': ' . $e->getMessage();
                     }
 
                     try {
@@ -292,6 +307,9 @@ class InsyzController extends AbstractController
 
             $exported[] = sprintf('Detaily %d příkazů', $detailsExported);
             $exported[] = sprintf('ZP úseky %d příkazů', $usekyExported);
+            if ($preskoceno !== []) {
+                $exported[] = sprintf('⚠️ Bez detailu zůstalo %d příkazů', count($preskoceno));
+            }
             
             // Uložit metadata
             $metadata = [
@@ -302,6 +320,7 @@ class InsyzController extends AbstractController
                 'total_prikazy' => count($prikazy),
                 'exported_details' => $detailsExported,
                 'exported_zp_useky' => $usekyExported,
+                'preskocene_prikazy' => $preskoceno,
                 'exported_items' => $exported
             ];
             
@@ -311,8 +330,9 @@ class InsyzController extends AbstractController
             
             return new JsonResponse([
                 'success' => true,
-                'message' => sprintf('Exportováno %d příkazů, %d detailů a %d sad ZP úseků', count($prikazy), $detailsExported, $usekyExported),
+                'message' => sprintf('INT_ADR %d, rok %d: exportováno %d příkazů, %d detailů a %d sad ZP úseků', $intAdr, $year, count($prikazy), $detailsExported, $usekyExported),
                 'exported' => $exported,
+                'preskocene_prikazy' => $preskoceno,
                 'metadata_file' => basename($metadataFile)
             ]);
             

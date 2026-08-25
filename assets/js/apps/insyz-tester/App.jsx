@@ -16,6 +16,8 @@ const App = ({ endpoints }) => {
     const [selectedEndpoint, setSelectedEndpoint] = useState('');
     const [params, setParams] = useState([{ key: '', value: '' }]);
     const [response, setResponse] = useState(null);
+    // Parametry, se kterými byla načtena aktuální odpověď (ne živý stav formuláře)
+    const [requestParams, setRequestParams] = useState([]);
     const [loading, setLoading] = useState(false);
     const [batchLoading, setBatchLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -31,6 +33,7 @@ const App = ({ endpoints }) => {
         setSelectedEndpoint(value);
         setParams([{ key: '', value: '' }]);
         setResponse(null);
+        setRequestParams([]);
         setError(null);
     }, []);
 
@@ -131,13 +134,14 @@ const App = ({ endpoints }) => {
             }
             
             setResponse(data);
-            
+            setRequestParams(params);
+
         } catch (err) {
             setError(err.message);
         } finally {
             setLoading(false);
         }
-    }, [currentEndpoint, paramsToJson]);
+    }, [currentEndpoint, paramsToJson, params]);
 
     // Export dat
     const handleExport = useCallback(async () => {
@@ -181,16 +185,15 @@ const App = ({ endpoints }) => {
         setError(null);
 
         try {
-            // Získat rok z parametrů (pro určení názvu souboru)
-            const yearParam = params.find(p => p.key.toLowerCase().includes('year') || p.key === 'year');
+            // Rok a INT_ADR se berou z parametrů posledního odeslaného dotazu, ne z aktuálního
+            // stavu formuláře - jinak by šlo exportovat data jednoho značkaře pod INT_ADR
+            // druhého (stačilo by po odeslání přepsat parametr a kliknout na export).
+            const yearParam = requestParams.find(p => p.key.toLowerCase().includes('year') || p.key === 'year');
             const year = yearParam ? yearParam.value : new Date().getFullYear();
 
-            // INT_ADR z parametrů - export pak běží pod tímto značkařem (jen super admin),
-            // aby se seznam i detaily uložily pod stejnou identitou jako dotaz.
-            const intAdrParam = params.find(p => p.key.toLowerCase() === 'int_adr');
+            const intAdrParam = requestParams.find(p => p.key.toLowerCase() === 'int_adr');
 
             const batchData = {
-                prikazy: response,
                 year: year,
                 ...(intAdrParam?.value ? { int_adr: intAdrParam.value } : {})
             };
@@ -217,12 +220,13 @@ const App = ({ endpoints }) => {
         } finally {
             setBatchLoading(false);
         }
-    }, [response, currentEndpoint, params]);
+    }, [response, currentEndpoint, requestParams]);
 
     // Vymazat vše
     const handleClear = useCallback(() => {
         setParams([{ key: '', value: '' }]);
         setResponse(null);
+        setRequestParams([]);
         setError(null);
     }, []);
 
