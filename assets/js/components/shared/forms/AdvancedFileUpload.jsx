@@ -659,11 +659,11 @@ export const AdvancedFileUpload = ({
                             >
                                 {/* Preview for images, PDF icon, or generic file icon */}
                                 {isImage(file.fileType) ? (
-                                    <div className="flex-shrink-0 w-20 h-20">
+                                    <div className="flex-shrink-0 w-20 h-20 overflow-hidden rounded bg-gray-100 dark:bg-gray-700">
                                         <img
                                             src={file.thumbnailUrl || file.url}
                                             alt={file.fileName}
-                                            className=""
+                                            className="w-full h-full object-cover"
                                             style={{
                                                 transition: 'transform 0.3s ease'
                                             }}
