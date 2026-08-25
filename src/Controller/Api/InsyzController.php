@@ -236,32 +236,49 @@ class InsyzController extends AbstractController
             file_put_contents($prikazyFilepath, json_encode($prikazy, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
             $exported[] = 'Seznam příkazů ' . $year;
             
-            // Export detailů jednotlivých příkazů
+            // Export detailů a ZP úseků jednotlivých příkazů
+            $detailDir = $this->getParameter('kernel.project_dir') . '/var/mock-data/api/insyz/prikaz';
+            $usekyDir = $this->getParameter('kernel.project_dir') . '/var/mock-data/api/insyz/zp-useky';
+            $filesystem->mkdir([$detailDir, $usekyDir]);
+
             $detailsExported = 0;
+            $usekyExported = 0;
             foreach ($prikazy as $prikaz) {
                 if (isset($prikaz['ID_Znackarske_Prikazy'])) {
                     $id = $prikaz['ID_Znackarske_Prikazy'];
-                    
+
                     try {
                         // Načíst detail příkazu (surová data)
                         $detail = $this->insyzService->getPrikaz($intAdr, $id);
-                        
+
                         // Uložit detail
-                        $detailDir = $this->getParameter('kernel.project_dir') . '/var/mock-data/api/insyz/prikaz';
-                        $filesystem->mkdir($detailDir);
-                        
                         $detailFilepath = $detailDir . '/' . $id . '.json';
                         file_put_contents($detailFilepath, json_encode($detail, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-                        
+
                         $detailsExported++;
                     } catch (Exception $e) {
                         // Pokračovat i při chybě u jednotlivého příkazu
-                        continue;
+                    }
+
+                    try {
+                        // Načíst ZP úseky příkazu (surová data)
+                        $useky = $this->insyzService->getZpUseky((int) $id);
+
+                        // Prázdný výsledek neukládat - nepřepisovat případná existující data
+                        if (!empty($useky)) {
+                            $usekyFilepath = $usekyDir . '/' . $id . '.json';
+                            file_put_contents($usekyFilepath, json_encode($useky, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+
+                            $usekyExported++;
+                        }
+                    } catch (Exception $e) {
+                        // Pokračovat i při chybě u jednotlivého příkazu
                     }
                 }
             }
-            
+
             $exported[] = sprintf('Detaily %d příkazů', $detailsExported);
+            $exported[] = sprintf('ZP úseky %d příkazů', $usekyExported);
             
             // Uložit metadata
             $metadata = [
@@ -271,6 +288,7 @@ class InsyzController extends AbstractController
                 'year' => $year,
                 'total_prikazy' => count($prikazy),
                 'exported_details' => $detailsExported,
+                'exported_zp_useky' => $usekyExported,
                 'exported_items' => $exported
             ];
             
@@ -280,7 +298,7 @@ class InsyzController extends AbstractController
             
             return new JsonResponse([
                 'success' => true,
-                'message' => sprintf('Exportováno %d příkazů a %d detailů', count($prikazy), $detailsExported),
+                'message' => sprintf('Exportováno %d příkazů, %d detailů a %d sad ZP úseků', count($prikazy), $detailsExported, $usekyExported),
                 'exported' => $exported,
                 'metadata_file' => basename($metadataFile)
             ]);

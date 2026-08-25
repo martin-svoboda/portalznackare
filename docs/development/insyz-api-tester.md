@@ -191,6 +191,9 @@ POST /api/insyz/export/batch-prikazy
 }
 ```
 
+Uloží seznam příkazů a pro každý příkaz i jeho detail (`prikaz/{id}.json`)
+a ZP úseky (`zp-useky/{id}.json`). V testeru tlačítko **Exportovat detaily a úseky**.
+
 ## Workflow pro práci s daty
 
 ### 1. Export dat z dev serveru
@@ -199,7 +202,7 @@ POST /api/insyz/export/batch-prikazy
 2. **Otevřít** `/test-insyz-api`
 3. **Exportovat potřebná data**:
    - User data: `GET /api/insyz/user` → Export
-   - Příkazy: `GET /api/insyz/prikazy` + year → Exportovat detaily
+   - Příkazy: `GET /api/insyz/prikazy` + year → Exportovat detaily a úseky
    - Sazby: `GET /api/insyz/sazby` → Export
 
 ### 2. Zkopírování do lokálu

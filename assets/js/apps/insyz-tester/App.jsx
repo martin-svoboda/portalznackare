@@ -317,7 +317,7 @@ const App = ({ endpoints }) => {
                                 Exportovat
                             </button>
                             
-                            {/* Tlačítko pro hromadný export příkazů */}
+                            {/* Tlačítko pro hromadný export příkazů (detaily + ZP úseky) */}
                             {response && Array.isArray(response) && currentEndpoint.path.includes('/prikazy') && (
                                 <button
                                     type="button"
@@ -326,7 +326,7 @@ const App = ({ endpoints }) => {
                                     className="btn btn--warning"
                                 >
                                     <IconPackage size={16} />
-                                    {batchLoading ? 'Exportuji detaily...' : 'Exportovat detaily'}
+                                    {batchLoading ? 'Exportuji detaily a úseky...' : 'Exportovat detaily a úseky'}
                                 </button>
                             )}
                             

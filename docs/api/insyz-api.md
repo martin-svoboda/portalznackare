@@ -327,7 +327,14 @@ Aktualizace hesla uživatele v INSYZ.
 
 ### 📦 POST `/api/insyz/export/batch-prikazy`
 
-**Pouze DEV prostředí** - Hromadný export příkazů včetně jejich detailů.
+**Pouze DEV prostředí** - Hromadný export příkazů včetně jejich detailů a ZP úseků.
+
+Pro každý příkaz ze seznamu se stáhne a uloží:
+- detail příkazu → `var/mock-data/api/insyz/prikaz/{id}.json`
+- ZP úseky příkazu → `var/mock-data/api/insyz/zp-useky/{id}.json` (prázdný výsledek se neukládá)
+
+Seznam příkazů se ukládá do `var/mock-data/api/insyz/prikazy/{int_adr}-{year}.json`.
+Chyba u jednotlivého příkazu export nezastaví.
 
 **Autentifikace:** Vyžadováno  
 **Použití:** [INSYZ API Tester](../development/insyz-api-tester.md)
@@ -340,7 +347,7 @@ Aktualizace hesla uživatele v INSYZ.
 }
 ```
 
-**Response:** `{"success": true, "exported": [...], "metadata_file": "..."}`
+**Response:** `{"success": true, "message": "Exportováno X příkazů, Y detailů a Z sad ZP úseků", "exported": [...], "metadata_file": "..."}`
 
 
 
