@@ -114,7 +114,11 @@ function validateSingleItem(item) {
     }
 
     if (item.Druh_Predmetu === 'S') {
-        if (!item.Barva) {
+        // NS/SN (naučná stezka) je vždy zelená, INSYZ u ní vedoucí barvu neposílá - chybějící barva není chyba.
+        const tvar = item.Druh_Odbocky_Kod || item.Druh_Znaceni_Kod || '';
+        const jeNaucnaStezka = tvar === 'NS' || tvar === 'SN';
+
+        if (!item.Barva && !jeNaucnaStezka) {
             errors.push("Směrovka bez identifikace barvy");
         }
 

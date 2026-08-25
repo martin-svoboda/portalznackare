@@ -296,7 +296,16 @@ class TimService
         $showArrow = in_array($item['Druh_Predmetu'] ?? '', ['S', 'D', 'O']);
         $direction = $item['Smerovani'] ?? '';
 
-        $vedouciBarva = isset($item['Barva_Kod']) && !empty($item['Barva_Kod']) ? $this->colorService->barvaDleKodu($item['Barva_Kod']) : 'transparent';
+        // Tvar hrotu šipky - odbočka má přednost před druhem značení.
+        $tvar = ($item['Druh_Odbocky_Kod'] ?? null) ?: ($item['Druh_Znaceni_Kod'] ?? null) ?: 'PA';
+
+        // NS/SN (naučná stezka) je vždy zelená, INSYZ u ní vedoucí barvu neposílá.
+        $barvaKod = $item['Barva_Kod'] ?? '';
+        if (in_array($tvar, ['NS', 'SN'], true)) {
+            $barvaKod = 'ZE';
+        }
+
+        $vedouciBarva = !empty($barvaKod) ? $this->colorService->barvaDleKodu($barvaKod) : 'transparent';
         $barvaPodkladu = $this->getBarvaPodkladu($item['Druh_Presunu'] ?? null);
 
         // Styly pro TIM kontejner
