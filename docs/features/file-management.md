@@ -274,7 +274,7 @@ public/uploads/
 ```php
 1. File přijat přes API (/api/portal/files/upload)
 2. SHA1 hash calculation pro deduplikaci
-3. Existing file check - pokud existuje, vrať ho
+3. Existing file check (hash + original_name) - pokud existuje, vrať ho
 4. Path validation a category detection (public/private)
 5. Unique filename generation
 6. Image processing (resize, thumbnails, EXIF rotation)
@@ -480,15 +480,21 @@ $image->thumbnail(new Box(300, 300), ImageInterface::THUMBNAIL_OUTBOUND)
 
 ### 2. **Hash-based Deduplication**
 ```php
-// Identické soubory se ukládají pouze jednou
+// Deduplikace podle dvojice hash + original_name
 $hash = sha1_file($file->getPathname());
-$existingFile = $this->repository->findByHash($hash);
+$existingFile = $this->repository->findByHashAndOriginalName($hash, $originalName);
 
 if ($existingFile) {
     // Vrať existující soubor, neukládej duplicitní data
     return $existingFile;
 }
 ```
+
+**Sloupec `hash` NENÍ unikátní.** Identický obsah nahraný pod jiným názvem souboru je
+samostatný záznam - uživatel vidí název, pod kterým soubor nahrál. UNIQUE constraint
+`file_attachments_hash_key` byl z tohoto důvodu odstraněn migrací
+`Version20260826094500` (do té doby druhé nahrání téhož obsahu pod jiným názvem
+skončilo chybou `SQLSTATE[23505]`).
 
 ### 3. **Cache Headers**
 ```php

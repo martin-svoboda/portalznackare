@@ -12,6 +12,7 @@ use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\UrlHelper;
 use Symfony\Component\String\Slugger\SluggerInterface;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 
 class FileUploadService
@@ -265,6 +266,12 @@ class FileUploadService
                 throw new \Exception("Entity byla uložena, ale nemá ID - možná problém s auto-increment");
             }
             
+        } catch (UniqueConstraintViolationException $e) {
+            // Nastane jen tehdy, pokud na DB ještě neproběhla migrace Version20260826094500
+            // (starý UNIQUE index na sloupci hash). Fyzický soubor zde NEMAŽEME - má stejný
+            // obsah jako už uložený záznam a mohl by to být tentýž soubor na disku.
+            error_log("FileUploadService::uploadFile - Duplicitní klíč při ukládání: " . $e->getMessage());
+            throw new \Exception("Soubor se stejným obsahem už je v databázi uložen pod jiným názvem.");
         } catch (\Exception $e) {
             error_log("FileUploadService::uploadFile - Chyba při ukládání do databáze: " . $e->getMessage());
             error_log("FileUploadService::uploadFile - Exception class: " . get_class($e));

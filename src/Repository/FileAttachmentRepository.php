@@ -36,12 +36,16 @@ class FileAttachmentRepository extends ServiceEntityRepository
 
     /**
      * Find file by hash (for deduplication)
+     *
+     * Hash není unikátní - stejný obsah může být uložen pod více názvy,
+     * proto vracíme první nalezený záznam.
      */
     public function findByHash(string $hash): ?FileAttachment
     {
         return $this->createQueryBuilder('f')
             ->andWhere('f.hash = :hash')
             ->setParameter('hash', $hash)
+            ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
     }

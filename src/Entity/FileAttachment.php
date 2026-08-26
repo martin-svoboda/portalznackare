@@ -20,7 +20,9 @@ class FileAttachment
     #[Groups(['file:read', 'report:read'])]
     private ?int $id = null;
 
-    #[ORM\Column(type: 'string', length: 255, unique: true)]
+    // Bez UNIQUE - deduplikace probíhá podle dvojice hash + originalName,
+    // stejný obsah pod jiným názvem je samostatný záznam (viz FileUploadService::uploadFile)
+    #[ORM\Column(type: 'string', length: 255)]
     #[Groups(['file:read', 'report:read'])]
     private string $hash;
 
