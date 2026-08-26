@@ -23,17 +23,31 @@ final class Version20250121120001 extends AbstractMigration
         $this->addSql('ALTER TABLE reports DROP CONSTRAINT IF EXISTS unique_report_per_user_order');
         
         // Add new unique constraint only on id_zp
-        $this->addSql('CREATE UNIQUE INDEX unique_report_per_order ON reports (id_zp)');
+        // IF NOT EXISTS: migrace má v názvu starší verzi, než jaká je na DEV/PROD nasazená,
+        // takže se dohání zpětně nad schématem, kde už index existuje (viz deploy 2026-08-26)
+        $this->addSql('CREATE UNIQUE INDEX IF NOT EXISTS unique_report_per_order ON reports (id_zp)');
         
         // Add new columns for team members and history (PostgreSQL JSONB)
-        $this->addSql('ALTER TABLE reports ADD COLUMN IF NOT EXISTS team_members JSONB NOT NULL DEFAULT \'[]\'::jsonb');
+        // team_members jen tam, kde ho pozdější Version20250803210225 ještě nepřejmenovala
+        // na znackari - jinak by se na DEV/PROD zavedl mrtvý sloupec
+        $this->addSql(<<<'SQL'
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'reports' AND column_name = 'znackari'
+    ) THEN
+        ALTER TABLE reports ADD COLUMN IF NOT EXISTS team_members JSONB NOT NULL DEFAULT '[]'::jsonb;
+        COMMENT ON COLUMN reports.team_members IS 'Team members with their individual data';
+    END IF;
+END $$;
+SQL);
         $this->addSql('ALTER TABLE reports ADD COLUMN IF NOT EXISTS history JSONB NOT NULL DEFAULT \'[]\'::jsonb');
         
         // Drop je_vedouci column as it's now in team_members
         $this->addSql('ALTER TABLE reports DROP COLUMN IF EXISTS je_vedouci');
         
         // Comment for clarity
-        $this->addSql('COMMENT ON COLUMN reports.team_members IS \'Team members with their individual data\'');
         $this->addSql('COMMENT ON COLUMN reports.history IS \'Audit trail of all changes\'');
         $this->addSql('COMMENT ON COLUMN reports.int_adr IS \'Report processor/creator address\'');
     }
