@@ -258,7 +258,21 @@ const MemberCompensationDetail = ({
                     </span>
                     <span className={textSize}>{formatCurrency(memberCompensation?.Nahrada_Prace || 0)}</span>
                 </div>
-                {!compact && memberCompensation?.Nahrada_Prace > 0 && (memberCompensation?.Ucetni_Dny?.length > 0) && (
+                {/* ZP-I: náhrada se neváže na dny, ale na počet provedených TIMů */}
+                {!compact && memberCompensation?.Nahrada_Skupiny !== undefined && (
+                    <div className={`${smallTextSize} text-muted ml-4`}>
+                        <div className="flex justify-between">
+                            <span>
+                                {memberCompensation.Pocet_TIMu} provedených TIMů
+                                {memberCompensation.Pocet_TIMu > 0 && ` — za skupinu ${formatCurrency(memberCompensation.Nahrada_Skupiny)}`}
+                            </span>
+                            <span>
+                                {formData?.Hlavni_Ridic == member?.INT_ADR ? 'podíl řidiče (2/3)' : 'podíl člena'}
+                            </span>
+                        </div>
+                    </div>
+                )}
+                {!compact && memberCompensation?.Nahrada_Skupiny === undefined && memberCompensation?.Nahrada_Prace > 0 && (memberCompensation?.Ucetni_Dny?.length > 0) && (
                     <div className={`${smallTextSize} text-muted ml-4`}>
                         {memberCompensation.Ucetni_Dny.map((den, i) => (
                             <div key={i} className="flex justify-between">
@@ -369,16 +383,17 @@ export const CompensationSummary = ({
     // ALL HOOKS MUST BE AT THE TOP - React Error #310 fix
 
     // Získat všechna potřebná data z globálního contextu
-    const { usersDetails, tariffRates, teamMembers, currentUser, isLeader } = useAppData();
+    const { usersDetails, tariffRates, teamMembers, currentUser, isLeader, head } = useAppData();
 
     // Create stable calculator functions
+    // head a teamMembers jsou potřeba pro ZP-I: náhrada se počítá za skupinu a rozpočítává
     const calculateForAllMembers = useCallback((formData, tariffRates, teamMembers, usersDetails) => {
-        return calculateCompensationForAllMembers(formData, tariffRates, teamMembers, usersDetails);
-    }, []);
+        return calculateCompensationForAllMembers(formData, tariffRates, teamMembers, usersDetails, { head });
+    }, [head]);
 
     const calculateForSingleUser = useCallback((formData, tariffRates, userIntAdr, usersDetails) => {
-        return calculateCompensation(formData, tariffRates, userIntAdr, usersDetails);
-    }, []);
+        return calculateCompensation(formData, tariffRates, userIntAdr, usersDetails, { head, teamMembers });
+    }, [head, teamMembers]);
 
     // Calculate compensation using proper calculator functions
     const compensation = useMemo(() => {

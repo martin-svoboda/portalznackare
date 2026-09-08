@@ -319,6 +319,7 @@ class AppController extends AbstractController
                 'prikaz' => $enrichedData,
                 'head' => $enrichedData['head'] ?? [],
                 'useky' => $enrichedData['useky'] ?? [],
+                'servis_timy' => $enrichedData['servis_timy'] ?? [],
                 'predmety' => $enrichedData['predmety'] ?? [],
                 'generated_at' => new \DateTime()
             ]);

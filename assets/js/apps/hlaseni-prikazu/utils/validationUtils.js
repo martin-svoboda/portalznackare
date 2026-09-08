@@ -6,7 +6,8 @@
 import { extractTeamMembers, calculateExecutionDate } from './compensationCalculator';
 import { pocetCestovnichDnu } from './vicedenniVypocet.js';
 import { toISODateString } from '../../../utils/dateUtils';
-import { getUsekId, isValidUsek } from '../../../utils/prikaz';
+import { getUsekId, isValidUsek, seskupTimyZpi, pocetProvedenychTimu } from '../../../utils/prikaz';
+import { stavTimu } from './zpiStavy';
 import { jeProvedena } from '../../../utils/stavProvedeni';
 
 /**
@@ -698,7 +699,7 @@ export const extractValidationMessages = (validationResult) => {
  * @param {Array} predmety - TIM předměty
  * @returns {Object} Výsledek validace
  */
-export const validatePartB = (formData, head, predmety, useky = []) => {
+export const validatePartB = (formData, head, predmety, useky = [], servisTimy = []) => {
     const errors = [];
     const warnings = [];
     
@@ -717,13 +718,18 @@ export const validatePartB = (formData, head, predmety, useky = []) => {
     if (head.Druh_ZP === "O") {
         // Obnova - validace TIM položek
         validateTimItems(formData, predmety, errors, warnings);
+    } else if (head.Druh_ZP === "S") {
+        // ZP-I (instalace předmětů) - stav provedení u každé položky TIMu
+        validateZpiItems(formData, predmety, servisTimy, errors, warnings);
     } else {
         // Ostatní typy - validace hlášení o činnosti
         validateActivityReport(formData, errors, warnings);
     }
 
-    // Validace obnovených úseků (pro všechny typy příkazů)
-    validateRenewedSections(formData, useky, warnings);
+    // Validace obnovených úseků – ZP-I úseky nemá
+    if (head.Druh_ZP !== "S") {
+        validateRenewedSections(formData, useky, warnings);
+    }
     
     const isValid = errors.length === 0;
     const canComplete = errors.length === 0; // Varování neblokují dokončení
@@ -734,6 +740,49 @@ export const validatePartB = (formData, head, predmety, useky = []) => {
         errors,
         warnings
     };
+};
+
+/**
+ * Validace části B u ZP-I (INSYZ-280 bod 7).
+ *
+ * Každá položka TIMu – předmět i servisní zásah – musí mít stav provedení
+ * (Provedena / Neprovedena / Odložena). Do náhrad se pak počítají jen TIMy s aspoň
+ * jednou „Provedena", proto je upozornění, když není provedeno nic.
+ */
+const validateZpiItems = (formData, predmety, servisTimy, errors, warnings) => {
+    const timy = seskupTimyZpi(predmety || [], servisTimy || []);
+
+    if (timy.length === 0) {
+        warnings.push({
+            type: 'no_zpi_items',
+            message: 'K příkazu nejsou žádné TIMy k instalaci, odinstalaci ani servisu'
+        });
+        return;
+    }
+
+    const stavyTim = formData.Stavy_Tim || {};
+    const nevyplnene = timy.filter(tim => !stavTimu(stavyTim, tim).hotovo);
+
+    if (nevyplnene.length > 0) {
+        errors.push({
+            type: 'incomplete_zpi_items',
+            message: `Chybí stav provedení u ${nevyplnene.length} TIMů: ${nevyplnene.map(t => t.EvCi_TIM).join(', ')}`
+        });
+    }
+
+    if (pocetProvedenychTimu(stavyTim) === 0) {
+        warnings.push({
+            type: 'no_completed_tim',
+            message: 'Žádný TIM není označen jako provedený – náhrada za instalaci bude nulová'
+        });
+    }
+
+    if (!formData.Hlavni_Ridic) {
+        warnings.push({
+            type: 'no_driver_zpi',
+            message: 'Není určen řidič – náhrada se rozdělí rovným dílem místo 2/3 řidiči'
+        });
+    }
 };
 
 /**

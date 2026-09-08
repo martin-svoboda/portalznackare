@@ -16,7 +16,7 @@ import { PrikazUseky } from '../../components/prikazy/PrikazUseky';
 import { ProvedeniPrikazu } from '../../components/prikazy/ProvedeniPrikazu';
 import { MapaTrasy } from '../../components/shared/MapaTrasy';
 import { Loader } from '../../components/shared/Loader';
-import { getPrikazDescription, buildMapRoutes } from '../../utils/prikaz';
+import { getPrikazDescription, buildMapRoutes, jeServisniTimDataset, vyberGpsTimu, cinnostPredmetu, seskupTimyZpi } from '../../utils/prikaz';
 import { renderHtmlContent, replaceTextWithIcons } from '../../utils/htmlUtils';
 import { api } from '../../utils/api';
 import { log } from '../../utils/debug';
@@ -41,10 +41,42 @@ function groupByEvCiTIM(rows) {
         }
         groups[row.EvCi_TIM].items.push(row);
     });
-    return Object.values(groups);
+
+    // Pod jedním EvCi_TIM můžou být předměty z různých verzí TIMu, které se liší i polohou.
+    // Souřadnice a stav proto neurčuje pořadí řádků, ale priorita verzí P → R → U → V.
+    return Object.values(groups).map(group => {
+        const vybrana = vyberGpsTimu(group.items);
+
+        return {
+            ...group,
+            GPS_Sirka: vybrana.GPS_Sirka ?? group.GPS_Sirka,
+            GPS_Delka: vybrana.GPS_Delka ?? group.GPS_Delka,
+            Stav_TIM: vybrana.Stav_TIM ?? group.Stav_TIM,
+            Naz_TIM: vybrana.Naz_TIM ?? group.Naz_TIM
+        };
+    });
 }
 
 const isNezpracovany = (stav) => stav === 'Přidělený' || stav === 'Vystavený';
+
+// Co se má na předmětu udělat (ZP-I). Řídí to Co_Provest, nikdy Stav_TIM.
+const UKOL_POPIS = {
+    servis: 'Servis',
+    instalace: 'Instalovat',
+    odinstalace: 'Odinstalovat'
+};
+
+const UKOL_BADGE = {
+    servis: 'badge badge--warning badge--light',
+    instalace: 'badge badge--success badge--light',
+    odinstalace: 'badge badge--danger badge--light'
+};
+
+const UkolBadge = ({ cinnost }) => (
+    <span className={UKOL_BADGE[cinnost] || 'badge badge--secondary badge--light'}>
+        {UKOL_POPIS[cinnost] || cinnost}
+    </span>
+);
 
 // Funkce pro řazení značek podle priority
 function sortZnacky(items) {
@@ -144,6 +176,7 @@ const App = () => {
     const [head, setHead] = useState(null);
     const [predmety, setPredmety] = useState([]);
     const [useky, setUseky] = useState([]);
+    const [servisTimy, setServisTimy] = useState([]);
     const [zpUseky, setZpUseky] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -187,7 +220,15 @@ const App = () => {
             const result = await api.prikazy.detail(prikazId);
             setHead(result.head || {});
             setPredmety(result.predmety || []);
-            setUseky(result.useky || []);
+
+            // U příkazů typu S (ZP-I) přichází ve slotu úseků dataset servisních TIMů.
+            // Obohacená data ze serveru ho mají už oddělený v `servis_timy`; detekce ve
+            // `useky` je pojistka pro data, která enricherem neprošla.
+            const tretiDataset = result.useky || [];
+            const jeServis = jeServisniTimDataset(tretiDataset);
+            setUseky(jeServis ? [] : tretiDataset);
+            setServisTimy(result.servis_timy?.length ? result.servis_timy : (jeServis ? tretiDataset : []));
+
             log.info(`Načten detail příkazu ${prikazId}`, result);
 
             // Pro příkazy typu "O" (obnova) načíst ZP_Useky pro mapové trasy
@@ -314,8 +355,12 @@ const App = () => {
     );
 
     const groupedData = useMemo(
-        () => groupByEvCiTIM(tableData),
-        [tableData]
+        // ZP-I: jeden seznam všech TIMů příkazu – servisní TIM je samostatný TIM bez
+        // předmětů, takže by v seskupení podle předmětů chyběl
+        () => head?.Druh_ZP === 'S'
+            ? seskupTimyZpi(tableData, servisTimy)
+            : groupByEvCiTIM(tableData),
+        [tableData, servisTimy, head?.Druh_ZP]
     );
 
     // Special alert detection
@@ -373,6 +418,14 @@ const App = () => {
         [groupedData]
     );
 
+    // TIMy bez souřadnic se do mapy nedostanou – typicky servisní TIMy, protože
+    // dataset ZP_ServTIM žádné GPS nevrací. Bez upozornění by značkař mohl přehlédnout
+    // místa, která má objet.
+    const timyBezSouradnic = useMemo(
+        () => groupedData.filter(tim => !tim.GPS_Sirka || !tim.GPS_Delka),
+        [groupedData]
+    );
+
     const mapRoutes = useMemo(
         () => buildMapRoutes(zpUseky, groupedData, useky),
         [zpUseky, groupedData, useky]
@@ -400,9 +453,27 @@ const App = () => {
                 size: 100,
                 Cell: ({row}) => replaceTextWithIcons(row.original.Naz_TIM, 14)
             },
+            // Úkol dává smysl jen tam, kde INSYZ posílá Co_Provest (ZP-I)
+            ...(head?.Druh_ZP === 'S' ? [{
+                id: 'Ukol',
+                header: 'Úkol',
+                size: 120,
+                Cell: ({row}) => {
+                    // Souhrn činností na TIMu – aby značkař viděl co dělat už tady,
+                    // ne až v hlášení, které vyplňuje po práci
+                    const cinnosti = [...new Set((row.original.items || [])
+                        .map(item => item.Cinnost || cinnostPredmetu(item)))];
+
+                    return (
+                        <div className="flex flex-wrap gap-1">
+                            {cinnosti.map(cinnost => <UkolBadge key={cinnost} cinnost={cinnost}/>)}
+                        </div>
+                    );
+                }
+            }] : []),
             {accessorKey: "NP", header: "Montáž", size: 100},
         ],
-        []
+        [head?.Druh_ZP]
     );
 
     // ReportsColumns functionality moved to ProvedeniPrikazu component
@@ -449,12 +520,51 @@ const App = () => {
                 </div>
                 <div className="space-y-4 mt-4">
                     {row.original.items?.map((item, i) => {
+                        const cinnost = item.Cinnost || cinnostPredmetu(item);
+                        const jeZpi = head?.Druh_ZP === 'S';
+
+                        // Servisní zásah není předmět – místo náhledu tabulky nese texty z INSYZ
+                        if (cinnost === 'servis') {
+                            return (
+                                <div key={i} className="border-t pt-4 first:border-t-0 first:pt-0">
+                                    <div className="flex flex-wrap items-start gap-4">
+                                        <UkolBadge cinnost="servis"/>
+                                        <div>
+                                            {item.TIM_Text?.trim() && (
+                                                <div className="font-bold">{item.TIM_Text}</div>
+                                            )}
+                                            {item.Popis?.trim() && (
+                                                <div className="text-sm opacity-75 whitespace-pre-line">
+                                                    {item.Popis}
+                                                </div>
+                                            )}
+                                            {!item.TIM_Text?.trim() && !item.Popis?.trim() && (
+                                                <div className="text-sm opacity-75">
+                                                    Servisní zásah bez bližšího popisu
+                                                </div>
+                                            )}
+                                            {item.Stav_Udrz_Naz?.trim() && (
+                                                <div className="text-sm opacity-75">
+                                                    Stav údržby: {item.Stav_Udrz_Naz}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        }
+
                         const itemErrors = validateSingleItem(item);
 
                         return (
                             <div key={i} className="border-t pt-4 first:border-t-0 first:pt-0">
                                 <div className="flex flex-wrap items-center gap-4">
-                                    {item.Tim_HTML ? renderHtmlContent(item.Tim_HTML) : 'TIM'}
+                                    {jeZpi && <UkolBadge cinnost={cinnost}/>}
+                                    <div className={jeZpi && cinnost === 'odinstalace'
+                                        ? 'predmet--odinstalace opacity-75'
+                                        : ''}>
+                                        {item.Tim_HTML ? renderHtmlContent(item.Tim_HTML) : 'TIM'}
+                                    </div>
                                     <div>
                                         <div className="font-bold">{item.Druh_Predmetu_Naz}</div>
                                         {item.Smerovani && (
@@ -616,6 +726,23 @@ const App = () => {
                                 <Loader/>
                             ) : (
                                 <MapaTrasy data={mapData}/>
+                            )}
+
+                            {timyBezSouradnic.length > 0 && (
+                                <div className="alert alert--warning mt-4">
+                                    <div className="alert__content">
+                                        <div className="alert__body">
+                                            <div className="alert__title">
+                                                Bez souřadnic – nejsou v mapě
+                                            </div>
+                                            <div className="alert__message">
+                                                {timyBezSouradnic
+                                                    .map(tim => `${tim.EvCi_TIM} ${tim.Naz_TIM || ''}`.trim())
+                                                    .join(', ')}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             )}
                         </div>
                     </div>

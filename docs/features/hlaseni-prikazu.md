@@ -377,9 +377,166 @@ Frontend zobrazí: "Odesílání trvá déle než obvykle"
 - Zkontroluj že příkaz obsahuje úseky s předměty
 - Verify: GET `/api/insyz/prikaz/{id}` → `predmety[]`
 
+
+## 🪧 Hlášení ZP-I (instalace předmětů)
+
+> Příkazy druhu `S`. Zadání: [INSYZ-280](https://insyz.atlassian.net/browse/INSYZ-280)
+> (podúkol INSYZ-278). Datový popis servisního datasetu je v
+> [prikazy-management.md](prikazy-management.md) a [../api/insyz-stored-procedures.md](../api/insyz-stored-procedures.md).
+
+## Čím se ZP-I liší od ZP-O
+
+| | ZP-O (obnova) | ZP-I (instalace) |
+|---|---|---|
+| Třetí dataset `ZP_Detail` | úseky tras | servisní TIMy (`ZP_ServTIM`) |
+| Část B | stav předmětů (`Zachovalost` 1–4) | stav provedení (`Provedeni`) |
+| Náhrada | podle odpracovaných hodin | podle počtu provedených TIMů |
+| Rozdělení náhrady | každému za jeho čas | 2/3 řidiči, 1/3 mezi ostatní |
+| Úseky | ano | nemá |
+| Zpětná vazba k předmětům | ano (48 polí) | ne (27 polí) — ZP-I k tomu neslouží |
+
+### Datová pravidla (ověřená na 47 příkazech / 753 předmětech)
+
+- **Činnost drží `Co_Provest`, nikdy `Stav_TIM`.** Hodnoty: `Instalovat` → instalace,
+  `Zrušit bez náhrady` → odinstalace. Servis se pozná podle přítomnosti TIMu v `ZP_ServTIM`.
+  Prázdný `Co_Provest` je jen v příkazech z roku 2024, kdy pole neexistovalo.
+- **`Stav_TIM` se ignoruje**, včetně kódu `N` (návrh). ZP není „zmrazený" a odráží aktuální
+  stav TIMu, proto se v jednom příkazu potkávají různé verze téhož TIMu.
+- **Souřadnice TIMu** se berou z první nalezené verze v pořadí `P` → `R` → `U` → `V`
+  (`vyberGpsTimu`). Bez toho by pin na mapě závisel na pořadí řádků — u BN195
+  v `S/BN/S/25080` jsou dvě polohy 316 m od sebe.
+- **Servisní TIMy jsou samostatné TIMy bez předmětů.** V datech nemají s předměty žádný
+  průnik; seznam TIMů příkazu je proto **sjednocení** obou zdrojů (`seskupTimyZpi`)
+  a odpovídá výčtu v `head.Popis_ZP`.
+- **Pro odměny je TIM unikátní podle `EvCi_TIM`**, verze se nepočítají jako další TIMy.
+- **„Zrušit s náhradou" neexistuje** — u výměny se zobrazí jen jeden předmět; technik ví,
+  že předchůdce má sundat.
+
+### Detail příkazu
+
+Značkař musí vidět, co má dělat, **už v detailu příkazu** — hlášení vyplňuje až po práci
+nebo doma. Proto:
+
+- tabulka TIMů má u ZP-I sloupec **Úkol** se štítky Instalovat / Odinstalovat
+  (souhrn činností na daném TIMu, řídí ho `Co_Provest`)
+- v rozbaleném řádku má štítek každý předmět zvlášť a předměty k odinstalaci jsou
+  přeškrtnuté (třída `.predmet--odinstalace`, která přeškrtne i vnořený náhled TIM tabulky)
+- **servisní TIMy jsou v téže tabulce** jako TIMy s předměty (štítek *Servis*, texty
+  z INSYZ v rozbaleném řádku) — detail tak ukazuje jeden seznam všech TIMů příkazu,
+  stejně jako část B hlášení, a sedí na výčet v `head.Popis_ZP`
+- pod mapou je **výpis TIMů bez souřadnic**. `ZP_ServTIM` GPS nevrací, takže servisní TIMy
+  nemají pin; bez upozornění by značkař mohl místo v terénu přehlédnout. Kdyby Honza do
+  datasetu souřadnice doplnil (v SQL už se joinuje `trasy.TIM`), upozornění samo zmizí
+
+### Část B
+
+Komponenty [`ZpiTimOverview`](../../assets/js/apps/hlaseni-prikazu/components/ZpiTimOverview.jsx)
+a [`ZpiTimDetailForm`](../../assets/js/apps/hlaseni-prikazu/components/ZpiTimDetailForm.jsx),
+logika v [`utils/zpiStavy.js`](../../assets/js/apps/hlaseni-prikazu/utils/zpiStavy.js).
+
+- TIMy s položkami v pořadí **servis → odinstalace → instalace**
+- U instalace náhled tabulky/směrovky (`Tim_HTML`, recyklace ze ZP-O), u odinstalace
+  **přeškrtnutý**, u servisu krátký text (`TIM_Text`) i rozšířený popis (`Popis`, 1000 znaků)
+- Stav každé položky: **Provedena / Neprovedena / Odložena**, ukládané jako kódy číselníku
+  [`StavProvedeniEnum`](../../src/Enum/StavProvedeniEnum.php) (3 / 2 / 4) — stejného, jakým
+  se u ZP-O posílá obnova úseků
+- Tlačítko **„Celý TIM proveden"** nastaví všechny položky TIMu naráz
+- Ke každému TIMu komentář (`Koment_TIM`) a fotografie (`Prilohy_TIM`)
+
+Data se ukládají do `formData.Stavy_Tim[EvCi_TIM].Predmety[ID_PREDMETY]`. **Servisní zásah
+není předmět** — nemá vlastní `ID_PREDMETY` a ukládá se do samostatného uzlu
+`Stavy_Tim[EvCi_TIM].Servis`, aby se do INSYZ neposílalo nečíselné ID v poli, kde se čeká číslo.
+
+### Náhrady
+
+Logika v [`utils/zpiVypocet.js`](../../assets/js/apps/hlaseni-prikazu/utils/zpiVypocet.js).
+
+Do výpočtu jdou **jen TIMy s aspoň jednou položkou „Provedena"** — za „Neprovedena"
+a „Odložena" se nedostává nic. Servisní TIM se počítá stejně jako TIM s předměty.
+
+Pásma se čtou ze sazebníku `trasy.ZP_Sazby`, dataset **„Náhrady instalační"**
+(`apiData["3"]`) — nejsou nikde zadrátovaná:
+
+| Počet TIMů | Min. doba práce | Náhrada (2026) |
+|---|---|---|
+| 1–4 | — | 600 Kč |
+| 5+ | 480 min (8 h) | 900 Kč |
+
+Vybere se **nejvyšší sazba, jejíž podmínky jsou splněné**. Pět TIMů odpracovaných za
+7 hodin proto spadne do nižšího pásma (600 Kč), ne na nulu. Žádný provedený TIM = 0 Kč.
+
+**Rozdělení:** 2/3 značkaři označenému jako řidič (`Hlavni_Ridic`), zbylá 1/3 rovnoměrně
+mezi ostatní; zaokrouhlovací rozdíl připadne řidiči, aby součet seděl na celkovou částku.
+Když řidič určený není, dělí se rovným dílem a validace na to upozorní.
+
+**Část A tedy potřebuje data z části B** — dokud nejsou TIMy vyplněné, je náhrada nulová.
+Stravné a jízdné se počítají beze změny přes denní engine
+([stravné a náhrady po dnech](#část-a---vyúčtování-formulář)).
+
+### Validace
+
+`validateZpiItems` v [`utils/validationUtils.js`](../../assets/js/apps/hlaseni-prikazu/utils/validationUtils.js):
+
+- **Chyba** (blokuje odeslání): některá položka nemá stav provedení — hláška jmenuje TIMy
+- **Upozornění**: žádný TIM není proveden (náhrada bude nulová); není určen řidič
+- `validateRenewedSections` se pro ZP-I nespouští — ZP-I úseky nemá
+
+### XML do INSYZ
+
+Struktura je stejná jako u ZP-O, liší se jen data (dohodnuto s Michalem Markošem).
+Část B vypadá takto:
+
+```xml
+<Stavy_Tim>
+  <TIM id="BN195">
+    <EvCi_TIM>BN195</EvCi_TIM>
+    <Predmety>
+      <Predmet id="701524">
+        <ID_PREDMETY>701524</ID_PREDMETY>
+        <Cinnost>odinstalace</Cinnost>
+        <Provedeni>3</Provedeni>
+      </Predmet>
+    </Predmety>
+  </TIM>
+  <TIM id="BN010">
+    <EvCi_TIM>BN010</EvCi_TIM>
+    <Servis>
+      <Provedeni>3</Provedeni>
+    </Servis>
+  </TIM>
+</Stavy_Tim>
+```
+
+- `Pocet_TIMu` a `Nahrada_Skupiny` jsou podklad pro rozpad náhrady v UI a do XML se
+  nevkládají (filtrují se stejně jako `Ucetni_Dny`) — INSYZ dostane výslednou
+  `Nahrada_Prace` a stavy, ze kterých si počet odvodí sám
+- `Cinnost` je navíc oproti ZP-O; dělá XML čitelné bez znalosti `Co_Provest`
+- `metadata` (interní stopa aplikace) se do XML nevkládají na žádné úrovni
+- `Obnovene_Useky` zůstává jako prázdný element (ZP-I úseky nemá)
+- **Řidič** je v `Vyuctovani` poznat podle `Zvysena_Sazba` a `SPZ` u konkrétního značkaře
+
+### Mimo rozsah
+
+- **Vícedenní ZP-I** — v ticketu vedeno jako „nice to have"; vyžadovalo by označovat,
+  kdy byl zásah na kterém TIMu proveden
+- **Kontrolní formulář PDF po TIMech** — samostatný úkol
+  [INSYZ-282](https://insyz.atlassian.net/browse/INSYZ-282); servisní texty v PDF už jsou
+- **Kvalifikační brána** (`maNarokNaNahrady`) se u ZP-I neuplatňuje — zadání ji nezmiňuje
+  a náhrada se počítá za skupinu; k potvrzení s Michalem
+
+### Testy
+
+```bash
+ddev exec npx vitest run          # node_modules má linuxové binárky, na hostu vitest nejede
+```
+
+- `assets/js/utils/__tests__/zpiPravidla.test.js` — GPS, činnosti, sjednocení TIMů
+- `assets/js/apps/hlaseni-prikazu/utils/__tests__/zpiStavy.test.js` — zápis stavů (nad reálným `S/BN/S/26069`)
+- `assets/js/apps/hlaseni-prikazu/utils/__tests__/zpiVypocet.test.js` — pásma a rozpočítání náhrad
+
 ---
 
 **Propojené funkcionality:** [File Management](file-management.md) | [INSYZ Integration](insyz-integration.md)  
 **API Reference:** [../api/portal-api.md](../api/portal-api.md)  
 **Technical details:** [../development/background-jobs.md](../development/background-jobs.md)  
-**Aktualizováno:** 2026-07-26 (vícedenní stravné a náhrady po dnech)
+**Aktualizováno:** 2026-09-08 (hlášení ZP-I — TIMy, servis, náhrady dle počtu TIMů)

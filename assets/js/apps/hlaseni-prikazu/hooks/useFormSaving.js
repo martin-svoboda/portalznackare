@@ -200,11 +200,14 @@ export const useFormSaving = (formData, head, prikazId, reportLoaded = false, us
                 calculation: (() => {
                     // Ukládat výpočty může jen vedoucí pro všechny členy
                     if (isLeader && teamMembers.length > 0 && tariffRates) {
+                        // head je potřeba i tady: u ZP-I se náhrada počítá z počtu
+                        // provedených TIMů, bez něj by se uložila nula
                         const result = calculateCompensationForAllMembers(
                             formData,
                             tariffRates,
                             teamMembers,
-                            usersDetails
+                            usersDetails,
+                            { head }
                         );
                         return result;
                     }
@@ -392,11 +395,14 @@ export const useFormSaving = (formData, head, prikazId, reportLoaded = false, us
                 calculation: (() => {
                     // Ukládat výpočty může jen vedoucí pro všechny členy
                     if (isLeader && teamMembers.length > 0 && tariffRates) {
+                        // head je potřeba i tady: u ZP-I se náhrada počítá z počtu
+                        // provedených TIMů, bez něj by se uložila nula
                         const result = calculateCompensationForAllMembers(
                             formData,
                             tariffRates,
                             teamMembers,
-                            usersDetails
+                            usersDetails,
+                            { head }
                         );
                         return result;
                     }

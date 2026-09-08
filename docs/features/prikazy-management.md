@@ -167,6 +167,23 @@ const App = () => {
 };
 ```
 
+### 3. **Servisní zásahy u ZP-I (druh `S`)**
+
+INSYZ vrací u příkazů typu `S` ve **stejném slotu jako úseky tras** dataset servisních TIMů
+(`trasy.ZP_ServTIM`) — jiné sloupce, žádná barva ani délka. Bez rozlišení by se dostal do
+tabulky úseků a detail příkazu by na chybějícím `Barva_Kod` spadl.
+
+Rozlišení je na jednom místě v každé vrstvě:
+- **Backend** — `DataEnricherService::jeServisniTimDataset()` přesune řádky do `servis_timy`
+  a `useky` nechá prázdné; kontrolní formulář PDF je vykreslí v sekci „Servisní zásahy"
+- **Frontend** — `jeServisniTimDataset()` v `assets/js/utils/prikaz.js`; detail příkazu je
+  zobrazí přímo v tabulce TIMů (`seskupTimyZpi` sjednotí TIMy z předmětů i ze servisu)
+
+Pole: `EvCi_TIM`, `Naz_TIM`, `Stav_TIM`, `Stav_Udrz`, `Stav_Udrz_Naz`, `TIM_Text` (krátký text),
+`Popis` (až 1000 znaků). Dataset se nevrací, dokud servisní zásah není v INSYZu zadán.
+
+Hlášení pro tento typ příkazu popisuje [hlaseni-prikazu.md](hlaseni-prikazu.md#-hlášení-zp-i-instalace-předmětů).
+
 ## 🎨 UI Components
 
 ### **Komponenty pro zobrazení**

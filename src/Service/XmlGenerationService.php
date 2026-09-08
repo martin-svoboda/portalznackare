@@ -162,6 +162,12 @@ class XmlGenerationService
             if ($value === null || $value === '') {
                 continue; // Přeskočit prázdné hodnoty
             }
+
+            // metadata jsou interní stopa aplikace (kdo/kdy položku vyplnil) – do INSYZ
+            // nepatří na žádné úrovni, i kdyby zůstala ve starším uloženém hlášení
+            if ($key === 'metadata') {
+                continue;
+            }
             
             // Speciální transformace
             if (isset($specialTransformations[$key]) && is_array($value)) {
@@ -289,13 +295,20 @@ class XmlGenerationService
                 // Ucetni_Dny je prezentační rozpad stravného po dnech (pro UI souhrn),
                 // do INSYZ XML nepatří – INSYZ dostává jen Stravne/Nahrada_Prace + Cas_Prace.
                 unset($item['Ucetni_Dny']);
+                // Totéž u ZP-I: počet TIMů a částka za skupinu jsou podklad pro rozpad
+                // náhrady v UI. Do INSYZ jde výsledná Nahrada_Prace a stavy v Stavy_Tim,
+                // ze kterých si INSYZ počet provedených TIMů odvodí sám.
+                unset($item['Pocet_TIMu'], $item['Nahrada_Skupiny']);
             }
 
             $container->appendChild($element);
             
             // Přeskočit metadata objekty
             $filteredItem = $this->filterMetadata($item);
-            $this->arrayToXml($xml, $element, $filteredItem, $key);
+            // Uvnitř položky už se neklíčuje podle ID – id atribut je nastavený výš.
+            // Bez resetu parentKey by se každý vnořený objekt (např. Servis u ZP-I)
+            // vykreslil znovu jako <TIM id="Servis">.
+            $this->arrayToXml($xml, $element, $filteredItem);
         }
     }
 

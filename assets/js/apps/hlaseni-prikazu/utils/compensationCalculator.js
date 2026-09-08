@@ -1,6 +1,7 @@
 import {toISODateString} from '../../../utils/dateUtils.js';
 import {log} from '../../../utils/debug';
 import { budujUcetniDny, naIsoDatum } from './vicedenniVypocet.js';
+import { vypocetNahradyZpi, rozpocitejNahraduZpi } from './zpiVypocet.js';
 
 /**
  * Kvalifikace opravňující k náhradě za práci (dohodnuto s INSYZ):
@@ -50,7 +51,9 @@ export function parseTariffRatesFromAPI(apiData) {
         jizdne: parseFloat(zakladni?.Sazba_Kc || 0),
         jizdneZvysene: parseFloat(zvysena?.Sazba_Kc || 0),
         stravneTariffs: apiData["0"] || [],
-        nahradyTariffs: apiData["2"] || []
+        nahradyTariffs: apiData["2"] || [],
+        // Dataset „Náhrady instalační" – pásma podle počtu TIMů pro příkazy ZP-I
+        nahradyInstalacniTariffs: apiData["3"] || []
     };
 }
 
@@ -322,8 +325,11 @@ export function calculateTransportDetails(formData, tariffRates, userIntAdr = nu
  * @param {Object} usersDetails - Data uživatelů pro kontrolu kvalifikací
  * @returns {Object|null} - Objekt kompenzace nebo null
  */
-export function calculateCompensation(formData, tariffRates, userIntAdr = null, usersDetails = null) {
+export function calculateCompensation(formData, tariffRates, userIntAdr = null, usersDetails = null, options = {}) {
     if (!tariffRates || !userIntAdr) return null;
+
+    // U ZP-I se náhrada nepočítá z hodin, ale z počtu provedených TIMů (INSYZ-280 bod 2)
+    const jeZpi = options.head?.Druh_ZP === 'S';
 
     // Kontrola kvalifikace - uživatel musí mít kvalifikaci opravňující k náhradám
     const maNarok = maNarokNaNahrady(usersDetails, userIntAdr);
@@ -355,6 +361,21 @@ export function calculateCompensation(formData, tariffRates, userIntAdr = null, 
 
     // Celková doba práce = součet účetních hodin po dnech (včetně přechodu přes půlnoc)
     const totalWorkHours = ucetniDny.reduce((total, den) => total + den.Cas, 0);
+
+    // ZP-I: časovou náhradu nahradí instalační podle počtu provedených TIMů, rozpočítaná
+    // mezi členy (2/3 řidič, 1/3 rovnoměrně ostatní). Stravné a jízdné zůstávají beze změny.
+    let zpiNahrada = null;
+    if (jeZpi) {
+        zpiNahrada = vypocetNahradyZpi(formData, totalWorkHours, tariffRates.nahradyInstalacniTariffs);
+        const podily = rozpocitejNahraduZpi(
+            zpiNahrada.Nahrada_Celkem,
+            options.teamMembers || [],
+            formData.Hlavni_Ridic
+        );
+        workAllowance = podily[userIntAdr] || 0;
+        // U ZP-I nemá smysl rozpad náhrady po dnech – náhrada patří příkazu, ne dni
+        ucetniDny.forEach(den => { den.Nahrada = 0; });
+    }
 
     // Spočítat dopravní náklady pro uživatele
     const transportCosts = calculateTransportCosts(formData, tariffRates, userIntAdr);
@@ -440,6 +461,11 @@ export function calculateCompensation(formData, tariffRates, userIntAdr = null, 
         Zvysena_Sazba: hasHigherRate,
         Stravne: Math.round(mealAllowance * 100) / 100,
         Nahrada_Prace: Math.round(workAllowance * 100) / 100,
+        // ZP-I: podklad pro rozpad náhrady v souhrnu (počet TIMů a částka za celou skupinu)
+        ...(jeZpi ? {
+            Pocet_TIMu: zpiNahrada.Pocet_TIMu,
+            Nahrada_Skupiny: zpiNahrada.Nahrada_Celkem
+        } : {}),
         Noclezne: noclezneDetails,
         Noclezne_Celkem: Math.round(accommodationCosts * 100) / 100,
         Vedlejsi_Vydaje: vedlejsiVydajeDetails,
@@ -490,13 +516,16 @@ export function extractTeamMembers(head) {
  * Výpočet kompenzací pro všechny členy týmu
  * Vrací data indexovaná podle INT_ADR v novém formátu
  */
-export function calculateCompensationForAllMembers(formData, tariffRates, teamMembers, usersDetails) {
+export function calculateCompensationForAllMembers(formData, tariffRates, teamMembers, usersDetails, options = {}) {
     if (!tariffRates || !teamMembers) return {};
     
     const result = {};
     
     teamMembers.forEach(member => {
-        const compensation = calculateCompensation(formData, tariffRates, member.INT_ADR, usersDetails);
+        const compensation = calculateCompensation(formData, tariffRates, member.INT_ADR, usersDetails, {
+            ...options,
+            teamMembers
+        });
         if (compensation) {
             result[member.INT_ADR] = compensation;
         }

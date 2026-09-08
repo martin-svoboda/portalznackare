@@ -109,6 +109,35 @@
     Datum
 </div>
 
+{# Servisní zásahy na TIMech (ZP-I) #}
+{% if servis_timy is defined and servis_timy is not empty %}
+    <h2>Servisní zásahy</h2>
+    <table class="lined-table">
+        <thead>
+        <tr>
+            <th style="width: 25%;">TIM</th>
+            <th style="width: 15%;">Stav údržby</th>
+            <th style="width: 60%;">Popis zásahu</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for tim in servis_timy %}
+            <tr>
+                <td>
+                    <strong>{{ tim.EvCi_TIM ?? '' }}</strong><br>
+                    {{ tim.Naz_TIM ?? '' }}
+                </td>
+                <td>{{ tim.Stav_Udrz_Naz ?? '' }}</td>
+                <td>
+                    {% if tim.TIM_Text is not empty %}<strong>{{ tim.TIM_Text }}</strong><br>{% endif %}
+                    {{ tim.Popis ?? '' }}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+{% endif %}
+
 {# Úseky #}
 {% if useky is not empty %}
     <h2>Úseky ke značení</h2>

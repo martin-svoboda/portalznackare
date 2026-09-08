@@ -14,6 +14,7 @@ import {api} from '../../utils/api';
 import {log} from '../../utils/debug';
 import {parseTariffRatesFromAPI, calculateExecutionDate} from './utils/compensationCalculator';
 import {computeTimMismatch} from './utils/timMismatch';
+import {jeServisniTimDataset} from '../../utils/prikaz';
 
 const App = () => {
     // Get prikaz ID and user from HTML data attributes
@@ -42,6 +43,7 @@ const App = () => {
         head: null,
         predmety: [],
         useky: [],
+        servisTimy: [],
         formData: null, // Will be initialized after counter is ready
         usersDetails: {},
         teamMembers: [],
@@ -259,8 +261,10 @@ const App = () => {
                 }
 
                 // Předvyplnění stavů předmětů z INSYZ dat (Rok_Vyroby, Smerovani)
-                // Pouze pokud Stavy_Tim je prázdný (nové hlášení nebo bez uložených stavů)
-                const predmetyList = orderData.predmety || [];
+                // Pouze pokud Stavy_Tim je prázdný (nové hlášení nebo bez uložených stavů).
+                // Jen pro ZP-O – jde o pole zpětné vazby k předmětům, která ZP-I nemá;
+                // u ZP-I by prázdná Zachovalost/Rok_Vyroby zbytečně skončily i v XML.
+                const predmetyList = orderData.head?.Druh_ZP === 'O' ? (orderData.predmety || []) : [];
                 if (predmetyList.length > 0 && (!formData.Stavy_Tim || Object.keys(formData.Stavy_Tim).length === 0)) {
                     const prefilled = {};
                     predmetyList.forEach(item => {
@@ -351,7 +355,13 @@ const App = () => {
                     loading: false,
                     head: orderData.head,
                     predmety: orderData.predmety || [],
-                    useky: orderData.useky || [],
+                    // U ZP-I přichází ve slotu úseků dataset servisních TIMů (ZP_ServTIM).
+                    // Obohacená data ho mají oddělený v `servis_timy`; detekce ve `useky`
+                    // je pojistka pro data, která enricherem neprošla.
+                    useky: jeServisniTimDataset(orderData.useky) ? [] : (orderData.useky || []),
+                    servisTimy: orderData.servis_timy?.length
+                        ? orderData.servis_timy
+                        : (jeServisniTimDataset(orderData.useky) ? orderData.useky : []),
                     formData,
                     teamMembers,
                     usersDetails: usersDetails || prev.usersDetails,

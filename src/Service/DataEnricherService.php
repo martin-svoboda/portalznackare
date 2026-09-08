@@ -94,6 +94,14 @@ class DataEnricherService {
 			);
 		}
 
+		// U příkazů typu S (ZP-I) vrací INSYZ ve slotu úseků dataset servisních TIMů
+		// (procedura trasy.ZP_ServTIM). Má jiné sloupce – do tabulky úseků nepatří.
+		$detail['servis_timy'] = [];
+		if ( isset( $detail['useky'] ) && is_array( $detail['useky'] ) && $this->jeServisniTimDataset( $detail['useky'] ) ) {
+			$detail['servis_timy'] = $detail['useky'];
+			$detail['useky']       = [];
+		}
+
 		// Obohatí useky
 		if ( isset( $detail['useky'] ) && is_array( $detail['useky'] ) ) {
 			$detail['useky'] = array_map( function ( $usek ) use ( $forPdf ) {
@@ -155,6 +163,22 @@ class DataEnricherService {
 		}
 
 		return $detail;
+	}
+
+	/**
+	 * Rozpozná dataset servisních TIMů (ZP_ServTIM) vrácený ve slotu úseků.
+	 *
+	 * Servisní řádky nemají Kod_ZU ani Barva_Kod (a tedy ani značku či délku),
+	 * zato nesou EvCi_TIM a servisní texty TIM_Text / Popis.
+	 */
+	private function jeServisniTimDataset( array $rows ): bool {
+		$prvni = reset( $rows );
+
+		if ( ! is_array( $prvni ) ) {
+			return false;
+		}
+
+		return array_key_exists( 'EvCi_TIM', $prvni ) && ! array_key_exists( 'Kod_ZU', $prvni );
 	}
 
 	/**

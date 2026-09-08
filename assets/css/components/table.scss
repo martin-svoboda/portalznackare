@@ -115,3 +115,14 @@
     }
   }
 }
+/**
+ * Předmět určený k odinstalaci (ZP-I).
+ * Náhled TIM tabulky/směrovky se vykresluje jako vnořená HTML struktura, proto se
+ * přeškrtnutí musí vynutit i na potomcích – jinak by zůstalo jen na části textu.
+ */
+.predmet--odinstalace {
+    &,
+    & * {
+        text-decoration: line-through;
+    }
+}

@@ -11,6 +11,7 @@ import { PartAForm } from './PartAForm';
 import { PartBForm } from './PartBForm';
 import { CompensationSummary } from './CompensationSummary';
 import { PartBSummary } from './PartBSummary';
+import { ZpiTimOverview } from './ZpiTimOverview';
 import { AdvancedFileUpload } from '../../../components/shared/forms/AdvancedFileUpload';
 import { getAttachmentsAsArray, setAttachmentsFromArray } from '../utils/attachmentUtils';
 import { calculateExecutionDate } from '../utils/compensationCalculator';
@@ -52,6 +53,7 @@ export const StepContent = ({
     }
     const head = data.head;
     const useky = data.useky;
+    const servisTimy = data.servisTimy;
     const predmety = data.predmety;
     const tariffRates = data.tariffRates;
     const teamMembers = data.teamMembers;
@@ -73,7 +75,7 @@ export const StepContent = ({
         partAValidation,
         partBValidation,
         getValidationMessages
-    } = useCompletionStatus(formData, head, predmety, setFormData, useky);
+    } = useCompletionStatus(formData, head, predmety, setFormData, useky, servisTimy);
 
     // Submit s kontrolou varování
     const handleSubmitClick = () => {
@@ -175,7 +177,18 @@ export const StepContent = ({
     if (activeStep === 1) {
         return (
             <div>
-                {head?.Druh_ZP === "O" ? (
+                {head?.Druh_ZP === "S" ? (
+                    <ZpiTimOverview
+                        formData={formData}
+                        setFormData={setFormData}
+                        head={head}
+                        predmety={predmety}
+                        servisTimy={servisTimy}
+                        prikazId={prikazId}
+                        reportId={reportId}
+                        disabled={disabled}
+                    />
+                ) : head?.Druh_ZP === "O" ? (
                     <PartBForm
                         formData={formData}
                         setFormData={setFormData}

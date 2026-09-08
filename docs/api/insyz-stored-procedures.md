@@ -49,7 +49,20 @@
 **Parametry:**
 - `ID_Znackarske_Prikazy` (int) - ID příkazu
 
-**Vrací:** Multidataset s detailem příkazu (head, předměty, úseky)
+**Vrací:** Multidataset s detailem příkazu (head, předměty, třetí dataset)
+
+**Pozor na třetí dataset:** jeho obsah závisí na druhu příkazu.
+- **ZP-O (druh `O`)** — úseky tras (`Kod_ZU`, `Nazev_ZU`, `Delka_ZU`, `Barva_Kod`, …)
+- **ZP-I (druh `S`)** — servisní TIMy z `trasy.ZP_ServTIM` (`EvCi_TIM`, `Naz_TIM`, `Stav_TIM`,
+  `Stav_Udrz`, `Stav_Udrz_Naz`, `TIM_Text`, `Popis`). Krátký text je `TIM_Text`,
+  dlouhý popis (až 1000 znaků) je `Popis`. Dataset chybí, dokud servisní zásah není zadán.
+  **Servisní TIMy jsou samostatné TIMy bez předmětů** — v datech nemají s TIMy z `predmety`
+  žádný průnik. Úplný seznam TIMů příkazu je tedy sjednocení obou zdrojů a odpovídá výčtu
+  v `head.Popis_ZP`.
+
+Rozlišení dělá `DataEnricherService::jeServisniTimDataset()` (PHP) a `jeServisniTimDataset()`
+v `assets/js/utils/prikaz.js` (JS) — podle přítomnosti `EvCi_TIM` a nepřítomnosti `Kod_ZU`.
+Servisní řádky se ukládají do `servis_timy`, `useky` zůstávají prázdné.
 
 ### trasy.ZP_Useky
 **Parametry:**

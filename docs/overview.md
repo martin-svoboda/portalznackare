@@ -16,6 +16,7 @@ Kompletní dokumentace webové aplikace pro správu turistického značení KČT
 - [Audit logging](features/audit-logging.md) - Dvojitý audit systém (aplikace + INSYZ API)
 - [Správa příkazů](features/prikazy-management.md) - Zobrazení a správa příkazů
 - [Hlášení příkazů](features/hlaseni-prikazu.md) - Workflow hlášení práce
+  - sekce [Hlášení ZP-I](features/hlaseni-prikazu.md#-hlášení-zp-i-instalace-předmětů) - instalace předmětů: TIMy, servis, náhrady dle počtu TIMů
 - [Správa souborů](features/file-management.md) - Upload a správa příloh
 - [Admin Media Library](features/admin-media-library.md) - WordPress-style správa médií
 - [Lokalizace](features/localization.md) - České skloňování

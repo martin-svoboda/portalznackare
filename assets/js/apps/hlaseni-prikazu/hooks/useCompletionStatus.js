@@ -6,7 +6,7 @@
 import { useMemo, useEffect, useCallback } from 'react';
 import { validatePartA, validatePartB, extractValidationMessages } from '../utils/validationUtils';
 
-export const useCompletionStatus = (formData, head, predmety, setFormData, useky = []) => {
+export const useCompletionStatus = (formData, head, predmety, setFormData, useky = [], servisTimy = []) => {
     // Validační výsledek pro část A pomocí centralizované validace
     const partAValidation = useMemo(() => {
         return validatePartA(formData, head);
@@ -19,8 +19,8 @@ export const useCompletionStatus = (formData, head, predmety, setFormData, useky
 
     // Validační výsledek pro část B pomocí centralizované validace
     const partBValidation = useMemo(() => {
-        return validatePartB(formData, head, predmety, useky);
-    }, [formData, head, predmety, useky]);
+        return validatePartB(formData, head, predmety, useky, servisTimy);
+    }, [formData, head, predmety, useky, servisTimy]);
 
     // Automatic completion status for Part B
     const canCompletePartB = useMemo(() => {

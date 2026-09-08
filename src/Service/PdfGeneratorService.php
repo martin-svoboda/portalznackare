@@ -55,6 +55,7 @@ class PdfGeneratorService
                 'prikaz' => $enrichedData,
                 'head' => $enrichedData['head'] ?? [],
                 'useky' => $enrichedData['useky'] ?? [],
+                'servis_timy' => $enrichedData['servis_timy'] ?? [],
                 'predmety' => $enrichedData['predmety'] ?? [],
                 'generated_at' => new \DateTime(),
                 'font_oswald_regular' => base64_encode((string) @file_get_contents($fontDir.'/Oswald-400.ttf')),
