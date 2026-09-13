@@ -12,8 +12,9 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 
 /**
  * Ověří, že každý nakonfigurovaný účet endpointu /api/insyz-client/db-password
- * je odsud dosažitelný a že v jeho databázi existuje tabulka trasy.ptUzivatele
- * s potřebnými sloupci.
+ * je odsud dosažitelný a že v jeho databázi jsou obě tabulky, které ověření
+ * uživatele potřebuje: trasy.ptUzivatele (ActUser, Uziv_Info)
+ * a vsichni.UserInfo (ActUser).
  *
  * Pouští se na serveru, kde jsou vyplněná hesla a je odtud síťová cesta do INSYZ.
  */
@@ -23,7 +24,11 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 )]
 class InsyzClientCheckCommand extends Command
 {
-    private const REQUIRED_COLUMNS = ['Uziv_Info', 'ActUser', 'Platnost_Od', 'Platnost_Do'];
+    /** Tabulka => sloupce, které ověření uživatele potřebuje */
+    private const REQUIRED = [
+        'trasy.ptUzivatele' => ['ActUser', 'Uziv_Info'],
+        'vsichni.UserInfo' => ['ActUser'],
+    ];
 
     /**
      * @param array<string, array{host: string, database: string, user: string, password: string}> $accounts
@@ -70,13 +75,18 @@ class InsyzClientCheckCommand extends Command
         }
 
         $rows = [];
+        $diagnostics = [];
         $failed = 0;
 
         foreach ($accounts as $key => $account) {
-            [$status, $detail] = $this->checkAccount((string) $key, $account);
+            [$status, $detail, $tables] = $this->checkAccount((string) $key, $account);
 
             if ($status !== 'OK') {
                 $failed++;
+            }
+
+            if ($tables !== []) {
+                $diagnostics[(string) $key] = $tables;
             }
 
             $rows[] = [$key, $account['host'], $account['database'], $status, $detail];
@@ -84,13 +94,22 @@ class InsyzClientCheckCommand extends Command
 
         $io->table(['Klíč', 'Server', 'Databáze', 'Stav', 'Detail'], $rows);
 
+        // Když sloupce nesedí, vypiš, co v tabulce doopravdy je — ať se nemusí hádat
+        foreach ($diagnostics as $key => $tables) {
+            foreach ($tables as $table => $columns) {
+                $io->section(sprintf('Sloupce v %s (%s)', $table, $key));
+                $io->writeln(wordwrap(implode(', ', $columns), 110));
+                $io->newLine();
+            }
+        }
+
         if ($failed > 0) {
             $io->error(sprintf('Nefunkčních účtů: %d. Takový klíč nenechávej v konfiguraci.', $failed));
 
             return Command::FAILURE;
         }
 
-        $io->success('Všechny nakonfigurované účty jsou dosažitelné a mají trasy.ptUzivatele.');
+        $io->success('Všechny nakonfigurované účty jsou dosažitelné a mají obě potřebné tabulky.');
 
         return Command::SUCCESS;
     }
@@ -98,44 +117,55 @@ class InsyzClientCheckCommand extends Command
     /**
      * @param array{host: string, database: string, user: string, password: string} $account
      *
-     * @return array{0: string, 1: string}
+     * @return array{0: string, 1: string, 2: array<string, array<int, string>>} stav, detail,
+     *         a při neshodě sloupce dotčených tabulek, aby nebylo nutné hádat jejich názvy
      */
     private function checkAccount(string $key, array $account): array
     {
         if (($account['password'] ?? '') === '') {
-            return ['CHYBA', 'Prázdné heslo v env — klíč je neaktivní'];
+            return ['CHYBA', 'Prázdné heslo v env — klíč je neaktivní', []];
         }
 
-        $placeholders = implode(', ', array_fill(0, count(self::REQUIRED_COLUMNS), '?'));
+        $problems = [];
+        $diagnostics = [];
 
-        try {
-            $rows = $this->connections->query(
-                $key,
-                $account,
-                "SELECT COUNT(*) AS Pocet FROM INFORMATION_SCHEMA.COLUMNS
-                 WHERE TABLE_SCHEMA = 'trasy' AND TABLE_NAME = 'ptUzivatele'
-                   AND COLUMN_NAME IN ($placeholders)",
-                self::REQUIRED_COLUMNS
-            );
-            $found = (int) ($rows[0]['Pocet'] ?? 0);
-        } catch (\Throwable $e) {
-            return ['CHYBA', 'Spojení nebo dotaz selhal: ' . $this->shorten($e->getMessage())];
+        foreach (self::REQUIRED as $table => $requiredColumns) {
+            [$schema, $name] = explode('.', $table);
+
+            try {
+                $rows = $this->connections->query(
+                    $key,
+                    $account,
+                    'SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+                     WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
+                     ORDER BY COLUMN_NAME',
+                    [$schema, $name]
+                );
+            } catch (\Throwable $e) {
+                return ['CHYBA', 'Spojení nebo dotaz selhal: ' . $this->shorten($e->getMessage()), []];
+            }
+
+            $columns = array_map(static fn (array $row) => (string) $row['COLUMN_NAME'], $rows);
+
+            if ($columns === []) {
+                $problems[] = sprintf('tabulka %s v této databázi není', $table);
+
+                continue;
+            }
+
+            $missing = array_diff($requiredColumns, $columns);
+
+            if ($missing !== []) {
+                $problems[] = sprintf('%s nemá sloupce: %s', $table, implode(', ', $missing));
+                $diagnostics[$table] = $columns;
+            }
         }
 
-        if ($found === 0) {
-            return ['CHYBA', 'Tabulka trasy.ptUzivatele v této databázi není'];
+        if ($problems !== []) {
+            return ['CHYBA', implode('; ', $problems), $diagnostics];
         }
 
-        if ($found < count(self::REQUIRED_COLUMNS)) {
-            return ['CHYBA', sprintf(
-                'trasy.ptUzivatele nemá všechny sloupce (%d ze %d z %s)',
-                $found,
-                count(self::REQUIRED_COLUMNS),
-                implode(', ', self::REQUIRED_COLUMNS)
-            )];
-        }
-
-        return ['OK', 'Dosažitelné, trasy.ptUzivatele v pořádku'];
+        return ['OK', 'Dosažitelné, obě tabulky v pořádku', []];
     }
 
     private function shorten(string $message): string

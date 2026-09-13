@@ -50,7 +50,7 @@ class InsyzClientCredentialsServiceTest extends TestCase
 
     public function testReturnsPasswordForValidRequest(): void
     {
-        $this->givenUserRow(['Uziv_Info' => self::UZIV_INFO, 'Platnost_Od' => null, 'Platnost_Do' => null]);
+        $this->givenUserRow(['Uziv_Info' => self::UZIV_INFO, 'Ma_Ucet' => 1]);
 
         $this->assertSame(
             'tajne-heslo-db6273',
@@ -60,7 +60,7 @@ class InsyzClientCredentialsServiceTest extends TestCase
 
     public function testReturnsPasswordForKeyWithUnderscoresAndCase(): void
     {
-        $this->givenUserRow(['Uziv_Info' => self::UZIV_INFO, 'Platnost_Od' => null, 'Platnost_Do' => null]);
+        $this->givenUserRow(['Uziv_Info' => self::UZIV_INFO, 'Ma_Ucet' => 1]);
 
         $this->assertSame(
             'tajne-heslo-cyklo',
@@ -102,7 +102,7 @@ class InsyzClientCredentialsServiceTest extends TestCase
 
     public function testWrongPasswordFails(): void
     {
-        $this->givenUserRow(['Uziv_Info' => self::UZIV_INFO, 'Platnost_Od' => null, 'Platnost_Do' => null]);
+        $this->givenUserRow(['Uziv_Info' => self::UZIV_INFO, 'Ma_Ucet' => 1]);
 
         $this->expectAuthFailure(InsyzClientAuthException::REASON_BAD_PASSWORD);
 
@@ -111,24 +111,63 @@ class InsyzClientCredentialsServiceTest extends TestCase
 
     public function testUndecryptableUzivInfoFails(): void
     {
-        $this->givenUserRow(['Uziv_Info' => 'rozbity-obsah', 'Platnost_Od' => null, 'Platnost_Do' => null]);
+        $this->givenUserRow(['Uziv_Info' => 'rozbity-obsah', 'Ma_Ucet' => 1]);
 
         $this->expectAuthFailure(InsyzClientAuthException::REASON_BAD_PASSWORD);
 
         $this->service()->getDbPassword('znackar', 'Heslo123', 'db6273');
     }
 
-    public function testQueryIsParametrized(): void
+    public function testUserMissingInUserInfoFailsEvenWithCorrectPassword(): void
+    {
+        $this->givenUserRow(['Uziv_Info' => self::UZIV_INFO, 'Ma_Ucet' => 0]);
+
+        $this->expectAuthFailure(InsyzClientAuthException::REASON_NO_SYSTEM_ACCOUNT);
+
+        $this->service()->getDbPassword('znackar', 'Heslo123', 'db6273');
+    }
+
+    public function testMissingUserInfoFlagIsTreatedAsNoAccount(): void
+    {
+        // Kdyby dotaz sloupec nevrátil, nesmí to projít jako "má účet"
+        $this->givenUserRow(['Uziv_Info' => self::UZIV_INFO]);
+
+        $this->expectAuthFailure(InsyzClientAuthException::REASON_NO_SYSTEM_ACCOUNT);
+
+        $this->service()->getDbPassword('znackar', 'Heslo123', 'db6273');
+    }
+
+    public function testQueryIsParametrizedAndUsesBothTables(): void
     {
         $this->connections->expects($this->once())
             ->method('query')
             ->with(
                 'db6273',
                 self::ACCOUNTS['db6273'],
-                $this->callback(fn (string $sql) => str_contains($sql, '?') && !str_contains($sql, 'znackar')),
+                $this->callback(static fn (string $sql) => str_contains($sql, '?')
+                    && !str_contains($sql, 'znackar')
+                    && str_contains($sql, 'trasy.ptUzivatele')
+                    && str_contains($sql, 'vsichni.UserInfo')),
                 ['znackar']
             )
-            ->willReturn([['Uziv_Info' => self::UZIV_INFO, 'Platnost_Od' => null, 'Platnost_Do' => null]]);
+            ->willReturn([['Uziv_Info' => self::UZIV_INFO, 'Ma_Ucet' => 1]]);
+
+        $this->service()->getDbPassword('znackar', 'Heslo123', 'db6273');
+    }
+
+    public function testQueryDoesNotCheckPasswordValidityColumns(): void
+    {
+        // Platnost_Od/Platnost_Do v trasy.ptUzivatele neexistují (patří sazebníkovým
+        // tabulkám ptVZP_*) a PlatnostPasswd desktopový klient nevynucuje
+        $this->connections->expects($this->once())
+            ->method('query')
+            ->with(
+                $this->anything(),
+                $this->anything(),
+                $this->callback(static fn (string $sql) => !str_contains($sql, 'Platnost')),
+                $this->anything()
+            )
+            ->willReturn([['Uziv_Info' => self::UZIV_INFO, 'Ma_Ucet' => 1]]);
 
         $this->service()->getDbPassword('znackar', 'Heslo123', 'db6273');
     }
@@ -138,7 +177,7 @@ class InsyzClientCredentialsServiceTest extends TestCase
         $this->connections->expects($this->once())
             ->method('query')
             ->with('Cyklo_UNI', self::ACCOUNTS['Cyklo_UNI'])
-            ->willReturn([['Uziv_Info' => self::UZIV_INFO, 'Platnost_Od' => null, 'Platnost_Do' => null]]);
+            ->willReturn([['Uziv_Info' => self::UZIV_INFO, 'Ma_Ucet' => 1]]);
 
         $this->assertSame(
             'tajne-heslo-cyklo',
@@ -156,64 +195,6 @@ class InsyzClientCredentialsServiceTest extends TestCase
         // Nesmí se vrátit heslo ani zkusit jiná databáze — chyba propadne ven,
         // kontroler ji zaloguje a odpoví stejnou generickou hláškou
         $this->expectException(\PDOException::class);
-
-        $this->service()->getDbPassword('znackar', 'Heslo123', 'db6273');
-    }
-
-    /**
-     * @dataProvider validityRanges
-     */
-    public function testAccountValidity(?string $from, ?string $to, bool $shouldPass): void
-    {
-        $this->givenUserRow(['Uziv_Info' => self::UZIV_INFO, 'Platnost_Od' => $from, 'Platnost_Do' => $to]);
-
-        if (!$shouldPass) {
-            $this->expectAuthFailure(InsyzClientAuthException::REASON_ACCOUNT_NOT_VALID);
-        }
-
-        $password = $this->service()->getDbPassword('znackar', 'Heslo123', 'db6273');
-
-        $this->assertSame('tajne-heslo-db6273', $password);
-    }
-
-    public static function validityRanges(): array
-    {
-        $yesterday = (new \DateTimeImmutable('yesterday'))->format('Y-m-d');
-        $today = (new \DateTimeImmutable('today'))->format('Y-m-d');
-        $tomorrow = (new \DateTimeImmutable('tomorrow'))->format('Y-m-d');
-
-        return [
-            'bez omezení' => [null, null, true],
-            'uvnitř intervalu' => [$yesterday, $tomorrow, true],
-            'dnešek je první den' => [$today, $tomorrow, true],
-            'dnešek je poslední den' => [$yesterday, $today, true],
-            'jen jednodenní platnost dnes' => [$today, $today, true],
-            'platnost ještě nezačala' => [$tomorrow, null, false],
-            'platnost už skončila' => [null, $yesterday, false],
-            'otevřený začátek' => [null, $tomorrow, true],
-            'otevřený konec' => [$yesterday, null, true],
-        ];
-    }
-
-    public function testDateTimeObjectsFromDriverAreAccepted(): void
-    {
-        $this->givenUserRow([
-            'Uziv_Info' => self::UZIV_INFO,
-            'Platnost_Od' => new \DateTimeImmutable('yesterday'),
-            'Platnost_Do' => new \DateTimeImmutable('tomorrow'),
-        ]);
-
-        $this->assertSame(
-            'tajne-heslo-db6273',
-            $this->service()->getDbPassword('znackar', 'Heslo123', 'db6273')
-        );
-    }
-
-    public function testUnparsableDateDoesNotPass(): void
-    {
-        $this->givenUserRow(['Uziv_Info' => self::UZIV_INFO, 'Platnost_Od' => 'nesmysl', 'Platnost_Do' => null]);
-
-        $this->expectAuthFailure(InsyzClientAuthException::REASON_ACCOUNT_NOT_VALID);
 
         $this->service()->getDbPassword('znackar', 'Heslo123', 'db6273');
     }

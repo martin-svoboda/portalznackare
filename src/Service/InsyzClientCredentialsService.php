@@ -24,6 +24,24 @@ class InsyzClientCredentialsService
     private const TEST_UZIV_INFO = '7k3kjwZo+sq5fV4GNxZz5Q==';
 
     /**
+     * Ověření odpovídá tomu, co vyžaduje samotná aplikace: heslo musí sedět proti
+     * trasy.ptUzivatele.Uziv_Info a uživatel musí existovat ve vsichni.UserInfo.
+     * Kdo ve vsichni.UserInfo není, nemá v systému žádná práva.
+     *
+     * Nic dalšího se nekontroluje. vsichni.UserLock kontroluje SQL login přes
+     * loginproperty a na tomhle hostingu vrací NULL pro každého;
+     * vsichni.DatActUser.PlatnostPasswd sice existuje, ale desktopový klient podle
+     * něj přihlášení neblokuje — kdyby to endpoint vynucoval, odmítl by uživatele,
+     * které aplikace normálně pustí.
+     */
+    private const VERIFY_SQL = 'SELECT u.Uziv_Info,
+                CASE WHEN EXISTS (
+                    SELECT 1 FROM vsichni.UserInfo i WHERE i.ActUser = u.ActUser
+                ) THEN 1 ELSE 0 END AS Ma_Ucet
+            FROM trasy.ptUzivatele u
+            WHERE u.ActUser = ?';
+
+    /**
      * @param array<string, array{host: string, database: string, user: string, password: string}> $accounts
      *        mapa klíč účtu => parametry spojení (viz services.yaml, heslo z env)
      */
@@ -81,8 +99,9 @@ class InsyzClientCredentialsService
             throw new InsyzClientAuthException(InsyzClientAuthException::REASON_BAD_PASSWORD);
         }
 
-        if (!$this->isValidToday($row['Platnost_Od'] ?? null, $row['Platnost_Do'] ?? null)) {
-            throw new InsyzClientAuthException(InsyzClientAuthException::REASON_ACCOUNT_NOT_VALID);
+        // Bez záznamu ve vsichni.UserInfo nemá uživatel v systému žádná práva
+        if ((int) ($row['Ma_Ucet'] ?? 0) !== 1) {
+            throw new InsyzClientAuthException(InsyzClientAuthException::REASON_NO_SYSTEM_ACCOUNT);
         }
     }
 
@@ -100,60 +119,13 @@ class InsyzClientCredentialsService
 
             return [
                 'Uziv_Info' => self::TEST_UZIV_INFO,
-                'Platnost_Od' => null,
-                'Platnost_Do' => null,
+                'Ma_Ucet' => 1,
             ];
         }
 
-        $rows = $this->connections->query(
-            $key,
-            $account,
-            'SELECT Uziv_Info, Platnost_Od, Platnost_Do FROM trasy.ptUzivatele WHERE ActUser = ?',
-            [$user]
-        );
+        $rows = $this->connections->query($key, $account, self::VERIFY_SQL, [$user]);
 
         return $rows[0] ?? null;
-    }
-
-    /**
-     * Platnost účtu je přímo v trasy.ptUzivatele (Platnost_Od / Platnost_Do, date, nullable).
-     * Dnešek musí spadat do intervalu, NULL znamená neomezeno z dané strany.
-     * Funkce vsichni.UserLock se nepoužívá — kontroluje SQL login přes loginproperty
-     * a na tomto hostingu vrací NULL pro každého.
-     */
-    private function isValidToday(mixed $from, mixed $to): bool
-    {
-        $today = new \DateTimeImmutable('today');
-
-        $fromDate = $this->toDate($from);
-        if ($fromDate !== null && $fromDate > $today) {
-            return false;
-        }
-
-        $toDate = $this->toDate($to);
-        if ($toDate !== null && $toDate < $today) {
-            return false;
-        }
-
-        return true;
-    }
-
-    private function toDate(mixed $value): ?\DateTimeImmutable
-    {
-        if ($value === null || $value === '') {
-            return null;
-        }
-
-        if ($value instanceof \DateTimeInterface) {
-            return \DateTimeImmutable::createFromInterface($value)->setTime(0, 0);
-        }
-
-        try {
-            return (new \DateTimeImmutable((string) $value))->setTime(0, 0);
-        } catch (\Exception) {
-            // Nečitelné datum nesmí platnost nechat projít
-            throw new InsyzClientAuthException(InsyzClientAuthException::REASON_ACCOUNT_NOT_VALID);
-        }
     }
 
     private function useTestData(): bool

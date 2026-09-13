@@ -73,7 +73,7 @@ class InsyzClientControllerTest extends TestCase
             [InsyzClientAuthException::REASON_UNKNOWN_KEY],
             [InsyzClientAuthException::REASON_UNKNOWN_USER],
             [InsyzClientAuthException::REASON_BAD_PASSWORD],
-            [InsyzClientAuthException::REASON_ACCOUNT_NOT_VALID],
+            [InsyzClientAuthException::REASON_NO_SYSTEM_ACCOUNT],
         ];
     }
 

@@ -13,7 +13,7 @@ class InsyzClientAuthException extends \RuntimeException
     public const REASON_UNKNOWN_KEY = 'unknown_key';
     public const REASON_UNKNOWN_USER = 'unknown_user';
     public const REASON_BAD_PASSWORD = 'bad_password';
-    public const REASON_ACCOUNT_NOT_VALID = 'account_not_valid';
+    public const REASON_NO_SYSTEM_ACCOUNT = 'no_system_account';
     public const REASON_THROTTLED = 'throttled';
     public const REASON_INVALID_REQUEST = 'invalid_request';
 

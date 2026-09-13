@@ -55,8 +55,8 @@ HTTP 401
 ```
 
 Tahle jedna odpověď pokrývá **všechny** důvody selhání: neznámý klíč, neznámý uživatel,
-špatné heslo, účet mimo platnost, překročený limit pokusů, nevalidní tělo požadavku,
-požadavek po HTTP i nedostupná databáze. Klient z odpovědi nepozná, co přesně selhalo —
+špatné heslo, uživatel bez účtu v systému, překročený limit pokusů, nevalidní tělo
+požadavku, požadavek po HTTP i nedostupná databáze. Klient z odpovědi nepozná, co přesně selhalo —
 je to záměr, aby endpoint nešel použít ke zjišťování existence účtů ani k výčtu klíčů.
 Konkrétní důvod je jen v logu Portálu.
 
@@ -78,16 +78,18 @@ Konkrétní důvod je jen v logu Portálu.
 1. Ověří, že požadavek přišel po HTTPS a že tělo obsahuje všechna tři pole.
 2. Zkontroluje limit neúspěšných pokusů (per IP i per uživatel).
 3. Přeloží klíč na účet z konfigurace. Neznámý klíč končí hned — bez pokusu o spojení.
-4. Připojí se **do databáze toho účtu, kterého se klíč týká**, a načte uživatele
-   parametrizovaným dotazem nad tabulkou uživatelů (sloupce s heslem a s platností účtu).
+4. Připojí se **do databáze toho účtu, kterého se klíč týká**, a jedním parametrizovaným
+   dotazem načte uložené heslo uživatele a zjistí, jestli má v systému účet.
 5. Dešifruje uložené heslo a porovná ho s poslaným přes `hash_equals()`.
-6. Ověří platnost účtu: dnešek musí spadat do intervalu daného sloupci od–do,
-   `NULL` na kterékoli straně znamená neomezeno.
+6. Ověří, že uživatel je vedený v systémové tabulce uživatelů — kdo v ní není, nemá
+   v systému žádná práva a heslo nedostane.
 7. Vrátí heslo a vynuluje čítače neúspěchů.
 
-Funkce pro kontrolu zámku účtu se **nepoužívá** — kontroluje SQL login přes
-`loginproperty` a na tomhle hostingu vrací `NULL` pro každého. Platnost účtu se proto
-bere přímo ze sloupců tabulky uživatelů.
+**Nic dalšího se nekontroluje**, a to záměrně: ověření odpovídá přesně tomu, co vyžaduje
+samotná desktopová aplikace. Funkce pro kontrolu zámku účtu se nepoužívá (kontroluje SQL
+login a na tomhle hostingu vrací `NULL` pro každého) a sloupec s platností hesla se
+nevynucuje — klient podle něj přihlášení neblokuje, takže kdyby ho endpoint vyžadoval,
+odmítal by uživatele, které aplikace normálně pustí.
 
 ### Ověření je vždy v databázi daného klíče
 
@@ -144,8 +146,9 @@ php bin/console insyz:client:check                       # všechny nakonfigurov
 php bin/console insyz:client:check <identifikátor účtu>  # jen jeden
 ```
 
-Příkaz se do každé databáze připojí a zkontroluje, že v ní existuje tabulka uživatelů
-se všemi sloupci, které ověření potřebuje. Pouští se **na serveru** — lokální DDEV nemá
+Příkaz se do každé databáze připojí a zkontroluje, že v ní jsou obě tabulky se sloupci,
+které ověření potřebuje. Když některý sloupec chybí, vypíše rovnou seznam sloupců, co
+v té tabulce doopravdy jsou. Pouští se **na serveru** — lokální DDEV nemá
 PDO driver `sqlsrv` ani síťovou cestu do INSYZ. Účet, který v tomhle příkazu neprojde,
 nemá v konfiguraci co dělat.
 
@@ -180,7 +183,7 @@ je server postavený.
 Každý požadavek jde do kanálu `api` (dev: `var/log/api.log`, prod: stderr) s poli
 `time`, `ip`, `user`, `key`, `result` (`success`/`failure`) a `reason` u neúspěchu.
 
-Důvody: `unknown_key`, `unknown_user`, `bad_password`, `account_not_valid`, `throttled`,
+Důvody: `unknown_key`, `unknown_user`, `bad_password`, `no_system_account`, `throttled`,
 `invalid_request`, `insecure_transport`, `internal_error: …`.
 
 **Heslo uživatele ani vydané heslo k databázi se do logu nikdy nezapisuje** — pokryto
@@ -206,7 +209,7 @@ ddev exec vendor/bin/phpunit --filter InsyzLegacyPasswordCipher
 - `tests/Service/InsyzLegacyPasswordCipherTest.php` — dešifrování proti referenčním
   vektorům z `openssl`, diakritika, poškozené vstupy
 - `tests/Service/InsyzClientCredentialsServiceTest.php` — klíče, ověření hesla,
-  hranice platnosti účtu, parametrizovaný dotaz, ověření v databázi daného klíče,
+  existence systémového účtu, parametrizovaný dotaz, ověření v databázi daného klíče,
   nedostupná databáze bez fallbacku, mock režim
 - `tests/Controller/Api/InsyzClientControllerTest.php` — jednotná chybová odpověď,
   validace těla, HTTPS, throttling, obsah logu
