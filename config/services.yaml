@@ -4,6 +4,24 @@
 # Put parameters here that don't need to change on each machine where the app is deployed
 # https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
+    # INSYZ desktop klient - účty, ke kterým endpoint /api/insyz-client/db-password vydává hesla.
+    # Klíč = identifikátor, který posílá klient. Uživatel se ověřuje VŽDY v databázi daného
+    # účtu a Portál se do ní přihlašuje tímtéž účtem, takže jediné tajemství je heslo v env.
+    # Nový účet = nový blok + nová env proměnná + ověření příkazem "insyz:client:check".
+    #
+    # Cyklo_UNI (server vpn.elra.cz) tu záměrně není - databáze nebyla ověřená,
+    # viz docs/api/insyz-client-db-password.md, sekce "Neověřené účty".
+    insyz_client.accounts:
+        db6273:
+            host: 'sql8.aspone.cz'
+            database: 'db6273'
+            user: 'db6273'
+            password: '%env(INSYZ_PWD_DB6273)%'
+        db6266:
+            host: 'sql8.aspone.cz'
+            database: 'db6266'
+            user: 'db6266'
+            password: '%env(INSYZ_PWD_DB6266)%'
 
 services:
     # default configuration for services in *this* file
@@ -73,6 +91,27 @@ services:
 
     # MSSQL services konfigurace - clean without audit
     # App\Service\MssqlConnector: # uses default autowiring now
+
+    App\Service\InsyzClientCredentialsService:
+        arguments:
+            $accounts: '%insyz_client.accounts%'
+
+    App\Command\InsyzClientCheckCommand:
+        arguments:
+            $accounts: '%insyz_client.accounts%'
+
+    App\Service\InsyzClientThrottler:
+        arguments:
+            $cache: '@cache.app'
+            $maxAttempts: 10
+            $windowSeconds: 900
+
+    App\Controller\Api\InsyzClientController:
+        arguments:
+            $logger: '@monolog.logger.api'
+            # HTTPS se nevyžaduje jen v lokálním vývoji
+            $requireHttps: '%env(bool:INSYZ_CLIENT_REQUIRE_HTTPS)%'
+        tags: ['controller.service_arguments']
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

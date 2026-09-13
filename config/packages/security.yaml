@@ -39,6 +39,8 @@ security:
         - { path: ^/api/auth/login, roles: PUBLIC_ACCESS }
         - { path: ^/api/auth/status, roles: PUBLIC_ACCESS }
         - { path: ^/api/test/mssql-connection, roles: PUBLIC_ACCESS }
+        # Desktopový klient INSYZ – ověření je v těle requestu, ne session
+        - { path: ^/api/insyz-client/db-password$, roles: PUBLIC_ACCESS }
         - { path: ^/api/test/login-test, roles: PUBLIC_ACCESS }
 
         # Admin pages - require ROLE_ADMIN
