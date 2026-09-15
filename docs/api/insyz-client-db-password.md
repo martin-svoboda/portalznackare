@@ -152,20 +152,20 @@ v té tabulce doopravdy jsou. Pouští se **na serveru** — lokální DDEV nem�
 PDO driver `sqlsrv` ani síťovou cestu do INSYZ. Účet, který v tomhle příkazu neprojde,
 nemá v konfiguraci co dělat.
 
-### Neověřené účty
+### Vydávají se jen účty s omezenými právy
 
-Jeden z účtů, o kterých byla řeč, běží na jiném serveru než ostatní a **v konfiguraci
-záměrně není** — nešlo ověřit, že je jeho databáze použitelná:
+Každá databáze má dva účty: vlastníka databáze a účet jen pro čtení a zápis. Endpoint
+vydává **výhradně ten druhý** — desktopový klient na něm běžně jede a víc nepotřebuje.
+Heslo vlastníka se nevydává: kdyby si ho mohl vyzvednout kdokoli s účtem v INSYZ, měl by
+plná práva na databázi, což je přesně ten stav, který endpoint zavírá.
 
-- SQL port toho serveru není dostupný z vývojového stroje ani z DDEV kontejneru
-  (jiný port na témže hostu odpovídá, takže stroj běží — zavřený nebo filtrovaný je
-  právě SQL port; podle názvu hosta cesta zřejmě vede přes VPN).
-- Jestli v té databázi potřebná tabulka existuje, tedy ověřit nešlo.
-- Servery ostatních účtů dostupné jsou.
+Dřívější obava, že vlastníka vyžaduje změna hesla uživatele, na tomhle hostingu neplatí —
+větev klienta, která ho k tomu používala, se tu nespustí (je to pozůstatek dřívějšího
+provozu, kde měl každý uživatel vlastní databázový login).
 
-Než se takový klíč zapojí, musí na serveru projít `insyz:client:check`. Teprve pak se
-přidá blok do parametru a proměnná s heslem. Do té doby dostane klient na ten klíč
-stejné 401 jako na kterýkoli neznámý.
+Nový klíč se zapojuje takto: ověřit účet příkazem `insyz:client:check`, pak přidat blok
+do parametru a proměnnou s heslem. Do té doby dostane klient na ten klíč stejné 401 jako
+na kterýkoli neznámý.
 
 ### Předpoklad nasazení: reálná IP klienta
 

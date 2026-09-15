@@ -9,19 +9,25 @@ parameters:
     # účtu a Portál se do ní přihlašuje tímtéž účtem, takže jediné tajemství je heslo v env.
     # Nový účet = nový blok + nová env proměnná + ověření příkazem "insyz:client:check".
     #
-    # Cyklo_UNI (server vpn.elra.cz) tu záměrně není - databáze nebyla ověřená,
-    # viz docs/api/insyz-client-db-password.md, sekce "Neověřené účty".
+    # Vydávají se výhradně účty "_2" (db_datareader + db_datawriter), které desktopový
+    # klient používá pro běžný provoz. Účty bez přípony jsou vlastníci databáze - jejich
+    # heslo se nevydává, jinak by měl plná práva na DB každý, kdo má účet v INSYZ.
     insyz_client.accounts:
-        db6273:
+        db6273_2:
             host: 'sql8.aspone.cz'
             database: 'db6273'
-            user: 'db6273'
-            password: '%env(INSYZ_PWD_DB6273)%'
-        db6266:
+            user: 'db6273_2'
+            password: '%env(INSYZ_PWD_DB6273_2)%'
+        db6266_2:
             host: 'sql8.aspone.cz'
             database: 'db6266'
-            user: 'db6266'
-            password: '%env(INSYZ_PWD_DB6266)%'
+            user: 'db6266_2'
+            password: '%env(INSYZ_PWD_DB6266_2)%'
+        db6285_2:
+            host: 'sql8.aspone.cz'
+            database: 'db6285'
+            user: 'db6285_2'
+            password: '%env(INSYZ_PWD_DB6285_2)%'
 
 services:
     # default configuration for services in *this* file
