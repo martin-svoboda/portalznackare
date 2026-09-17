@@ -27,20 +27,53 @@ class InsyzClientThrottler
 
     public function isBlocked(string $scope, string $identifier): bool
     {
-        $item = $this->cache->getItem($this->key($scope, $identifier));
+        return $this->state($scope, $identifier)['count'] >= $this->maxAttempts;
+    }
 
-        return $item->isHit() && (int) $item->get() >= $this->maxAttempts;
+    /**
+     * Kolik sekund zbývá do vypršení blokace. Nula, když blokace neběží.
+     */
+    public function retryAfter(string $scope, string $identifier): int
+    {
+        $state = $this->state($scope, $identifier);
+
+        if ($state['count'] < $this->maxAttempts) {
+            return 0;
+        }
+
+        return max(0, $state['until'] - time());
     }
 
     public function registerFailure(string $scope, string $identifier): void
     {
         $item = $this->cache->getItem($this->key($scope, $identifier));
-        $attempts = $item->isHit() ? (int) $item->get() : 0;
+        $state = $this->state($scope, $identifier);
 
-        $item->set($attempts + 1);
+        $item->set(['count' => $state['count'] + 1, 'until' => time() + $this->windowSeconds]);
         $item->expiresAfter($this->windowSeconds);
 
         $this->cache->save($item);
+    }
+
+    /**
+     * @return array{count: int, until: int}
+     */
+    private function state(string $scope, string $identifier): array
+    {
+        $item = $this->cache->getItem($this->key($scope, $identifier));
+
+        if (!$item->isHit()) {
+            return ['count' => 0, 'until' => 0];
+        }
+
+        $value = $item->get();
+
+        // starší záznamy v cache držely jen číslo
+        if (!is_array($value)) {
+            return ['count' => (int) $value, 'until' => time() + $this->windowSeconds];
+        }
+
+        return ['count' => (int) ($value['count'] ?? 0), 'until' => (int) ($value['until'] ?? 0)];
     }
 
     public function reset(string $scope, string $identifier): void

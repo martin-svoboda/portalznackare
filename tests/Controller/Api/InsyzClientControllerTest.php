@@ -137,8 +137,44 @@ class InsyzClientControllerTest extends TestCase
 
         $response = $this->call(['user' => 'znackar', 'password' => 'spatne', 'key' => 'db6273']);
 
-        $this->assertSame(401, $response->getStatusCode());
+        $this->assertSame(429, $response->getStatusCode());
         $this->assertSame('throttled', $this->lastLog()['context']['reason']);
+    }
+
+    public function testThrottledResponseDiffersFromBadCredentials(): void
+    {
+        $this->credentials->method('getDbPassword')
+            ->willThrowException(new InsyzClientAuthException(InsyzClientAuthException::REASON_BAD_PASSWORD));
+
+        $first = $this->call(['user' => 'znackar', 'password' => 'spatne', 'key' => 'db6273']);
+        $this->assertSame(401, $first->getStatusCode());
+        $this->assertArrayNotHasKey('retry_after', json_decode($first->getContent(), true));
+
+        // třetí selhání limit přetáhne — odpověď se musí změnit hned, ne až u dalšího pokusu
+        $this->call(['user' => 'znackar', 'password' => 'spatne', 'key' => 'db6273']);
+        $last = $this->call(['user' => 'znackar', 'password' => 'spatne', 'key' => 'db6273']);
+
+        $this->assertSame(429, $last->getStatusCode());
+
+        $body = json_decode($last->getContent(), true);
+        $this->assertNotSame(json_decode($first->getContent(), true)['error'], $body['error']);
+        $this->assertGreaterThan(0, $body['retry_after']);
+        $this->assertSame((string) $body['retry_after'], $last->headers->get('Retry-After'));
+    }
+
+    public function testThrottlingHidesWhetherAccountExists(): void
+    {
+        $this->credentials->method('getDbPassword')
+            ->willThrowException(new InsyzClientAuthException(InsyzClientAuthException::REASON_UNKNOWN_USER));
+
+        for ($i = 0; $i < 3; $i++) {
+            $this->call(['user' => 'neexistuje', 'password' => 'cokoliv', 'key' => 'db6273']);
+        }
+
+        // i neexistující účet se zablokuje stejně, takže 429 o existenci nic neříká
+        $response = $this->call(['user' => 'neexistuje', 'password' => 'cokoliv', 'key' => 'db6273']);
+
+        $this->assertSame(429, $response->getStatusCode());
     }
 
     public function testThrottledRequestNeverReachesService(): void
@@ -149,7 +185,7 @@ class InsyzClientControllerTest extends TestCase
 
         $this->credentials->expects($this->never())->method('getDbPassword');
 
-        $this->assertSame(401, $this->call([
+        $this->assertSame(429, $this->call([
             'user' => 'znackar',
             'password' => 'Heslo123',
             'key' => 'db6273',

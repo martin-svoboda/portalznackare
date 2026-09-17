@@ -54,11 +54,31 @@ HTTP 401
 { "error": "Přístup byl odmítnut." }
 ```
 
-Tahle jedna odpověď pokrývá **všechny** důvody selhání: neznámý klíč, neznámý uživatel,
-špatné heslo, uživatel bez účtu v systému, překročený limit pokusů, nevalidní tělo
-požadavku, požadavek po HTTP i nedostupná databáze. Klient z odpovědi nepozná, co přesně selhalo —
-je to záměr, aby endpoint nešel použít ke zjišťování existence účtů ani k výčtu klíčů.
-Konkrétní důvod je jen v logu Portálu.
+Tahle odpověď pokrývá **všechny** důvody selhání: neznámý klíč, neznámý uživatel,
+špatné heslo, uživatel bez účtu v systému, nevalidní tělo požadavku, požadavek po HTTP
+i nedostupná databáze. Klient z ní nepozná, co přesně selhalo — je to záměr, aby endpoint
+nešel použít ke zjišťování existence účtů ani k výčtu klíčů. Konkrétní důvod je jen
+v logu Portálu.
+
+### Odpověď — dočasná blokace
+
+```
+HTTP 429
+Retry-After: 900
+{ "error": "Příliš mnoho neúspěšných pokusů. Přístup je dočasně zablokovaný.",
+  "retry_after": 900 }
+```
+
+Po deseti neúspěšných pokusech v patnáctiminutovém okně se blokuje IP adresa i uživatelské
+jméno. Blokace má **vlastní stavový kód**, aby uživatel nezkoušel dál s pocitem, že jen
+špatně napsal heslo; `retry_after` je počet sekund do vypršení a je i v hlavičce
+`Retry-After`. Odpověď dostane i ten, kdo mezitím zadá heslo správně.
+
+Rozlišení nic neprozrazuje: čítač roste stejně u existujícího i neexistujícího účtu
+a stejně u neznámého klíče, takže z 429 nejde odvodit, že účet existuje.
+
+Blokaci hlásí **už ten pokus, který limit přetáhl** — ne až následující. Každý další
+neúspěšný pokus okno posouvá, takže blokace padá až po patnácti minutách klidu.
 
 ### Co musí klient dodržet
 
@@ -66,9 +86,10 @@ Konkrétní důvod je jen v logu Portálu.
 - **Jen POST.** Jiná metoda vrátí 404.
 - **Neukládat vrácené heslo na disk** — držet ho v paměti po dobu běhu a při dalším
   spuštění si o něj říct znovu.
-- **Nezkoušet opakovaně při 401.** Po deseti neúspěšných pokusech v patnáctiminutovém
-  okně se blokuje jak IP adresa, tak uživatelské jméno; každý další pokus okno posouvá.
-  Při 401 tedy vypiš chybu uživateli a čekej na jeho akci, nedělej automatický retry.
+- **Nezkoušet opakovaně při 401.** Vypiš chybu uživateli a čekej na jeho akci,
+  nedělej automatický retry — každý neúspěšný pokus přibližuje blokaci.
+- **Při 429 nezkoušet vůbec** a uživateli říct, že je přístup dočasně zablokovaný
+  a na jak dlouho (`retry_after` v sekundách). Opakování okno jen posouvá.
 - Potřebuje-li klient víc účtů najednou, zavolá endpoint opakovaně, jednou na každý klíč.
 
 ---
