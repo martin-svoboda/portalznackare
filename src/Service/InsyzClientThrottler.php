@@ -21,7 +21,7 @@ class InsyzClientThrottler
     public function __construct(
         private CacheItemPoolInterface $cache,
         private int $maxAttempts = 10,
-        private int $windowSeconds = 900
+        private int $windowSeconds = 300
     ) {
     }
 

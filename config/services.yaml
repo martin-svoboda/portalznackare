@@ -110,7 +110,7 @@ services:
         arguments:
             $cache: '@cache.app'
             $maxAttempts: 10
-            $windowSeconds: 900
+            $windowSeconds: 300
 
     App\Controller\Api\InsyzClientController:
         arguments:

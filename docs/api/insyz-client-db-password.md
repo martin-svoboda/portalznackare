@@ -64,12 +64,12 @@ v logu Portálu.
 
 ```
 HTTP 429
-Retry-After: 900
+Retry-After: 300
 { "error": "Příliš mnoho neúspěšných pokusů. Přístup je dočasně zablokovaný.",
-  "retry_after": 900 }
+  "retry_after": 300 }
 ```
 
-Po deseti neúspěšných pokusech v patnáctiminutovém okně se blokuje IP adresa i uživatelské
+Po deseti neúspěšných pokusech v pětiminutovém okně se blokuje IP adresa i uživatelské
 jméno. Blokace má **vlastní stavový kód**, aby uživatel nezkoušel dál s pocitem, že jen
 špatně napsal heslo; `retry_after` je počet sekund do vypršení a je i v hlavičce
 `Retry-After`. Odpověď dostane i ten, kdo mezitím zadá heslo správně.
@@ -78,7 +78,7 @@ Rozlišení nic neprozrazuje: čítač roste stejně u existujícího i neexistu
 a stejně u neznámého klíče, takže z 429 nejde odvodit, že účet existuje.
 
 Blokaci hlásí **už ten pokus, který limit přetáhl** — ne až následující. Každý další
-neúspěšný pokus okno posouvá, takže blokace padá až po patnácti minutách klidu.
+neúspěšný pokus okno posouvá, takže blokace padá až po pěti minutách klidu.
 
 ### Co musí klient dodržet
 
