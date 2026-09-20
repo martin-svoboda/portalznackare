@@ -122,3 +122,69 @@ describe('per-den agregace náhrad (kvalifikovaný) + 24h pobyt', () => {
         ]);
     });
 });
+
+describe('ZP-I: náhrada jen pro kvalifikované (INSYZ-280 bod 1)', () => {
+    // Sazebník „Náhrady instalační“ – 1–4 TIMy 600 Kč, 5+ TIMů od 8 h 900 Kč
+    const zpiTariffs = {
+        ...tariffRates,
+        nahradyInstalacniTariffs: [
+            { Pocet_TIM_Od: '1', Pocet_TIM_Do: '4', Trvani_Od_min: '0', Nahrada: '600.00' },
+            { Pocet_TIM_Od: '5', Pocet_TIM_Do: '99', Trvani_Od_min: '480', Nahrada: '900.00' },
+        ],
+    };
+
+    // Tři provedené TIMy → nižší pásmo 600 Kč za skupinu
+    const zpiFormData = {
+        ...dvaDny,
+        Hlavni_Ridic: 100,
+        Stavy_Tim: {
+            BN100: { Predmety: { 1: { Provedeni: 3 } } },
+            BN101: { Predmety: { 1: { Provedeni: 3 } } },
+            BN102: { Predmety: { 1: { Provedeni: 3 } } },
+        },
+    };
+
+    const teamMembers = [{ INT_ADR: 100 }, { INT_ADR: 200 }, { INT_ADR: 300 }];
+    const kvalifikace = kval => [null, null, kval.map(z => ({ Zkratka_Kval: z }))];
+    const options = { head: { Druh_ZP: 'S' }, teamMembers };
+
+    const vsichni = { 100: kvalifikace(['ZZ']), 200: kvalifikace(['VZ']), 300: kvalifikace(['IZ']) };
+    // 300 je bez kvalifikace (jen třeba KT) → nárok nemá
+    const bezJednoho = { 100: kvalifikace(['ZZ']), 200: kvalifikace(['VZ']), 300: kvalifikace(['KT']) };
+
+    const podil = (usersDetails, intAdr) =>
+        calculateCompensation(zpiFormData, zpiTariffs, intAdr, usersDetails, options).Nahrada_Prace;
+
+    it('všichni kvalifikovaní: řidič 2/3, zbytek rovnoměrně', () => {
+        expect(podil(vsichni, 100)).toBe(400);
+        expect(podil(vsichni, 200)).toBe(100);
+        expect(podil(vsichni, 300)).toBe(100);
+    });
+
+    it('nekvalifikovaný člen nedostane nic a jeho podíl připadne ostatním', () => {
+        expect(podil(bezJednoho, 300)).toBe(0);
+        // Částka za skupinu je daná (600 Kč) a dělí se jen mezi oprávněné: řidič 2/3, druhý 1/3
+        expect(podil(bezJednoho, 100)).toBe(400);
+        expect(podil(bezJednoho, 200)).toBe(200);
+    });
+
+    it('nekvalifikovaný řidič: částka se rozdělí rovným dílem mezi zbylé oprávněné', () => {
+        const bezRidice = { 100: kvalifikace(['KT']), 200: kvalifikace(['VZ']), 300: kvalifikace(['IZ']) };
+        expect(podil(bezRidice, 100)).toBe(0);
+        expect(podil(bezRidice, 200)).toBe(300);
+        expect(podil(bezRidice, 300)).toBe(300);
+    });
+
+    it('nikdo kvalifikovaný = nulové náhrady, částka nikam neuteče', () => {
+        const nikdo = { 100: kvalifikace(['KT']), 200: kvalifikace([]), 300: kvalifikace(['KT']) };
+        expect(podil(nikdo, 100)).toBe(0);
+        expect(podil(nikdo, 200)).toBe(0);
+        expect(podil(nikdo, 300)).toBe(0);
+    });
+
+    it('počet TIMů a částka za skupinu zůstávají v podkladech pro souhrn', () => {
+        const c = calculateCompensation(zpiFormData, zpiTariffs, 100, bezJednoho, options);
+        expect(c.Pocet_TIMu).toBe(3);
+        expect(c.Nahrada_Skupiny).toBe(600);
+    });
+});

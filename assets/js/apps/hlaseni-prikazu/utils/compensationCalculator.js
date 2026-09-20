@@ -367,9 +367,14 @@ export function calculateCompensation(formData, tariffRates, userIntAdr = null, 
     let zpiNahrada = null;
     if (jeZpi) {
         zpiNahrada = vypocetNahradyZpi(formData, totalWorkHours, tariffRates.nahradyInstalacniTariffs);
+        // Náhrada je podmíněná kvalifikací stejně jako u ZP-O (INSYZ-280, Michal 13. 9. 2026).
+        // Částka za skupinu je daná počtem provedených TIMů a dělí se jen mezi ty, kdo nárok mají –
+        // podíl nekvalifikovaného člena tedy připadne ostatním, nepropadá.
+        const opravneniClenove = (options.teamMembers || [])
+            .filter(clen => maNarokNaNahrady(usersDetails, clen.INT_ADR));
         const podily = rozpocitejNahraduZpi(
             zpiNahrada.Nahrada_Celkem,
-            options.teamMembers || [],
+            opravneniClenove,
             formData.Hlavni_Ridic
         );
         workAllowance = podily[userIntAdr] || 0;

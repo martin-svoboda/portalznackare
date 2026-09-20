@@ -471,7 +471,7 @@ const App = () => {
                     );
                 }
             }] : []),
-            {accessorKey: "NP", header: "Montáž", size: 100},
+            {accessorKey: "NP", header: "Nosný prvek", size: 100},
         ],
         [head?.Druh_ZP]
     );
@@ -516,7 +516,7 @@ const App = () => {
         renderDetailPanel: ({row}) => (
             <div>
                 <div className="text-sm opacity-75 md:hidden">
-                    <div>Montáž: {row.original.NP}</div>
+                    <div>Nosný prvek: {row.original.NP}</div>
                 </div>
                 <div className="space-y-4 mt-4">
                     {row.original.items?.map((item, i) => {

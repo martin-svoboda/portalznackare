@@ -66,6 +66,14 @@ when@prod:
                 level: info
                 channels: [api]
                 formatter: monolog.formatter.json
+            # Totéž do souboru, ať se to nemusí lovit ve výpisu PHP-FPM
+            api_file:
+                type: rotating_file
+                path: "%kernel.logs_dir%/api.log"
+                max_files: 14
+                level: info
+                channels: [api]
+                formatter: monolog.formatter.json
             console:
                 type: console
                 process_psr_3_messages: false

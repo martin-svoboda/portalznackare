@@ -137,8 +137,18 @@ class DataEnricherService {
 					$forPdf
 				);
 
-				// náhledy TIM
-				if ( isset( $predmet['Radek1'] ) ) {
+				// Náhledy TIM – stačí jakýkoli vyplněný řádek. INSYZ nechává Radek1 prázdný
+				// třeba u doplňkových směrovek (INSYZ-280, TIM BN393a), a podle Radek1 samotného
+				// by takový předmět zůstal bez náhledu.
+				$maText = false;
+				foreach ( [ 'Radek1', 'Radek2', 'Radek3' ] as $radek ) {
+					if ( '' !== trim( (string) ( $predmet[ $radek ] ?? '' ) ) ) {
+						$maText = true;
+						break;
+					}
+				}
+
+				if ( $maText ) {
 					$predmet['Tim_HTML'] = $this->timService->timPreview( $predmet, $forPdf );
 				}
 

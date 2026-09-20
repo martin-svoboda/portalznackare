@@ -93,13 +93,10 @@ const MemberCompensationDetail = ({
 
                             if (!isDriverOfAnyCar) return null;
 
-                            // Zjistit zda je člen hlavním řidičem (dostane zvýšenou sazbu)
-                            const hasHigherRate = formData.Hlavni_Ridic == member?.INT_ADR &&
-                                formData.Skupiny_Cest?.some(group =>
-                                    group.Ridic == member?.INT_ADR &&
-                                    group.Cesty?.some(s => s.Druh_Dopravy === "AUV" || s.Druh_Dopravy === "AUV-Z")
-                                );
-                            const rate = hasHigherRate ? tariffRates.jizdneZvysene : tariffRates.jizdne;
+                            // Zvýšenou sazbu bere výpočet, ne UI – jinak se sazba a popisek rozejdou
+                            const rate = memberCompensation?.Zvysena_Sazba
+                                ? tariffRates.jizdneZvysene
+                                : tariffRates.jizdne;
                             return (
                                 <span className={`${smallTextSize} text-muted ml-1`}>
                                     ({rate || 0} Kč/km)
@@ -109,18 +106,14 @@ const MemberCompensationDetail = ({
                     </span>
                     <span className={textSize}>{formatCurrency(memberCompensation?.Jizdne_Celkem || 0)}</span>
                 </div>
-                {/* Badge zvýšené sazby pod názvem */}
-                {formData.Hlavni_Ridic == member?.INT_ADR &&
-                    formData.Skupiny_Cest?.some(group =>
-                        group.Ridic == member?.INT_ADR &&
-                        group.Cesty?.some(s => s.Druh_Dopravy === "AUV" || s.Druh_Dopravy === "AUV-Z")
-                    ) && (
-                        <div className="ml-4">
+                {/* Badge zvýšené sazby pod názvem – stejná podmínka jako ve výpočtu (INSYZ-280 bod 5) */}
+                {memberCompensation?.Zvysena_Sazba && (
+                    <div className="ml-4">
                         <span className="badge badge--warning badge--light">
                             Zvýšená sazba
                         </span>
-                        </div>
-                    )}
+                    </div>
+                )}
                 {/* Details for transport costs for this member */}
                 {(formData.Skupiny_Cest?.flatMap(group => {
                     // Check if member is involved in this group
@@ -267,7 +260,10 @@ const MemberCompensationDetail = ({
                                 {memberCompensation.Pocet_TIMu > 0 && ` — za skupinu ${formatCurrency(memberCompensation.Nahrada_Skupiny)}`}
                             </span>
                             <span>
-                                {formData?.Hlavni_Ridic == member?.INT_ADR ? 'podíl řidiče (2/3)' : 'podíl člena'}
+                                {/* Bez kvalifikace nárok na náhradu není – částka se dělí jen mezi oprávněné */}
+                                {(memberCompensation?.Nahrada_Prace || 0) === 0
+                                    ? 'bez nároku na náhradu'
+                                    : (formData?.Hlavni_Ridic == member?.INT_ADR ? 'podíl řidiče (2/3)' : 'podíl člena')}
                             </span>
                         </div>
                     </div>

@@ -434,6 +434,14 @@ Komponenty [`ZpiTimOverview`](../../assets/js/apps/hlaseni-prikazu/components/Zp
 a [`ZpiTimDetailForm`](../../assets/js/apps/hlaseni-prikazu/components/ZpiTimDetailForm.jsx),
 logika v [`utils/zpiStavy.js`](../../assets/js/apps/hlaseni-prikazu/utils/zpiStavy.js).
 
+**Souhrn části B má vlastní komponentu**
+[`ZpiPartBSummary`](../../assets/js/apps/hlaseni-prikazu/components/ZpiPartBSummary.jsx).
+`PartBSummary` je psaný na ZP-O a u ZP-I ukazoval pole, která se tu nesbírají — zachovalost
+(odtud hláška „chybí stav", protože ZP-I ukládá `Provedeni`), rok výroby, orientaci,
+středové pravidlo, komentář ke značkařskému úseku a průběh trasy. ZP-I souhrn ukazuje
+jen úkol, položku a stav provedení, k tomu komentář a fotky TIMu a počet TIMů
+započítaných do náhrady.
+
 - TIMy s položkami v pořadí **servis → odinstalace → instalace**
 - U instalace náhled tabulky/směrovky (`Tim_HTML`, recyklace ze ZP-O), u odinstalace
   **přeškrtnutý**, u servisu krátký text (`TIM_Text`) i rozšířený popis (`Popis`, 1000 znaků)
@@ -468,6 +476,12 @@ Vybere se **nejvyšší sazba, jejíž podmínky jsou splněné**. Pět TIMů od
 **Rozdělení:** 2/3 značkaři označenému jako řidič (`Hlavni_Ridic`), zbylá 1/3 rovnoměrně
 mezi ostatní; zaokrouhlovací rozdíl připadne řidiči, aby součet seděl na celkovou částku.
 Když řidič určený není, dělí se rovným dílem a validace na to upozorní.
+
+**Kvalifikace:** stejně jako u ZP-O je náhrada podmíněná kvalifikací (`maNarokNaNahrady`,
+ZZ/VZ/IZ/ZT) — potvrdil Michal Markoš 13. 9. 2026 v INSYZ-280. Do rozpočítání vstupují
+**jen oprávnění členové**: částka za skupinu je daná počtem provedených TIMů a podíl
+nekvalifikovaného člena připadne ostatním, nepropadá. Když nárok nemá ani řidič, dělí se
+mezi zbylé oprávněné rovným dílem; bez jediného oprávněného člena je náhrada nulová.
 
 **Část A tedy potřebuje data z části B** — dokud nejsou TIMy vyplněné, je náhrada nulová.
 Stravné a jízdné se počítají beze změny přes denní engine
@@ -521,8 +535,6 @@ Struktura je stejná jako u ZP-O, liší se jen data (dohodnuto s Michalem Marko
   kdy byl zásah na kterém TIMu proveden
 - **Kontrolní formulář PDF po TIMech** — samostatný úkol
   [INSYZ-282](https://insyz.atlassian.net/browse/INSYZ-282); servisní texty v PDF už jsou
-- **Kvalifikační brána** (`maNarokNaNahrady`) se u ZP-I neuplatňuje — zadání ji nezmiňuje
-  a náhrada se počítá za skupinu; k potvrzení s Michalem
 
 ### Testy
 
@@ -533,10 +545,11 @@ ddev exec npx vitest run          # node_modules má linuxové binárky, na host
 - `assets/js/utils/__tests__/zpiPravidla.test.js` — GPS, činnosti, sjednocení TIMů
 - `assets/js/apps/hlaseni-prikazu/utils/__tests__/zpiStavy.test.js` — zápis stavů (nad reálným `S/BN/S/26069`)
 - `assets/js/apps/hlaseni-prikazu/utils/__tests__/zpiVypocet.test.js` — pásma a rozpočítání náhrad
+- `assets/js/apps/hlaseni-prikazu/utils/__tests__/compensationCalculator.test.js` — mj. kvalifikační brána u ZP-I
 
 ---
 
 **Propojené funkcionality:** [File Management](file-management.md) | [INSYZ Integration](insyz-integration.md)  
 **API Reference:** [../api/portal-api.md](../api/portal-api.md)  
 **Technical details:** [../development/background-jobs.md](../development/background-jobs.md)  
-**Aktualizováno:** 2026-09-08 (hlášení ZP-I — TIMy, servis, náhrady dle počtu TIMů)
+**Aktualizováno:** 2026-09-20 (ZP-I: kvalifikace u náhrad, vlastní souhrn části B — připomínky z INSYZ-280)

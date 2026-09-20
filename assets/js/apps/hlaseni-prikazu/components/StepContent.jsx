@@ -11,6 +11,7 @@ import { PartAForm } from './PartAForm';
 import { PartBForm } from './PartBForm';
 import { CompensationSummary } from './CompensationSummary';
 import { PartBSummary } from './PartBSummary';
+import { ZpiPartBSummary } from './ZpiPartBSummary';
 import { ZpiTimOverview } from './ZpiTimOverview';
 import { AdvancedFileUpload } from '../../../components/shared/forms/AdvancedFileUpload';
 import { getAttachmentsAsArray, setAttachmentsFromArray } from '../utils/attachmentUtils';
@@ -345,15 +346,24 @@ export const StepContent = ({
                         />
                         
                         <ErrorBoundary sectionName="Souhrn části B">
-                            <PartBSummary
-                                formData={formData}
-                                head={head}
-                                predmety={predmety}
-                                useky={useky}
-                                showValidation={true}
-                                compact={false}
-                                timMismatch={timMismatch}
-                            />
+                            {head?.Druh_ZP === "S" ? (
+                                <ZpiPartBSummary
+                                    formData={formData}
+                                    predmety={predmety}
+                                    servisTimy={servisTimy}
+                                    compact={false}
+                                />
+                            ) : (
+                                <PartBSummary
+                                    formData={formData}
+                                    head={head}
+                                    predmety={predmety}
+                                    useky={useky}
+                                    showValidation={true}
+                                    compact={false}
+                                    timMismatch={timMismatch}
+                                />
+                            )}
                         </ErrorBoundary>
                     </div>
                 </div>
