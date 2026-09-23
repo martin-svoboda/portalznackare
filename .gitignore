@@ -45,4 +45,5 @@ Thumbs.db
 /.ddev/.webimageBuild/
 /.ddev/.ddev-docker-compose-*
 /public/uploads/
+/.playwright-mcp/
 ###< Custom ###

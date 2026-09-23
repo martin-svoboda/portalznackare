@@ -19,6 +19,7 @@ class PdfGeneratorService
     public function __construct(
         private InsyzService $insyzService,
         private DataEnricherService $dataEnricher,
+        private ZpiTimGrouper $zpiTimGrouper,
         private Environment $twig,
         private LoggerInterface $logger
     ) {
@@ -56,7 +57,13 @@ class PdfGeneratorService
                 'head' => $enrichedData['head'] ?? [],
                 'useky' => $enrichedData['useky'] ?? [],
                 'servis_timy' => $enrichedData['servis_timy'] ?? [],
+                'cinnosti' => $enrichedData['cinnosti'] ?? [],
                 'predmety' => $enrichedData['predmety'] ?? [],
+                // ZP-I se tiskne po TIMech (INSYZ-282) – sjednocení TIMů s předměty a servisních TIMů
+                'zpi_timy' => $this->zpiTimGrouper->seskup(
+                    $enrichedData['predmety'] ?? [],
+                    $enrichedData['servis_timy'] ?? []
+                ),
                 'generated_at' => new \DateTime(),
                 'font_oswald_regular' => base64_encode((string) @file_get_contents($fontDir.'/Oswald-400.ttf')),
                 'font_oswald_bold' => base64_encode((string) @file_get_contents($fontDir.'/Oswald-700.ttf')),

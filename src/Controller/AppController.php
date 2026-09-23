@@ -11,6 +11,7 @@ use App\Service\InsyzService;
 use App\Service\InsyzReportHashService;
 use App\Service\DataEnricherService;
 use App\Service\AttachmentLookupService;
+use App\Service\ZpiTimGrouper;
 use App\Entity\Report;
 use App\Entity\User;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -298,6 +299,7 @@ class AppController extends AbstractController
         int $id,
         InsyzService $insyzService,
         DataEnricherService $dataEnricher,
+        ZpiTimGrouper $zpiTimGrouper,
         Environment $twig
     ): Response {
         // Autentifikace
@@ -314,14 +316,24 @@ class AppController extends AbstractController
             // Obohatit data - PŘESNĚ stejně jako pro PDF
             $enrichedData = $dataEnricher->enrichPrikazDetail($prikazData, true);
 
+            $fontDir = dirname(__DIR__, 2).'/assets/fonts/oswald';
+
             // Render HTML template - PŘESNĚ stejně jako pro PDF
             $html = $twig->render('pdf/control_form.html.twig', [
                 'prikaz' => $enrichedData,
                 'head' => $enrichedData['head'] ?? [],
                 'useky' => $enrichedData['useky'] ?? [],
                 'servis_timy' => $enrichedData['servis_timy'] ?? [],
+                'cinnosti' => $enrichedData['cinnosti'] ?? [],
                 'predmety' => $enrichedData['predmety'] ?? [],
-                'generated_at' => new \DateTime()
+                'zpi_timy' => $zpiTimGrouper->seskup(
+                    $enrichedData['predmety'] ?? [],
+                    $enrichedData['servis_timy'] ?? []
+                ),
+                'generated_at' => new \DateTime(),
+                // Náhled renderuje tutéž šablonu jako PDF, včetně embedovaných fontů
+                'font_oswald_regular' => base64_encode((string) @file_get_contents($fontDir.'/Oswald-400.ttf')),
+                'font_oswald_bold' => base64_encode((string) @file_get_contents($fontDir.'/Oswald-700.ttf')),
             ]);
 
             // Vrátit čisté HTML jako normální stránka (bez API CSP)

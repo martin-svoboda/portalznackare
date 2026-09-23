@@ -424,9 +424,9 @@ nebo doma. Proto:
 - **servisní TIMy jsou v téže tabulce** jako TIMy s předměty (štítek *Servis*, texty
   z INSYZ v rozbaleném řádku) — detail tak ukazuje jeden seznam všech TIMů příkazu,
   stejně jako část B hlášení, a sedí na výčet v `head.Popis_ZP`
-- pod mapou je **výpis TIMů bez souřadnic**. `ZP_ServTIM` GPS nevrací, takže servisní TIMy
-  nemají pin; bez upozornění by značkař mohl místo v terénu přehlédnout. Kdyby Honza do
-  datasetu souřadnice doplnil (v SQL už se joinuje `trasy.TIM`), upozornění samo zmizí
+- pod mapou je **výpis TIMů bez souřadnic** pro případ, že by nějaký TIM polohu neměl.
+  `ZP_ServTIM` souřadnice od 23. 9. 2026 vrací (INSYZ-280), takže servisní TIMy mají pin —
+  o poloze TIMu rozhodují předměty, a teprve když žádné nemá, vezme se GPS ze servisního řádku
 
 ### Část B
 
@@ -533,8 +533,21 @@ Struktura je stejná jako u ZP-O, liší se jen data (dohodnuto s Michalem Marko
 
 - **Vícedenní ZP-I** — v ticketu vedeno jako „nice to have"; vyžadovalo by označovat,
   kdy byl zásah na kterém TIMu proveden
-- **Kontrolní formulář PDF po TIMech** — samostatný úkol
-  [INSYZ-282](https://insyz.atlassian.net/browse/INSYZ-282); servisní texty v PDF už jsou
+
+### Kontrolní formulář PDF
+
+[INSYZ-282](https://insyz.atlassian.net/browse/INSYZ-282). ZP-I používá **stejnou mřížku
+jako ZP-O** — tabulka na TIM, předměty ve dvou sloupcích, stejné buňky s evidenčním číslem,
+značkou a řádky s kilometráží. Liší se jen poslední dva sloupce: místo zpětné vazby
+k předmětům (Stav / Rok výroby / Směr) nesou **Úkol** (Instalace / Odinstalace / Servis)
+a **Provedeno**. Odinstalace jsou přeškrtnuté, servisní zásah je řádek přes šířku tabulky
+s texty z INSYZ. Samostatná sekce „Servisní zásahy" zanikla — servis patří ke svému TIMu.
+
+Šablona [`templates/pdf/control_form.html.twig`](../../templates/pdf/control_form.html.twig)
+se větví podle `head.Druh_ZP`, seskupení dělá
+[`ZpiTimGrouper`](../../src/Service/ZpiTimGrouper.php) (PHP obdoba `seskupTimyZpi`), který
+do šablony předává `PdfGeneratorService` i HTML náhled `/prikaz/{id}/pdf-preview`.
+Činnost (`Cinnost`) doplňuje `DataEnricherService` z `Co_Provest`.
 
 ### Testy
 
@@ -546,10 +559,11 @@ ddev exec npx vitest run          # node_modules má linuxové binárky, na host
 - `assets/js/apps/hlaseni-prikazu/utils/__tests__/zpiStavy.test.js` — zápis stavů (nad reálným `S/BN/S/26069`)
 - `assets/js/apps/hlaseni-prikazu/utils/__tests__/zpiVypocet.test.js` — pásma a rozpočítání náhrad
 - `assets/js/apps/hlaseni-prikazu/utils/__tests__/compensationCalculator.test.js` — mj. kvalifikační brána u ZP-I
+- `tests/Service/ZpiTimGrouperTest.php` — seskupení TIMů pro PDF (`ddev exec php bin/phpunit`)
 
 ---
 
 **Propojené funkcionality:** [File Management](file-management.md) | [INSYZ Integration](insyz-integration.md)  
 **API Reference:** [../api/portal-api.md](../api/portal-api.md)  
 **Technical details:** [../development/background-jobs.md](../development/background-jobs.md)  
-**Aktualizováno:** 2026-09-20 (ZP-I: kvalifikace u náhrad, vlastní souhrn části B — připomínky z INSYZ-280)
+**Aktualizováno:** 2026-09-20 (ZP-I: kvalifikace u náhrad, souhrn části B, kontrolní formulář PDF po TIMech)

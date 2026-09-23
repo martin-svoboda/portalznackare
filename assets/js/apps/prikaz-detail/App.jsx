@@ -16,7 +16,7 @@ import { PrikazUseky } from '../../components/prikazy/PrikazUseky';
 import { ProvedeniPrikazu } from '../../components/prikazy/ProvedeniPrikazu';
 import { MapaTrasy } from '../../components/shared/MapaTrasy';
 import { Loader } from '../../components/shared/Loader';
-import { getPrikazDescription, buildMapRoutes, jeServisniTimDataset, vyberGpsTimu, cinnostPredmetu, seskupTimyZpi } from '../../utils/prikaz';
+import { getPrikazDescription, buildMapRoutes, jeServisniTimDataset, jeCinnostiDataset, vyberGpsTimu, cinnostPredmetu, seskupTimyZpi } from '../../utils/prikaz';
 import { renderHtmlContent, replaceTextWithIcons } from '../../utils/htmlUtils';
 import { api } from '../../utils/api';
 import { log } from '../../utils/debug';
@@ -177,6 +177,7 @@ const App = () => {
     const [predmety, setPredmety] = useState([]);
     const [useky, setUseky] = useState([]);
     const [servisTimy, setServisTimy] = useState([]);
+    const [cinnosti, setCinnosti] = useState([]);
     const [zpUseky, setZpUseky] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -224,10 +225,13 @@ const App = () => {
             // U příkazů typu S (ZP-I) přichází ve slotu úseků dataset servisních TIMů.
             // Obohacená data ze serveru ho mají už oddělený v `servis_timy`; detekce ve
             // `useky` je pojistka pro data, která enricherem neprošla.
+            // U ZP-J je ve stejném slotu seznam činností k vykázání – taky nepatří do úseků.
             const tretiDataset = result.useky || [];
             const jeServis = jeServisniTimDataset(tretiDataset);
-            setUseky(jeServis ? [] : tretiDataset);
+            const jeCinnosti = jeCinnostiDataset(tretiDataset);
+            setUseky(jeServis || jeCinnosti ? [] : tretiDataset);
             setServisTimy(result.servis_timy?.length ? result.servis_timy : (jeServis ? tretiDataset : []));
+            setCinnosti(result.cinnosti?.length ? result.cinnosti : (jeCinnosti ? tretiDataset : []));
 
             log.info(`Načten detail příkazu ${prikazId}`, result);
 
@@ -667,6 +671,25 @@ const App = () => {
                     </div>
                 )}
 
+                {/* Činnosti k vykázání (ZP-J) */}
+                {cinnosti.length > 0 && (
+                    <div className="card">
+                        <div className="card__header">
+                            <h3 className="card__title">Činnosti</h3>
+                        </div>
+                        <div className="card__content">
+                            <ul className="space-y-1">
+                                {cinnosti.map((cinnost, index) => (
+                                    <li key={cinnost.ID_Cinnost || index} className="flex gap-2">
+                                        <span className="font-bold">{cinnost.Cis_Cinnosti}</span>
+                                        <span>{cinnost.Popis_Cinnosti}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    </div>
+                )}
+
                 {/* Hlášení příkazu */}
                 <div className="card">
                     <div className="card__content">
@@ -697,7 +720,8 @@ const App = () => {
 
                 {/* Tabulka hlášení práce - odstranit, nahrazeno komponentou ProvedeniPrikazu */}
 
-                {/* Informační místa na trase */}
+                {/* Informační místa na trase – ZP-J žádné TIMy nemá, prázdnou tabulku nemá smysl ukazovat */}
+                {(tableData.length > 0 || specialAlert) && (
                 <div className="card">
                     <div className="card__header ">
                         <h3 className="card__title">Turistická informační místa</h3>
@@ -717,6 +741,7 @@ const App = () => {
                         )}
                     </div>
                 </div>
+                )}
 
                 {/* Mapa */}
                 {mapPoints.length > 0 && (

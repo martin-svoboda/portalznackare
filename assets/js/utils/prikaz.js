@@ -181,6 +181,25 @@ export function jeServisniTimDataset(rows) {
     return Boolean(prvni) && prvni.EvCi_TIM !== undefined && prvni.Kod_ZU === undefined;
 }
 
+/**
+ * Rozpozná dataset činností ZP-J vrácený ve slotu úseků.
+ *
+ * U příkazů typu J vrací INSYZ v tomtéž slotu seznam činností k vykázání (ID_Cinnost,
+ * Popis_Cinnosti). Bez rozlišení skončí v tabulce úseků a detail spadne na chybějící barvě.
+ *
+ * @param {Array} rows - obsah pole `useky` z ZP_Detail
+ * @returns {boolean}
+ */
+export function jeCinnostiDataset(rows) {
+    if (!Array.isArray(rows) || rows.length === 0) {
+        return false;
+    }
+
+    const prvni = rows[0];
+
+    return Boolean(prvni) && prvni.ID_Cinnost !== undefined && prvni.Kod_ZU === undefined;
+}
+
 // --- Pravidla ZP-I (příkaz typu S, „Instalace předmětů") --------------------------
 
 /**
@@ -305,14 +324,22 @@ export function seskupTimyZpi(predmety, servisTimy = []) {
     });
 
     return Array.from(timy.values()).map(tim => {
+        // O poloze rozhodují předměty (verze TIMu se můžou lišit polohou); servisní TIM
+        // žádné nemá, ten si vezme souřadnice ze svého řádku v ZP_ServTIM.
         const gps = vyberGpsTimu(tim.items.filter(i => i.Cinnost !== 'servis'));
+        const poloha = gps.GPS_Sirka && gps.GPS_Delka ? gps : {
+            GPS_Sirka: tim.Servis?.GPS_Sirka ?? null,
+            GPS_Delka: tim.Servis?.GPS_Delka ?? null,
+            Stav_TIM: tim.Servis?.Stav_TIM ?? gps.Stav_TIM,
+            Naz_TIM: tim.Servis?.Naz_TIM ?? gps.Naz_TIM
+        };
 
         return {
             ...tim,
-            Naz_TIM: tim.Naz_TIM ?? gps.Naz_TIM,
-            Stav_TIM: gps.Stav_TIM,
-            GPS_Sirka: gps.GPS_Sirka,
-            GPS_Delka: gps.GPS_Delka,
+            Naz_TIM: tim.Naz_TIM ?? poloha.Naz_TIM,
+            Stav_TIM: poloha.Stav_TIM,
+            GPS_Sirka: poloha.GPS_Sirka,
+            GPS_Delka: poloha.GPS_Delka,
             items: [...tim.items].sort(
                 (a, b) => PORADI_CINNOSTI.indexOf(a.Cinnost) - PORADI_CINNOSTI.indexOf(b.Cinnost)
             )

@@ -102,6 +102,14 @@ class DataEnricherService {
 			$detail['useky']       = [];
 		}
 
+		// U příkazů typu J (ZP-J) je ve stejném slotu seznam činností k vykázání.
+		// Taky nemá ani Kod_ZU, ani barvu či délku – v tabulce úseků by shodil detail i tisk.
+		$detail['cinnosti'] = [];
+		if ( isset( $detail['useky'] ) && is_array( $detail['useky'] ) && $this->jeCinnostiDataset( $detail['useky'] ) ) {
+			$detail['cinnosti'] = $detail['useky'];
+			$detail['useky']    = [];
+		}
+
 		// Obohatí useky
 		if ( isset( $detail['useky'] ) && is_array( $detail['useky'] ) ) {
 			$detail['useky'] = array_map( function ( $usek ) use ( $forPdf ) {
@@ -123,10 +131,24 @@ class DataEnricherService {
 			}, $detail['useky'] );
 		}
 
+		// U ZP-J vrací INSYZ ve slotu předmětů popis jiné činnosti (ID_ZP_JinCin) – žádný TIM
+		// ani předmět. Bez oddělení skončí v tabulce TIMů a shodí tisk kontrolního formuláře.
+		$detail['jine_cinnosti'] = [];
+		if ( isset( $detail['predmety'] ) && is_array( $detail['predmety'] ) && $this->jeJinaCinnostDataset( $detail['predmety'] ) ) {
+			$detail['jine_cinnosti'] = $detail['predmety'];
+			$detail['predmety']      = [];
+		}
+
 		// Obohatí předměty
 		if ( isset( $detail['predmety'] ) ) {
 			$detail['predmety'] = array_map( function ( $predmet ) use ( $forPdf ) {
 				$predmet['Tim_HTML'] = '';
+
+				// Činnost u ZP-I drží Co_Provest, nikdy Stav_TIM (Michal Markoš: „Stav TIM ignorovat.").
+				// Stejné pravidlo jako cinnostPredmetu() na frontendu.
+				$predmet['Cinnost'] = str_starts_with( (string) ( $predmet['Co_Provest'] ?? '' ), 'Zrušit' )
+					? 'odinstalace'
+					: 'instalace';
 
 				// Značka podle barvy
 				$predmet['Znacka_HTML'] = $this->znackaService->znacka(
@@ -189,6 +211,36 @@ class DataEnricherService {
 		}
 
 		return array_key_exists( 'EvCi_TIM', $prvni ) && ! array_key_exists( 'Kod_ZU', $prvni );
+	}
+
+	/**
+	 * Rozpozná dataset činností ZP-J vrácený ve slotu úseků.
+	 *
+	 * Řádky nesou ID_Cinnost a popis činnosti, nemají Kod_ZU ani barvu a délku.
+	 */
+	private function jeCinnostiDataset( array $rows ): bool {
+		$prvni = reset( $rows );
+
+		if ( ! is_array( $prvni ) ) {
+			return false;
+		}
+
+		return array_key_exists( 'ID_Cinnost', $prvni ) && ! array_key_exists( 'Kod_ZU', $prvni );
+	}
+
+	/**
+	 * Rozpozná dataset jiné činnosti ZP-J vrácený ve slotu předmětů.
+	 *
+	 * Nese ID_ZP_JinCin a Popis_JinCin (duplikát popisu v hlavičce), nemá EvCi_TIM.
+	 */
+	private function jeJinaCinnostDataset( array $rows ): bool {
+		$prvni = reset( $rows );
+
+		if ( ! is_array( $prvni ) ) {
+			return false;
+		}
+
+		return array_key_exists( 'ID_ZP_JinCin', $prvni ) && ! array_key_exists( 'EvCi_TIM', $prvni );
 	}
 
 	/**

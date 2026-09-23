@@ -79,6 +79,31 @@ describe('seskupTimyZpi', () => {
         expect(cinnosti).toEqual(['servis', 'odinstalace', 'instalace', 'instalace']);
     });
 
+    it('servisní TIM použije souřadnice ze svého řádku (INSYZ-280, GPS doplněny 23. 9. 2026)', () => {
+        const timy = seskupTimyZpi(predmety, [
+            { EvCi_TIM: 'BN010', Naz_TIM: 'BLAŽIM', Stav_TIM: 'R', GPS_Sirka: '49.76179', GPS_Delka: '14.45336' }
+        ]);
+        const servisniTim = timy.find(t => t.EvCi_TIM === 'BN010');
+
+        expect(servisniTim.GPS_Sirka).toBe('49.76179');
+        expect(servisniTim.GPS_Delka).toBe('14.45336');
+        expect(servisniTim.Stav_TIM).toBe('R');
+    });
+
+    it('u TIMu s předměty i servisem rozhodují o poloze předměty', () => {
+        const timy = seskupTimyZpi(predmety, [
+            { EvCi_TIM: 'BN195', Naz_TIM: 'TEPLÝŠOVICE', GPS_Sirka: '50.0000', GPS_Delka: '15.0000' }
+        ]);
+
+        expect(timy.find(t => t.EvCi_TIM === 'BN195').GPS_Sirka).toBe('49.7995');
+    });
+
+    it('servisní TIM bez souřadnic zůstane bez polohy', () => {
+        const timy = seskupTimyZpi(predmety, servisTimy);
+
+        expect(timy.find(t => t.EvCi_TIM === 'BN010').GPS_Sirka).toBeNull();
+    });
+
     it('funguje i bez servisního datasetu', () => {
         expect(seskupTimyZpi(predmety)).toHaveLength(1);
         expect(seskupTimyZpi(predmety, [])).toHaveLength(1);

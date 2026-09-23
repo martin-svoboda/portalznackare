@@ -177,7 +177,8 @@ tabulky úseků a detail příkazu by na chybějícím `Barva_Kod` spadl.
 
 Rozlišení je na jednom místě v každé vrstvě:
 - **Backend** — `DataEnricherService::jeServisniTimDataset()` přesune řádky do `servis_timy`
-  a `useky` nechá prázdné; kontrolní formulář PDF je vykreslí v sekci „Servisní zásahy"
+  a `useky` nechá prázdné; kontrolní formulář PDF je vykreslí u příslušného TIMu
+  (`ZpiTimGrouper`, viz [hlášení příkazů](hlaseni-prikazu.md#kontrolní-formulář-pdf))
 - **Frontend** — `jeServisniTimDataset()` v `assets/js/utils/prikaz.js`; detail příkazu je
   zobrazí přímo v tabulce TIMů (`seskupTimyZpi` sjednotí TIMy z předmětů i ze servisu)
 
@@ -185,6 +186,24 @@ Pole: `EvCi_TIM`, `Naz_TIM`, `Stav_TIM`, `Stav_Udrz`, `Stav_Udrz_Naz`, `TIM_Text
 `Popis` (až 1000 znaků). Dataset se nevrací, dokud servisní zásah není v INSYZu zadán.
 
 Hlášení pro tento typ příkazu popisuje [hlaseni-prikazu.md](hlaseni-prikazu.md#-hlášení-zp-i-instalace-předmětů).
+
+### 4. **Činnosti u ZP-J (druh `J`)**
+
+ZP-J používá **oba sloty na něco jiného** než obnova, a to bez ohledu na názvy klíčů v API:
+
+| Slot | Obsah u ZP-J | Kam se přesune |
+|---|---|---|
+| `useky` | seznam činností k vykázání (`ID_Cinnost`, `Cis_Cinnosti`, `Popis_Cinnosti`) | `cinnosti` |
+| `predmety` | popis jiné činnosti (`ID_ZP_JinCin`, `Popis_JinCin` — duplikát popisu v hlavičce) | `jine_cinnosti` |
+
+Bez rozdělení skončí činnosti v tabulce úseků a popis v tabulce TIMů — detail příkazu pak
+spadne na chybějícím `Barva_Kod` (bílá stránka) a tisk kontrolního formuláře skončí chybou
+na `Nazev_ZU`, resp. `EvCi_TIM`.
+
+Rozlišují to `DataEnricherService::jeCinnostiDataset()` a `jeJinaCinnostDataset()`, na
+frontendu `jeCinnostiDataset()` v `assets/js/utils/prikaz.js`. Detail příkazu ukazuje
+činnosti v kartě „Činnosti", kontrolní formulář PDF v tabulce se sloupcem *Provedeno*;
+prázdná tabulka TIMů se u příkazů bez TIMů nezobrazuje.
 
 ## 🎨 UI Components
 

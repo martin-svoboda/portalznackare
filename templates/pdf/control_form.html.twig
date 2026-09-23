@@ -109,29 +109,23 @@
     Datum
 </div>
 
-{# Servisní zásahy na TIMech (ZP-I) #}
-{% if servis_timy is defined and servis_timy is not empty %}
-    <h2>Servisní zásahy</h2>
+{# Činnosti k vykázání (ZP-J) #}
+{% if cinnosti is defined and cinnosti is not empty %}
+    <h2>Činnosti</h2>
     <table class="lined-table">
         <thead>
         <tr>
-            <th style="width: 25%;">TIM</th>
-            <th style="width: 15%;">Stav údržby</th>
-            <th style="width: 60%;">Popis zásahu</th>
+            <th style="width: 8%;">Číslo</th>
+            <th>Popis činnosti</th>
+            <th style="width: 20%;">Provedeno</th>
         </tr>
         </thead>
         <tbody>
-        {% for tim in servis_timy %}
+        {% for cinnost in cinnosti %}
             <tr>
-                <td>
-                    <strong>{{ tim.EvCi_TIM ?? '' }}</strong><br>
-                    {{ tim.Naz_TIM ?? '' }}
-                </td>
-                <td>{{ tim.Stav_Udrz_Naz ?? '' }}</td>
-                <td>
-                    {% if tim.TIM_Text is not empty %}<strong>{{ tim.TIM_Text }}</strong><br>{% endif %}
-                    {{ tim.Popis ?? '' }}
-                </td>
+                <td>{{ cinnost.Cis_Cinnosti ?? '' }}</td>
+                <td>{{ cinnost.Popis_Cinnosti ?? '' }}</td>
+                <td></td>
             </tr>
         {% endfor %}
         </tbody>
@@ -179,8 +173,100 @@
     </table>
 {% endif %}
 
-{# TIM předměty - hlavní část formuláře #}
-{% if predmety is not empty %}
+{# ZP-I: prezentace po TIMech – co se na TIMu věší, co se svěšuje, co je servis (INSYZ-282).
+   Mřížka je stejná jako u ZP-O, jen místo zpětné vazby k předmětům nese úkol a pole Provedeno. #}
+{% if head.Druh_ZP is same as('S') %}
+    {% if zpi_timy is defined and zpi_timy is not empty %}
+        <h2>Instalace, odinstalace a servis (TIM)</h2>
+
+        {% for tim in zpi_timy %}
+            {% set servis = tim.items|filter(i => i.Cinnost == 'servis') %}
+            {% set predmety_timu = tim.items|filter(i => i.Cinnost != 'servis') %}
+            {# TIM jen se servisem nemá co dávat do druhého sloupce – hlavička i řádky jsou jednosloupcové #}
+            {% set dva_sloupce = predmety_timu|length > 0 %}
+            <div class="no-break">
+                <table class="lined-table">
+                    <thead>
+                    <tr>
+                        <th colspan="2">TIM {{ tim.EvCi_TIM }}: {{ tim.Naz_TIM|raw }}</th>
+                        <th style="width: 8%;">Úkol</th>
+                        <th style="width: 8%;">Provedeno</th>
+                        {% if dva_sloupce %}
+                            <th colspan="2"></th>
+                            <th style="width: 8%;">Úkol</th>
+                            <th style="width: 8%;">Provedeno</th>
+                        {% endif %}
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for item in servis %}
+                        <tr class="no-break">
+                            <td colspan="{{ dva_sloupce ? 6 : 2 }}" style="font-size: 7pt; line-height: 1.2;">
+                                {% if item.TIM_Text|default('') %}<strong>{{ item.TIM_Text }}</strong>{% endif %}
+                                {% if item.Popis|default('') %}<br>{{ item.Popis|nl2br }}{% endif %}
+                                {% if item.Stav_Udrz_Naz|default('') %}<br>Stav údržby: {{ item.Stav_Udrz_Naz }}{% endif %}
+                                {% if item.TIM_Text|default('') is empty and item.Popis|default('') is empty %}Servisní zásah bez bližšího popisu{% endif %}
+                            </td>
+                            <td style="width: 8%; font-size: 7pt;">Servis</td>
+                            <td style="width: 8%; color: #999;">ANO / NE</td>
+                        </tr>
+                    {% endfor %}
+
+                    {# Servisní TIM žádné předměty nemá – bez pojistky by 0..-1 sáhlo mimo pole #}
+                    {% set half = ((predmety_timu|length) / 2)|round(0, 'ceil') %}
+                    {% set col1 = predmety_timu|slice(0, half) %}
+                    {% set col2 = predmety_timu|slice(half) %}
+                    {% for i in (half > 0 ? 0..half - 1 : []) %}
+                        <tr class="no-break">
+                            {% for item in [col1[i], col2[i]|default(null)] %}
+                                {% if item %}
+                                    <td style="width: 7%; font-size: 7pt; line-height: 1;">
+                                        {{ item.EvCi_TIM }}{{ item.Predmet_Index }}
+                                        {% if item.Druh_Predmetu is not same as('M') and item.Druh_Predmetu is not same as('P') %}
+                                            <br><span style="line-height: 2">{{ item.Znacka_HTML|raw }}  {{ item.Barva_Kod }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td style="width: 27%; font-size: 7pt; line-height: 1;{% if item.Cinnost == 'odinstalace' %} text-decoration: line-through;{% endif %}">
+                                        {{ item.Radek1|default('')|raw }}{% if item.KM1|default('') and (item.KM1 + 0) > 0 %} {{ (item.KM1 + 0) }} km{% endif %}
+                                        {% set skip_radek2 = false %}
+                                        {% if item.Druh_Predmetu is same as('M') and item.Nadmorska_vyska|default('') %}
+                                            {% set vyska = item.Nadmorska_vyska|trim|trim('0')|trim('.') %}
+                                            <br>{{ vyska }} m n.m.
+                                            {% set r2 = item.Radek2|default('') %}
+                                            {% set skip_radek2 = r2 and (vyska in r2 or 'm n.m.' in r2 or 'm n. m.' in r2) %}
+                                        {% endif %}
+                                        {% if item.Radek2|default('') and not skip_radek2 %}<br>{{ item.Radek2|raw }}{% if item.KM2|default('') and (item.KM2 + 0) > 0 %} {{ (item.KM2 + 0) }} km{% endif %}{% endif %}
+                                        {% if item.Radek3|default('') %}<br>{{ item.Radek3|raw }}{% if item.KM3|default('') and (item.KM3 + 0) > 0 %} {{ (item.KM3 + 0) }} km{% endif %}{% endif %}
+                                    </td>
+                                    <td style="width: 8%; font-size: 7pt;">
+                                        {{ item.Cinnost == 'odinstalace' ? 'Odinstalace' : 'Instalace' }}
+                                    </td>
+                                    <td style="width: 8%; color: #999;">ANO / NE</td>
+                                {% else %}
+                                    <td colspan="4"></td>
+                                {% endif %}
+                            {% endfor %}
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                    <tfoot>
+                    <tr>
+                        <td style="height: 60px" colspan="{{ dva_sloupce ? 8 : 4 }}"><span style="font-size: 8pt">Poznámka k TIM:</span></td>
+                    </tr>
+                    </tfoot>
+                </table>
+            </div>
+        {% endfor %}
+    {% else %}
+        <div style="margin-top: 20px; padding: 15px; background-color: #eff6ff; border-left: 4px solid #3b82f6;">
+            <p style="margin: 0; color: #1e40af;">
+                K tomuto příkazu nejsou žádné TIMy k instalaci, odinstalaci ani servisu.
+            </p>
+        </div>
+    {% endif %}
+
+{# TIM předměty - hlavní část formuláře (ZP-O) #}
+{% elseif predmety is not empty %}
     {# Seskupení předmětů podle TIM #}
     {% set timGroups = {} %}
     {% for predmet in predmety %}
@@ -332,7 +418,8 @@
         {% endfor %}
         #}
     {% endif %}
-{% else %}
+{% elseif head.Druh_ZP is same as('O') %}
+    {# Jen u obnovy TIMy čekáme; ZP-J je vykázaný činnostmi, ne TIMy #}
     <div style="margin-top: 20px; padding: 15px; background-color: #eff6ff; border-left: 4px solid #3b82f6;">
         <p style="margin: 0; color: #1e40af;">
             Pro tento příkaz nejsou k dispozici žádné TIM k hodnocení.
