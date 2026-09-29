@@ -255,6 +255,10 @@ export const useFormSaving = (formData, head, prikazId, reportLoaded = false, us
                         errorTitle = 'Neplatná data';
                         errorDuration = 8000;
                         break;
+                    case 403:
+                        errorMessage = 'Hlášení může upravovat jen vedoucí týmu příkazu.';
+                        errorTitle = 'Nedostatečné oprávnění';
+                        break;
                     case 409:
                         errorMessage = 'Hlášení už bylo odesláno a je v procesu zpracování.';
                         errorType = 'info';
@@ -468,6 +472,9 @@ export const useFormSaving = (formData, head, prikazId, reportLoaded = false, us
                         errorMessage = 'Požadavek vypršel. Server zpracovává hlášení na pozadí - zkontrolujte stav za chvíli.';
                         errorType = 'warning';
                         break;
+                    case 403:
+                        errorMessage = 'Hlášení může odeslat jen vedoucí týmu příkazu.';
+                        break;
                     case 409:
                         errorMessage = 'Hlášení už bylo odesláno a je v procesu zpracování.';
                         errorType = 'info';
@@ -499,8 +506,19 @@ export const useFormSaving = (formData, head, prikazId, reportLoaded = false, us
             
             showNotification(errorType, errorMessage);
             
-            // Uložit chybové informace do formData a vrátit stav na draft
-            if (setFormData) {
+            if (setFormData && error.status === 409 && error.state) {
+                // Hlášení už je na serveru odeslané – převzít jeho skutečný stav,
+                // nevracet na draft (u 'send' se tím spustí sledování stavu)
+                log.info(`Hlášení je na serveru ve stavu '${error.state}' - přebírám stav`);
+                setFormData(prev => ({
+                    ...prev,
+                    status: error.state,
+                    error_message: undefined,
+                    error_code: undefined,
+                    error_details: undefined
+                }));
+            } else if (setFormData) {
+                // Uložit chybové informace do formData a vrátit stav na draft
                 setFormData(prev => ({
                     ...prev,
                     status: 'draft', // Vrátit na draft aby šlo odeslat znovu

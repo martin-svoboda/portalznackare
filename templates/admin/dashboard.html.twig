@@ -13,7 +13,7 @@
 
         <div class="page__content">
             {# Statistiky #}
-            <div class="grid grid-cols-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
                 {# Uživatelé #}
                 <div class="card">
                     <div class="card__content">
@@ -125,6 +125,7 @@
                 <div class="card__content">
                     {% if recent_audit_logs|length > 0 %}
                         <div class="table-wrapper">
+                            <div class="overflow-x-auto">
                             <table class="table">
                                 <thead>
                                     <tr>
@@ -161,6 +162,7 @@
                                     {% endfor %}
                                 </tbody>
                             </table>
+                            </div>
                         </div>
                     {% else %}
                         <p class="text-gray-500">Žádné nedávné aktivity</p>

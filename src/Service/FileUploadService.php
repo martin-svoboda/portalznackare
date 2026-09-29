@@ -197,69 +197,13 @@ class FileUploadService
             $entityId = (int)$options['entity_id'];
             $fieldName = $options['field_name'] ?? null;
             
-            $uploadDebug = [
-                'timestamp' => date('Y-m-d H:i:s'),
-                'method' => 'uploadFile',
-                'action' => 'adding_usage',
-                'params' => ['entityType' => $entityType, 'entityId' => $entityId, 'fieldName' => $fieldName]
-            ];
-            file_put_contents($this->params->get('kernel.project_dir') . '/var/debug-file-usage.txt', json_encode($uploadDebug) . "\n", FILE_APPEND);
-            
             $this->addUsage($attachment, $entityType, $entityId, $fieldName);
-            
-            $uploadDebug2 = [
-                'timestamp' => date('Y-m-d H:i:s'),
-                'method' => 'uploadFile', 
-                'action' => 'usage_added',
-                'final_usage_info' => $attachment->getUsageInfo()
-            ];
-            file_put_contents($this->params->get('kernel.project_dir') . '/var/debug-file-usage.txt', json_encode($uploadDebug2) . "\n", FILE_APPEND);
-        } else {
-            $uploadDebug = [
-                'timestamp' => date('Y-m-d H:i:s'),
-                'method' => 'uploadFile',
-                'action' => 'no_usage_tracking',
-                'reason' => 'missing entity_type or entity_id',
-                'options' => [
-                    'entity_type' => $options['entity_type'] ?? null,
-                    'entity_id' => $options['entity_id'] ?? null,
-                    'field_name' => $options['field_name'] ?? null
-                ]
-            ];
-            file_put_contents($this->params->get('kernel.project_dir') . '/var/debug-file-usage.txt', json_encode($uploadDebug) . "\n", FILE_APPEND);
         }
 
         try {
-            $saveDebug = [
-                'timestamp' => date('Y-m-d H:i:s'),
-                'method' => 'uploadFile',
-                'action' => 'before_save',
-                'usage_info_before_save' => $attachment->getUsageInfo(),
-                'attachment_data' => [
-                    'hash' => $attachment->getHash(),
-                    'original_name' => $attachment->getOriginalName(),
-                    'stored_name' => $attachment->getStoredName(),
-                    'path' => $attachment->getPath(),
-                    'storage_path' => $attachment->getStoragePath(),
-                    'size' => $attachment->getSize(),
-                    'mime_type' => $attachment->getMimeType(),
-                    'uploaded_by' => $attachment->getUploadedBy()
-                ]
-            ];
-            file_put_contents($this->params->get('kernel.project_dir') . '/var/debug-file-usage.txt', json_encode($saveDebug) . "\n", FILE_APPEND);
-            
             $this->repository->save($attachment, true);
-            
+
             $savedId = $attachment->getId();
-            
-            $saveDebug2 = [
-                'timestamp' => date('Y-m-d H:i:s'),
-                'method' => 'uploadFile',
-                'action' => 'after_save',
-                'saved_id' => $savedId,
-                'usage_info_after_save' => $attachment->getUsageInfo()
-            ];
-            file_put_contents($this->params->get('kernel.project_dir') . '/var/debug-file-usage.txt', json_encode($saveDebug2) . "\n", FILE_APPEND);
             error_log("FileUploadService::uploadFile - Úspěšně uloženo s ID: " . ($savedId ?: 'NULL'));
             
             if (!$savedId) {
@@ -884,13 +828,7 @@ class FileUploadService
      */
     private function addUsage(FileAttachment $attachment, string $entityType, int $entityId, ?string $fieldName = null): void
     {
-        $debugData = [];
-        $debugData['timestamp'] = date('Y-m-d H:i:s');
-        $debugData['method'] = 'addUsage';
-        $debugData['input'] = ['entityType' => $entityType, 'entityId' => $entityId, 'fieldName' => $fieldName];
-        
         $usageInfo = $attachment->getUsageInfo() ?? [];
-        $debugData['current_usage_info'] = $usageInfo;
         
         // Initialize entity type array if doesn't exist
         if (!isset($usageInfo[$entityType])) {
@@ -906,24 +844,15 @@ class FileUploadService
             // Add field name if not already present
             if (!in_array($fieldName, $usageInfo[$entityType][$entityId])) {
                 $usageInfo[$entityType][$entityId][] = $fieldName;
-                $debugData['action'] = "Added fieldName '$fieldName' to entityId $entityId";
-            } else {
-                $debugData['action'] = "FieldName '$fieldName' already exists for entityId $entityId";
             }
         } else {
             // Legacy usage tracking: {"reports": [123, 456]} (BC compatibility)
             if (!in_array($entityId, $usageInfo[$entityType])) {
                 $usageInfo[$entityType][] = $entityId;
-                $debugData['action'] = "Added entityId $entityId (legacy format)";
-            } else {
-                $debugData['action'] = "EntityId $entityId already exists (legacy format)";
             }
         }
-        
-        $debugData['new_usage_info'] = $usageInfo;
+
         $attachment->setUsageInfo($usageInfo);
-        
-        file_put_contents($this->params->get('kernel.project_dir') . '/var/debug-file-usage.txt', json_encode($debugData) . "\n", FILE_APPEND);
     }
     
     /**

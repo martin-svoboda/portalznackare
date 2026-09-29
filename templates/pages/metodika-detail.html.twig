@@ -10,10 +10,10 @@
         } %}
 
         {# Grid layout: sidebar TOC + content #}
-        <div class="mt-6" style="display: grid; grid-template-columns: 250px 1fr; gap: 2rem;">
+        <div class="mt-6 grid grid-cols-1 lg:grid-cols-[250px_1fr] gap-8">
 
             {# Sidebar: Table of Contents #}
-            <aside class="card sticky top-4" style="height: fit-content;">
+            <aside class="card lg:sticky lg:top-4" style="height: fit-content;">
                 <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Na této stránce</h4>
                 {% if tocHeadings|length > 0 %}
                     <nav class="flex flex-col gap-1">

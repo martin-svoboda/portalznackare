@@ -3,8 +3,8 @@
 namespace App\Repository;
 
 use App\Entity\Report;
-use App\Enum\ReportStateEnum;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\LockMode;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
@@ -18,187 +18,17 @@ class ReportRepository extends ServiceEntityRepository
     }
 
     /**
-     * Find report by order ID
-     * @deprecated Use findOneBy(['idZp' => $idZp]) instead
+     * Najde hlášení příkazu a zamkne řádek (SELECT ... FOR UPDATE) do konce transakce.
+     * Volat jen uvnitř aktivní transakce.
      */
-    public function findByOrderAndUser(int $idZp, int $intAdr): ?Report
-    {
-        // Pro zpětnou kompatibilitu, ale vrací report podle id_zp (ne podle uživatele)
-        return $this->findOneBy(['idZp' => $idZp]);
-    }
-
-    /**
-     * Find all reports for a specific order
-     */
-    public function findByOrder(int $idZp): array
-    {
-        return $this->findBy(['idZp' => $idZp], ['dateCreated' => 'ASC']);
-    }
-
-    /**
-     * Find reports where user is team member
-     */
-    public function findByTeamMember(int $intAdr, ?ReportStateEnum $state = null): array
-    {
-        $qb = $this->createQueryBuilder('r')
-            ->where("JSON_SEARCH(r.znackari, 'one', :intAdr, NULL, '$[*].INT_ADR') IS NOT NULL")
-            ->setParameter('intAdr', $intAdr);
-            
-        if ($state !== null) {
-            $qb->andWhere('r.state = :state')
-               ->setParameter('state', $state);
-        }
-        
-        return $qb->orderBy('r.dateUpdated', 'DESC')
-                  ->getQuery()
-                  ->getResult();
-    }
-    
-    /**
-     * Find reports by user (report creator/processor)
-     * @deprecated Use findByTeamMember instead
-     */
-    public function findByUser(int $intAdr, ?ReportStateEnum $state = null): array
-    {
-        // Pro zpětnou kompatibilitu
-        return $this->findByTeamMember($intAdr, $state);
-    }
-
-    /**
-     * Find reports with specific transport type using PostgreSQL JSONB queries
-     */
-    public function findReportsWithTransportType(string $transportType): array
+    public function findOneByIdZpForUpdate(int $idZp): ?Report
     {
         return $this->createQueryBuilder('r')
-            ->where("JSON_EXTRACT(r.dataA, '$.travelSegments') IS NOT NULL")
-            ->andWhere("JSON_SEARCH(JSON_EXTRACT(r.dataA, '$.travelSegments[*].transportType'), 'one', :transportType) IS NOT NULL")
-            ->setParameter('transportType', $transportType)
+            ->where('r.idZp = :idZp')
+            ->setParameter('idZp', $idZp)
             ->getQuery()
-            ->getResult();
-    }
-
-    /**
-     * Get compensation statistics for a date range
-     */
-    public function getCompensationStatistics(\DateTimeInterface $from, \DateTimeInterface $to): array
-    {
-        $qb = $this->createQueryBuilder('r')
-            ->select([
-                'AVG(CAST(JSON_UNQUOTE(JSON_EXTRACT(r.calculation, \'$.total\')) AS DECIMAL(10,2))) as avg_compensation',
-                'SUM(CAST(JSON_UNQUOTE(JSON_EXTRACT(r.calculation, \'$.total\')) AS DECIMAL(10,2))) as total_compensation',
-                'COUNT(r.id) as report_count'
-            ])
-            ->where('r.dateSend BETWEEN :from AND :to')
-            ->andWhere('r.state = :state')
-            ->setParameter('from', $from)
-            ->setParameter('to', $to)
-            ->setParameter('state', ReportStateEnum::SEND);
-
-        $result = $qb->getQuery()->getSingleResult();
-
-        return [
-            'avg_compensation' => (float) ($result['avg_compensation'] ?? 0),
-            'total_compensation' => (float) ($result['total_compensation'] ?? 0),
-            'report_count' => (int) ($result['report_count'] ?? 0)
-        ];
-    }
-
-    /**
-     * Find reports that need approval (sent but not yet processed)
-     */
-    public function findPendingApproval(): array
-    {
-        return $this->findBy(['state' => ReportStateEnum::SEND], ['dateSend' => 'ASC']);
-    }
-
-    /**
-     * Get reports summary by state
-     */
-    public function getReportsSummaryByState(): array
-    {
-        $qb = $this->createQueryBuilder('r')
-            ->select(['r.state', 'COUNT(r.id) as count'])
-            ->groupBy('r.state');
-
-        $results = $qb->getQuery()->getResult();
-
-        $summary = [];
-        foreach ($results as $result) {
-            $summary[$result['state']->value] = [
-                'state' => $result['state'],
-                'count' => (int) $result['count'],
-                'label' => $result['state']->getLabel(),
-                'color' => $result['state']->getColor()
-            ];
-        }
-
-        return $summary;
-    }
-
-    /**
-     * Find reports with missing compensation calculation
-     */
-    public function findReportsWithoutCalculation(): array
-    {
-        return $this->createQueryBuilder('r')
-            ->where('JSON_LENGTH(r.calculation) = 0 OR r.calculation IS NULL')
-            ->andWhere('r.state != :draft')
-            ->setParameter('draft', ReportStateEnum::DRAFT)
-            ->getQuery()
-            ->getResult();
-    }
-
-    /**
-     * Search reports by comment content (for debugging/support)
-     */
-    public function searchByComment(string $searchTerm): array
-    {
-        return $this->createQueryBuilder('r')
-            ->where("JSON_UNQUOTE(JSON_EXTRACT(r.dataB, '$.Trasa_Poznamka')) LIKE :searchTerm")
-            ->setParameter('searchTerm', '%' . $searchTerm . '%')
-            ->getQuery()
-            ->getResult();
-    }
-
-    /**
-     * Get monthly statistics
-     */
-    public function getMonthlyStatistics(int $year): array
-    {
-        $qb = $this->createQueryBuilder('r')
-            ->select([
-                'MONTH(r.dateSend) as month',
-                'COUNT(r.id) as total_reports',
-                'SUM(CAST(JSON_UNQUOTE(JSON_EXTRACT(r.calculation, \'$.total\')) AS DECIMAL(10,2))) as total_compensation'
-            ])
-            ->where('YEAR(r.dateSend) = :year')
-            ->andWhere('r.state = :state')
-            ->groupBy('MONTH(r.dateSend)')
-            ->orderBy('month', 'ASC')
-            ->setParameter('year', $year)
-            ->setParameter('state', ReportStateEnum::SEND);
-
-        $results = $qb->getQuery()->getResult();
-
-        $statistics = [];
-        for ($month = 1; $month <= 12; $month++) {
-            $statistics[$month] = [
-                'month' => $month,
-                'total_reports' => 0,
-                'total_compensation' => 0.0
-            ];
-        }
-
-        foreach ($results as $result) {
-            $month = (int) $result['month'];
-            $statistics[$month] = [
-                'month' => $month,
-                'total_reports' => (int) $result['total_reports'],
-                'total_compensation' => (float) ($result['total_compensation'] ?? 0)
-            ];
-        }
-
-        return array_values($statistics);
+            ->setLockMode(LockMode::PESSIMISTIC_WRITE)
+            ->getOneOrNullResult();
     }
 
     /**

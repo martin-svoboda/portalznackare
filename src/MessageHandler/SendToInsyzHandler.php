@@ -7,6 +7,7 @@ use App\Repository\ReportRepository;
 use App\Enum\ReportStateEnum;
 use App\Service\InsyzService;
 use App\Service\XmlGenerationService;
+use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -36,8 +37,10 @@ class SendToInsyzHandler
             'environment' => $environment,
         ]);
 
-        // Načíst report z databáze
-        $report = $this->reportRepository->find($reportId);
+        // Načíst report se zámkem řádku (handler běží v doctrine_transaction middleware).
+        // Souběžný POST /api/portal/report počká, až odeslání doběhne, a uvidí už
+        // výsledný stav – nemůže ho přepsat zpět na 'send' podle zastaralého čtení.
+        $report = $this->reportRepository->find($reportId, LockMode::PESSIMISTIC_WRITE);
         if (!$report) {
             $this->logger->error('Report not found', ['report_id' => $reportId]);
             return;

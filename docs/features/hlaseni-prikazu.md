@@ -2,7 +2,7 @@
 
 > **Funkcionální oblast** - Kompletní systém pro hlášení, vyúčtování a kalkulaci kompenzací za práci značkařů
 
-> **Programátorská poznámka:** Aplikace používá české Snake_Case parametry podle [konvence názvů](../development/development.md#konvence-názvů-parametrů).
+> **Programátorská poznámka:** Aplikace používá české Snake_Case parametry podle [konvence názvů](../architecture.md#4-konvence-názvů-parametrů-povinné).
 
 ## 🎯 Přehled funkcionality
 
@@ -17,34 +17,10 @@ INSYZ Příkaz → React Formulář → Kalkulace → PostgreSQL → INSYZ Submi
 
 ## 🔧 Backend komponenty
 
-### 1. **ReportController** - API pro hlášení
-```php
-// src/Controller/Api/PortalController.php
-#[Route('/api/portal/report')]
-class PortalController extends AbstractController {
-    
-    #[Route('', methods: ['GET'])]
-    public function getReport(Request $request): JsonResponse {
-        // Načte existující hlášení pro příkaz
-        $report = $this->reportRepository->findOneBy([
-            'idZp' => $request->query->get('id_zp'),
-            'intAdr' => $this->getUser()->getIntAdr()
-        ]);
-        
-        return new JsonResponse(['report' => $report]);
-    }
-    
-    #[Route('', methods: ['POST'])]
-    public function saveReport(Request $request): JsonResponse {
-        // Uloží hlášení jako draft nebo odešle ke zpracování
-        if ($reportDto->state === 'send') {
-            $this->messageBus->dispatch($message);
-            // Zpracování probíhá v systemd workeru (portal-messenger-<env>)
-            // Detail viz docs/development/background-jobs.md
-        }
-    }
-}
-```
+### 1. **PortalController::report()** - API pro hlášení
+`GET/POST /api/portal/report` – hlášení je sdílené týmem příkazu (hledá se podle `id_zp`).
+Oprávnění, stavy, uložení jen vedoucím, přesměrování výplat a ochrana proti dvojímu odeslání:
+[API – hlášení](../api.md#hlášení-a-pdf).
 
 ### 2. **Report Entity** - Databázový model
 Report ukládá strukturovaná data jako JSON:
@@ -160,6 +136,10 @@ Jádro je čistý modul [`utils/vicedenniVypocet.js`](../../assets/js/apps/hlase
 3. GET /api/insyz/sazby?date=... - Aktuální sazby KČT
 4. Inicializace formuláře (prázdný nebo draft)
 ```
+
+**Oprávnění:** hlášení smí číst i ukládat jen člen týmu příkazu nebo admin – ověřuje se
+na serveru v každém volání `/api/portal/report`, ne jen v UI. Viz
+[Pravidla hlášení](../api.md#pravidla-hlášení).
 
 #### Zdroj složení značkařů + varování při změně
 Tým značkařů (`teamMembers`) řídí členy skupin cest, plátce nocležného/výdajů i výpočet náhrad:
@@ -296,10 +276,13 @@ Bezpečnost: dry-run je default; před zápisem se původní `data_a`/`data_b`/`
 
 ### Report states
 - **draft** - Rozpracováno (editovatelné)
-- **send** - Odesláno ke zpracování (async)
-- **submitted** - Přijato INSYZ systémem
-- **approved** - Schváleno v INSYZ
-- **rejected** - Zamítnuto (opět editovatelné)
+- **send** - Odesláno ke zpracování (async, zamčené)
+- **submitted** - Přijato INSYZ systémem (zamčené)
+- **approved** - Schváleno v INSYZ (zamčené)
+- **rejected** - Zamítnuto / chyba odeslání (opět editovatelné)
+
+Klient smí nastavit jen `draft` a `send`; zamčené hlášení mění jen admin. Pravidla přechodů
+a ochrana proti dvojímu odeslání do INSYZ: [Pravidla hlášení](../api.md#pravidla-hlášení).
 
 ## 🔍 Validace a kontroly
 
@@ -318,8 +301,8 @@ const canCompletePartA = useMemo(() => {
 
 ### Backend validace
 Symfony validátory kontrolují:
-- **Identifikace:** Platné ID příkazu a uživatele
-- **Stavy:** Pouze povolené přechody (draft→send→submitted)
+- **Identifikace:** Platné ID příkazu, uživatel musí být v týmu příkazu (nebo admin); ukládat a odesílat smí jen vedoucí týmu
+- **Stavy:** Klient posílá jen draft/send; odeslané hlášení (send/submitted/approved) je zamčené
 - **Kompletnost:** Před odesláním všechny povinné údaje
 
 ## 🧪 Testing workflow
@@ -382,7 +365,7 @@ Frontend zobrazí: "Odesílání trvá déle než obvykle"
 
 > Příkazy druhu `S`. Zadání: [INSYZ-280](https://insyz.atlassian.net/browse/INSYZ-280)
 > (podúkol INSYZ-278). Datový popis servisního datasetu je v
-> [prikazy-management.md](prikazy-management.md) a [../api/insyz-stored-procedures.md](../api/insyz-stored-procedures.md).
+> [prikazy-management.md](prikazy-management.md) a [insyz-integration.md](insyz-integration.md#insyz-stored-procedures).
 
 ## Čím se ZP-I liší od ZP-O
 
@@ -531,8 +514,9 @@ Struktura je stejná jako u ZP-O, liší se jen data (dohodnuto s Michalem Marko
 
 ### Mimo rozsah
 
-- **Vícedenní ZP-I** — v ticketu vedeno jako „nice to have"; vyžadovalo by označovat,
-  kdy byl zásah na kterém TIMu proveden
+- **Rozpad náhrady ZP-I po dnech** — vícedenní výpočet (stravné, nocležné po dnech) platí i pro ZP-I,
+  jen instalační náhrada je za celý příkaz (podle počtu provedených TIMů), ne po dnech. Rozpad po dnech je
+  v ticketu „nice to have"; vyžadoval by označovat, kdy byl zásah na kterém TIMu proveden
 
 ### Kontrolní formulář PDF
 
@@ -564,6 +548,6 @@ ddev exec npx vitest run          # node_modules má linuxové binárky, na host
 ---
 
 **Propojené funkcionality:** [File Management](file-management.md) | [INSYZ Integration](insyz-integration.md)  
-**API Reference:** [../api/portal-api.md](../api/portal-api.md)  
+**API Reference:** [../api.md](../api.md#hlášení-a-pdf)  
 **Technical details:** [../development/background-jobs.md](../development/background-jobs.md)  
 **Aktualizováno:** 2026-09-20 (ZP-I: kvalifikace u náhrad, souhrn části B, kontrolní formulář PDF po TIMech)

@@ -210,15 +210,6 @@ class FileAttachment
 
     public function setUsageInfo(?array $usageInfo): self
     {
-        $entityDebug = [
-            'timestamp' => date('Y-m-d H:i:s'),
-            'method' => 'FileAttachment::setUsageInfo',
-            'file_id' => $this->getId(),
-            'old_usage_info' => $this->usageInfo,
-            'new_usage_info' => $usageInfo
-        ];
-        file_put_contents(__DIR__ . '/../../var/debug-file-usage.txt', json_encode($entityDebug) . "\n", FILE_APPEND);
-        
         $this->usageInfo = $usageInfo;
         return $this;
     }

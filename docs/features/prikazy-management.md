@@ -58,16 +58,17 @@ public function getPrikaz(int $id): JsonResponse {
 ```php
 // src/Service/InsyzService.php
 public function getPrikazy(int $intAdr, ?int $year = null): array {
+    $yearParam = $year ?? date('Y');
     if ($this->useTestData()) {
-        // Testovací data z var/testdata.json
-        return $this->getTestData()['prikazy'][$year] ?? [];
+        // Mock data z var/mock-data/api/insyz/prikazy/{int_adr}-{rok}.json
+        return $this->getTestData('prikazy/' . $intAdr . '-' . $yearParam, [$intAdr, $yearParam]);
     }
     
-    // Produkční MSSQL stored procedure
-    return $this->connect("trasy.PRIKAZY_SEZNAM", [$intAdr, $year]);
+    // Produkční MSSQL stored procedure (přes ApiCacheService)
+    return $this->cacheService->getCachedPrikazy($intAdr, $year, fn(...) => $this->connect("trasy.PRIKAZY_SEZNAM", [...]));
 }
 
-public function getPrikaz(int $intAdr, int $id): array {
+public function getPrikaz(int $intAdr, int $id, bool $skipOwnerCheck = false): array {
     // Načte detail + ověří oprávnění INT_ADR
     $result = $this->connect("trasy.ZP_Detail", [$id], true);
     
@@ -271,9 +272,10 @@ if (isActiveStav(prikaz.Stav_ZP_Naz)) {
 ## 🧪 Testing
 
 ```bash
-# API testování  
-curl "https://portalznackare.ddev.site/api/test/insyz-prikazy?year=2025"
-curl "https://portalznackare.ddev.site/api/test/insyz-prikaz/123"
+# Diagnostika (admin session nebo X-Healthcheck-Token; pevně INT_ADR 5620, rok 2026 – parametry se ignorují)
+curl "https://portalznackare.ddev.site/api/test/insyz-prikazy"
+# Detail příkazu – běžný endpoint (přihlášená session + X-CSRF-Token)
+# GET /api/insyz/prikaz/123
 ```
 
 ## 🛠️ Troubleshooting
@@ -287,6 +289,6 @@ curl "https://portalznackare.ddev.site/api/test/insyz-prikaz/123"
 ---
 
 **Propojené funkcionality:** [Hlášení příkazů](hlaseni-prikazu.md) | [INSYZ Integration](insyz-integration.md)
-**API Reference:** [../api/insyz-api.md](../api/insyz-api.md) | [../api/portal-api.md](../api/portal-api.md)
+**API Reference:** [../api.md](../api.md#insyz-data)
 **Frontend:** [../architecture.md](../architecture.md)
 **Aktualizováno:** 2025-10-22 - Vyčištění neaktuální dokumentace

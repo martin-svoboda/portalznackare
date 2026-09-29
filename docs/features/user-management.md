@@ -71,39 +71,29 @@ User {
 - `roles` - Kromě ROLE_VEDOUCI
 - `preferences` - Uživatelské nastavení
 - `settings` - Aplikační konfigurace
-- `is_active` - Lokální aktivace/deaktivace
+- `is_active` - Lokální aktivace/deaktivace – deaktivovaný účet se nepřihlásí (`App\Security\UserChecker`) a běžící session skončí do 5 min (`InsyzUserProvider::refreshUser`)
 
 ## 🛠️ Správa uživatelů
 
-### Administrační rozhraní (NOVÉ)
-Od verze 2025-08-10 je k dispozici webové administrační rozhraní:
+### Administrační rozhraní
+**Přístup:** `/admin/` (dashboard), `/admin/uzivatele` (seznam uživatelů) – `ROLE_ADMIN`
+(`#[IsGranted]` na `AdminController` + `access_control ^/admin`). V `security.yaml` není `role_hierarchy`,
+takže `ROLE_SUPER_ADMIN` sám o sobě do administrace nepustí – superadmin musí mít i `ROLE_ADMIN`.
 
-**Přístup:**
-- URL: `/admin/` (dashboard) a `/admin/uzivatele` (správa uživatelů)
-- Oprávnění: ROLE_ADMIN nebo vyšší
-- Navigace: V hlavním menu sekce "Administrace" pro admin uživatele
-
-**Funkce admin rozhraní:**
-- **Dashboard** - Přehled statistik (počty uživatelů, hlášení, audit logů)
-- **Správa uživatelů** - Tabulka s filtry, správa rolí, aktivace/deaktivace
-- **✅ Audit logy** - Pokročilá tabulka s TanStack Table, grafy aktivit, export CSV
-- **INSYZ monitoring** - Sledování API performance a chyb (v přípravě)
-- **Systémová nastavení** - Správa system options (v přípravě)
+**Stránky (server-side Twig, bez vlastního API):**
+- **Dashboard** (`/admin/`) – počty uživatelů (celkem, aktivní, admini, přihlášení za 7 dní), hlášení podle stavu,
+  audit záznamy (dnes / 7 dní), INSYZ volání a chyby dnes, posledních 10 audit záznamů
+- **Uživatelé** (`/admin/uzivatele`) – jen výpis tabulkou (ID, jméno, email, role, aktivní, poslední přihlášení);
+  role ani aktivaci v UI měnit nelze – slouží k tomu console command níže
+- **Audit logy** (`/admin/audit-logy`) – posledních 100 záznamů `audit_logs`
+- **INSYZ monitoring** (`/admin/insyz-monitoring`) – posledních 100 záznamů `insyz_audit_logs`
+- **Systémová nastavení** (`/admin/system-nastaveni`) – jen `ROLE_SUPER_ADMIN`
 
 **Technická implementace:**
-- Controller: `src/Controller/AdminController.php`
-- Layout: `templates/admin.html.twig` extends `base.html.twig` s třídou `.admin`
-- React apps: `assets/js/apps/admin/admin-*` využívají existující komponenty
-- **Nové knihovny**: TanStack Table v8, Recharts pro grafy
-- Žádné custom CSS - používá existující BEM komponenty + Tailwind
-
-**Pokročilé funkce (admin-audit-logs):**
-- Server-side pagination, sorting, filtering
-- Expandable rows s detailem změn
-- Interaktivní grafy (aktivita v čase, rozdělení akcí)
-- Export do CSV
-- Rychlé filtry (dnes, 7 dní, 30 dní)
-- Real-time refresh
+- Controller: `src/Controller/AdminController.php`, šablony `templates/admin/*.html.twig`
+- Layout: `templates/admin.html.twig` (samostatný layout, `<html class="admin">`, vkládá `components/api-token.html.twig`)
+- React appky v administraci: `admin-reports-list`, `admin-report-detail`, `admin-cms-pages`,
+  `admin-cms-page-editor`, `admin-media-library` (`assets/js/apps/`)
 
 ### Console Command
 ```bash
@@ -136,28 +126,27 @@ php bin/console app:user:manage --help
 ```
 
 ### Admin API
-Kompletní správa přes [Admin API](../api/admin-api.md#user-management-api):
-- Seznam uživatelů s filtrováním
-- Změna rolí
-- Aktivace/deaktivace účtů
-- Správa preferencí a nastavení
+REST API pro správu uživatelů neexistuje. Přehled admin endpointů:
+[API – Administrace](../api.md#administrace).
 
-### Repository metody
+### Repository metody (`UserRepository`)
 ```php
-// Pokročilé vyhledávání
+$userRepository->findByIntAdr($intAdr);
+$userRepository->findByEmail($email);
+$userRepository->findOrCreateFromInsyzData($insyzData);   // vytvoření/aktualizace při přihlášení a sync
 $userRepository->findByRole('ROLE_ADMIN');
 $userRepository->findAdmins();
 $userRepository->findRecentlyActive($days);
-$userRepository->searchByName($query);
+$userRepository->search($query);
+$userRepository->getStatistics();
 ```
 
 ## 🔍 Audit Trail
 
-Všechny změny uživatelů jsou automaticky logovány:
-- Přihlášení/odhlášení
-- Změny rolí
-- Změny nastavení
-- Aktivace/deaktivace
+Logují se přihlášení a neúspěšná přihlášení (`InsyzAuthenticator` → `AuditLogger::logLogin()` / `logFailedLogin()`;
+`logLogout()` existuje, ale nikde se nevolá),
+změny rolí a aktivace z `app:user:manage` (`AuditLogger::logByIntAdr()`) a změny entit podle
+konfigurace `audit.log_entities` (`AuditEventListener`).
 
 Viz [Audit Logging](audit-logging.md) pro detaily.
 
@@ -187,15 +176,10 @@ Viz [Audit Logging](audit-logging.md) pro detaily.
 
 ## 🔧 Konfigurace
 
-### Environment variables
-```bash
-# INSYZ připojení (read-only)
-INSYZ_DB_USER=portal_user
-INSYZ_DB_PASS=secure_password
-
-# Audit retention
-AUDIT_RETENTION_DAYS=90
-```
+### INSYZ připojení
+Proměnné `INSYZ_DB_*` a `USE_TEST_DATA` – viz [configuration.md](../configuration.md).
+Retence audit logů se nastavuje system option `audit.retention_days` (stránka `/admin/system-nastaveni`),
+ne proměnnou prostředí.
 
 ### System Options
 ```json
@@ -210,22 +194,14 @@ AUDIT_RETENTION_DAYS=90
 }
 ```
 
-## 📊 Statistiky a reporty
+## 📊 Statistiky
 
-### Dostupné metriky
-- Celkový počet uživatelů
-- Aktivní vs neaktivní
-- Rozdělení podle rolí
-- Nedávná aktivita
-- Top aktivní uživatelé
-
-### API endpointy
-- GET `/api/users/stats` - Základní statistiky
-- GET `/api/audit-logs/stats` - Audit statistiky
+Statistiky uživatelů zobrazuje dashboard `/admin/` (počítá je přímo `AdminController::dashboard()`);
+`UserRepository::getStatistics()` je k dispozici pro další použití. Samostatné statistické API endpointy neexistují.
 
 ---
 
-**API dokumentace:** [../api/admin-api.md](../api/admin-api.md)  
+**API dokumentace:** [../api.md](../api.md#administrace)  
 **Audit systém:** [audit-logging.md](audit-logging.md)  
 **Autentifikace:** [authentication.md](authentication.md)  
-**Aktualizováno:** 2025-08-13
+**Aktualizováno:** 2026-09-27

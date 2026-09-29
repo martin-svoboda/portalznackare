@@ -21,7 +21,7 @@
 ### Přehled
 Kompletní CMS slouží ke správě statických stránek, dokumentace, metodik a FAQ položek. Poskytuje WYSIWYG editor s podporou bohatého formátování a kompletní správu životního cyklu obsahu.
 
-**API dokumentace:** [docs/api/cms-api.md](../api/cms-api.md)
+**API dokumentace:** [docs/api.md](../api.md#administrace)
 
 ### Použité technologie
 - **Backend**: Symfony 6.4 + PostgreSQL
@@ -793,7 +793,7 @@ class ContentAnalyticsService
 
 ---
 
-**CMS API Reference:** [../api/cms-api.md](../api/cms-api.md)
+**CMS API Reference:** [../api.md](../api.md#administrace)
 **File Management:** [../features/file-management.md](../features/file-management.md)
 **Services Configuration:** [../configuration.md](../configuration.md)
 **Metodiky Live:** [/metodika](/metodika) (když aplikace běží)

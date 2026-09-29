@@ -143,24 +143,15 @@ const handleSubmit = (formData) => {
 ## Test API Endpointy
 
 **Base URL:** `/api/test/`  
-**Účel:** Development nástroje pro testování a debugging  
-**Dostupné pouze v development módu**
+**Účel:** Diagnostika a CI health check  
+**Přístup:** přihlášený `ROLE_ADMIN`/`ROLE_SUPER_ADMIN`, nebo hlavička `X-Healthcheck-Token` = `CI_HEALTHCHECK_TOKEN`; jinak `403`
 
 ### GET `/api/test/insyz-user`
-Test uživatelských dat z INSYZ bez autentifikace.
-
-**Response:**
-```json
-{
-    "INT_ADR": 1234,
-    "JMENO": "Test",
-    "PRIJMENI": "Značkář",
-    "EMAIL": "test@test.com"
-}
-```
+Vrací `InsyzService::getUser(5620)` – datasety `trasy.ZNACKAR_DETAIL` pro pevně daný INT_ADR 5620
+(v režimu `USE_TEST_DATA` z `var/mock-data/api/insyz/user/5620.json`).
 
 ### GET `/api/test/insyz-prikazy`
-Test seznam příkazů z INSYZ bez autentifikace.
+Vrací `InsyzService::getPrikazy(5620, 2026)` – pevně daný INT_ADR a rok.
 
 ### GET `/api/test/mssql-connection`
 Test MSSQL připojení a konfigurace.
@@ -173,8 +164,11 @@ Test MSSQL připojení a konfigurace.
 }
 ```
 
+Mimo test mode zkusí PDO připojení `sqlsrv` s `INSYZ_DB_*` a `SELECT 1`; vrací `status: success` nebo `500`
+(heslo v odpovědi maskované).
+
 ### POST `/api/test/login-test`
-Test login mechanismu s debug informacemi.
+Test `InsyzService::loginUser()` s debug informacemi (bez vytvoření session).
 
 **Request:**
 ```json
@@ -183,6 +177,8 @@ Test login mechanismu s debug informacemi.
     "hash": "test123"
 }
 ```
+(`hash` nebo `password`). **Response:** `{"status": "debug", "config": {...}, "login_result": {"success": true, "int_adr": 5620}}`,
+při chybě `500` se `status: error`.
 
 ## Nástroje a rozšíření
 
@@ -424,5 +420,5 @@ ps aux | grep messenger:consume
 **Related:** [Toast System](toast-system.md) | [Getting Started](getting-started.md)  
 **Architecture:** [../architecture.md](../architecture.md) - Cache a performance architektury  
 **INSYZ Integration:** [../features/insyz-integration.md](../features/insyz-integration.md) - Cache troubleshooting  
-**API Integration:** [../api/portal-api.md](../api/portal-api.md)  
+**API Integration:** [../api.md](../api.md)  
 **Updated:** 2025-08-08

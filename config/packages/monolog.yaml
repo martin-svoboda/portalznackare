@@ -6,15 +6,19 @@ monolog:
 when@dev:
     monolog:
         handlers:
+            # Rotace po dnech (dev.log → dev-YYYY-MM-DD.log), 7 dní – na DEV serveru
+            # jeden soubor narostl na 2,2 GB
             main:
-                type: stream
+                type: rotating_file
                 path: "%kernel.logs_dir%/%kernel.environment%.log"
+                max_files: 7
                 level: debug
                 channels: ["!event", "!api"]
             # API monitoring logs - separátní soubor pro snadnější analýzu
             api:
-                type: stream
+                type: rotating_file
                 path: "%kernel.logs_dir%/api.log"
+                max_files: 7
                 level: info
                 channels: [api]
             # uncomment to get logging in your browser

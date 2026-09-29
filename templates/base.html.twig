@@ -10,6 +10,7 @@
     <meta name="apple-mobile-web-app-title" content="Portál Zn." />
     <link rel="manifest" href="{{ path('app_manifest') }}" />
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    {% include 'components/api-token.html.twig' %}
 
     {% set is_dev = app.environment != 'prod' %}
 

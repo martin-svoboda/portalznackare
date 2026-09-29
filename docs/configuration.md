@@ -37,6 +37,23 @@ DEBUG_APPS=false                 # Frontend console logging
 # HTTP Basic Auth (volitelné)
 HTTP_AUTH_USER=developer         # Pokud nastaveno, vyžaduje autorizaci
 HTTP_AUTH_PASS=secure_pass
+
+# Tajné hodnoty – v .env je jen placeholder/prázdno, skutečné hodnoty v .env.local na serveru
+INSYZ_REPORT_HASH_SECRET=...     # Podpis URL náhledu hlášení, identický s INSYZ
+CI_HEALTHCHECK_TOKEN=...         # Token pro /api/test/* z CI (= GitHub secret HEALTHCHECK_TOKEN); prázdný = jen admin
+
+# Desktopový klient INSYZ (POST /api/insyz-client/db-password) – viz docs/api.md (Desktopový klient INSYZ)
+INSYZ_CLIENT_REQUIRE_HTTPS=true  # false jen v lokálním vývoji; jinak požadavek po HTTP → 401
+INSYZ_PWD_DB6273_2=              # Hesla vydávaných DB účtů (config/services.yaml, insyz_client.accounts)
+INSYZ_PWD_DB6266_2=
+INSYZ_PWD_DB6285_2=
+
+# CORS (config/packages/nelmio_cors.yaml) – regex povolených originů
+CORS_ALLOW_ORIGIN='^https?://(localhost|127\.0\.0\.1|dev\.portalznackare\.cz|portalznackare\.cz)(:[0-9]+)?$'
+
+# Messenger – proměnná je v .env, ale config/packages/messenger.yaml ji NEPOUŽÍVÁ
+# (transporty async/failed mají DSN natvrdo doctrine://default)
+MESSENGER_TRANSPORT_DSN=doctrine://default?auto_setup=0
 ```
 
 ## 🔒 Security Configuration
@@ -46,21 +63,41 @@ HTTP_AUTH_PASS=secure_pass
 # config/packages/framework.yaml
 framework:
     session:
-        handler_id: session.handler.native_file
+        handler_id: null          # výchozí PHP session handler
         cookie_secure: auto
-        cookie_httponly: true
         cookie_samesite: lax
+        gc_maxlifetime: 28800     # 8 hodin (pracovní den)
+        cookie_lifetime: 28800
 ```
 
 ### CSRF Protection
-```yaml
-# config/packages/framework.yaml
-framework:
-    csrf_protection: true
-```
+Klíč `csrf_protection` v `framework.yaml` nastaven není (platí výchozí hodnota Symfony). Interní API chrání
+`ApiCsrfListener` – viz následující sekce.
+
+### Interní API – jen ze stránek portálu (`ApiCsrfListener`)
+Každý požadavek na `/api/*` a `/admin/api/*` musí nést hlavičku `X-CSRF-Token` s tokenem vázaným na session,
+jinak `403` (`error_code: CSRF_INVALID`, hlavička `X-CSRF-Invalid: 1`).
+
+- Token vkládá `templates/components/api-token.html.twig` (meta `csrf-token`) do `<head>` layoutů `base` i `admin`.
+  Tamtéž je **globální obal `fetch`**, který hlavičku přidá automaticky ke každému volání interního API –
+  appky, `api.js` ani inline skripty nic řešit nemusí. Nový layout musí šablonu také vložit.
+- Po vypršení session obal zavolá `GET /api/auth/csrf-token`, získá nový token a požadavek jednou zopakuje.
+- **Výjimky** (seznam `VYJIMKY` v `src/EventListener/ApiCsrfListener.php`): `/api/insyz-client/` (desktopový klient,
+  vlastní ověření), `/api/test/` (CI token), `/api/auth/logout` (odkaz), `/api/auth/csrf-token`.
+- Chrání před voláním z cizích webů. Přihlášený uživatel si token vidí, proto oprávnění musí dál kontrolovat
+  každý endpoint sám.
+
+### CORS
+Jen `config/packages/nelmio_cors.yaml` – whitelist `CORS_ALLOW_ORIGIN`, bez credentials. Cizí origin nedostane
+`Access-Control-Allow-Origin`, API je tak čitelné jen ze stejné domény.
+
+### Symfony Profiler (jen `APP_ENV=dev`)
+Profiler (`/_profiler`, `/_wdt`) ukládá požadavky **všech** uživatelů včetně cookies, těl POST a konfigurace.
+Proto je přístupný jen přihlášenému `ROLE_SUPER_ADMIN` (`access_control` v `security.yaml`; firewall `dev`
+ho záměrně nevyjímá). Nepřihlášený je přesměrován na přihlášení, debug toolbar se mu nenačte.
 
 ### HTTP Basic Auth
-Volitelná HTTP Basic autentifikace aktivovaná environment proměnnými:
+Volitelná HTTP Basic autentifikace aktivovaná environment proměnnými (platí bez výjimek, i pro `/_profiler`):
 
 ```php
 // src/EventListener/HttpBasicAuthListener.php
@@ -98,7 +135,7 @@ security:
     
     access_control:
         - { path: ^/api/auth/login, roles: PUBLIC_ACCESS }
-        - { path: ^/api/test/, roles: PUBLIC_ACCESS }
+        - { path: ^/api/test/, roles: PUBLIC_ACCESS }   # ověření admin/CI token v TestControlleru
         - { path: ^/api, roles: ROLE_USER }
 ```
 
@@ -125,28 +162,9 @@ services:
 ```
 
 ### INSYZ Service
-```php
-// src/Service/InsyzService.php
-class InsyzService {
-    public function __construct(
-        private bool $useTestData,
-        private MockMSSQLService $mockService,
-        private string $insyzDbHost,
-        private string $insyzDbName,
-        private string $insyzDbUser,
-        private string $insyzDbPass
-    ) {}
-    
-    public function getConnection(): \PDO {
-        if ($this->useTestData) {
-            throw new \Exception('Mock mode - no real connection');
-        }
-        
-        $dsn = "sqlsrv:Server={$this->insyzDbHost};Database={$this->insyzDbName}";
-        return new \PDO($dsn, $this->insyzDbUser, $this->insyzDbPass);
-    }
-}
-```
+`src/Service/InsyzService.php` – autowiring (`MssqlConnector`, `ApiCacheService`, `InsyzAuditLogger`…).
+Režim čte za běhu z `$_ENV['USE_TEST_DATA']` (`'true'` = mock data z `var/mock-data/api/insyz/`,
+jinak MSSQL přes `MssqlConnector` s `INSYZ_DB_*`). Detail: [features/insyz-integration.md](features/insyz-integration.md).
 
 ### Visual Services
 Služby pro generování značek a TIM náhledů:

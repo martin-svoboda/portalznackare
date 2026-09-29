@@ -428,8 +428,8 @@ class TimService
 
         // Spodní řádek s rokem a ID
         $html .= '<div style="display: block; width: 100%; min-height: 16px;">';
-        $html .= '<div style="display: inline-block; text-align: left; font-size: 10px; color: black; width: 50%">'.($item['Rok_Vyroby'] ?? '').'</div>';
-        $html .= '<div style="display: inline-block; text-align: right; font-size: 10px; color: black; width: 50%">'.($item['EvCi_TIM'] ?? '').($item['Predmet_Index'] ?? '').'</div>';
+        $html .= '<div style="display: inline-block; text-align: left; font-size: 10px; color: black; width: 50%">'.htmlspecialchars((string) ($item['Rok_Vyroby'] ?? ''), ENT_QUOTES, 'UTF-8').'</div>';
+        $html .= '<div style="display: inline-block; text-align: right; font-size: 10px; color: black; width: 50%">'.htmlspecialchars(($item['EvCi_TIM'] ?? '').($item['Predmet_Index'] ?? ''), ENT_QUOTES, 'UTF-8').'</div>';
         $html .= '</div>';
 
         $html .= '</div>'; // konec obsahu

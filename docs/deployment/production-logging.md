@@ -98,33 +98,31 @@ php bin/console cache:clear --env=prod
 ```
 
 ### 3. Verification
+Na produkci (`when@prod` v `config/packages/monolog.yaml`) jdou logy aplikace do **stderr**
+(→ error log PHP-FPM / webserveru) a `App\Utils\Logger` používá `error_log()` – soubor `var/log/prod.log` nevzniká.
+Do souboru se zapisuje jen kanál `api`: `var/log/api.log` (rotace 14 souborů).
 ```bash
-# Test logging works correctly
-grep "Logger::" /path/to/logs/prod.log
+# Chyby aplikace – v error logu PHP-FPM / webserveru (cesta dle konfigurace serveru)
+grep "ERROR" /cesta/k/php-fpm-nebo-webserver/error.log
+
+# Volání INSYZ API
+tail -f var/log/api.log
 ```
 
 ## 🔍 Monitoring
 
 ### Production Log Monitoring
 ```bash
-# Monitor critical errors only
-tail -f /var/log/app/prod.log | grep "ERROR"
+# Chyby aplikace (stderr → error log PHP-FPM / webserveru)
+tail -f /cesta/k/php-fpm-nebo-webserver/error.log | grep "ERROR"
 
-# Monitor INSYZ integration
-tail -f /var/log/app/prod.log | grep "INSYZ"
+# INSYZ API volání
+tail -f var/log/api.log
 ```
 
 ### Log Rotation
-```logrotate
-/var/log/app/*.log {
-    daily
-    missingok
-    rotate 30
-    compress
-    notifempty
-    create 644 www-data www-data
-}
-```
+`var/log/api.log` rotuje Monolog sám (`rotating_file`, 14 souborů). Rotaci error logu PHP-FPM / webserveru
+řeší konfigurace serveru.
 
 ## 🔒 Security Notes
 

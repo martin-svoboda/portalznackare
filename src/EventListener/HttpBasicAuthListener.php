@@ -34,11 +34,7 @@ class HttpBasicAuthListener
             return;
         }
 
-        // Vynechat systémové cesty
-        if ($this->shouldSkipAuth($request)) {
-            return;
-        }
-        
+        // Bez výjimek – ani /_profiler a /_wdt (obsahují požadavky všech uživatelů)
         // Zkontrolovat HTTP Basic Auth
         $providedUser = $request->server->get('PHP_AUTH_USER');
         $providedPass = $request->server->get('PHP_AUTH_PW');
@@ -51,19 +47,5 @@ class HttpBasicAuthListener
             );
             $event->setResponse($response);
         }
-    }
-
-    private function shouldSkipAuth($request): bool
-    {
-        $excludePaths = ['/_wdt', '/_profiler'];
-        $path = $request->getPathInfo();
-        
-        foreach ($excludePaths as $excludePath) {
-            if (str_starts_with($path, $excludePath)) {
-                return true;
-            }
-        }
-        
-        return false;
     }
 }

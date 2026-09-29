@@ -16,7 +16,7 @@ Po přihlášení máte přístup k těmto sekcím:
 
 **Detail příkazu** - Detailní informace o konkrétním příkazu s možností přejít na hlášení práce
 
-**Hlášení práce** - Formulář pro vyplnění hlášení o provedené práci
+**Hlášení práce** - Formulář pro vyplnění a odeslání hlášení o provedené práci (vyplňuje a odesílá vedoucí týmu příkazu)
 
 **Metodika** - Kompletní metodika značení turistických tras s navigací
 

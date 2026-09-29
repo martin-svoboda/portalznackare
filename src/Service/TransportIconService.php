@@ -128,31 +128,49 @@ class TransportIconService {
 
 		$iconMap = $this->getIconMap();
 
+		// Výstup je HTML (web i PDF ho vkládají bez escapování), proto se text z INSYZ
+		// escapuje – ale až mimo kódy ikon: escapování celého textu předem by z "&bus"
+		// udělalo "&amp;bus" a kód by se nerozpoznal.
+		$escape = static fn( string $s ): string => htmlspecialchars( $s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8' );
+
 		// Najdi všechny výskyty &NĚCO nebo &NĚCO,NĚCO2,NĚCO3 (včetně diakritiky)
 		// Použití \p{L} pro všechna unicode písmena (velká i malá)
-		return preg_replace_callback( '/&([\p{L}.,]+)/u', function ( $matches ) use ( $iconMap, $iconSize, $hideIcon, $forPdf ) {
-			$iconKeys = explode( ',', $matches[1] );
-			$result   = '';
+		$parts  = preg_split( '/(&[\p{L}.,]+)/u', $text, -1, PREG_SPLIT_DELIM_CAPTURE );
+		$result = '';
+		foreach ( $parts as $i => $part ) {
+			// Liché indexy jsou zachycené kódy ikon, sudé obyčejný text
+			$result .= $i % 2 === 0
+				? $escape( $part )
+				: $this->renderIconCodes( substr( $part, 1 ), $iconMap, $iconSize, $hideIcon, $forPdf, $escape );
+		}
 
-			foreach ( $iconKeys as $iconKey ) {
-				$iconKey = trim( $iconKey );
-				// Normalizuj klíč - uppercase a odstraň interpunkci
-				// mb_strtoupper pro správnou konverzi českých znaků (ž -> Ž)
-				$normalizedKey = mb_strtoupper( preg_replace( '/[.,]/', '', $iconKey ), 'UTF-8' );
+		return $result;
+	}
 
-				if ( isset( $iconMap[ $normalizedKey ] ) ) {
-					if ( ! $hideIcon ) {
-						$methodName = $iconMap[ $normalizedKey ];
-						$result     .= '<span style="display: inline-flex; align-items: center; margin: 0 2px;">' . $this->$methodName( $iconSize, $forPdf ) . '</span>';
-					}
-					// Pokud hideIcon = true, nepřidáváme nic (ikona se odebere)
-				} else {
-					// Pokud ikonu nenajdeme, vrať původní text bez &
-					$result .= $iconKey;
+	/**
+	 * Vykreslí ikony pro kódy "NĚCO,NĚCO2" (bez úvodního &); neznámý kód vrátí escapovaný bez &.
+	 */
+	private function renderIconCodes( string $codes, array $iconMap, int $iconSize, bool $hideIcon, bool $forPdf, callable $escape ): string {
+		$result = '';
+
+		foreach ( explode( ',', $codes ) as $iconKey ) {
+			$iconKey = trim( $iconKey );
+			// Normalizuj klíč - uppercase a odstraň interpunkci
+			// mb_strtoupper pro správnou konverzi českých znaků (ž -> Ž)
+			$normalizedKey = mb_strtoupper( preg_replace( '/[.,]/', '', $iconKey ), 'UTF-8' );
+
+			if ( isset( $iconMap[ $normalizedKey ] ) ) {
+				if ( ! $hideIcon ) {
+					$methodName = $iconMap[ $normalizedKey ];
+					$result     .= '<span style="display: inline-flex; align-items: center; margin: 0 2px;">' . $this->$methodName( $iconSize, $forPdf ) . '</span>';
 				}
+				// Pokud hideIcon = true, nepřidáváme nic (ikona se odebere)
+			} else {
+				// Pokud ikonu nenajdeme, vrať původní text bez &
+				$result .= $escape( $iconKey );
 			}
+		}
 
-			return $result;
-		}, $text );
+		return $result;
 	}
 }

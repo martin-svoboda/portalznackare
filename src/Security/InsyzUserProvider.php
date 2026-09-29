@@ -81,7 +81,14 @@ class InsyzUserProvider implements UserProviderInterface
             return $user; // User je aktuální, nerefresh
         }
 
-        return $this->loadUserByIdentifier((string)$user->getIntAdr());
+        $refreshed = $this->loadUserByIdentifier((string)$user->getIntAdr());
+
+        // Deaktivovaný v průběhu session → odhlásit (UserNotFoundException zruší přihlášení)
+        if ($refreshed instanceof User && !$refreshed->isActive()) {
+            throw new UserNotFoundException(sprintf('User "%s" is deactivated.', $user->getIntAdr()));
+        }
+
+        return $refreshed;
     }
 
     public function supportsClass(string $class): bool

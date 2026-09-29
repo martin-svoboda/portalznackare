@@ -205,6 +205,6 @@ V `base.html.twig` musí být načtený toast-system.js entry:
 
 ---
 
-**Related:** [Debug System](development.md) | [API Integration](../api/portal-api.md)  
+**Related:** [Debug System](development.md) | [API](../api.md)  
 **Architecture:** [../architecture.md](../architecture.md)  
 **Updated:** 2025-08-07

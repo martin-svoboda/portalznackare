@@ -17,7 +17,7 @@ User Input → InsyzAuthenticator → InsyzUserProvider → Symfony Security →
 - **Hybrid autentifikace:** JSON API + HTML forms
 - **Session-based:** Přihlášení uloženo v session, ne JWT tokeny
 - **INSYZ integrace:** Ověření credentials přes INSYZ/MSSQL
-- **Local DB sync:** Automatická synchronizace s PostgreSQL při přihlášení
+- **Local DB sync:** Uživatel se z INSYZ načte a uloží do PostgreSQL, jen když v lokální DB není (nebo není aktivní)
 - **Role-based access:** ROLE_USER, ROLE_VEDOUCI (INSYZ) + ROLE_ADMIN (local)
 
 ## 📋 API Endpointy
@@ -58,217 +58,106 @@ Přihlášení uživatele (zpracovává Symfony Security).
 }
 ```
 
-**Response (úspěch):**
+Přijímá JSON i klasický formulář (`username`, `password`). Jako každé `/api/*` volání vyžaduje hlavičku
+`X-CSRF-Token` (přidává ji obal `fetch` v layoutu, viz [configuration.md](../configuration.md)).
+
+**Response (JSON request, úspěch)** – vrací `InsyzAuthenticator::onAuthenticationSuccess()`:
 ```json
 {
     "success": true,
-    "user": {...},
-    "message": "Přihlášení bylo úspěšné"
+    "redirect_url": null,
+    "user": {"INT_ADR": 1234, "Jmeno": "...", "Prijmeni": "...", "eMail": "...", "Prukaz_znackare": "...", "roles": ["ROLE_USER"]}
 }
 ```
+U formulářového požadavku následuje redirect (na uloženou `login_redirect_url`, jinak `/`).
 
-### POST `/api/auth/logout`
-Odhlášení uživatele a zrušení session.
+**Omezení neúspěšných pokusů** (`InsyzAuthenticator` + `InsyzClientThrottler`, konfigurace v `services.yaml`):
+- per e-mail (normalizovaný, malá písmena): 5 neúspěchů / 15 min; per IP: 20 / 15 min,
+- při blokaci se INSYZ nevolá a pokus se nepočítá (blokace se neprodlužuje) → `429`
+  s hláškou „Příliš mnoho neúspěšných pokusů o přihlášení. Zkuste to znovu za X min.“,
+- úspěšné přihlášení nuluje čítač e-mailu (IP ne),
+- `POST /api/insyz/login` (ověření údajů bez přihlášení) jen pro `ROLE_ADMIN` – INSYZ tester.
+- Testy: `tests/Security/InsyzAuthenticatorThrottleTest.php`
 
-**Response:**
+### `/api/auth/logout`
+Odhlášení řeší Symfony firewall (`logout.path`), po odhlášení **redirect na `/`** (žádná JSON odpověď).
+Je ve výjimkách `ApiCsrfListener` – volá se obyčejným odkazem.
+
+### GET `/api/auth/me` (`AuthApiController`, `ROLE_USER`)
+Detail přihlášeného uživatele z DB (serializační skupina `user:read`) a odvozená oprávnění:
 ```json
 {
-    "success": true,
-    "message": "Odhlášení bylo úspěšné"
+    "user": {"id": 1, "intAdr": 1234, "email": "...", "jmeno": "...", "prijmeni": "...", "roles": ["ROLE_USER"], "...": "..."},
+    "permissions": {
+        "can_manage_users": false, "can_view_audit_logs": false, "can_manage_system_options": false,
+        "can_export_data": false, "is_super_admin": false
+    },
+    "from_session": false,
+    "database_user_found": true
 }
 ```
+Když uživatel v DB není, vrací jen `int_adr`, `email`, `jmeno`, `prijmeni`, `roles` s `from_session: true`.
+
+### GET `/api/auth/csrf-token` (veřejný)
+Vrátí nový API token pro aktuální session: `{"token": "..."}` (`Cache-Control: no-store`). Volá ho obal `fetch`,
+když server odpoví `403` s hlavičkou `X-CSRF-Invalid`. Viz [configuration.md](../configuration.md).
 
 ## 🛠️ Backend Security komponenty
 
-### 1. **InsyzAuthenticator** - Custom authenticator
+### 1. **InsyzAuthenticator** (`src/Security/InsyzAuthenticator.php`)
+- `supports()` – jen `POST /api/auth/login`
+- `authenticate()` – čte `username`/`password` z JSON nebo formuláře, kontroluje throttling, volá
+  `InsyzService::loginUser()` a vrací `SelfValidatingPassport` s `UserBadge(INT_ADR)` a `RememberMeBadge`
+- `onAuthenticationSuccess()` – nastaví `last_login_at`, doplní výchozí preference
+  (`UserPreferenceService::ensureUserPreferences()`), zapíše `user_login` do auditu, vrátí JSON nebo redirect
+- `onAuthenticationFailure()` – započítá pokus do throttlingu a zapíše `user_login_failed`
 
-```php
-// src/Security/InsyzAuthenticator.php
-class InsyzAuthenticator extends AbstractAuthenticator 
-{
-    public function supports(Request $request): ?bool {
-        // Podporuje pouze POST na /api/auth/login
-        return $request->getPathInfo() === '/api/auth/login' 
-            && $request->isMethod('POST');
-    }
-    
-    public function authenticate(Request $request): Passport {
-        // Hybrid JSON/form support
-        if ($request->getContentType() === 'json') {
-            $data = json_decode($request->getContent(), true);
-            $username = $data['username'] ?? '';
-            $password = $data['password'] ?? '';
-        } else {
-            // Standard HTML form data
-            $username = $request->request->get('username', '');
-            $password = $request->request->get('password', '');
-        }
-        
-        // INSYZ ověření
-        $intAdr = $this->insyzService->loginUser($username, $password);
-        
-        // Vytvoř passport s user badge
-        return new SelfValidatingPassport(
-            new UserBadge((string)$intAdr, function ($userIdentifier) {
-                return $this->userProvider->loadUserByIdentifier($userIdentifier);
-            }),
-            [new RememberMeBadge()]
-        );
-    }
-}
-```
+### 2. **InsyzUserProvider** (`src/Security/InsyzUserProvider.php`)
+- `loadUserByIdentifier(INT_ADR)` – když uživatel **existuje v DB a je aktivní**, vrátí ho bez volání INSYZ;
+  jinak načte `InsyzService::getUser()` (dataset `[0][0]`) a zavolá `UserRepository::findOrCreateFromInsyzData()`
+  (vytvoření nebo `User::updateFromInsyzData()` – lokální `ROLE_ADMIN`/`ROLE_SUPER_ADMIN` zůstávají,
+  `ROLE_VEDOUCI` podle `Vedouci_dvojice`)
+- `refreshUser()` – uživatele znovu načte, jen pokud je jeho `updated_at` starší než 5 minut
 
-### 2. **InsyzUserProvider** - User loading z INSYZ + DB sync
+### 3. **ApiAuthenticationEntryPoint** (`src/Security/ApiAuthenticationEntryPoint.php`)
+Nepřihlášený požadavek na `/api/*` → JSON `{"error": true, "message": "Authentication required", "code": 401}`;
+ostatní URL → redirect na `/prihlaseni?redirect=<původní URL>`.
 
-```php
-// src/Security/InsyzUserProvider.php
-class InsyzUserProvider implements UserProviderInterface 
-{
-    public function loadUserByIdentifier(string $identifier): UserInterface {
-        // Identifier je INT_ADR z INSYZ
-        $userData = $this->insyzService->getUser((int)$identifier);
-        
-        // Synchronizace s lokální DB
-        $dbUser = $this->userRepository->findByIntAdr((int)$identifier);
-        
-        if (!$dbUser) {
-            // Vytvoř nového uživatele v DB
-            $dbUser = User::createFromInsyzData($userData);
-            $this->entityManager->persist($dbUser);
-        } else {
-            // Aktualizuj existujícího
-            $dbUser->updateFromInsyzData($userData);
-        }
-        
-        // Ulož last_login_at
-        $dbUser->setLastLoginAt(new \DateTimeImmutable());
-        $this->entityManager->flush();
-        
-        // Vytvoř session User objekt
-        $user = new \App\Entity\User(
-            (string)($userData['INT_ADR'] ?? ''),
-            $userData['eMail'] ?? '',
-            $userData['Jmeno'] ?? '',
-            $userData['Prijmeni'] ?? ''
-        );
-        
-        // Role assignment - kombinace INSYZ + lokální DB
-        $roles = $dbUser->getRoles();
-        if (!empty($userData['Vedouci_dvojice']) && $userData['Vedouci_dvojice'] === '1') {
-            if (!in_array('ROLE_VEDOUCI', $roles)) {
-                $roles[] = 'ROLE_VEDOUCI';
-            }
-        }
-        $user->setRoles($roles);
-        
-        return $user;
-    }
-}
-```
-
-### 3. **ApiAuthenticationEntryPoint** - API error handling
-
-```php
-// src/Security/ApiAuthenticationEntryPoint.php
-class ApiAuthenticationEntryPoint implements AuthenticationEntryPointInterface 
-{
-    public function start(Request $request, AuthenticationException $authException = null): Response {
-        // JSON error pro neautentifikované API požadavky
-        return new JsonResponse([
-            'error' => true,
-            'message' => 'Authentication required',
-            'code' => 401
-        ], Response::HTTP_UNAUTHORIZED);
-    }
-}
-```
-
-### 4. **User Entities** - Session vs DB
-
-```php
-// src/Entity/User.php - Session User (implements UserInterface)
-class User implements UserInterface 
-{
-    // Lightweight session object
-    public function __construct(
-        private string $intAdr,
-        private string $email, 
-        private string $jmeno,
-        private string $prijmeni,
-        private array $roles = ['ROLE_USER']
-    ) {}
-}
-
-// src/Entity/User.php - DB User Entity (Doctrine)
-#[ORM\Entity(repositoryClass: UserRepository::class)]
-class User 
-{
-    #[ORM\Id]
-    #[ORM\GeneratedValue]
-    private ?int $id = null;
-    
-    #[ORM\Column(unique: true)]
-    private int $intAdr;
-    
-    #[ORM\Column(type: 'json')]
-    private array $roles = ['ROLE_USER'];
-    
-    #[ORM\Column(type: 'json')]
-    private array $preferences = [];
-    
-    #[ORM\Column(type: 'json')]
-    private array $settings = [];
-    
-    #[ORM\Column]
-    private bool $isActive = true;
-    
-    // Synchronizace s INSYZ
-    public static function createFromInsyzData(array $data): self;
-    public function updateFromInsyzData(array $data): self;
-}
-```
+### 4. **User entita** (`src/Entity/User.php`)
+Jediná třída – Doctrine entita i `UserInterface` pro session. Pole viz [user-management.md](user-management.md);
+synchronizace `createFromInsyzData()` / `updateFromInsyzData()`.
 
 ## 🔧 Security konfigurace
 
 ### Symfony Security (config/packages/security.yaml)
-
+Zkráceně (úplná konfigurace v souboru):
 ```yaml
 security:
     providers:
         insyz_provider:
             id: App\Security\InsyzUserProvider
-    
     firewalls:
-        # API endpoints firewall
-        api:
-            pattern: ^/api
-            stateless: false                    # Session-based, ne stateless
-            provider: insyz_provider
-            context: shared_context             # Sdílený kontext mezi API a web
-            entry_point: App\Security\ApiAuthenticationEntryPoint
-            custom_authenticator: App\Security\InsyzAuthenticator
-            remember_me:
-                secret: '%kernel.secret%'
-                lifetime: 604800                # 1 týden
-            logout:
-                path: /api/auth/logout
-                target: /
-                
-        # Web pages firewall 
+        dev:                      # jen statické ^/(css|images|js)/, security: false
         main:
             pattern: ^/
+            lazy: true
             provider: insyz_provider
-            context: shared_context             # Sdílený s API
-    
+            custom_authenticator: App\Security\InsyzAuthenticator
+            remember_me: { lifetime: 604800 }   # 1 týden
+            logout: { path: /api/auth/logout, target: / }
+            entry_point: App\Security\ApiAuthenticationEntryPoint
     access_control:
-        # Public API endpoints
+        - { path: ^/(_profiler|_wdt), roles: ROLE_SUPER_ADMIN }
         - { path: ^/api/auth/login, roles: PUBLIC_ACCESS }
         - { path: ^/api/auth/status, roles: PUBLIC_ACCESS }
-        - { path: ^/api/test/, roles: PUBLIC_ACCESS }
-        
-        # Protected API endpoints
+        - { path: ^/api/auth/csrf-token$, roles: PUBLIC_ACCESS }
+        - { path: ^/api/test/, roles: PUBLIC_ACCESS }                      # ověření v TestControlleru
+        - { path: ^/api/insyz-client/db-password$, roles: PUBLIC_ACCESS }
+        - { path: ^/admin, roles: ROLE_ADMIN }
         - { path: ^/api, roles: ROLE_USER }
+        # + stránky /prikazy, /prikaz/, /profil, /metodika, /napoveda, /downloads → ROLE_USER
 ```
+`role_hierarchy` není definována – `ROLE_SUPER_ADMIN` neobsahuje automaticky `ROLE_ADMIN`.
 
 
 ## 🔄 Authentication flow
@@ -395,9 +284,9 @@ flag neposílá, kontrola se přeskočí (graceful fallback během přechodu).
 5. Subsequent API calls automaticky authorized
 
 // Session data uložena:
-- User object s INSYZ daty (INT_ADR, jméno, email, roles)
-- Remember me cookie (pokud selected)
-- Session storage (default: files)
+- security token s entitou User (INT_ADR, jméno, email, roles)
+- Remember me cookie (RememberMeBadge)
+- Session storage: výchozí PHP handler (handler_id: null)
 ```
 
 ### 4. **Authorization check**
@@ -419,44 +308,17 @@ if (!$this->isGranted('ROLE_VEDOUCI')) {
 $prikazy = $this->insyzService->getPrikazy($user->getIntAdr(), $year);
 ```
 
-### 5. **React authentication check**
-
-```javascript
-// Auth check v React apps
-useEffect(() => {
-    fetch('/api/auth/status', {
-        credentials: 'same-origin'
-    })
-    .then(response => {
-        if (response.status === 401) {
-            // Redirect k přihlášení
-            window.location.href = '/dashboard';
-            return;
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (data.authenticated) {
-            setUser(data.user);
-        }
-    });
-}, []);
-
-// API calls s automatickou session auth
-const response = await fetch('/api/insyz/prikazy', {
-    credentials: 'same-origin'  // Session cookies
-});
-```
+### 5. **React / frontend**
+React appky stav přihlášení samy nezjišťují – stránky chrání `access_control` a Twig. API volání posílají
+session cookie (same-origin) a hlavičku `X-CSRF-Token` doplňuje globální obal `fetch`. `GET /api/auth/status`
+je veřejný endpoint pro zjištění stavu přihlášení (frontend ho aktuálně nevolá).
 
 ## 🔒 Security features
 
 ### 1. **CSRF Protection**
-```php
-// Pro HTML forms (automaticky v Twig)
-<input type="hidden" name="_token" value="{{ csrf_token('authenticate') }}">
-
-// API calls mají CSRF disabled pro JSON content-type
-```
+Formulářový Symfony CSRF token (`_token`) přihlašovací formulář nepoužívá. Všechna volání `/api/*`
+a `/admin/api/*` (včetně `POST /api/auth/login`) chrání `ApiCsrfListener` hlavičkou `X-CSRF-Token` –
+viz [configuration.md](../configuration.md).
 
 ### 2. **Remember Me**
 ```yaml
@@ -469,18 +331,12 @@ remember_me:
 ```
 
 ### 3. **Session Security**
-```php
-// Session timeout (Symfony default)
-// session.gc_maxlifetime = 1440 sekund (24 min)
-
-// Secure cookies v production
-// session.cookie_secure = true  (HTTPS only)
-// session.cookie_httponly = true (no JS access)
-```
+`config/packages/framework.yaml`: `cookie_secure: auto` (secure cookie při HTTPS), `cookie_samesite: lax`,
+výchozí PHP session handler; `gc_maxlifetime` i `cookie_lifetime` = 28800 s (8 hodin).
 
 ### 4. **Role-based access**
 ```php
-// Role hierarchy
+// Role (bez role_hierarchy)
 ROLE_USER         // Základní přihlášený uživatel
 ROLE_VEDOUCI      // Vedoucí dvojice (z INSYZ)
 ROLE_ADMIN        // Administrátor portálu (lokální)
@@ -491,11 +347,8 @@ if (!$this->isGranted('ROLE_ADMIN')) {
     throw new AccessDeniedException();
 }
 
-// Role management přes Admin API
-PUT /api/users/{id}/roles
-{
-    "roles": ["ROLE_USER", "ROLE_ADMIN"]
-}
+// Role se spravují console commandem (REST API pro role neexistuje)
+// php bin/console app:user:manage role 12345 --role=ROLE_ADMIN --add
 ```
 
 
@@ -503,41 +356,22 @@ PUT /api/users/{id}/roles
 ## 🔐 Production security checklist
 
 ### Environment variables
-```bash
-# .env.local (production)
-APP_ENV=prod
-APP_SECRET=random-32-character-secret-key-here
-SESSION_HANDLER_DSN=redis://localhost:6379  # Pro Redis sessions
-
-# INSYZ credentials  
-USE_TEST_DATA=false
-INSYZ_DB_HOST=secure.mssql.server
-INSYZ_DB_USER=limited_portal_user  # Ne admin!
-INSYZ_DB_PASS=complex_secure_password
-```
+Viz [configuration.md](../configuration.md) (`APP_SECRET`, `USE_TEST_DATA=false`, `INSYZ_DB_*`, `CI_HEALTHCHECK_TOKEN`…).
 
 ### Security headers
-```yaml
-# TODO: Implementovat security headers
-# - Content-Security-Policy
-# - X-Frame-Options: DENY
-# - X-Content-Type-Options: nosniff
-# - Strict-Transport-Security (HTTPS)
-```
+Nastavuje `src/EventListener/SecurityHeadersListener.php` (`X-Content-Type-Options`, `X-Frame-Options: SAMEORIGIN`,
+`Referrer-Policy`, `Content-Security-Policy` …).
 
-### Session security
-```php
-// TODO: Redis session storage pro production
-// session.save_handler = redis
-// session.save_path = "tcp://localhost:6379"
-```
+### Session
+`config/packages/framework.yaml`: `handler_id: null` (výchozí PHP session handler), `cookie_secure: auto`,
+`cookie_samesite: lax`, session 8 hodin (`gc_maxlifetime` / `cookie_lifetime` 28800).
 
 ---
 
 **User Management:** [user-management.md](user-management.md)
 **Audit Logging:** [audit-logging.md](audit-logging.md)
-**Admin API:** [../api/admin-api.md](../api/admin-api.md)
+**Admin API:** [../api.md](../api.md#administrace)
 **INSYZ Integration:** [insyz-integration.md](insyz-integration.md)
-**API Reference:** [../api/insyz-api.md](../api/insyz-api.md)
+**API Reference:** [../api.md](../api.md#přihlášení)
 **Configuration:** [../configuration.md](../configuration.md)
 **Aktualizováno:** 2026-05-10 - Sjednocená návratová struktura WEB_Login (Email_nalezen, Heslo_se_shoduje, WEBUser); konkrétní české chybové hlášky pro uživatele.

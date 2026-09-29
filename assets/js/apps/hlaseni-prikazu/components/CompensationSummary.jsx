@@ -17,6 +17,82 @@ const hasAttachments = (prilohy) => {
     return false;
 };
 
+// Výpisy níže jsou JSX, ne HTML řetězce: texty od uživatele (místa, zařízení,
+// položky, SPZ) React escapuje, takže je nejde zneužít k vložení skriptu (XSS).
+const Chybi = ({children}) => <span className="text-red-500 font-bold">{children}</span>;
+
+const Doklad = ({prilohy}) => hasAttachments(prilohy)
+    ? <span className="text-green-600">(✓ doklad)</span>
+    : <span className="text-orange-500">(⚠ chybí doklad)</span>;
+
+const formatDatum = (datum) => new Date(datum).toLocaleDateString('cs-CZ');
+
+// Popis jedné cesty člena (trasa + způsob dopravy)
+const renderSegmentDetail = (segment, member, compact, formatCurrency) => {
+    const trasa = compact ? (
+        <>{segment.Misto_Odjezdu || '?'} – {segment.Misto_Prijezdu || '?'}</>
+    ) : (
+        <>
+            {segment.Datum ? <strong>{formatDatum(segment.Datum)}</strong> : <Chybi>chybí datum</Chybi>}
+            {' z '}
+            {segment.Misto_Odjezdu ? <strong>{segment.Misto_Odjezdu}</strong> : <Chybi>chybí místo</Chybi>}
+            {' v '}
+            {segment.Cas_Odjezdu ? <strong>{segment.Cas_Odjezdu}</strong> : <Chybi>chybí čas</Chybi>}
+            {' do '}
+            {segment.Misto_Prijezdu ? <strong>{segment.Misto_Prijezdu}</strong> : <Chybi>chybí místo</Chybi>}
+            {' v '}
+            {segment.Cas_Prijezdu ? <strong>{segment.Cas_Prijezdu}</strong> : <Chybi>chybí čas</Chybi>}
+        </>
+    );
+
+    if (segment.Druh_Dopravy === "AUV" || segment.Druh_Dopravy === "AUV-Z") {
+        if (compact) {
+            return <>{trasa}: Autem {segment.Kilometry || '?'} km</>;
+        }
+        return (
+            <>
+                {trasa}: Autem{' '}
+                {segment.Kilometry ? <strong>{segment.Kilometry} km</strong> : <Chybi>chybí kilometry</Chybi>}
+                {' jako '}
+                {segment.isDriver
+                    ? <>řidič SPZ: <strong>{segment.SPZ || <Chybi>chybí</Chybi>}</strong></>
+                    : 'spolujezdec'}
+            </>
+        );
+    }
+
+    if (segment.Druh_Dopravy === "V") {
+        // ROZLIŠIT NULL vs. 0: NULL (nevyplněné) = žluté "nezadáno" (varování);
+        // zadaná 0 (volná jízda) = platná hodnota, černě, bez varování.
+        const rawNaklad = (member?.INT_ADR && segment.Naklady && typeof segment.Naklady === 'object')
+            ? segment.Naklady[member.INT_ADR] : undefined;
+        const jeNull = rawNaklad === undefined || rawNaklad === null;
+        const jizdne = jeNull
+            ? (compact ? <strong>—</strong> : <span className="text-yellow-600">nezadáno</span>)
+            : <strong>{formatCurrency(rawNaklad)}</strong>;
+
+        // Doklad vyžadovat jen když někdo na segmentu vykázal >0
+        // (když oba/všichni vykážou 0, doklad se nevyžaduje)
+        const nekdoPlati = segment.Naklady && typeof segment.Naklady === 'object'
+            && Object.values(segment.Naklady).some(v => v > 0);
+
+        return (
+            <>
+                {trasa}: Jízdné {jizdne}
+                {!compact && nekdoPlati && <> <Doklad prilohy={segment.Prilohy}/></>}
+            </>
+        );
+    }
+
+    if (segment.Druh_Dopravy === "P") {
+        return <>{trasa}: Pěšky</>;
+    }
+    if (segment.Druh_Dopravy === "K") {
+        return <>{trasa}: Na kole</>;
+    }
+    return trasa;
+};
+
 // Member compensation detail component for compact mode
 const MemberCompensationDetail = ({
                                       member,
@@ -147,81 +223,13 @@ const MemberCompensationDetail = ({
                 }) || []).map((segment, index) => {
                     if (!segment || !segment.Druh_Dopravy) return null;
 
-                    let detail = "";
-                    if (compact) {
-                        detail = `${segment.Misto_Odjezdu || '?'} – ${segment.Misto_Prijezdu || '?'}`;
-                    } else {
-                        const mistoOdjezdu = segment.Misto_Odjezdu ?
-                            `<strong>${segment.Misto_Odjezdu}</strong>` :
-                            '<span class="text-red-500 font-bold">chybí místo</span>';
-                        const casOdjezdu = segment.Cas_Odjezdu ?
-                            `<strong>${segment.Cas_Odjezdu}</strong>` :
-                            '<span class="text-red-500 font-bold">chybí čas</span>';
-                        const mistoPrijezdu = segment.Misto_Prijezdu ?
-                            `<strong>${segment.Misto_Prijezdu}</strong>` :
-                            '<span class="text-red-500 font-bold">chybí místo</span>';
-                        const casPrijezdu = segment.Cas_Prijezdu ?
-                            `<strong>${segment.Cas_Prijezdu}</strong>` :
-                            '<span class="text-red-500 font-bold">chybí čas</span>';
-                        const datum = segment.Datum ?
-                            `<strong>${new Date(segment.Datum).toLocaleDateString('cs-CZ')}</strong>` :
-                            '<span class="text-red-500 font-bold">chybí datum</span>';
-
-                        detail = `${datum} z ${mistoOdjezdu} v ${casOdjezdu} do ${mistoPrijezdu} v ${casPrijezdu}`;
-                    }
-
-                    if (segment.Druh_Dopravy === "AUV" || segment.Druh_Dopravy === "AUV-Z") {
-                        if (compact) {
-                            detail = `${detail}: Autem ${segment.Kilometry} km`;
-                        } else {
-                            const kilometry = segment.Kilometry ?
-                                `<strong>${segment.Kilometry || 0} km</strong>` :
-                                '<span class="text-red-500 font-bold">chybí kilometry</span>';
-                            const ridic = segment.isDriver ?
-                                `řidič SPZ: <strong>${segment.SPZ ||
-                                <span className="text-red-500 font-bold">chybí</span>}</strong>` :
-                                'spolujezdec';
-
-                            detail = `${detail}: Autem ${kilometry} jako ${ridic}`;
-                        }
-                    } else if (segment.Druh_Dopravy === "V") {
-                        // ROZLIŠIT NULL vs. 0: NULL (nevyplněné) = žluté "nezadáno" (varování);
-                        // zadaná 0 (volná jízda) = platná hodnota, černě, bez varování.
-                        const rawNaklad = (member?.INT_ADR && segment.Naklady && typeof segment.Naklady === 'object')
-                            ? segment.Naklady[member.INT_ADR] : undefined;
-                        const jeNull = rawNaklad === undefined || rawNaklad === null;
-                        if (jeNull) {
-                            detail = `${detail}: Jízdné ${!compact ? '<span class="text-yellow-600">nezadáno</span>' : '<strong>—</strong>'}`;
-                        } else {
-                            detail = `${detail}: Jízdné <strong>${formatCurrency(rawNaklad)}</strong>`;
-                        }
-
-                        // Doklad vyžadovat jen když někdo na segmentu vykázal >0
-                        // (když oba/všichni vykážou 0, doklad se nevyžaduje)
-                        const nekdoPlati = segment.Naklady && typeof segment.Naklady === 'object'
-                            && Object.values(segment.Naklady).some(v => v > 0);
-                        if (!compact && nekdoPlati) {
-                            const prilohy = hasAttachments(segment.Prilohy) ?
-                                '<span class="text-green-600">(✓ doklad)</span>' :
-                                '<span class="text-orange-500">(⚠ chybí doklad)</span>'
-
-                            detail = `${detail} ${prilohy}`;
-                        }
-                    } else if (segment.Druh_Dopravy === "P") {
-                        detail = `${detail}: Pěšky`;
-                    } else if (segment.Druh_Dopravy === "K") {
-                        detail = `${detail}: Na kole`;
-                    }
-
-                    if (detail) {
-                        return (
-                            <div key={segment.id || index}
-                                 className={`${smallTextSize} text-muted ml-4 ${segment.Druh_Dopravy === "AUV" && !segment.isDriver ? "opacity-65" : ""}`}
-                                 dangerouslySetInnerHTML={{__html: detail}}
-                            />
-                        );
-                    }
-                    return null;
+                    return (
+                        <div key={segment.id || index}
+                             className={`${smallTextSize} text-muted ml-4 ${segment.Druh_Dopravy === "AUV" && !segment.isDriver ? "opacity-65" : ""}`}
+                        >
+                            {renderSegmentDetail(segment, member, compact, formatCurrency)}
+                        </div>
+                    );
                 })}
             </div>
 
@@ -290,17 +298,15 @@ const MemberCompensationDetail = ({
                         <div className="space-y-1">
                             {formData.Noclezne.filter(noc => noc.Zaplatil == member?.INT_ADR).map((noc, index) => (
                                 <div key={noc.id || index} className={`${smallTextSize} text-muted ml-4`}>
-                                    <div dangerouslySetInnerHTML={{
-                                        __html: `
-                                        ${noc.Datum ? new Date(noc.Datum).toLocaleDateString('cs-CZ') : '<span class="text-red-500 font-bold">chybí datum</span>'}:
-                                        ${noc.Zarizeni || '<span class="text-red-500 font-bold">chybí zařízení</span>'} 
-                                        v ${noc.Misto || '<span class="text-red-500 font-bold">chybí místo</span>'}
-                                        za <strong>${formatCurrency(noc.Castka || 0)}</strong>
-                                        ${hasAttachments(noc.Prilohy) ?
-                                            `<span class="text-green-600">(✓ doklad)</span>` :
-                                            '<span class="text-orange-500">(⚠ chybí doklad)</span>'}
-                                    `
-                                    }}/>
+                                    <div>
+                                        {noc.Datum ? formatDatum(noc.Datum) : <Chybi>chybí datum</Chybi>}:{' '}
+                                        {noc.Zarizeni || <Chybi>chybí zařízení</Chybi>}
+                                        {' v '}
+                                        {noc.Misto || <Chybi>chybí místo</Chybi>}
+                                        {' za '}
+                                        <strong>{formatCurrency(noc.Castka || 0)}</strong>{' '}
+                                        <Doklad prilohy={noc.Prilohy}/>
+                                    </div>
                                 </div>
                             ))}
                             {formData.Noclezne.filter(noc => noc.Zaplatil == member?.INT_ADR).length === 0 && (
@@ -324,16 +330,13 @@ const MemberCompensationDetail = ({
                         <div className="space-y-1">
                             {formData.Vedlejsi_Vydaje.filter(vydaj => vydaj.Zaplatil == member?.INT_ADR).map((vydaj, index) => (
                                 <div key={vydaj.id || index} className={`${smallTextSize} text-muted ml-4`}>
-                                    <div dangerouslySetInnerHTML={{
-                                        __html: `
-                                        ${vydaj.Datum ? new Date(vydaj.Datum).toLocaleDateString('cs-CZ') : '<span class="text-red-500 font-bold">chybí datum</span>'}:
-                                        ${vydaj.Polozka || '<span class="text-red-500 font-bold">chybí popis položky</span>'}
-                                        za <strong>${formatCurrency(vydaj.Castka || 0)}</strong>
-                                        ${hasAttachments(vydaj.Prilohy) ?
-                                            `<span class="text-green-600">(✓ doklad)</span>` :
-                                            '<span class="text-orange-500">(⚠ chybí doklad)</span>'}
-                                    `
-                                    }}/>
+                                    <div>
+                                        {vydaj.Datum ? formatDatum(vydaj.Datum) : <Chybi>chybí datum</Chybi>}:{' '}
+                                        {vydaj.Polozka || <Chybi>chybí popis položky</Chybi>}
+                                        {' za '}
+                                        <strong>{formatCurrency(vydaj.Castka || 0)}</strong>{' '}
+                                        <Doklad prilohy={vydaj.Prilohy}/>
+                                    </div>
                                 </div>
                             ))}
                             {formData.Vedlejsi_Vydaje.filter(vydaj => vydaj.Zaplatil == member?.INT_ADR).length === 0 && (

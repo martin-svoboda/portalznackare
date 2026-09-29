@@ -213,12 +213,14 @@ export const AdvancedFileUpload = ({
 
     // Image compression
     const compressImage = async (file, maxWidth = 1920, quality = 0.8) => {
-        return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
             const img = new Image();
+            const url = URL.createObjectURL(file);
 
             img.onload = () => {
+                URL.revokeObjectURL(url);
                 let {width, height} = img;
                 if (width > maxWidth) {
                     height = (height * maxWidth) / width;
@@ -229,6 +231,10 @@ export const AdvancedFileUpload = ({
                 ctx.drawImage(img, 0, 0, width, height);
 
                 canvas.toBlob((blob) => {
+                    if (!blob) {
+                        resolve(file); // komprese se nepovedla – nahrát originál
+                        return;
+                    }
                     const compressedFile = new File([blob], file.name, {
                         type: 'image/jpeg',
                         lastModified: Date.now(),
@@ -236,7 +242,13 @@ export const AdvancedFileUpload = ({
                     resolve(compressedFile);
                 }, 'image/jpeg', quality);
             };
-            img.src = URL.createObjectURL(file);
+            // Prohlížeč obrázek nepřečte (např. HEIC v Chrome) – bez onerror by nahrávání
+            // zamrzlo; volající pak nahraje původní soubor
+            img.onerror = () => {
+                URL.revokeObjectURL(url);
+                reject(new Error(`Obrázek nelze načíst: ${file.name}`));
+            };
+            img.src = url;
         });
     };
 
@@ -568,12 +580,14 @@ export const AdvancedFileUpload = ({
         return fileType === 'application/pdf';
     };
 
+    // Aktuální stream pro vypnutí kamery při odpojení (cleanup s [] by viděl jen počáteční null)
+    const streamRef = useRef(null);
+    useEffect(() => { streamRef.current = stream; }, [stream]);
+
     // Cleanup on unmount
     useEffect(() => {
         return () => {
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-            }
+            streamRef.current?.getTracks().forEach(track => track.stop());
             // Cleanup URLs
             files.forEach(file => {
                 if (file.url) URL.revokeObjectURL(file.url);

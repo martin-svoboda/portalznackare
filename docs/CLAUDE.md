@@ -1,40 +1,52 @@
 # AI Documentation Rules
 
 ## Core Principles
-1. **Minimalizace a konsolidace** - Preferuj 1 velký soubor před 5 malými soubory
+1. **Minimalismus** - Programová dokumentace je jen pro zorientování v kódu (co kde je, jak to spolu souvisí). Podrobnosti patří do komentářů v kódu, ne do docs.
 2. **Jediný zdroj pravdy** - Žádné duplicity, vše na jednom místě
 3. **Funkční organizace** - Group by features, not by code structure  
 4. **Cross-linking mandatory** - Always link related documents
-5. **NIKDY nevytvářej nové soubory** pokud není absolutně nutné
+5. **Nový soubor jen když informaci nejde zařadit do existujícího** – jinak doplnit sekci do existujícího souboru
+6. **API = jeden přehled** – endpointy se nepopisují po jednom souboru; stačí výpis endpointů se základními informacemi a tabulkou parametrů
 
-## Současná konsolidovaná struktura (PO REORGANIZACI)
+## Současná struktura dokumentace
 ```
-✅ AKTUÁLNÍ STAV (2025-07-31):
+✅ AKTUÁLNÍ STAV (2026-09-29, ověřeno přes ls):
 docs/
+├── CLAUDE.md                # Pravidla pro AI (tento soubor)
+├── AUDIT-REPORT-2025.md     # Audit dokumentace 2025
 ├── overview.md              # Hlavní index + navigace
-├── architecture.md          # Konsolidace 4 souborů (1322→150 řádků)
-├── configuration.md         # Konsolidace 5 souborů (1519→200 řádků) - JEDINÝ ZDROJ ENV
+├── architecture.md          # Architektura (frontend + backend)
+├── configuration.md         # Konfigurace - JEDINÝ ZDROJ ENV
 ├── deployment.md            # Deployment proces
-├── migration.md             # WordPress migrace + React refactoring (800 řádků)
-├── features/               # Funkční oblasti (7 souborů)
+├── migration.md             # WordPress migrace + React refactoring
+├── deployment/             # (1 soubor)
+│   └── production-logging.md
+├── features/               # Funkční oblasti (12 souborů)
+│   ├── admin-media-library.md
+│   ├── admin-vypis-hlaseni.md
+│   ├── audit-logging.md
 │   ├── authentication.md
 │   ├── content-management.md
 │   ├── file-management.md
-│   ├── hlaseni-prikazu.md  
+│   ├── hlaseni-prikazu.md
+│   ├── insyz-hash-nahled-hlaseni.md
 │   ├── insyz-integration.md
 │   ├── localization.md
-│   └── prikazy-management.md
-├── api/                    # API dokumentace (2 soubory)
-│   ├── insyz-api.md
-│   └── portal-api.md
-└── development/            # Developer docs (4 soubory)
-    ├── development.md      # Debug systém + workflow
-    ├── getting-started.md  # Instalace
-    ├── insyz-api-tester.md
-    └── visual-components.md
+│   ├── prikazy-management.md
+│   └── user-management.md
+├── api.md                   # Přehled všech API endpointů (jediný soubor)
+├── development/            # Developer docs (8 souborů)
+│   ├── background-jobs.md
+│   ├── commands.md
+│   ├── development.md      # Debug systém + workflow
+│   ├── getting-started.md  # Instalace
+│   ├── global-state-badges.md
+│   ├── insyz-api-tester.md
+│   ├── toast-system.md
+│   └── visual-components.md
+└── superpowers/            # Návrhy a plány (specs/ 3 soubory, plans/ 4 soubory)
 
-CELKEM: 11 souborů (bylo 20+)
-REDUKCE: 45% méně souborů, 60% méně složek
+CELKEM: 29 .md souborů mimo superpowers/ (+ 7 v superpowers/)
 ```
 
 ## Document Template (Mandatory Structure)
@@ -64,8 +76,8 @@ REDUKCE: 45% méně souborů, 60% méně složek
 ### New Feature Added to Codebase
 ```
 ✅ MANDATORY CHECKLIST:
-□ Create/update docs/features/feature-name.md
-□ Add API docs in docs/api/ if relevant
+□ Doplnit stručně existující docs/features/ dokument (nový soubor jen když nejde zařadit jinam)
+□ Nový endpoint = řádek v přehledu endpointů v docs/api.md (metoda, cesta, oprávnění, parametry)
 □ Update docs/overview.md with cross-link
 □ Update related documents with cross-references
 □ Test all new links work
@@ -112,7 +124,7 @@ find docs/ -name "*.md" -mtime -1       # Recently changed docs
 
 ## Red Flags for AI (AKTUALIZOVÁNY PRO NOVOU STRUKTURU)
 - New code functionality without corresponding docs/features/ update
-- API changes without docs/api/ documentation  
+- API changes without docs/api.md update  
 - New services without updating configuration.md (konsolidovaný soubor)
 - Environment variables added without updating configuration.md (JEDINÝ ZDROJ)
 - Broken cross-links between documents
@@ -123,18 +135,18 @@ find docs/ -name "*.md" -mtime -1       # Recently changed docs
 ## AI Decision Rules
 
 ### When User Asks for New Feature
-1. **First**: Create docs/features/new-feature.md with planned structure
-2. **Then**: Implement code following the documented plan
-3. **Finally**: Update documentation with actual implementation details
+1. Implementovat, podrobnosti popsat komentáři v kódu
+2. Stručně doplnit orientační info do existujícího docs/features/ dokumentu (nový soubor jen když nejde zařadit jinam)
+3. Nové endpointy doplnit do přehledu v docs/api.md
 
 ### When User Reports Bug/Issue
 1. Check if existing docs/features/ document needs troubleshooting update
-2. If fix changes API, update docs/api/ documentation
+2. If fix changes API, update docs/api.md
 3. If fix changes configuration, update configuration.md (konsolidovaný soubor)
 
 ### When Refactoring Code
 1. Identify all affected documentation files
-2. Update before making code changes
+2. Update after the code change (stručně, jen orientační info)
 3. Verify all cross-links still work after changes
 
 ## Link Management
@@ -145,9 +157,9 @@ find docs/ -name "*.md" -mtime -1       # Recently changed docs
 ## Pravidla minimalizace (NOVÁ PRAVIDLA 2025-07-31)
 
 ### Priorita konsolidace
-1. **1 velký soubor > 5 malých** - Vždy preferuj rozšíření existujícího
+1. **Rozšiř existující** - nový soubor jen když informaci nejde zařadit do existujícího
 2. **Žádné duplicity** - configuration.md je JEDINÝ zdroj pro ENV proměnné
-3. **Žádné nové soubory** - Pouze pokud uživatel explicitně požádá
+3. **Stručnost** - žádné podrobné rozpisy a kopie kódu; detaily jsou v komentářích v kódu
 4. **Chybí soubor?** - Raději přidej sekci do existujícího než vytvoř nový
 
 ### Workflow pro úpravy dokumentace
@@ -167,4 +179,4 @@ find docs/ -name "*.md" -mtime -1       # Recently changed docs
 
 ---
 **This file optimized for AI workflow automation.**
-**Updated:** 2025-07-31 - Major reorganization completed
+**Updated:** 2026-09-29 - API sloučeno do docs/api.md

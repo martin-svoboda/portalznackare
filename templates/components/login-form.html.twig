@@ -5,8 +5,8 @@
   - title: Form title (default: 'Přihlášení')
   - description: Form description (optional)
   - action_url: Form action URL (default: api_auth_login route)
-  - username_placeholder: Username field placeholder (default: 'test@test.com')
-  - password_placeholder: Password field placeholder (default: 'test123')
+  - username_placeholder: Username field placeholder (default: 'např. jan.novak@email.cz')
+  - password_placeholder: Password field placeholder (default: žádný)
   - submit_text: Submit button text (default: 'Přihlásit se')
   - show_flash_messages: true/false (default: true)
 #}
@@ -37,17 +37,18 @@
             {% endif %}
             
             <div class="form-group">
-                <label class="form__label">Email:</label>
+                <label class="form__label" for="login-username">Email:</label>
                 <input type="email" name="username" required class="form__input"
-                       placeholder="{{ username_placeholder|default('test@test.com') }}">
+                       id="login-username" autocomplete="username"
+                       placeholder="{{ username_placeholder|default('např. jan.novak@email.cz') }}">
             </div>
             
             <div class="form-group">
-                <label class="form__label">Heslo:</label>
+                <label class="form__label" for="login-password">Heslo:</label>
                 <div class="form__input-wrapper">
                     <input type="password" name="password" required class="form__input form__input--with-icon"
-                           placeholder="{{ password_placeholder|default('test123') }}"
-                           id="login-password">
+                           placeholder="{{ password_placeholder|default('') }}"
+                           id="login-password" autocomplete="current-password">
                     <button type="button"
                             class="form__input-icon form__input-icon--toggle"
                             aria-label="Zobrazit heslo"

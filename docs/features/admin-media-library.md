@@ -68,7 +68,7 @@ Twig Template  Grid View   FileController  SQL Parsing
 ### FileAttachmentRepository Methods
 
 #### getFolderStructure()
-**Lokace:** `FileAttachmentRepository.php:198`
+**Lokace:** `FileAttachmentRepository::getFolderStructure()`
 
 Parsuje složky z existing `storage_path` column - **ŽÁDNÁ nová DB migrace**.
 
@@ -109,7 +109,7 @@ public function getFolderStructure(): array
 ```
 
 #### findForLibrary($filters)
-**Lokace:** `FileAttachmentRepository.php:225`
+**Lokace:** `FileAttachmentRepository::findForLibrary()`
 
 Filtrovaný listing souborů pro media library.
 
@@ -186,7 +186,7 @@ $files = $repository->findForLibrary([
 ### API Endpoints
 
 #### GET `/api/portal/files/folders`
-**Lokace:** `FileController.php:243`
+**Lokace:** `FileController::getFolders()`
 **Security:** `ROLE_ADMIN` required
 
 Vrátí seznam složek s počty souborů.
@@ -196,13 +196,12 @@ Vrátí seznam složek s počty souborů.
 {
     "success": true,
     "folders": [
-        {"name": "methodologies", "count": 12},
-        {"name": "reports", "count": 32},
-        {"name": "temp", "count": 5},
-        {"name": "users", "count": 8}
+        {"name": "reports", "path": "reports", "depth": 0, "count": 32},
+        {"name": "2025", "path": "reports/2025", "depth": 1, "count": 30}
     ]
 }
 ```
+Plochý seznam všech úrovní `storage_path` (seřazený podle `path`); `count` = soubory ve složce vč. podsložek.
 
 **Curl test:**
 ```bash
@@ -212,7 +211,7 @@ curl -X GET "https://portalznackare.ddev.site/api/portal/files/folders" \
 ```
 
 #### GET `/api/portal/files/library`
-**Lokace:** `FileController.php:269`
+**Lokace:** `FileController::getLibrary()`
 **Security:** `ROLE_ADMIN` required
 
 Vrátí seznam souborů s filtrováním.
@@ -222,6 +221,7 @@ Vrátí seznam souborů s filtrováním.
 - `usage` - Filter podle použití (`all` / `used` / `unused`)
 - `type` - Filter podle typu (`all` / `images` / `pdfs` / `documents`)
 - `search` - Fulltext search v názvu souboru
+- `uploadedBy` - Filter podle INT_ADR uploadera
 
 **Response:**
 ```json
@@ -231,16 +231,22 @@ Vrátí seznam souborů s filtrováním.
         {
             "id": 123,
             "fileName": "photo.jpg",
-            "url": "/uploads/reports/2025/praha/1/123/abc123def456/photo.jpg",
-            "thumbnailUrl": "/uploads/reports/2025/praha/1/123/thumb_abc123def456/photo.jpg",
+            "storedName": "abc123def456.jpg",
             "fileSize": 1048576,
             "fileType": "image/jpeg",
+            "url": "/uploads/reports/2025/praha/1/123/abc123def456/photo.jpg",
+            "thumbnailUrl": "/uploads/reports/2025/praha/1/123/thumb_abc123def456.jpg",
+            "storagePath": "reports/2025/praha/1/123",
+            "uploadedAt": "2025-01-15T10:30:00+00:00",
+            "uploadedBy": 4133,
+            "usageCount": 2,
+            "usageInfo": {"reports": {"123": ["Prilohy_NP"]}},
+            "isTemporary": false,
             "isPublic": false,
-            "uploadedBy": "Jan Novák",
-            "createdAt": "2025-01-15T10:30:00+00:00",
-            "usageCount": 2
+            "metadata": {}
         }
-    ]
+    ],
+    "count": 1
 }
 ```
 
@@ -716,7 +722,7 @@ curl "https://portalznackare.ddev.site/api/portal/files/library?folder=reports&u
 
 ### Documentation
 - [x] Feature documentation: `docs/features/admin-media-library.md`
-- [ ] API documentation: `docs/api/media-library.md`
+- [ ] API documentation: `docs/api.md`
 - [ ] Update: `docs/overview.md` with cross-links
 
 ## ✅ Aktuální Stav (2025-11-11)
@@ -747,7 +753,7 @@ curl "https://portalznackare.ddev.site/api/portal/files/library?folder=reports&u
 
 **Related Documentation:**
 - **File Management:** [file-management.md](file-management.md)
-- **API Reference:** [../api/admin-api.md#media-library-api](../api/admin-api.md#media-library-api)
+- **API Reference:** [../api.md#soubory](../api.md#soubory)
 - **Admin Features:** [content-management.md](content-management.md)
 - **Main Overview:** [../overview.md](../overview.md)
 

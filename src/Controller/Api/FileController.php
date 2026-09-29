@@ -67,18 +67,6 @@ class FileController extends AbstractController
             }
             
             // Add entity type and ID for usage tracking
-            $controllerDebug = [
-                'timestamp' => date('Y-m-d H:i:s'),
-                'method' => 'FileController::upload',
-                'has_entity_type' => $request->request->has('entity_type'),
-                'has_entity_id' => $request->request->has('entity_id'),
-                'has_field_name' => $request->request->has('field_name'),
-                'entity_type_value' => $request->request->get('entity_type'),
-                'entity_id_value' => $request->request->get('entity_id'),
-                'field_name_value' => $request->request->get('field_name')
-            ];
-            file_put_contents($this->getParameter('kernel.project_dir') . '/var/debug-file-usage.txt', json_encode($controllerDebug) . "\n", FILE_APPEND);
-            
             if ($request->request->has('entity_type')) {
                 $options['entity_type'] = $request->request->get('entity_type');
             }
@@ -89,13 +77,6 @@ class FileController extends AbstractController
                 $options['field_name'] = $request->request->get('field_name');
             }
             
-            $controllerDebug2 = [
-                'timestamp' => date('Y-m-d H:i:s'),
-                'method' => 'FileController::upload',
-                'final_options' => $options
-            ];
-            file_put_contents($this->getParameter('kernel.project_dir') . '/var/debug-file-usage.txt', json_encode($controllerDebug2) . "\n", FILE_APPEND);
-
             $uploadedFiles = [];
             $errors = [];
 
@@ -200,8 +181,13 @@ class FileController extends AbstractController
         }
 
         $file = $this->fileUploadService->getFile($id, $user);
-        
-        if (!$file) {
+
+        // ID jsou postupná – chráněný soubor (účtenky, fotky z hlášení) vydat jen tomu, kdo ho
+        // nahrál, nebo adminovi. Ostatním 404, aby nešlo zjistit ani existenci.
+        if (!$file || (!$file->isPublic()
+            && (int)$file->getUploadedBy() !== (int)$user->getIntAdr()
+            && !$this->isGranted('ROLE_ADMIN'))
+        ) {
             return new JsonResponse([
                 'error' => 'Soubor nenalezen'
             ], Response::HTTP_NOT_FOUND);
@@ -377,6 +363,10 @@ class FileController extends AbstractController
             ], Response::HTTP_BAD_REQUEST);
         }
 
+        if ($denied = $this->denyUnlessUsageAllowed((int)$data['fileId'], $user)) {
+            return $denied;
+        }
+
         $file = $this->fileUploadService->addFileUsage(
             (int)$data['fileId'],
             $data['type'],
@@ -419,6 +409,10 @@ class FileController extends AbstractController
             ], Response::HTTP_BAD_REQUEST);
         }
 
+        if ($denied = $this->denyUnlessUsageAllowed((int)$data['fileId'], $user)) {
+            return $denied;
+        }
+
         $file = $this->fileUploadService->removeFileUsage(
             (int)$data['fileId'],
             $data['type'],
@@ -440,6 +434,24 @@ class FileController extends AbstractController
                 'isTemporary' => $file->isTemporary()
             ]
         ]);
+    }
+
+    /**
+     * Evidenci použití (na ní závisí úklid nepoužívaných souborů) smí měnit jen ten,
+     * kdo soubor nahrál, nebo admin – stejně jako mazání a editaci.
+     */
+    private function denyUnlessUsageAllowed(int $fileId, User $user): ?JsonResponse
+    {
+        $file = $this->fileUploadService->getFile($fileId, $user);
+        if (!$file) {
+            return new JsonResponse(['error' => 'Soubor nenalezen'], Response::HTTP_NOT_FOUND);
+        }
+
+        if ((int)$file->getUploadedBy() !== (int)$user->getIntAdr() && !$this->isGranted('ROLE_ADMIN')) {
+            return new JsonResponse(['error' => 'Nemáte oprávnění měnit použití tohoto souboru'], Response::HTTP_FORBIDDEN);
+        }
+
+        return null;
     }
 
     #[Route('/orphaned-references', methods: ['GET'])]

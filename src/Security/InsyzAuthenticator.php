@@ -2,6 +2,7 @@
 
 namespace App\Security;
 
+use App\Service\InsyzClientThrottler;
 use App\Service\InsyzService;
 use App\Service\AuditLogger;
 use App\Service\UserPreferenceService;
@@ -12,7 +13,9 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Security\Core\Exception\CustomUserMessageAuthenticationException;
+use Symfony\Component\Security\Core\Exception\TooManyLoginAttemptsAuthenticationException;
 use Symfony\Component\Security\Http\Authenticator\AbstractAuthenticator;
 use Symfony\Component\Security\Http\Authenticator\Passport\Badge\UserBadge;
 use Symfony\Component\Security\Http\Authenticator\Passport\Badge\RememberMeBadge;
@@ -21,12 +24,19 @@ use Symfony\Component\Security\Http\Authenticator\Passport\SelfValidatingPasspor
 
 class InsyzAuthenticator extends AbstractAuthenticator
 {
+    private const THROTTLE_SCOPE = 'login';
+
     public function __construct(
         private InsyzService $insyzService,
         private InsyzUserProvider $userProvider,
         private AuditLogger $auditLogger,
         private UserRepository $userRepository,
-        private UserPreferenceService $userPreferenceService
+        private UserPreferenceService $userPreferenceService,
+        // Neúspěšné pokusy: per e-mail (5 / 15 min) a per IP (20 / 15 min), viz services.yaml
+        #[Autowire(service: 'app.login_throttler.email')]
+        private InsyzClientThrottler $emailThrottler,
+        #[Autowire(service: 'app.login_throttler.ip')]
+        private InsyzClientThrottler $ipThrottler
     ) {}
 
     public function supports(Request $request): ?bool
@@ -39,7 +49,7 @@ class InsyzAuthenticator extends AbstractAuthenticator
     public function authenticate(Request $request): Passport
     {
         // Podporuj jak JSON data (pro AJAX), tak form data (pro HTML formuláře)
-        if ($request->getContentType() === 'json') {
+        if ($request->getContentTypeFormat() === 'json') {
             $data = json_decode($request->getContent(), true);
             $username = $data['username'] ?? '';
             $password = $data['password'] ?? '';
@@ -51,6 +61,19 @@ class InsyzAuthenticator extends AbstractAuthenticator
 
         if (empty($username) || empty($password)) {
             throw new CustomUserMessageAuthenticationException('Vyplňte prosím email a heslo.');
+        }
+
+        // Při blokaci se INSYZ vůbec nevolá (a pokus se nepočítá – blokace se neprodlužuje)
+        $email = $this->normalizeEmail($username);
+        $ip = (string) $request->getClientIp();
+        if ($this->emailThrottler->isBlocked(self::THROTTLE_SCOPE, $email)
+            || $this->ipThrottler->isBlocked(self::THROTTLE_SCOPE, $ip)
+        ) {
+            $wait = max(
+                $this->emailThrottler->retryAfter(self::THROTTLE_SCOPE, $email),
+                $this->ipThrottler->retryAfter(self::THROTTLE_SCOPE, $ip)
+            );
+            throw new TooManyLoginAttemptsAuthenticationException(max(1, (int) ceil($wait / 60)));
         }
 
         try {
@@ -80,6 +103,9 @@ class InsyzAuthenticator extends AbstractAuthenticator
     {
         $user = $token->getUser();
 
+        // Úspěch nuluje čítač e-mailu (IP ne – jinak by si ho útočník s jedním platným účtem mazal)
+        $this->emailThrottler->reset(self::THROTTLE_SCOPE, $this->normalizeEmail($this->getUsername($request)));
+
         // Update last login and log successful authentication
         if ($user instanceof \App\Entity\User) {
             // ✅ OPRAVA: Update bez okamžitého flush
@@ -96,7 +122,7 @@ class InsyzAuthenticator extends AbstractAuthenticator
         }
 
         // Pro JSON požadavky vrať JSON odpověď
-        if ($request->getContentType() === 'json') {
+        if ($request->getContentTypeFormat() === 'json') {
             // Zkontroluj, zda byl předán redirect_url v JSON datech
             $data = json_decode($request->getContent(), true);
             $redirectUrl = $data['redirect_url'] ?? null;
@@ -136,6 +162,21 @@ class InsyzAuthenticator extends AbstractAuthenticator
     /**
      * Kontroluje, zda je URL interní (začíná na / a neobsahuje //)
      */
+    private function getUsername(Request $request): string
+    {
+        if ($request->getContentTypeFormat() === 'json') {
+            $data = json_decode($request->getContent(), true);
+            return (string) ($data['username'] ?? '');
+        }
+
+        return (string) $request->request->get('username', '');
+    }
+
+    private function normalizeEmail(string $username): string
+    {
+        return mb_strtolower(trim($username));
+    }
+
     private function isInternalUrl(string $url): bool
     {
         return str_starts_with($url, '/') && !str_starts_with($url, '//');
@@ -144,31 +185,41 @@ class InsyzAuthenticator extends AbstractAuthenticator
     public function onAuthenticationFailure(Request $request, AuthenticationException $exception): ?Response
     {
         // Získej username z requestu pro logování
-        if ($request->getContentType() === 'json') {
-            $data = json_decode($request->getContent(), true);
-            $username = $data['username'] ?? 'unknown';
+        $username = $this->getUsername($request) ?: 'unknown';
+
+        $throttled = $exception instanceof TooManyLoginAttemptsAuthenticationException;
+        if ($throttled) {
+            $message = sprintf(
+                'Příliš mnoho neúspěšných pokusů o přihlášení. Zkuste to znovu za %d min.',
+                $exception->getMessageData()['%minutes%'] ?? 15
+            );
         } else {
-            $username = $request->request->get('username', 'unknown');
+            $message = $exception->getMessageKey();
+            // Počítat jen skutečné pokusy s vyplněným e-mailem
+            if ($username !== 'unknown') {
+                $this->emailThrottler->registerFailure(self::THROTTLE_SCOPE, $this->normalizeEmail($username));
+                $this->ipThrottler->registerFailure(self::THROTTLE_SCOPE, (string) $request->getClientIp());
+            }
         }
 
         // ✅ OPRAVA: Loguj failed login attempt
         $this->auditLogger->logFailedLogin(
             $username,
-            $exception->getMessageKey(),
+            $message,
             $request->getClientIp(),
             $request->headers->get('User-Agent')
         );
 
         // Pro JSON požadavky vrať JSON odpověď
-        if ($request->getContentType() === 'json') {
+        if ($request->getContentTypeFormat() === 'json') {
             return new JsonResponse([
                 'success' => false,
-                'message' => $exception->getMessageKey()
-            ], Response::HTTP_UNAUTHORIZED);
+                'message' => $message
+            ], $throttled ? Response::HTTP_TOO_MANY_REQUESTS : Response::HTTP_UNAUTHORIZED);
         }
 
         // Pro HTML formuláře přesměruj zpět s chybou
-        $request->getSession()->getFlashBag()->add('error', 'Chyba přihlášení: ' . $exception->getMessageKey());
+        $request->getSession()->getFlashBag()->add('error', 'Chyba přihlášení: ' . $message);
         return new RedirectResponse('/');
     }
 }

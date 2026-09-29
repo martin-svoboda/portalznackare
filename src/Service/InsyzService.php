@@ -3,6 +3,7 @@
 namespace App\Service;
 
 use App\Entity\User;
+use App\Exception\PrikazAccessDeniedException;
 use Exception;
 use Symfony\Component\HttpKernel\KernelInterface;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
@@ -303,6 +304,28 @@ class InsyzService
      * Získá pouze hlavičku uživatele (první dataset)
      * Pro zpětnou kompatibilitu a jednoduché použití
      */
+    /**
+     * Profil značkaře zúžený pro kolegy z týmu příkazu – jen to, co formulář hlášení
+     * potřebuje: jméno, SPZ (předvyplnění řidiče) a kvalifikace (nárok na náhrady).
+     * Bez adresy, kontaktů, data narození, bankovního účtu, odpracovaných hodin a seminářů.
+     * Struktura datasetů zůstává stejná (index 0 = hlavička, 2 = kvalifikace).
+     */
+    public function getUserForTeam(int $intAdr): array
+    {
+        $datasets = $this->getUser($intAdr);
+        $pick = static fn(array $row, array $keys): array => array_intersect_key($row, array_flip($keys));
+
+        $hlavicka = $datasets[0][0] ?? null;
+
+        return [
+            $hlavicka ? [$pick($hlavicka, ['INT_ADR', 'Titul_Pred', 'Jmeno', 'Prijmeni', 'Titul_Za', 'RZ_Auta'])] : [],
+            [],
+            array_map(fn(array $k) => $pick($k, ['INT_ADR', 'Zkratka_Kval', 'Kvalifikace']), $datasets[2] ?? []),
+            [],
+            [],
+        ];
+    }
+
     public function getUserHeader(int $intAdr): array
     {
         $datasets = $this->getUser($intAdr);
@@ -354,7 +377,7 @@ class InsyzService
                 }
 
                 if (!$match) {
-                    throw new Exception('Tento příkaz vám nebyl přidělen a nemáte oprávnění k jeho nahlížení.');
+                    throw new PrikazAccessDeniedException();
                 }
             }
 
@@ -393,7 +416,7 @@ class InsyzService
                 }
 
                 if (!$match) {
-                    throw new Exception('Tento příkaz vám nebyl přidělen a nemáte oprávnění k jeho nahlížení.');
+                    throw new PrikazAccessDeniedException();
                 }
             }
 

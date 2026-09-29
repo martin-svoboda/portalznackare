@@ -12,7 +12,9 @@ use App\Entity\User;
 use App\Entity\Report;
 use App\Repository\ReportRepository;
 use App\Enum\ReportStateEnum;
+use App\Exception\PrikazAccessDeniedException;
 use App\Message\SendToInsyzMessage;
+use App\Service\InsyzService;
 use App\Service\UserPreferenceService;
 use App\Service\PdfGeneratorService;
 use App\Utils\Logger;
@@ -28,7 +30,8 @@ class PortalController extends AbstractController
         private MessageBusInterface $messageBus,
         private AttachmentLookupService $attachmentService,
         private UserPreferenceService $userPreferenceService,
-        private PdfGeneratorService $pdfGenerator
+        private PdfGeneratorService $pdfGenerator,
+        private InsyzService $insyzService
     ) {}
     #[Route('/post', methods: ['GET'])]
     public function getPost(Request $request): JsonResponse
@@ -90,6 +93,11 @@ class PortalController extends AbstractController
                 ], Response::HTTP_BAD_REQUEST);
             }
 
+            $prikaz = $this->nactiPrikazSOverenim($user, (int)$idZp);
+            if ($prikaz instanceof JsonResponse) {
+                return $prikaz;
+            }
+
             try {
                 // Načíst hlášení z databáze pouze podle id_zp
                 $report = $this->reportRepository->findOneBy(['idZp' => (int)$idZp]);
@@ -131,6 +139,47 @@ class PortalController extends AbstractController
                 ], Response::HTTP_BAD_REQUEST);
             }
 
+            if (empty($data['id_zp'])) {
+                return new JsonResponse([
+                    'error' => 'Chybí povinné pole: id_zp'
+                ], Response::HTTP_BAD_REQUEST);
+            }
+
+            $prikaz = $this->nactiPrikazSOverenim($user, (int)$data['id_zp']);
+            if ($prikaz instanceof JsonResponse) {
+                return $prikaz;
+            }
+
+            // Hlášení vyplňuje a odesílá vedoucí týmu (UI to jinak nedovolí); admin může vždy
+            if (!$this->isAdmin($user) && !$this->jeVedouci($prikaz['head'] ?? [], $intAdr)) {
+                return new JsonResponse([
+                    'success' => false,
+                    'error' => 'Hlášení může upravovat a odesílat jen vedoucí týmu.',
+                    'error_code' => 'NOT_LEADER'
+                ], Response::HTTP_FORBIDDEN);
+            }
+
+            // Přesměrování výplaty ({z_INT_ADR: na_INT_ADR}) jen mezi členy týmu příkazu – platí i pro admina
+            $tym = $this->clenoveTymu($prikaz['head'] ?? []);
+            foreach ((array) ($data['data_a']['Presmerovani_Vyplat'] ?? []) as $z => $na) {
+                if (!in_array((int) ltrim((string) $z, '_'), $tym, true) || !in_array((int) $na, $tym, true)) {
+                    return new JsonResponse([
+                        'success' => false,
+                        'error' => 'Výplatu lze přesměrovat jen mezi členy týmu příkazu.',
+                        'error_code' => 'INVALID_REDIRECT'
+                    ], Response::HTTP_BAD_REQUEST);
+                }
+            }
+
+            // Klient smí hlášení jen uložit jako koncept nebo odeslat. Ostatní stavy
+            // nastavuje výhradně systém (handler INSYZ) nebo admin přes admin API.
+            $state = $data['state'] ?? 'draft';
+            if (!in_array($state, ['draft', 'send'], true)) {
+                return new JsonResponse([
+                    'error' => 'Neplatný stav hlášení: ' . $state
+                ], Response::HTTP_BAD_REQUEST);
+            }
+
             try {
                 // Nastavit database timeout pro dlouhé operace
                 $this->entityManager->getConnection()->executeStatement('SET statement_timeout = \'30s\'');
@@ -152,82 +201,99 @@ class PortalController extends AbstractController
                     ], Response::HTTP_BAD_REQUEST);
                 }
 
-                // Zkontrolovat, zda už existuje hlášení pro tento příkaz
-                $report = $this->reportRepository->findOneBy(['idZp' => (int)$data['id_zp']]);
-                $isNewReport = false;
-                
-                if (!$report) {
-                    // Vytvořit nové hlášení
-                    $report = new Report();
-                    $report->setIdZp((int)$data['id_zp']);
-                    $report->setIntAdr($intAdr);
-                    $isNewReport = true;
-                }
-                
-                // Uložit původní stav pro porovnání
-                $previousState = $report->getState()->value ?? 'draft';
-                
-                // Nastavit/aktualizovat data
-                $report->setCisloZp($data['cislo_zp']);
-                $report->setTeamMembers($data['znackari'] ?? []);
-                $report->setDataA($data['data_a'] ?? []);
-                $report->setDataB($data['data_b'] ?? []);
-                $report->setCalculation($data['calculation'] ?? []);
-                
-                // Nastavit stav
-                $state = $data['state'] ?? 'draft';
-                $reportState = match ($state) {
-                    'send' => ReportStateEnum::SEND,
-                    'approved' => ReportStateEnum::APPROVED,
-                    'rejected' => ReportStateEnum::REJECTED,
-                    default => ReportStateEnum::DRAFT
-                };
-                $report->setState($reportState);
-                
-                // Přidat history entries
-                if ($isNewReport) {
-                    $report->addHistoryEntry(
-                        'report_created',
-                        $intAdr,
-                        'Hlášení vytvořeno',
-                        ['cislo_zp' => $data['cislo_zp']]
-                    );
-                }
-                
-                // History pro změnu dat
-                $report->addHistoryEntry(
-                    $state === 'draft' ? 'draft_saved' : 'data_updated',
-                    $intAdr,
-                    $state === 'draft' ? 'Koncept uložen' : 'Data aktualizována',
-                    ['sections' => ['data_a', 'data_b', 'calculation', 'znackari']]
-                );
-                
-                // Dispatch asynchronní zpracování pro odeslání ke schválení
-                if ($state === 'send' && $previousState !== 'send') {
-                    // Uložit základní history entry
-                    $report->addHistoryEntry(
-                        'dispatch_to_insyz',
-                        $intAdr,
-                        'Hlášení připraveno k odesílání do INSYZ',
-                        ['previous_state' => $previousState]
-                    );
-                }
-                
-                // History pro změnu stavu
-                if ($previousState !== $state && $state !== 'send') {
-                    $report->addHistoryEntry(
-                        'state_changed',
-                        $intAdr,
-                        "Stav změněn z '{$previousState}' na '{$state}'",
-                        ['from' => $previousState, 'to' => $state]
-                    );
-                }
-                
-                // Uložit do databáze
-                $this->entityManager->persist($report);
-                $this->entityManager->flush();
+                // Transakce + zámek řádku: souběžné uložení (dva členové týmu, dvojklik,
+                // běžící odeslání v workeru) se serializuje, takže stav nejde přepsat
+                // podle zastaralého čtení a hlášení nemůže odejít do INSYZ dvakrát.
+                $this->entityManager->beginTransaction();
+                try {
+                    // Zkontrolovat, zda už existuje hlášení pro tento příkaz
+                    $report = $this->reportRepository->findOneByIdZpForUpdate((int)$data['id_zp']);
+                    $isNewReport = false;
 
-                // Dispatch asynchronní zpracování pro INSYZ (pouze při odesílání)
+                    // Odeslané hlášení už běžný uživatel měnit nesmí; admin může zasáhnout vždy
+                    if ($report && !$this->isAdmin($user)
+                        && !in_array($report->getState(), [ReportStateEnum::DRAFT, ReportStateEnum::REJECTED], true)
+                    ) {
+                        $this->entityManager->rollback();
+                        return new JsonResponse([
+                            'success' => false,
+                            'error' => 'Hlášení je ve stavu „' . $report->getState()->getLabel() . '“ a už ho nelze upravovat.',
+                            'error_code' => 'REPORT_NOT_EDITABLE',
+                            'state' => $report->getState()->value
+                        ], Response::HTTP_CONFLICT);
+                    }
+
+                    if (!$report) {
+                        // Vytvořit nové hlášení
+                        $report = new Report();
+                        $report->setIdZp((int)$data['id_zp']);
+                        $report->setIntAdr($intAdr);
+                        $isNewReport = true;
+                    }
+
+                    // Uložit původní stav pro porovnání
+                    $previousState = $report->getState()->value ?? 'draft';
+
+                    // Nastavit/aktualizovat data
+                    $report->setCisloZp($data['cislo_zp']);
+                    $report->setTeamMembers($data['znackari'] ?? []);
+                    $report->setDataA($data['data_a'] ?? []);
+                    $report->setDataB($data['data_b'] ?? []);
+                    $report->setCalculation($data['calculation'] ?? []);
+
+                    // Nastavit stav (povolené hodnoty ověřeny výše)
+                    $report->setState($state === 'send' ? ReportStateEnum::SEND : ReportStateEnum::DRAFT);
+
+                    // Přidat history entries
+                    if ($isNewReport) {
+                        $report->addHistoryEntry(
+                            'report_created',
+                            $intAdr,
+                            'Hlášení vytvořeno',
+                            ['cislo_zp' => $data['cislo_zp']]
+                        );
+                    }
+
+                    // History pro změnu dat
+                    $report->addHistoryEntry(
+                        $state === 'draft' ? 'draft_saved' : 'data_updated',
+                        $intAdr,
+                        $state === 'draft' ? 'Koncept uložen' : 'Data aktualizována',
+                        ['sections' => ['data_a', 'data_b', 'calculation', 'znackari']]
+                    );
+
+                    // Dispatch asynchronní zpracování pro odeslání ke schválení
+                    if ($state === 'send' && $previousState !== 'send') {
+                        // Uložit základní history entry
+                        $report->addHistoryEntry(
+                            'dispatch_to_insyz',
+                            $intAdr,
+                            'Hlášení připraveno k odesílání do INSYZ',
+                            ['previous_state' => $previousState]
+                        );
+                    }
+
+                    // History pro změnu stavu
+                    if ($previousState !== $state && $state !== 'send') {
+                        $report->addHistoryEntry(
+                            'state_changed',
+                            $intAdr,
+                            "Stav změněn z '{$previousState}' na '{$state}'",
+                            ['from' => $previousState, 'to' => $state]
+                        );
+                    }
+
+                    // Uložit do databáze
+                    $this->entityManager->persist($report);
+                    $this->entityManager->flush();
+                    $this->entityManager->commit();
+                } catch (\Throwable $e) {
+                    $this->entityManager->rollback();
+                    throw $e;
+                }
+
+                // Dispatch asynchronní zpracování pro INSYZ (pouze při odesílání) –
+                // až po commitu, aby worker viděl uložený stav 'send'
                 Logger::debug("PortalController: state='$state', previousState='$previousState'");
                 if ($state === 'send' && $previousState !== 'send') {
                     Logger::info("PortalController: Dispatch do INSYZ pro report ID: " . $report->getId());
@@ -345,6 +411,68 @@ class PortalController extends AbstractController
         return new JsonResponse([
             'error' => 'Nepodporovaná metoda'
         ], Response::HTTP_METHOD_NOT_ALLOWED);
+    }
+
+    private function isAdmin(User $user): bool
+    {
+        return $user->hasRole('ROLE_ADMIN') || $user->hasRole('ROLE_SUPER_ADMIN');
+    }
+
+    /**
+     * Hlášení je sdílené celým týmem příkazu, proto se oprávnění ověřuje
+     * přes příkaz v INSYZ (INT_ADR* v hlavičce), ne přes autora hlášení.
+     * Admin má přístup ke všem příkazům. Náhled přes insyz-hash a admin API
+     * tento endpoint nepoužívají.
+     *
+     * @return JsonResponse|array Chybová odpověď, nebo data příkazu (head, …) pokud je přístup povolen
+     */
+    private function nactiPrikazSOverenim(User $user, int $idZp): JsonResponse|array
+    {
+        try {
+            return $this->insyzService->getPrikaz($user->getIntAdr(), $idZp, $this->isAdmin($user));
+        } catch (PrikazAccessDeniedException $e) {
+            Logger::info("Portal Report - přístup odepřen: INT_ADR {$user->getIntAdr()}, id_zp {$idZp}");
+            return new JsonResponse([
+                'error' => $e->getMessage()
+            ], Response::HTTP_FORBIDDEN);
+        } catch (\Exception $e) {
+            // Bez ověření oprávnění hlášení nevydáme ani neuložíme (fail-closed)
+            Logger::error("Portal Report - nelze ověřit oprávnění k příkazu {$idZp}: " . $e->getMessage());
+            return new JsonResponse([
+                'error' => 'Nepodařilo se ověřit oprávnění k příkazu. Zkuste to prosím později.'
+            ], Response::HTTP_SERVICE_UNAVAILABLE);
+        }
+    }
+
+    /**
+     * INT_ADR členů týmu z hlavičky příkazu (INT_ADR_1..3).
+     *
+     * @return int[]
+     */
+    private function clenoveTymu(array $head): array
+    {
+        $tym = [];
+        for ($i = 1; $i <= 3; $i++) {
+            if ((int) ($head["INT_ADR_$i"] ?? 0) > 0) {
+                $tym[] = (int) $head["INT_ADR_$i"];
+            }
+        }
+
+        return $tym;
+    }
+
+    /**
+     * Je uživatel vedoucí týmu příkazu? Hlavička INSYZ: INT_ADR_{i} + Je_Vedouci{i} = "1".
+     */
+    private function jeVedouci(array $head, int $intAdr): bool
+    {
+        for ($i = 1; $i <= 3; $i++) {
+            if ((int) ($head["INT_ADR_$i"] ?? 0) === $intAdr && (string) ($head["Je_Vedouci$i"] ?? '0') === '1') {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

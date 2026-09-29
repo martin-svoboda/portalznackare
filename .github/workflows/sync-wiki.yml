@@ -86,9 +86,7 @@ jobs:
               'features/localization.md': 'features-localization',
               
               # API
-              'api/insyz-api.md': 'api-insyz-api',
-              'api/insyz-stored-procedures.md': 'api-insyz-stored-procedures',
-              'api/portal-api.md': 'api-portal-api',
+              'api.md': 'api',
               
               # Development
               'development/development.md': 'development-development',
@@ -198,9 +196,7 @@ jobs:
           - [[Lokalizace|features-localization]]
           
           ### 🔌 API
-          - [[INSYZ API|api-insyz-api]]
-          - [[INSYZ Stored Procedures|api-insyz-stored-procedures]]
-          - [[Portal API|api-portal-api]]
+          - [[API portálu|api]]
           
           ### 🛠️ Development
           - [[Development Guide|development-development]]

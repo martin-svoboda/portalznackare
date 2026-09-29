@@ -146,7 +146,7 @@ curl https://portalznackare.ddev.site/build/app.js
 ```
 
 ### Debug nástroje
-- **Symfony Profiler:** `/_profiler` (dev mode)
+- **Symfony Profiler:** `/_profiler` (dev mode, jen přihlášený super admin)
 - **Database:** `https://portalznackare.ddev.site:8037`
 - **Logs:** `ddev logs -f`
 

@@ -130,11 +130,13 @@ function showError(message) {
         form.parentNode.insertBefore(errorContainer, form);
     }
     
-    errorContainer.innerHTML = `
-        <div class="alert__content">
-            <strong>Chyba přihlášení:</strong> ${message}
-        </div>
-    `;
+    // Zprávu vkládat jako text, ne HTML
+    const content = document.createElement('div');
+    content.className = 'alert__content';
+    const label = document.createElement('strong');
+    label.textContent = 'Chyba přihlášení:';
+    content.append(label, ' ' + message);
+    errorContainer.replaceChildren(content);
     
     errorContainer.style.display = 'block';
     

@@ -2,6 +2,8 @@
 
 namespace App\Controller\Api;
 
+use App\Exception\PrikazAccessDeniedException;
+use App\Repository\ReportRepository;
 use App\Service\InsyzService;
 use App\Service\DataEnricherService;
 use App\Entity\User;
@@ -11,6 +13,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
@@ -19,11 +22,17 @@ class InsyzController extends AbstractController
 {
     public function __construct(
         private InsyzService $insyzService,
-        private DataEnricherService $dataEnricher
+        private DataEnricherService $dataEnricher,
+        private ReportRepository $reportRepository
     ) {
     }
 
+    /**
+     * Ověření přihlašovacích údajů bez přihlášení – jen pro INSYZ tester (admin).
+     * Běžným uživatelům by sloužil k neomezenému zkoušení hesel mimo throttling přihlášení.
+     */
     #[Route('/login', methods: ['POST'])]
+    #[IsGranted('ROLE_ADMIN')]
     public function login(Request $request): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
@@ -54,17 +63,57 @@ class InsyzController extends AbstractController
             ], Response::HTTP_UNAUTHORIZED);
         }
 
-	    $intAdr = $request->query->get('int_adr');
-		if (empty($intAdr)) {
-			$intAdr = $user->getIntAdr();
-		}
+        $vlastni = (int) $user->getIntAdr();
+        $intAdr = (int) ($request->query->get('int_adr') ?: $vlastni);
+        $isAdmin = $this->isAdmin($user);
 
-	    try {
-            $userData = $this->insyzService->getUser((int) $intAdr);
-            return new JsonResponse($userData);
+        try {
+            // Vlastní profil a admin – plná data
+            if ($intAdr === $vlastni || $isAdmin) {
+                return new JsonResponse($this->insyzService->getUser($intAdr));
+            }
+
+            // Kolega z týmu – jen s id_zp příkazu, na kterém jsou oba; zúžený profil
+            $idZp = (int) $request->query->get('id_zp');
+            if (!$idZp || !$this->jeClenemTymu($vlastni, $intAdr, $idZp)) {
+                return new JsonResponse(['error' => 'K profilu tohoto značkaře nemáte přístup'], Response::HTTP_FORBIDDEN);
+            }
+
+            return new JsonResponse($this->insyzService->getUserForTeam($intAdr));
+        } catch (PrikazAccessDeniedException) {
+            return new JsonResponse(['error' => 'K profilu tohoto značkaře nemáte přístup'], Response::HTTP_FORBIDDEN);
         } catch (Exception $e) {
             return new JsonResponse(['error' => $e->getMessage()], 500);
         }
+    }
+
+    private function isAdmin(User $user): bool
+    {
+        return $user->hasRole('ROLE_ADMIN') || $user->hasRole('ROLE_SUPER_ADMIN');
+    }
+
+    /**
+     * Žadatel musí být na příkazu (getPrikaz to ověří) a hledaný značkař v jeho týmu:
+     * v hlavičce příkazu (INT_ADR_*), nebo v týmu uloženého hlášení.
+     */
+    private function jeClenemTymu(int $zadatel, int $hledany, int $idZp): bool
+    {
+        $prikaz = $this->insyzService->getPrikaz($zadatel, $idZp);
+
+        foreach ($prikaz['head'] ?? [] as $key => $value) {
+            if (str_starts_with($key, 'INT_ADR') && (int) $value === $hledany) {
+                return true;
+            }
+        }
+
+        $report = $this->reportRepository->findOneBy(['idZp' => $idZp]);
+        foreach ($report?->getTeamMembers() ?? [] as $clen) {
+            if ((int) ($clen['INT_ADR'] ?? 0) === $hledany) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     #[Route('/prikazy', methods: ['GET'])]
@@ -114,11 +163,8 @@ class InsyzController extends AbstractController
             ], Response::HTTP_UNAUTHORIZED);
         }
 
-        $intAdr = $user->getIntAdr();
-        $isAdmin = in_array('ROLE_ADMIN', $user->getRoles());
-
         try {
-            $prikaz = $this->insyzService->getPrikaz((int) $intAdr, $id, $isAdmin);
+            $prikaz = $this->insyzService->getPrikaz((int) $user->getIntAdr(), $id, $this->isAdmin($user));
 
             // Obohatí detail pouze pokud není raw parameter
             $raw = $request->query->get('raw');
@@ -127,6 +173,8 @@ class InsyzController extends AbstractController
             }
 
             return new JsonResponse($prikaz);
+        } catch (PrikazAccessDeniedException $e) {
+            return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_FORBIDDEN);
         } catch (Exception $e) {
             return new JsonResponse(['error' => $e->getMessage()], 500);
         }
@@ -143,8 +191,13 @@ class InsyzController extends AbstractController
         }
 
         try {
+            // Stejné oprávnění jako detail příkazu – člen týmu nebo admin (getPrikaz je cachovaný)
+            $this->insyzService->getPrikaz((int) $user->getIntAdr(), $id, $this->isAdmin($user));
+
             $data = $this->insyzService->getZpUseky($id);
             return new JsonResponse($data);
+        } catch (PrikazAccessDeniedException $e) {
+            return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_FORBIDDEN);
         } catch (Exception $e) {
             return new JsonResponse(['error' => $e->getMessage()], 500);
         }

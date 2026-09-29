@@ -6,14 +6,14 @@ Aplikace je dostupná na adrese: https://portalznackare.cz
 
 ## Přihlašovací údaje
 
-Použijte své přihlašovací údaje - email a heslo.
+Přihlašujete se svým **e-mailem a heslem**.
 
 ## Postup přihlášení
 
 1. Otevřete aplikaci ve webovém prohlížeči
-2. Zadejte svůj email
-3. Zadejte své heslo
-4. Klikněte na tlačítko pro přihlášení
+2. Do pole **Email** zadejte svůj e-mail
+3. Do pole **Heslo** zadejte své heslo (ikonou oka si ho můžete zobrazit)
+4. Klikněte na tlačítko **Přihlásit se**
 
 ## Po přihlášení
 
@@ -22,8 +22,10 @@ Po úspěšném přihlášení budete přesměrováni na hlavní stránku (Dashb
 ## Řešení problémů
 
 Pokud se nemůžete přihlásit, zkontrolujte:
-- Správnost uživatelského jména a hesla
+- Správnost e-mailu a hesla
 - Funkčnost internetového připojení
 - Že používáte aktuální verzi prohlížeče
+
+Po několika neúspěšných pokusech se přihlášení na čas zablokuje. Aplikace zobrazí hlášku **„Příliš mnoho neúspěšných pokusů o přihlášení. Zkuste to znovu za … min."** – vyčkejte uvedenou dobu a zkuste to znovu.
 
 Při dalších problémech se obraťte na technickou podporu.

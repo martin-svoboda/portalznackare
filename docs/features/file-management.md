@@ -25,7 +25,7 @@ Private Files  → /uploads/path/token/filename.jpg (s hash tokenem)
 ## 📋 API Endpointy
 
 ### POST `/api/portal/files/upload`
-**Lokace:** `FileController.php:27`
+**Lokace:** `FileController::upload`
 Upload jednoho nebo více souborů s automatickou deduplikací.
 
 **Form parametry:**
@@ -50,11 +50,13 @@ Upload jednoho nebo více souborů s automatickou deduplikací.
 ```
 
 ### GET `/api/portal/files/{id}`
-**Lokace:** `FileController.php:190`
-Načte metadata souboru s usage informacemi.
+**Lokace:** `FileController::getFile`
+Načte metadata souboru včetně `url` (u chráněných souborů s tokenem).
+**Přístup:** veřejný soubor – kdokoli přihlášený; chráněný – jen ten, kdo ho nahrál (`uploaded_by`), nebo `ROLE_ADMIN`.
+Ostatním `404` (ID jsou postupná, nesmí jít projít všechny účtenky a fotky). Testy: `tests/Controller/Api/FileControllerGetFileTest.php`
 
 ### DELETE `/api/portal/files/{id}`
-**Lokace:** `FileController.php:219`
+**Lokace:** `FileController::deleteFile`
 Smaže soubor s inteligentní soft/hard delete logikou.
 
 **Request Body:**
@@ -68,7 +70,7 @@ Smaže soubor s inteligentní soft/hard delete logikou.
 ```
 
 ### PUT `/api/portal/files/{id}/edit`
-**Lokace:** `FileController.php:482`
+**Lokace:** `FileController::edit`
 **FUNKČNÍ** - Editace obrázků s podporou rotace a crop operací.
 
 **Request Body:**
@@ -83,22 +85,41 @@ Smaže soubor s inteligentní soft/hard delete logikou.
 ```
 
 ### POST `/api/portal/files/usage`
-**Lokace:** `FileController.php:360`
-Přidá usage tracking k souboru.
+Přidá usage tracking k souboru (`FileUploadService::addFileUsage()`).
 
 **Request Body:**
 ```json
 {
-    "file_id": 123,
-    "entity_type": "report",
-    "entity_id": 456,
-    "field_name": "route_photos"
+    "fileId": 123,
+    "type": "reports",
+    "id": 456,
+    "field_name": "Prilohy_NP",
+    "data": null
+}
+```
+`fileId`, `type`, `id` jsou povinné (jinak `400`), `field_name` a `data` volitelné.
+**Response:** `{"success": true, "file": {"id": 123, "usageCount": 1, "isTemporary": false}}`, `404` pokud soubor neexistuje.
+
+### DELETE `/api/portal/files/usage`
+Odstraní usage tracking ze souboru – stejné tělo (`fileId`, `type`, `id`, volitelně `field_name`) a odpověď jako POST.
+
+### GET `/api/portal/files/orphaned-references`
+**Oprávnění:** `ROLE_ADMIN` (jinak `403`)
+Seznam smazaných souborů (`deleted_at` nebo `physically_deleted`), které mají stále záznam v `usage_info`.
+
+**Response:**
+```json
+{
+    "success": true,
+    "orphanedReferences": [
+        {"fileId": 12, "fileName": "foto.jpg", "deletedAt": "2025-09-14 10:00:00", "physicallyDeleted": true, "usages": {}}
+    ],
+    "count": 1
 }
 ```
 
-### DELETE `/api/portal/files/usage`
-**Lokace:** `FileController.php:402`
-Odstraní usage tracking ze souboru.
+### GET `/api/portal/files/folders`, `/api/portal/files/library`
+Admin media library (`ROLE_ADMIN`) – viz [admin-media-library.md](admin-media-library.md).
 
 ## 🛠️ Backend Services
 
@@ -133,7 +154,7 @@ Bez toho by odkazy v INSYZ XML spadly na `http://localhost` (zvenku nedostupné)
 - Přidán null check proti `Cannot read properties of null` chybě
 - Čistší kód bez duplicitních stavů
 
-### Jednotná upload komponenta (nahrazuje SimpleFileUpload)
+### Jednotná upload komponenta
 
 ```jsx
 <AdvancedFileUpload
@@ -152,7 +173,7 @@ usageData={{ section: 'route_photos' }}
 ```
 
 ### UnifiedImageModal Komponenta
-**Lokace:** `assets/js/components/UnifiedImageModal.jsx`
+**Lokace:** `assets/js/components/shared/UnifiedImageModal.jsx`
 
 **Vlastnosti:**
 - Sloučený preview a edit modal
@@ -219,6 +240,13 @@ if ($providedToken !== $expectedToken) {
 }
 ```
 
+### ⚠️ Známé omezení: soubory leží v `public/uploads`
+Webserver (nginx `try_files $uri`) vydá fyzicky existující soubor **přímo**, bez Symfony. Token tedy chrání
+jen URL s tokenem (ta na disku neexistuje, jde přes `FileServeController`); na cestu bez tokenu
+`/uploads/<path>/<stored_name>` a na náhledy `thumb_*` se kontrola neuplatní. Ochranu dnes dává jen
+neuhodnutelný název (`slug-<8 hex z hashe obsahu>`). Plné řešení: přesunout chráněné soubory mimo `public/`
+(např. `var/uploads`), nebo v nginx směrovat `/uploads/reports/` vždy na `index.php`.
+
 ### 4. **X-Robots Headers**
 
 ```php
@@ -283,27 +311,14 @@ public/uploads/
 ```
 
 ### 2. **Usage Tracking - JSON sloupec**
-```php
-// 🔴 SKUTEČNÁ IMPLEMENTACE: Vše v JSON sloupci usageInfo
-// Žádná tabulka file_usage neexistuje!
+Použití souboru se ukládá jen do JSON sloupce `usage_info` entity `FileAttachment` (tabulka `file_usage`
+neexistuje). Formát při sledování konkrétního pole: `{"reports": {"123": ["Prilohy_NP", "Prilohy_TIM"]}}`.
 
-// Frontend posílá do FileController.php:67-88
-$usageData = [
-    'entity_type' => 'report',
-    'entity_id' => 123,
-    'field_name' => 'route_photos'
-];
-
-// Backend ukládá do usageInfo JSON sloupce
-$fileAttachment->setUsageInfo($usageData);
-
-// FileUploadService má metody:
-$fileUploadService->addFileUsage($fileId, $entityType, $entityId, $fieldName);
-$fileUploadService->removeFileUsage($fileId, $entityType, $entityId);
-
-// Cleanup orphaned references
-$cleanupResult = $fileUploadService->cleanupFileReferences($file);
-```
+- `FileUploadService::addFileUsage(int $fileId, string $type, int $id, ?array $additionalData, ?string $fieldName)`
+- `FileUploadService::removeFileUsage(int $fileId, string $entityType, int $entityId, ?string $fieldName)`
+- `FileUploadService::cleanupOrphanedReference()` / `cleanupAllEntityReferences()` – úklid odkazů
+- `FileUploadService::findPotentialOrphanedReferences()` – smazané soubory, které mají stále `usage_info`
+  (endpoint `GET /api/portal/files/orphaned-references`)
 
 ### 3. **Physically Deleted Flag - Ochrana používaných souborů**
 ```php
@@ -377,57 +392,14 @@ switch ($orientation) {
 ## 🧪 Testing File Management
 
 ### Test upload scenarios
+Samostatný testovací upload endpoint neexistuje – testuje se přes `POST /api/portal/files/upload`
+z přihlášené session (interní API vyžaduje i hlavičku `X-CSRF-Token`, viz
+[configuration.md](../configuration.md)). Nejsnáze přímo z formuláře hlášení v prohlížeči.
+
 ```bash
-# Test public file upload
-curl -X POST "https://portalznackare.ddev.site/api/test/file-upload" \
-  -F "files[]=@test.jpg" \
-  -F "path=methodologies/test" \
-  -F "is_public=true"
-
-# Test private file upload
-curl -X POST "https://portalznackare.ddev.site/api/test/file-upload" \
-  -F "files[]=@report.pdf" \
-  -F "path=reports/2025/test/1/123" \
-  -F "is_public=false"
-
 # Test file access
 curl "https://portalznackare.ddev.site/uploads/methodologies/test/test.jpg"
 curl "https://portalznackare.ddev.site/uploads/reports/2025/test/1/123/TOKEN/report.pdf"
-```
-
-### Usage tracking test
-```php
-// Přidej file usage
-POST /api/portal/files/usage
-{
-    "file_id": 123,
-    "type": "report", 
-    "entity_id": 456,
-    "data": {"section": "photos"}
-}
-
-// Odstraň usage
-DELETE /api/portal/files/usage
-{
-    "file_id": 123,
-    "type": "report",
-    "entity_id": 456
-}
-
-// Získej usage info
-GET /api/portal/files/usage/123
-Response:
-{
-    "usages": [
-        {
-            "type": "report",
-            "entity_id": 456,
-            "data": {"section": "photos"},
-            "created_at": "2025-08-07T10:00:00Z"
-        }
-    ],
-    "total_count": 1
-}
 ```
 
 ### React component test
@@ -517,72 +489,12 @@ CREATE INDEX idx_file_created ON file_attachments(created_at);
 
 ---
 
-## 🔄 Migrace z SimpleFileUpload na AdvancedFileUpload
-
-### Důvod migrace
-Komponenta `SimpleFileUpload` byla nahrazena pokročilejší `AdvancedFileUpload`, která poskytuje:
-- Server-side upload s deduplikací
-- Usage tracking pro sledování použití souborů
-- Camera support pro mobilní zařízení  
-- Progress indicators během uploadu
-- Toast notifications pro lepší UX
-- Jednotné API napříč celou aplikací
-
-### Migrace kódu
-```jsx
-// Před (SimpleFileUpload) - DEPRECATED
-<SimpleFileUpload
-    files={files}
-    onFilesChange={setFiles}
-/>
-
-// Po (AdvancedFileUpload)
-<AdvancedFileUpload
-    id="unique-id"
-    files={files}
-    onFilesChange={setFiles}
-    storagePath={storagePath}
-    usageType="report"
-    entityId={reportId}
-/>
-```
-
-### Usage tracking v hlášení příkazů
-```jsx
-// Import v hlášení příkazů
-import { AdvancedFileUpload } from './components/AdvancedFileUpload';
-import { generateUsageType, generateEntityId } from '../utils/fileUsageUtils';
-
-// Použití ve StepContent.jsx
-<AdvancedFileUpload
-    id="hlaseni-route-attachments"
-    files={getAttachmentsAsArray(formData.Prilohy_Usek || {})}
-    onFilesChange={(files) => setFormData(prev => ({
-        ...prev,
-        Prilohy_Usek: setAttachmentsFromArray(files)
-    }))}
-    maxFiles={20}
-    accept="image/jpeg,image/png,image/heic,application/pdf"
-    disabled={disabled}
-    storagePath={storagePath}
-    // File usage tracking
-    usageType={generateUsageType('route', prikazId)}
-    entityId={generateEntityId(prikazId)}
-    usageData={{
-        section: 'route_report',
-        reportId: prikazId
-    }}
-/>
-```
-
----
-
 ## ✅ Aktuální Stav Systému (2025-09-14)
 
 **FUNKČNOST POTVRZENA:**
 - ✅ Všechny API endpointy existují a fungují
-- ✅ Upload souborů s deduplikací `FileController.php:27`
-- ✅ Editace obrázků `FileController.php:482` s ImageProcessingService
+- ✅ Upload souborů s deduplikací `FileController::upload`
+- ✅ Editace obrázků `FileController::edit` s ImageProcessingService
 - ✅ Usage tracking v JSON sloupci `usageInfo`
 - ✅ Databáze: `file_attachments` (ne "attachments")
 - ✅ Soft/hard delete logika
@@ -602,7 +514,7 @@ import { generateUsageType, generateEntityId } from '../utils/fileUsageUtils';
 ---
 
 **Related Documentation:**
-**API Reference:** [../api/portal-api.md](../api/portal-api.md)
+**API Reference:** [../api.md](../api.md#soubory)
 **Frontend:** [../architecture.md](../architecture.md)
 **Configuration:** [../configuration.md](../configuration.md)
 **Aktualizováno:** 2025-09-14 - Audit dokončen, dokumentace odpovídá skutečné implementaci

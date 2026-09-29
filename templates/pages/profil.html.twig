@@ -29,10 +29,6 @@
                 breadcrumbs: [
                     {
                         url: path('app_index'),
-                        text: 'Úvod'
-                    },
-                    {
-                        url: path('app_index'),
                         text: 'Nástěnka'
                     },
                     {
@@ -41,7 +37,7 @@
                 ]
             } %}
 
-            <div class="grid gap-6">
+            <div class="grid grid-cols-1 gap-6">
                 <!-- Základní informace z INSYZ -->
                 <div class="card">
                     <div class="card__header">
@@ -52,6 +48,7 @@
                     </div>
                     <div class="card__content">
                         {% if insyz_data %}
+                        <div class="overflow-x-auto">
                         <table class="table">
                             <tbody>
                                 <tr>
@@ -92,6 +89,7 @@
                                 </tr>
                             </tbody>
                         </table>
+                        </div>
                         {% else %}
                         <p class="text--muted">Data značkaře nejsou dostupná.</p>
                         {% endif %}
@@ -126,6 +124,7 @@
                         </h2>
                     </div>
                     <div class="card__content">
+                        <div class="overflow-x-auto">
                         <table class="table">
                             <thead>
                                 <tr>
@@ -146,6 +145,7 @@
                                 {% endfor %}
                             </tbody>
                         </table>
+                        </div>
                     </div>
                 </div>
                 {% endif %}
@@ -161,6 +161,7 @@
                             </h2>
                         </div>
                         <div class="card__content">
+                            <div class="overflow-x-auto">
                             <table class="table">
                                 <thead>
                                 <tr>
@@ -181,6 +182,7 @@
                                 {% endfor %}
                                 </tbody>
                             </table>
+                            </div>
                         </div>
                     </div>
                 {% endif %}

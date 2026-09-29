@@ -14,47 +14,29 @@ Production:  MSSQL/INSYZ → MssqlConnector → InsyzService → API → React
 
 ## 🔧 Backend komponenty
 
-### 1. **InsyzService** - Hlavní integrace (čisté bez auditu)
-```php
-// src/Service/InsyzService.php  
-class InsyzService {
-    public function __construct(
-        private MssqlConnector $connector,
-        private KernelInterface $kernel,
-        private ApiCacheService $cacheService  // NOVÉ: Cache optimalizace
-    ) {}
-    
-    // Dynamické přepínání mezi test/prod daty
-    private function useTestData(): bool {
-        return $_ENV['USE_TEST_DATA'] ?? false;
-    }
-    
-    // Hlavní metody
-    public function loginUser(string $email, string $hash): int;
-    public function getUser(int $intAdr): array;
-    public function getPrikazy(int $intAdr, ?int $year = null): array;
-    public function getPrikaz(int $intAdr, int $id): array;
-}
-```
+### 1. **InsyzService** - Hlavní integrace (`src/Service/InsyzService.php`)
+- Závislosti: `MssqlConnector`, `KernelInterface`, `ApiCacheService`, `InsyzAuditLogger`, `TokenStorageInterface`
+- Přepínání režimu: `useTestData()` → `$_ENV['USE_TEST_DATA'] === 'true'`
+- `connect($procedure, $args, $multiple)` – volání procedury přes `MssqlConnector` + zápis do INSYZ auditu
+- `getTestData($endpoint, $params)` – mock data z `var/mock-data/api/insyz/{endpoint}.json`
+  (fallback `{endpoint}/data.json`), také zapisuje audit (procedura `TEST_DATA`)
+- Veřejné metody: `loginUser()`, `getUser()`, `getUserForTeam()`, `getUserHeader()`, `getPrikazy()`,
+  `getPrikaz($intAdr, $id, $skipOwnerCheck)`, `getSazby()`, `getZpUseky()`, `submitReportToInsyz()`,
+  `updatePassword()`, `getSystemParameters()`, `validatePasswordStrength()`, `createPasswordHash()`
 
-### 2. **MockMSSQLService** - Development mock
-```php
-// src/Service/MockMSSQLService.php  
-class MockMSSQLService {
-    // Čte test data z var/testdata.json
-    private function getTestData(): array {
-        if ($this->testData === null) {
-            $file = $this->projectDir . '/var/testdata.json';
-            $this->testData = json_decode(file_get_contents($file), true);
-        }
-        return $this->testData;
-    }
-    
-    // Mock implementace stejných metod jako InsyzService
-    public function getPrikazy(int $intAdr, ?int $year = null): array;
-    public function getUserByIntAdr(string $intAdr): ?array;
-}
+### 2. **Mock data (USE_TEST_DATA=true)**
+Samostatná mock služba neexistuje – režim řeší přímo `InsyzService::getTestData()`. Soubory:
 ```
+var/mock-data/api/insyz/
+├── user/{int_adr}.json
+├── prikazy/{int_adr}-{rok}.json
+├── prikaz/{id}.json
+├── zp-useky/{id}.json
+├── sazby/sazby.json
+├── system-parameters/…
+└── web-zapis-pwd/…
+```
+Generují se exportem z [INSYZ API Testeru](../development/insyz-api-tester.md) (`/api/insyz/export*`, jen dev).
 
 ### 3. **MssqlConnector** - Production databáze
 ```php
@@ -64,11 +46,9 @@ class MssqlConnector {
     public function callProcedure(string $procedure, array $args): array;
     public function callProcedureMultiple(string $procedure, array $args): array;
     
-    // Používá INSYZ stored procedures:
-    // - trasy.WEB_Login
-    // - trasy.ZNACKAR_DETAIL  
-    // - trasy.PRIKAZY_SEZNAM
-    // - trasy.ZP_Detail
+    // Volá ho InsyzService::connect() – procedury: trasy.WEB_Login, trasy.ZNACKAR_DETAIL,
+    // trasy.PRIKAZY_SEZNAM, trasy.ZP_Detail, trasy.ZP_Useky, trasy.ZP_Sazby, trasy.ZP_Zapis_XML,
+    // trasy.WEB_Zapis_Pwd, trasy.WEB_SystemoveParametry
 }
 ```
 
@@ -79,128 +59,50 @@ class DataEnricherService {
     public function __construct(
         private ZnackaService $znackaService,
         private TimService $timService,
-        private TransportIconService $transportIconService
+        private TransportIconService $transportIconService,
+        private ReportRepository $reportRepository,
+        private EntityManagerInterface $entityManager
     ) {}
     
     // Přidá HTML/SVG komponenty k INSYZ datům
     public function enrichPrikazyList(array $prikazy): array;
-    public function enrichPrikazDetail(array $detail): array;
+    public function enrichPrikazDetail(array $detail, bool $forPdf = false): array;
 }
 ```
 
 ## 🌐 API endpointy
 
-### INSYZ API Controller + Audit Logging
-```php
-// src/Controller/Api/InsyzController.php
-#[Route('/api/insyz')]
-class InsyzController extends AbstractController {
-    public function __construct(
-        private InsyzService $insyzService,
-        private InsyzAuditLogger $auditLogger  // NOVÉ: INSYZ API audit
-    ) {}
-    
-    #[Route('/login', methods: ['POST'])]
-    public function login(Request $request): JsonResponse;
-    // POST /api/insyz/login + MSSQL audit log
-    
-    #[Route('/user', methods: ['GET'])]  
-    public function getInsyzUser(Request $request): JsonResponse;
-    // GET /api/insyz/user + performance tracking
-    
-    #[Route('/prikazy', methods: ['GET'])]
-    public function getPrikazy(Request $request): JsonResponse;
-    // GET /api/insyz/prikazy + cache analytics
-    
-    #[Route('/prikaz/{id}', methods: ['GET'])]
-    public function getPrikaz(Request $request, int $id): JsonResponse;
-    // GET /api/insyz/prikaz/{id} + MSSQL procedure logging
-    
-    #[Route('/submit-report', methods: ['POST'])]
-    public function submitReport(Request $request): JsonResponse;
-    // POST /api/insyz/submit-report + kompletní audit trail
-}
+### InsyzController (`src/Controller/Api/InsyzController.php`)
+Závislosti: `InsyzService`, `DataEnricherService`, `ReportRepository`. Endpointy (`/api/insyz/login`, `/user`,
+`/prikazy`, `/prikaz/{id}`, `/zp-useky/{id}`, `/sazby`, `/submit-report`, `/update-password`,
+`/system-parameters`, dev-only `/export*`) viz [api.md](../api.md#insyz-data).
 
-// "Jeden log na proces" architektura:
-// Každý endpoint = právě 1 audit log (success XOR error)
-```
-
-### INSYZ Audit Logging System
-```php
-// Automatické audit logování všech INSYZ API volání
-class InsyzAuditLogger {
-    // Loguje do insyz_audit_logs tabulky:
-    // - Endpoint + HTTP metoda
-    // - MSSQL procedure name a timing
-    // - Request params (sanitized) 
-    // - Response metadata (bez citlivých dat)
-    // - Cache hit/miss
-    // - Performance metrics
-}
-```
+### INSYZ audit
+Controller audit neřeší – každé volání procedury (i `TEST_DATA`) zapisuje `InsyzService` přes
+`InsyzAuditLogger::logMssqlProcedureCall()` do `insyz_audit_logs` (procedura, doba, parametry, souhrn výsledku,
+chyba). Detail: [audit-logging.md](audit-logging.md).
 
 ## 📊 Data struktury
 
-### Test data (var/testdata.json)
-```json
-{
-    "user": [{
-        "INT_ADR": "1234",
-        "Jmeno": "Jan", 
-        "Prijmeni": "Novák",
-        "eMail": "test@example.com",
-        "Kod_KKZ": "S",
-        "Kraj": "Středočeský kraj a Praha",
-        "Vedouci_dvojice": "1",
-        "Prukaz_znackare": "1234-P"
-    }],
-    "prikazy": {
-        "2024": [{
-            "ID_Znackarske_Prikazy": "12345",
-            "Cislo_ZP": "S/BN/J/24001",
-            "Druh_ZP_Naz": "Jiná činnost",
-            "Stav_ZP_Naz": "Předaný KKZ",
-            "Popis_ZP": "Proveďte průzkum tras v oblasti &BUS zastávek"
-        }]
-    },
-    "detaily": {
-        "12345": {
-            "head": [/* hlavička příkazu */],
-            "predmety": [/* předměty s TIM daty */],
-            "useky": [/* úseky trasy - jen u obnovy TZT */]
-        }
-    }
-}
-```
+### Mock data
+Mock soubory mají stejnou strukturu jako odpovědi procedur (např. `prikaz/{id}.json` obsahuje
+`head`, `predmety`, `useky`…). Umístění viz výše (`var/mock-data/api/insyz/`).
 
 ### INSYZ stored procedures
 
-#### WEB_Login
-```sql
-EXEC trasy.WEB_Login @Email='email@example.com', @WEBPwdHash='hashedPassword'
--- Vrací jeden řádek se sjednocenou strukturou (i při neúspěchu):
---   INT_ADR (NULL při chybě), Email_nalezen, Heslo_se_shoduje, WEBUser,
---   Zablokovano, Platnost, Platnost_DO, KontrolaPlatnostiPwdWEB
--- Detail: docs/api/insyz-stored-procedures.md a docs/features/authentication.md
-```
+Procedury, které portál volá (`InsyzService::connect()`, jen při `USE_TEST_DATA=false`; parametry viz kód):
 
-#### ZNACKAR_DETAIL  
-```sql
-EXEC trasy.ZNACKAR_DETAIL @INT_ADR=1234
--- Vrací: Kompletní data značkaře
-```
-
-#### PRIKAZY_SEZNAM
-```sql
-EXEC trasy.PRIKAZY_SEZNAM @INT_ADR=1234, @Rok=2025
--- Vrací: Seznam příkazů pro značkaře v daném roce
-```
-
-#### ZP_Detail
-```sql
-EXEC trasy.ZP_Detail @ID_Znackarske_Prikazy=12345
--- Vrací: Detailní data příkazu včetně předmětů a TIM dat
-```
+| Procedura | Použití |
+|---|---|
+| `trasy.WEB_Login` | Přihlášení (`@Email`, `@WEBPwdHash` = SHA1 uppercase). Vrací jeden řádek i při neúspěchu: `INT_ADR` (NULL = neúspěch), `Email_nalezen`, `Heslo_se_shoduje`, `WEBUser`, `Zablokovano`, `Platnost`, `Platnost_DO`, `KontrolaPlatnostiPwdWEB` – viz [authentication.md](authentication.md) |
+| `trasy.ZNACKAR_DETAIL` | Profil značkaře (`/api/insyz/user`, přihlášení) |
+| `trasy.WEB_Zapis_Pwd` | Změna hesla (`@INT_ADR`, `@WEBPwdHash`) |
+| `trasy.PRIKAZY_SEZNAM` | Seznam příkazů značkaře za rok |
+| `trasy.ZP_Detail` | Detail příkazu: `head`, `predmety`, třetí dataset. U ZP-O jsou to úseky (`Kod_ZU`…), u ZP-I (druh `S`) servisní TIMy (`EvCi_TIM`, `TIM_Text`, `Popis`…) – rozlišuje `DataEnricherService::jeServisniTimDataset()` a `jeServisniTimDataset()` v `assets/js/utils/prikaz.js` |
+| `trasy.ZP_Useky` | Úseky příkazu (`@ID_Znackarske_prikazy`) |
+| `trasy.ZP_Sazby` | Sazby náhrad k datu |
+| `trasy.ZP_Zapis_XML` | Zápis hlášení (`@Data_XML`, `@Uzivatel`) – volá worker `SendToInsyzHandler` a `/api/insyz/submit-report` |
+| `trasy.WEB_SystemoveParametry` | Systémové parametry INSYZ |
 
 ## 🔄 Development vs Production
 
@@ -220,16 +122,18 @@ INSYZ_DB_PASS=secure_password
 
 ### Automatické přepínání
 ```php
-// InsyzService automaticky detekuje režim
-public function getPrikazy(int $intAdr, ?int $year = null): array {
+// InsyzService::getPrikazy()
+public function getPrikazy(int $intAdr, ?int $year = null): array
+{
+    $yearParam = $year ?? date('Y');
+
     if ($this->useTestData()) {
-        // Mock data z testdata.json
-        $data = $this->getTestData();
-        return $data['prikazy'][$year] ?? [];
+        return $this->getTestData('prikazy/' . $intAdr . '-' . $yearParam, [$intAdr, $yearParam]);
     }
-    
-    // Reálný MSSQL call  
-    return $this->connect("trasy.PRIKAZY_SEZNAM", [$intAdr, $year ?? date('Y')]);
+
+    return $this->cacheService->getCachedPrikazy($intAdr, $year, function($intAdr, $year) {
+        return $this->connect("trasy.PRIKAZY_SEZNAM", [$intAdr, $year ?? date('Y')]);
+    });
 }
 ```
 
@@ -317,44 +221,15 @@ $cacheKey = sprintf('api.prikaz.%d.%d', $intAdr, $prikazId);
 $cacheKey = sprintf('api.user.%d', $intAdr);
 ```
 
-#### Cache invalidation patterns:
-```php
-// Manuální invalidace při změnách dat
-$this->cacheService->invalidateUserCache($intAdr);        // Celá user cache
-$this->cacheService->invalidatePrikazCache($intAdr, $id); // Konkrétní příkaz
-```
+#### Cache invalidation
+`ApiCacheService::invalidateUserCache()` a `invalidatePrikazCache()` existují, ale v kódu se nevolají –
+data vyprší podle TTL. Cache se používá jen v produkčním režimu (`USE_TEST_DATA=false`).
 
-#### Expected performance improvements:
-- **MSSQL load reduction**: -70% (cached responses)
-- **Response time improvement**: -50% (cache hits)
-- **Concurrent user capacity**: 50 users (s cache bufferem)
-
-### Monitoring a Performance Tracking
-
-#### API Monitoring Service
-```php  
-// Comprehensive request monitoring
-$this->monitoring->logApiRequest(
-    $request, $user, $startTime, $responseData, $errorMessage
-);
-
-// MSSQL query monitoring
-$this->monitoring->logMssqlQuery(
-    $procedure, $params, $startTime, $resultCount, $error
-);
-```
-
-#### Monitored performance metrics:
-- **Response times** s automatickým upozorněním na >2s requesty
-- **MSSQL query timing** s detekcí >5s slow queries
-- **Cache hit/miss ratios** pro cache optimalizaci
-- **Suspicious activity detection** (rapid requests, repeated calls)
-- **Error rate tracking** pro stability monitoring
-
-#### Logging destinations:
-- **Development**: `/var/log/api.log` (human readable format)
-- **Production**: Structured JSON logs pro external monitoring
-- **Audit integration**: Critical API calls v `audit_logs` tabulce
+### Monitoring
+- **INSYZ audit** (`insyz_audit_logs`) – doba volání, chyby; stránka `/admin/insyz-monitoring`, command `insyz:audit`
+- **Kanál `api` (Monolog)** – `ApiCacheService` loguje „API Cache MISS…“; dev: `var/log/api.log`,
+  prod: JSON do stderr + rotující soubor (viz `config/packages/monolog.yaml`)
+- `ApiMonitoringService` je zaregistrovaná služba, kterou zatím nic nevolá
 
 ## 🛠️ Troubleshooting
 
@@ -365,36 +240,29 @@ $this->monitoring->logMssqlQuery(
 # Zkontroluj cache hits/misses v logách
 tail -f var/log/api.log | grep "Cache MISS"
 
-# Redis cache status (produkce)
-redis-cli info stats
-
-# Filesystem cache size (development)  
+# Velikost filesystem cache
 du -sh var/cache/
 ```
 
 #### 2. **Slow query detection**
 ```bash
-# Najdi pomalé MSSQL queries
-grep "Slow MSSQL Query" var/log/api.log
-
-# API response time monitoring
-grep "duration_ms" var/log/api.log | grep -E "duration_ms\":[0-9]{4,}"
+ddev exec psql -c "SELECT endpoint, duration_ms, created_at FROM insyz_audit_logs WHERE duration_ms > 2000 ORDER BY created_at DESC LIMIT 20"
 ```
 
 ### Connection troubleshooting
 
 #### 1. **TEST_DATA není načítána**
 ```bash
-# Zkontroluj environment
-echo $USE_TEST_DATA
-# Mělo by vrátit: true
+# Zkontroluj environment (musí být přesně "true")
+grep USE_TEST_DATA .env .env.local
 
-# Zkontroluj existenci testdata.json
-ls -la var/testdata.json
+# Zkontroluj mock soubory
+ls var/mock-data/api/insyz/prikazy/
 
-# Test API call (použij testovací endpoint)
+# Test (admin session nebo hlavička X-Healthcheck-Token)
 curl "https://portalznackare.ddev.site/api/test/insyz-prikazy"
 ```
+Chybějící soubor se projeví prázdným výsledkem a chybou „Mock data file not found…“ v `insyz_audit_logs`.
 
 #### 2. **MSSQL připojení selhává**
 ```php
@@ -410,23 +278,7 @@ try {
 }
 ```
 
-#### 3. **API vrací prázdná data**
-```javascript
-// Debug API response (použij testovací endpoint)
-fetch('/api/test/insyz-prikazy')
-.then(response => {
-    console.log('Status:', response.status);
-    return response.json();
-})
-.then(data => {
-    console.log('API Data:', data);
-    if (Array.isArray(data) && data.length === 0) {
-        console.warn('Empty data - zkontroluj rok nebo přihlášení');
-    }
-});
-```
-
-#### 4. **Chybí HTML komponenty v datech**
+#### 3. **Chybí HTML komponenty v datech**
 ```php
 // Zkontroluj že DataEnricherService je volán
 public function getPrikazy(Request $request): JsonResponse {
@@ -476,8 +328,8 @@ INSYZ_DB_PASS=complex_secure_password
 ---
 
 **Data Flow:** [../architecture.md](../architecture.md) - Cache a monitoring architektura  
-**API Reference:** [../api/insyz-api.md](../api/insyz-api.md)  
-**Configuration:** [../configuration.md](../configuration.md) - Redis + Monolog setup  
+**API Reference:** [../api.md](../api.md#insyz-data)  
+**Configuration:** [../configuration.md](../configuration.md)  
 **Development nástroje:** [../development/insyz-api-tester.md](../development/insyz-api-tester.md)  
 **Monitoring:** [../development/development.md](../development/development.md) - Performance debugging  
-**Aktualizováno:** 2025-08-08
+**Aktualizováno:** 2026-09-27

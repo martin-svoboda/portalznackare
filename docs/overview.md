@@ -12,33 +12,34 @@ Kompletní dokumentace webové aplikace pro správu turistického značení KČT
 ### ⭐ Funkcionalita
 - [INSYZ integrace](features/insyz-integration.md) - Napojení na KČT databázi
 - [Autentifikace](features/authentication.md) - Přihlašování a zabezpečení
-- [Správa uživatelů](features/user-management.md) - Lokální uživatelé a synchronizace + **NOVÉ: Admin rozhraní**
+- [Správa uživatelů](features/user-management.md) - Lokální uživatelé, synchronizace a admin stránky
 - [Audit logging](features/audit-logging.md) - Dvojitý audit systém (aplikace + INSYZ API)
 - [Správa příkazů](features/prikazy-management.md) - Zobrazení a správa příkazů
 - [Hlášení příkazů](features/hlaseni-prikazu.md) - Workflow hlášení práce
   - sekce [Hlášení ZP-I](features/hlaseni-prikazu.md#-hlášení-zp-i-instalace-předmětů) - instalace předmětů: TIMy, servis, náhrady dle počtu TIMů
+- [Admin výpis hlášení](features/admin-vypis-hlaseni.md) - Tabulka podaných hlášení v administraci
+- [Náhled hlášení přes INSYZ hash](features/insyz-hash-nahled-hlaseni.md) - Read-only náhled pro správce INSYZ
 - [Správa souborů](features/file-management.md) - Upload a správa příloh
 - [Admin Media Library](features/admin-media-library.md) - WordPress-style správa médií
 - [Lokalizace](features/localization.md) - České skloňování
 - [Content Management](features/content-management.md) - CMS funkcionalita
 
 ### 🔌 API Reference
-- [INSYZ API](api/insyz-api.md) - Endpointy pro KČT data
-- [INSYZ Stored Procedures](api/insyz-stored-procedures.md) - Reference všech INSYZ SP
-- [Portal API](api/portal-api.md) - Lokální funkcionalita
-- [Admin API](api/admin-api.md) - Administrační endpointy
-- [CMS API](api/cms-api.md) - CMS správa stránek
+- [API portálu](api.md) - Přehled všech endpointů (INSYZ, hlášení, soubory, admin, CMS, desktopový klient INSYZ)
+- [INSYZ stored procedures](features/insyz-integration.md#insyz-stored-procedures) - Procedury, které portál volá
 
 ### 🛠️ Development
 - [Development guide](development/development.md) - Debug nástroje a workflow
 - [Console Commands](development/commands.md) - Přehled všech konzolových příkazů
 - [Background Jobs](development/background-jobs.md) - Symfony Messenger a asynchronní procesy
 - [Toast Notification System](development/toast-system.md) - Jednotný systém notifikací
+- [Global State Badges](development/global-state-badges.md) - Jednotné badge stavů
 - [INSYZ API Tester](development/insyz-api-tester.md) - Testing nástroj
 - [Vizuální komponenty](development/visual-components.md) - Značky a TIM pro vývojáře
 
 ### 🚀 Deployment & Migrace
 - [Deployment](deployment.md) - Nasazení aplikace
+- [Production logging](deployment/production-logging.md) - Logování v produkci
 - [Migrace](migration.md) - WordPress migrace a React refactoring
 
 ---
@@ -51,7 +52,7 @@ Kompletní dokumentace webové aplikace pro správu turistického značení KČT
 3. [INSYZ integrace](features/insyz-integration.md)
 
 ### Pro existující tým
-- [API dokumentace](api/insyz-api.md)
+- [API dokumentace](api.md)
 - [File management](features/file-management.md)
 - [Debug nástroje](development/development.md)
 
@@ -66,10 +67,10 @@ Kompletní dokumentace webové aplikace pro správu turistického značení KČT
 **Hybridní architektura:** Symfony backend + Twig templating + React micro-apps  
 **Databáze:** PostgreSQL (app data) + MSSQL (INSYZ data)  
 **Frontend:** Tailwind CSS + BEM + Material React Table  
-**Development:** DDEV + Mock INSYZ data
+**Development:** DDEV + mock INSYZ data (`USE_TEST_DATA=true`, `var/mock-data/`)
 
 ---
 
-**Aktualizováno:** 2025-11-11
+**Aktualizováno:** 2026-09-27
 **Verze dokumentace:** 2.4
 **Pro projekt:** Portál značkaře

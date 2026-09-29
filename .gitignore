@@ -47,3 +47,5 @@ Thumbs.db
 /public/uploads/
 /.playwright-mcp/
 ###< Custom ###
+# curl cookie jar (lokální testování)
+cookies.txt

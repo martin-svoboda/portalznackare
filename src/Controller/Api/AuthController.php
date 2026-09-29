@@ -7,10 +7,24 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use App\Entity\User;
+use App\EventListener\ApiCsrfListener;
+use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 
 #[Route('/api/auth')]
 class AuthController extends AbstractController
 {
+    /**
+     * Nový API token pro aktuální session – volá ho obal fetch v layoutu, když token
+     * po vypršení session přestane platit (odpověď 403 + X-CSRF-Invalid). Výjimka
+     * v ApiCsrfListener; cizí web odpověď nepřečte (CORS).
+     */
+    #[Route('/csrf-token', name: 'api_auth_csrf_token', methods: ['GET'])]
+    public function csrfToken(CsrfTokenManagerInterface $csrfTokenManager): JsonResponse
+    {
+        return new JsonResponse([
+            'token' => $csrfTokenManager->getToken(ApiCsrfListener::TOKEN_ID)->getValue(),
+        ], Response::HTTP_OK, ['Cache-Control' => 'no-store']);
+    }
 
     #[Route('/status', name: 'api_auth_status', methods: ['GET'])]
     public function status(): JsonResponse

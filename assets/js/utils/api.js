@@ -98,6 +98,7 @@ export async function apiCall(endpoint, options = {}) {
             error.errorCode = errorData.error_code;
             error.details = errorData.details;
             error.success = errorData.success;
+            error.state = errorData.state; // skutečný stav hlášení u 409 REPORT_NOT_EDITABLE
 
             throw error;
         }
@@ -155,7 +156,8 @@ export const api = {
     },
 
     insyz: {
-        user: (int_adr = '') => api.get('/insyz/user', {int_adr}),
+        // Profil kolegy z týmu jen s id_zp společného příkazu (server vrátí zúžená data)
+        user: (int_adr = '', id_zp = '') => api.get('/insyz/user', {int_adr, id_zp}),
         sazby: (date) => api.get('/insyz/sazby', {date}),
         submitReport: (xmlData) => api.post('/insyz/submit-report', {xml_data: xmlData}, {
             showSuccess: true,

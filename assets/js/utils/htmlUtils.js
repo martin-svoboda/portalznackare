@@ -3,15 +3,25 @@
  * Handles server-processed HTML content and icon replacements
  */
 import React from 'react';
+import DOMPurify from 'dompurify';
 
 /**
- * Safely renders HTML content from server data
+ * Odstraní z HTML vše spustitelné (skripty, on* atributy, javascript: URL).
+ * Server texty z INSYZ escapuje sám; tohle je druhá pojistka pro vše,
+ * co se vkládá jako HTML (ikony, značky, náhledy TIMů, validační hlášky).
+ * @param {string} html
+ * @returns {string}
+ */
+export const sanitizeHtml = (html) => DOMPurify.sanitize(String(html));
+
+/**
+ * Safely renders HTML content from server data (always sanitized)
  * @param {string} htmlString - HTML string to render
  * @returns {JSX.Element|null} React element or null
  */
 export const renderHtmlContent = (htmlString) => {
     if (!htmlString) return null;
-    return <span dangerouslySetInnerHTML={{__html: htmlString}}/>;
+    return <span dangerouslySetInnerHTML={{__html: sanitizeHtml(htmlString)}}/>;
 };
 
 /**
@@ -23,8 +33,8 @@ export const renderHtmlContent = (htmlString) => {
 export const replaceTextWithIcons = (text, size = 14) => {
     if (!text) return '';
     
-    // If text contains HTML tags (from server processing), render as HTML
-    if (text.includes('<')) {
+    // HTML ze serveru (ikony) nebo escapované entity (&amp;, &lt;) → vykreslit jako HTML
+    if (containsHtml(text)) {
         return renderHtmlContent(text);
     }
     
@@ -33,12 +43,13 @@ export const replaceTextWithIcons = (text, size = 14) => {
 };
 
 /**
- * Checks if content contains HTML tags
+ * Checks if content contains HTML tags or HTML entities
+ * (server escapuje texty z INSYZ, např. "Hrad &amp; zámek")
  * @param {string} content - Content to check
  * @returns {boolean} True if content contains HTML
  */
 export const containsHtml = (content) => {
-    return content && typeof content === 'string' && content.includes('<');
+    return !!content && typeof content === 'string' && /[<&]/.test(content);
 };
 
 /**

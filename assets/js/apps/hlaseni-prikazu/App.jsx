@@ -326,7 +326,7 @@ const App = () => {
                     try {
                         // Načti detaily pro všechny značkaře paralelně
                         const detailsPromises = teamMembers.map(member =>
-                            api.insyz.user(member.INT_ADR)
+                            api.insyz.user(member.INT_ADR, prikazId)
                                 .then(detail => ({ intAdr: member.INT_ADR, detail }))
                                 .catch(error => {
                                     log.error(`Chyba při načítání detailů uživatele ${member.INT_ADR}`, error);
@@ -540,7 +540,7 @@ const App = () => {
             try {
                 const details = await Promise.all(
                     addedAdrs.map(adr =>
-                        api.insyz.user(adr)
+                        api.insyz.user(adr, prikazId)
                             .then(detail => ({ adr, detail }))
                             .catch(() => null)
                     )

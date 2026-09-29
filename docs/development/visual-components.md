@@ -87,25 +87,17 @@ private function renderTextContent(string $text, bool $hideIcon = false): string
 
 ```php
 // src/Service/TransportIconService.php
-public function replaceIconsInText(string $text, int $iconSize = 10, bool $hideIcon = false): string {
-    $iconMap = [
-        'BUS' => 'getBusIcon',    'MHD' => 'getBusIcon',
-        'ŽST' => 'getTrainIcon',  'ZST' => 'getTrainIcon',
-        'TRAM' => 'getTramIcon',  'LAN' => 'getLanIcon',
-        'KAB' => 'getKabIcon',    'PARK' => 'getParkIcon'
-    ];
-    
-    // Nahradí &BUS, &ŽST,TRAM za SVG ikony
-    return preg_replace_callback('/&([A-ZÁĚŠČŘŽÝÚŮÍÓ.,]+)/ui', function($matches) {
-        $iconKeys = explode(',', $matches[1]);
-        $result = '';
-        foreach ($iconKeys as $key) {
-            $result .= $this->generateTransportIcon($key, $iconSize);
-        }
-        return $result;
-    }, $text);
-}
+public function replaceIconsInText(string $text, int $iconSize = 10, bool $hideIcon = false, bool $forPdf = false): string
 ```
+
+- Nahradí `&BUS`, `&ŽST,TRAM` … za SVG ikony (`BUS/MHD`, `ŽST/ZST`, `TRAM`, `LAN`, `KAB`, `PARK`).
+- **Výstup je HTML** – vkládá se bez escapování na web (`renderHtmlContent`) i do PDF (`|raw`).
+  Proto se **text z INSYZ escapuje** (`htmlspecialchars`), a to **jen mimo kódy ikon** –
+  escapování celého textu předem by z `&bus` udělalo `&amp;bus` a kód by se nerozpoznal.
+- Neznámý kód se vrátí escapovaný bez `&` (dosavadní chování).
+- Totéž platí pro `TimService::timPreview()` (řádky jdou přes `replaceIconsInText`, `Rok_Vyroby`
+  a `EvCi_TIM` se escapují zvlášť).
+- Testy: `tests/Service/TransportIconServiceTest.php`
 
 ## 🎨 Twig Integration
 
@@ -158,30 +150,24 @@ public function getFilters(): array {
 ### **HTML rendering v React komponentách**
 
 ```jsx
-// assets/js/apps/prikaz-detail/App.jsx
-// Funkce pro bezpečné renderování HTML z backendu
-const renderHtmlContent = (htmlString) => {
-    if (!htmlString) return null;
-    return <span dangerouslySetInnerHTML={{__html: htmlString}} />;
-};
+// assets/js/utils/htmlUtils.js – sdílené pro všechny appky
+import { renderHtmlContent, replaceTextWithIcons } from '@utils/htmlUtils';
 
-// Použití enriched dat z API
-const replaceTextWithIcons = (text) => {
-    if (!text) return '';
-    // Pokud text obsahuje HTML (ze serveru), render jako HTML
-    if (text.includes('<')) {
-        return renderHtmlContent(text);
-    }
-    return text;  // Jinak plain text
-};
-
-// V komponentě
 <div className="flex items-center gap-2">
     {item.Znacka_HTML && renderHtmlContent(item.Znacka_HTML)}
     {item.Tim_HTML && renderHtmlContent(item.Tim_HTML)}
     <span>{replaceTextWithIcons(item.Naz_TIM)}</span>
 </div>
 ```
+
+- `renderHtmlContent` **vždy sanitizuje** přes DOMPurify (`sanitizeHtml`) – odstraní skripty,
+  `on*` atributy a `javascript:` URL; SVG ikony, styly a `<img>` s data URI zachová.
+  Je to druhá pojistka k escapování na serveru. Jinde v appkách se `dangerouslySetInnerHTML` nepoužívá.
+- `replaceTextWithIcons` vykreslí jako HTML text s tagy **nebo entitami** (`<`, `&`) – server posílá
+  escapovaný text (`Hrad &amp; zámek`), který se musí dekódovat.
+- **Text od uživatele** (místa, položky, poznámky) a pole, která server neobohacuje
+  (např. `Poznamka` předmětu), se vypisují jako **prostý text v JSX**, nikdy přes HTML.
+- Testy: `assets/js/utils/__tests__/htmlUtils.test.js`
 
 ## 🔄 Data Enrichment Flow
 
@@ -297,14 +283,11 @@ public function enrichPrikazDetail(array $detail): array {
 ## 🧪 Testing
 
 ```bash
-# Testování značek přes API
-curl "https://portalznackare.ddev.site/api/test/insyz-prikaz/123" | jq '.predmety[0].Znacka_HTML'
-
-# Testování TIM náhledů
-curl "https://portalznackare.ddev.site/api/test/insyz-prikaz/123" | jq '.predmety[0].Tim_HTML'
-
-# Testování dopravních ikon v textech
-curl "https://portalznackare.ddev.site/api/test/insyz-prikaz/123" | jq '.predmety[0].Naz_TIM'
+# Detail příkazu z /api/insyz/prikaz/{id} (vyžaduje přihlášenou session a hlavičku X-CSRF-Token –
+# nejsnáze v DevTools na stránce portálu: await (await fetch('/api/insyz/prikaz/123')).json())
+# Značky:          .predmety[0].Znacka_HTML
+# TIM náhledy:     .predmety[0].Tim_HTML
+# Dopravní ikony:  .predmety[0].Naz_TIM
 ```
 
 ## 🛠️ Troubleshooting
@@ -325,7 +308,7 @@ curl "https://portalznackare.ddev.site/api/test/insyz-prikaz/123" | jq '.predmet
 
 ---
 
-**Propojené funkcionality:** [Správa příkazů](prikazy-management.md) | [INSYZ Integration](insyz-integration.md)  
-**API Reference:** [../api/insyz-api.md](../api/insyz-api.md)  
+**Propojené funkcionality:** [Správa příkazů](../features/prikazy-management.md) | [INSYZ Integration](../features/insyz-integration.md)  
+**API Reference:** [../api.md](../api.md#insyz-data)  
 **Styling:** [../architecture.md](../architecture.md)  
-**Aktualizováno:** 2025-07-22
+**Aktualizováno:** 2026-09-25

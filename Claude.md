@@ -23,7 +23,7 @@
    - When in doubt, DON'T DO IT
 
 ## CRITICAL RULES - NEVER BREAK
-1. **Documentation = Definition of Done** - No code without updating docs/features/
+1. **Documentation = Definition of Done** - Změna kódu = stručně doplnit orientační info do existujícího docs/features/ (nový soubor jen když nejde zařadit jinam; detaily do komentářů v kódu)
 2. **Hybrid Architecture ONLY** - Twig pages + React micro-apps, NO full SPA
 3. **Material UI ONLY for tables** - Everything else uses Tailwind + BEM
 4. **Dark mode mandatory** - Every component must support light/dark
@@ -38,14 +38,14 @@
 
 ## Architecture Pattern
 ```
-Twig Template → React App Mount → Symfony API → MockMSSQLService (dev)
-              ↘ Tailwind+BEM    ↘ PostgreSQL (prod data)
+Twig Template → React App Mount → Symfony API → InsyzService → MSSQL INSYZ (dev: USE_TEST_DATA=true → var/mock-data/)
+              ↘ Tailwind+BEM    ↘ PostgreSQL (data portálu)
 ```
 
 **Key constraint:** React apps are micro-frontends mounted in Twig pages, not route-based SPA.
 
 ## Tech Stack
-- **Backend:** Symfony 6.4 LTS + PHP 8.3 + PostgreSQL + MSSQL mock
+- **Backend:** Symfony 6.4 LTS + PHP 8.3 + PostgreSQL + MSSQL INSYZ (lokálně mock data přes `USE_TEST_DATA=true`)
 - **Frontend:** Twig templating + React 18 micro-apps + Tailwind CSS + BEM methodology
 - **React UI:** Material React Table ONLY, rest is Tailwind
 - **Dev:** DDEV (https://portalznackare.ddev.site)
@@ -56,7 +56,7 @@ assets/js/apps/           → React micro-apps (App.jsx + index.jsx)
 assets/css/components/    → BEM components with Tailwind @apply
 templates/components/     → Reusable Twig components  
 templates/pages/          → Page templates with React mount points
-src/Controller/Api/       → InsysController (MSSQL) + PortalController (PostgreSQL)
+src/Controller/Api/       → InsyzController (MSSQL INSYZ) + PortalController (PostgreSQL)
 src/Service/              → Business logic services
 docs/features/            → MAIN functional documentation
 ```
@@ -65,7 +65,7 @@ docs/features/            → MAIN functional documentation
 
 ### New Feature Implementation
 ```
-1. Create docs/features/feature-name.md FIRST (before any code)
+1. Doplnit stručně existující docs/features/ dokument (nový jen když nejde zařadit jinam)
 2. Identify if needs React app → create assets/js/apps/app-name/
 3. Create Twig template with data-app mount point
 4. Add webpack entry in webpack.config.js
@@ -94,11 +94,11 @@ if (container) {
 ### API Endpoint Creation
 ```
 Controller choice:
-- InsysController → MSSQL mock data (příkazy, users from KČT system)
+- InsyzController → MSSQL INSYZ data (příkazy, users from KČT system)
 - PortalController → PostgreSQL data (new app-specific data)
 
 MUST UPDATE:
-- docs/api/endpoint-name.md
+- přehled endpointů v docs/api.md – jen řádek (metoda, cesta, oprávnění, parametry), žádný soubor na endpoint
 - Cross-link from relevant docs/features/ document
 ```
 
@@ -342,17 +342,16 @@ utils/
 
 **Logger Types:**
 - `logger.lifecycle()` - Component lifecycle events
-- `logger.render()` - Component renders
 - `logger.api()` - API requests/responses
 - `logger.state()` - State changes
 - `logger.error()` - Errors (always shown)
 - `logger.performance()` - Performance metrics
-- `logger.data()` - Data processing
+- `logger.custom()` - Custom events
 
 ## Parameter Naming Convention (MANDATORY)
 
 ### **Snake_Case Czech Parameters ONLY**
-All data fields, form properties, calculations, and user data MUST use Czech Snake_Case format for INSYS consistency.
+All data fields, form properties, calculations, and user data MUST use Czech Snake_Case format for INSYZ consistency.
 
 **Hierarchy:** část → oblast → vlastnost
 
@@ -407,24 +406,33 @@ const accommodation = {
 ### Parameter Audit Checklist
 - [ ] All form fields in Czech Snake_Case
 - [ ] All calculation properties in Czech
-- [ ] All DTO properties match frontend
+- [ ] All backend (PHP/JSON) properties match frontend
 - [ ] All database JSON paths use Czech names
 - [ ] No English parameter names in user data
 
 ## Documentation Update Triggers
-- New PHP service → Update docs/features/ + configuration/services.md
-- New API endpoint → Create docs/api/endpoint-name.md
-- New React app → Update docs/features/ + frontend/architecture.md
-- Security changes → Update configuration/security.md
-- Environment changes → Update configuration/environment.md
-- UI component → Update relevant feature doc + frontend/components.md
-- Debug system changes → Update docs/development/debugging.md
+- New PHP service → Update docs/features/ + docs/configuration.md (Services Configuration)
+- New API endpoint → řádek v přehledu endpointů v docs/api.md
+- New React app → Update docs/features/ + docs/architecture.md
+- Security changes → Update docs/configuration.md (Security Configuration) + docs/features/authentication.md
+- Environment changes → Update docs/configuration.md (Environment Configuration)
+- UI component → Update relevant feature doc + docs/development/visual-components.md
+- Debug system changes → Update docs/development/development.md
 
 ## Test Credentials & Debugging
-- Login: `test` / `test`
+- Login: `test@test.com` / `test123` (jen s `USE_TEST_DATA=true`; testovací účty v `InsyzService::loginUser`; přihlašovací formulář posílá SHA1 hash hesla)
 - DDEV URL: https://portalznackare.ddev.site
-- Mock data: src/Service/MockMSSQLService.php
+- Mock data: `var/mock-data/api/insyz/` – načítá `InsyzService::getTestData()` při `USE_TEST_DATA=true`
 - User: `$this->getUser()` returns User entity with getJmeno(), getIntAdr()
+
+## Bezpečnost API a HTML (MANDATORY)
+- **CSRF u interního API:** každé volání `/api/*` a `/admin/api/*` musí nést hlavičku `X-CSRF-Token` (`src/EventListener/ApiCsrfListener.php`, výjimky v konstantě `VYJIMKY`). Hlavičku přidává globální obal `fetch` v `templates/components/api-token.html.twig`.
+- **Nový layout** musí v `<head>` vložit `{% include 'components/api-token.html.twig' %}` (jako `base.html.twig` a `admin.html.twig`), jinak API vrací 403 `CSRF_INVALID`.
+- **Oprávnění řeší každý endpoint sám** – CSRF listener přihlášeného uživatele neověřuje.
+- **`/api/portal/report`:** přístup jen pro členy týmu příkazu; ukládá jen vedoucí (`Je_Vedouci`) nebo admin; klient smí poslat jen stav `draft`/`send`; mimo stav `draft`/`rejected` hlášení upraví jen admin (řádek se zamyká `findOneByIdZpForUpdate`); `Presmerovani_Vyplat` jen v rámci týmu.
+- **HTML v Reactu:** nikdy přímo `dangerouslySetInnerHTML` – jen přes `renderHtmlContent` z `assets/js/utils/htmlUtils.js` (sanitizace DOMPurify). Texty z INSYZ se na serveru escapují (`TransportIconService`).
+- **Symfony profiler** (`/_profiler`, `/_wdt`) jen pro `ROLE_SUPER_ADMIN`; `/api/test/*` jen admin nebo CI token (`X-Healthcheck-Token` = `CI_HEALTHCHECK_TOKEN`).
+- **Přihlášení je throttlované:** 5 neúspěšných pokusů / e-mail a 20 / IP za 15 min (`InsyzAuthenticator`, `config/services.yaml`).
 
 ## Red Flags (Auto-Reject These Patterns)
 - Material UI outside of Material React Table usage
@@ -432,7 +440,7 @@ const accommodation = {
 - CSS-in-JS or styled-components (use BEM + Tailwind)
 - Missing dark mode variants
 - New code without corresponding docs/features/ update
-- API changes without docs/api/ update
+- API changes without docs/api.md update
 - **Business logic mixed with UI components**
 - **Missing debug logging in new components**
 - **Components without utils separation**
@@ -447,6 +455,10 @@ const accommodation = {
 ```bash
 # Development
 ddev start && ddev npm run watch
+
+# Testy – VŽDY uvnitř DDEV (node_modules na hostu jsou jen pro Linux)
+ddev exec vendor/bin/phpunit
+ddev exec npx vitest run
 
 # Check docs consistency  
 grep -r "TODO" docs/
@@ -467,4 +479,4 @@ find docs/ -name "*.md" -mtime -1
 ---
 **This context is optimized for AI decision-making efficiency.**
 **Human documentation is in docs/ directory.**
-**Last updated:** 2025-08-03 - Added Parameter Naming Convention (Czech Snake_Case MANDATORY)
+**Last updated:** 2026-09-27 - Sekce Bezpečnost API a HTML, oprava mock dat (InsyzService + USE_TEST_DATA), test účtu, cest v dokumentaci a testovacích příkazů

@@ -6,7 +6,6 @@ import {
     IconAlertTriangle
 } from '@tabler/icons-react';
 import { AdvancedFileUpload } from '../../../components/shared/forms/AdvancedFileUpload';
-import { renderHtmlContent, replaceTextWithIcons } from '../../../utils/htmlUtils';
 
 const statusOptions = [
     { value: "1", label: "1 - Správný text a dokonalý stav", color: "green" },
@@ -165,7 +164,7 @@ export const TimDetailForm = ({
                                             </h5>
                                             {item.Poznamka && (
                                                 <div className="text-sm text-gray-600 mt-1">
-                                                    {renderHtmlContent(replaceTextWithIcons(item.Poznamka))}
+                                                    {item.Poznamka /* prostý text z INSYZ – server ho neobohacuje o ikony */}
                                                 </div>
                                             )}
                                         </div>

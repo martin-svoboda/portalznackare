@@ -1,6 +1,27 @@
 # 🔍 KOMPLETNÍ TECHNICKÝ AUDIT - Portal Značkaře
 *Datum: 2025-08-06*
 
+> **Stav nálezů k 2026-09-27** – tento dokument je historický (08/2025) a níže se nemění.
+> Ověřeno v kódu:
+>
+> **Vyřešeno**
+> - Chybí CSRF pro API → `ApiCsrfListener` (hlavička `X-CSRF-Token` u `/api/*`)
+> - No rate limiting → částečně: throttling přihlášení podle e-mailu a IP (`InsyzAuthenticator`); rate limiting ostatních API (upload) zůstává otevřený
+> - No request timeouts → MSSQL `LoginTimeout=30` + `LOCK_TIMEOUT 30000` (`MssqlConnector`), PostgreSQL `statement_timeout 30s` při ukládání hlášení (`PortalController`)
+> - Mantine UI duplicita → Mantine v `package.json` už není
+> - Chybí monitoring → částečně: audit log (`AuditLog`), INSYZ log + `/admin/insyz-monitoring`; Prometheus/Grafana nejsou
+> - Security headers → `SecurityHeadersListener` (už uvedeno v původní zprávě)
+>
+> **Stále otevřené**
+> - SSH deployment jako root (`SSH_USER: root` v `.github/workflows/deploy.yml`)
+> - `chmod -R 777 var/cache var/log public/build` v deployi
+> - Deployment failures nejsou detekovány – chyby migrací se maskují (`|| echo`), neúspěšný health check jen vypíše varování a deploy pokračuje
+> - Material UI pouze pro tabulky – zůstává jako závislost `material-react-table`; pravidla projektu to výslovně povolují, nepovažuje se za chybu
+> - `nelmio/cors-bundle` zůstává – konfigurace je jen v `config/packages/nelmio_cors.yaml` (whitelist `CORS_ALLOW_ORIGIN`, bez credentials); duplicitní `cors.yaml` s `allow_origin: *` byl odstraněn
+>
+> Nálezy k výkonu (bundle size, code splitting), úniku informací v chybových hláškách, zálohám DB a infrastruktuře (Redis, Docker, blue-green) nebyly znovu ověřovány.
+> Aktuální otevřené úkoly: [TODO.md](../TODO.md).
+
 ## 📋 OBSAH
 1. [Executive Summary](#executive-summary)
 2. [Architektura a Struktura](#architektura-a-struktura)

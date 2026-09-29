@@ -183,13 +183,14 @@ class AppController extends AbstractController
         $date = $this->resolveExecutionDate($report, $orderData);
         $sazby = $insyzService->getSazby($date);
 
-        // 4) Detaily členů týmu (= GET /api/insyz/user pro každého)
+        // 4) Detaily členů týmu – jen zúžený profil (jméno, SPZ, kvalifikace); stránka je
+        //    dostupná anonymně přes insyz-hash, osobní údaje do ní nepatří
         $usersDetails = [];
         foreach (($report->getTeamMembers() ?: []) as $member) {
             $intAdr = (int) ($member['INT_ADR'] ?? 0);
             if ($intAdr > 0 && !isset($usersDetails[$intAdr])) {
                 try {
-                    $usersDetails[$intAdr] = $insyzService->getUser($intAdr);
+                    $usersDetails[$intAdr] = $insyzService->getUserForTeam($intAdr);
                 } catch (\Throwable $e) {
                     // detail jednoho uživatele není kritický
                 }

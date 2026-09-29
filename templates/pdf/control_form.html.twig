@@ -98,11 +98,11 @@
 <div class="header-info" style="display:inline-block; width: 73%">
     <h1>Kontrolní formulář {{ head.Cislo_ZP ?? '' }}</h1>
     {{ head.Druh_ZP_Naz ?? '' }}
-    {% if head.Popis_ZP %}
+    {% if head.Popis_ZP ?? false %}
         {{ head.Popis_ZP|raw }}
     {% endif %}
-    {% if head.Poznamka_ZP %}
-        {{ head.Poznamka_ZP|raw }}
+    {% if head.Poznamka_ZP ?? false %}
+        {{ head.Poznamka_ZP }}
     {% endif %}
 </div>
 <div style="display:inline-block; width: 25%; height: 50px; border: 1px solid #000; padding: 1mm; font-size: 8pt;">
@@ -270,7 +270,8 @@
     {# Seskupení předmětů podle TIM #}
     {% set timGroups = {} %}
     {% for predmet in predmety %}
-        {% if predmet.EvCi_TIM %}
+        {# Řádky bez EvCi_TIM nejsou předměty – INSYZ tak posílá informační řádek (Stav/Popis) #}
+        {% if predmet.EvCi_TIM ?? false %}
             {% if timGroups[predmet.EvCi_TIM] is not defined %}
                 {% set timGroups = timGroups|merge({
                     (predmet.EvCi_TIM): {
@@ -417,6 +418,15 @@
             </table>
         {% endfor %}
         #}
+    {% else %}
+        {# Bez TIMů – zobrazit informační řádek z INSYZ stejně jako web (např. „Pro ZP jiné než O a S…“) #}
+        {% for predmet in predmety %}
+            {% if predmet.Popis ?? false %}
+                <div style="margin-top: 20px; padding: 15px; background-color: #eff6ff; border-left: 4px solid #3b82f6;">
+                    <p style="margin: 0; color: #1e40af;">{{ predmet.Popis }}</p>
+                </div>
+            {% endif %}
+        {% endfor %}
     {% endif %}
 {% elseif head.Druh_ZP is same as('O') %}
     {# Jen u obnovy TIMy čekáme; ZP-J je vykázaný činnostmi, ne TIMy #}

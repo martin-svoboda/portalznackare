@@ -9,7 +9,8 @@ security:
             
     firewalls:
         dev:
-            pattern: ^/(_(profiler|wdt)|css|images|js)/
+            # _profiler/_wdt záměrně NE – jdou přes firewall main a jsou jen pro super admina (viz access_control)
+            pattern: ^/(css|images|js)/
             security: false
                 
         main:
@@ -17,6 +18,8 @@ security:
             lazy: true
             provider: insyz_provider
             custom_authenticator: App\Security\InsyzAuthenticator
+            # Deaktivovaný účet (User::isActive) se nepřihlásí
+            user_checker: App\Security\UserChecker
             remember_me:
                 secret: '%kernel.secret%'
                 lifetime: 604800 # 1 week
@@ -31,6 +34,9 @@ security:
     # Easy way to control access for large sections of your site
     # Note: Only the *first* access control that matches will be used
     access_control:
+        # Symfony profiler (jen dev prostředí) – obsahuje požadavky všech uživatelů, cookies i konfiguraci
+        - { path: ^/(_profiler|_wdt), roles: ROLE_SUPER_ADMIN }
+
         # Public pages
         - { path: ^/$, roles: PUBLIC_ACCESS }
         - { path: ^/prihlaseni, roles: PUBLIC_ACCESS }
@@ -38,21 +44,14 @@ security:
         # Public API endpoints
         - { path: ^/api/auth/login, roles: PUBLIC_ACCESS }
         - { path: ^/api/auth/status, roles: PUBLIC_ACCESS }
-        - { path: ^/api/test/mssql-connection, roles: PUBLIC_ACCESS }
+        - { path: ^/api/auth/csrf-token$, roles: PUBLIC_ACCESS }
+        # Diagnostika – jen admin nebo CI token, ověřuje TestController (CI nemá session)
+        - { path: ^/api/test/, roles: PUBLIC_ACCESS }
         # Desktopový klient INSYZ – ověření je v těle requestu, ne session
         - { path: ^/api/insyz-client/db-password$, roles: PUBLIC_ACCESS }
-        - { path: ^/api/test/login-test, roles: PUBLIC_ACCESS }
 
         # Admin pages - require ROLE_ADMIN
         - { path: ^/admin, roles: ROLE_ADMIN }
-
-        # Admin API endpoints - require ROLE_ADMIN
-        - { path: ^/api/users, roles: ROLE_ADMIN }
-        - { path: ^/api/audit-logs, roles: ROLE_ADMIN }
-        - { path: ^/api/system-options, roles: ROLE_ADMIN }
-
-        # User can manage own settings/preferences
-        - { path: ^/api/users/\d+/(settings|preferences), roles: ROLE_USER }
 
         # Protected API endpoints - general access
         - { path: ^/api, roles: ROLE_USER }

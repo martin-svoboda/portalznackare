@@ -10,6 +10,7 @@
     <meta name="apple-mobile-web-app-title" content="Admin Portal" />
     <link rel="manifest" href="{{ path('app_manifest') }}" />
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    {% include 'components/api-token.html.twig' %}
     
     {% block stylesheets %}
         {{ encore_entry_link_tags('app-styles') }}
@@ -33,9 +34,9 @@
             </div>
             
             <div class="app-header__actions">
-                <a href="{{ path('app_index') }}" class="btn btn--ghost btn--sm" title="Přejít na uživatelské rozhraní">
+                <a href="{{ path('app_index') }}" class="btn btn--ghost btn--sm" title="Přejít na uživatelské rozhraní" aria-label="Uživatelské rozhraní">
                     {{ tabler_icon('arrow-back', 16) }}
-                    Uživatelské rozhraní
+                    <span class="hidden sm:inline">Uživatelské rozhraní</span>
                 </a>
                 
                 <button class="btn-icon" onclick="toggleTheme()" aria-label="Přepnout režim zobrazení" id="theme-toggle">

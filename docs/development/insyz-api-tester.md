@@ -4,7 +4,8 @@ Vývojářský nástroj pro testování INSYZ API endpointů a export mock dat d
 
 ## Přehled
 
-INSYZ API Tester je React aplikace dostupná pouze v dev prostředí na URL `/test-insyz-api`. Umožňuje:
+INSYZ API Tester je React aplikace na URL `/test-insyz-api` (`InsyzTestController`). V `dev` je dostupná komukoli,
+mimo dev jen `ROLE_SUPER_ADMIN` (ostatním 404) a nabízí jen čtecí (GET) endpointy. Umožňuje:
 
 - **Testování všech INSYZ API endpointů** s jednoduchým formulářem
 - **Export surových dat** z INSYZ do JSON souborů  
@@ -148,27 +149,14 @@ if (!$raw) {
 
 ### Rozdíl v datech
 
-- **Běžné aplikace**: `GET /api/insyz/prikazy/2024` → obohacená data s HTML ikonami
-- **Test aplikace**: `GET /api/insyz/prikazy/2024?raw=1` → surová data z INSYZ
+- **Běžné aplikace**: `GET /api/insyz/prikazy?year=2024` → obohacená data s HTML ikonami
+- **Test aplikace**: `GET /api/insyz/prikazy?year=2024&raw=1` → surová data z INSYZ
 
-## MockMSSQLService integrace
+## Načítání mock dat (`InsyzService::getTestData()`)
 
-Service automaticky načítá exportovaná data:
-
-```php
-public function getPrikazy(int $intAdr, int $year): array
-{
-    // Zkusit načíst z endpoint struktury
-    $data = $this->loadMockDataFromEndpoint('api/insyz/prikazy', [$intAdr . '-' . $year]);
-    if ($data !== null) {
-        return $data;
-    }
-    
-    // Fallback na starou strukturu
-    $testData = $this->getTestData();
-    return $testData['prikazy'][$year] ?? [];
-}
-```
+Při `USE_TEST_DATA=true` čte `InsyzService` exportované soubory z `var/mock-data/api/insyz/`
+(např. `prikazy/{INT_ADR}-{rok}.json`, `prikaz/{id}.json`, `user/{INT_ADR}.json`; fallback `{endpoint}/data.json`).
+Samostatná mock služba neexistuje.
 
 ## Export API endpointy
 
@@ -218,12 +206,12 @@ tar -xzf mock-data.tar.gz
 
 ### 3. Lokální vývoj
 
-MockMSSQLService automaticky použije exportovaná data místo default mock dat.
+`InsyzService` (při `USE_TEST_DATA=true`) automaticky použije exportovaná data z `var/mock-data/`.
 
 ## Bezpečnost
 
-- **Pouze dev prostředí**: Aplikace je dostupná pouze když `kernel.environment = dev`
-- **Autentizace**: Export endpointy vyžadují přihlášeného uživatele
+- **Přístup**: v `dev` komukoli, jinde jen `ROLE_SUPER_ADMIN` a pouze GET endpointy
+- **Export**: `/api/insyz/export*` funguje jen v `APP_ENV=dev` (jinak `403`), vyžaduje přihlášení
 - **Raw data**: Žádné citlivé informace nejsou obohacovány HTML obsahem
 
 ## Rozšiřování
@@ -260,13 +248,11 @@ private function determineExportPathFromData(string $endpoint, array $params, ar
 - Query parametry: pro GET requesty se automaticky přidají
 - Body parametry: pro POST requesty
 
-### MockMSSQLService nenačítá data
+### Mock data se nenačítají
 - Zkontrolovat souborovou strukturu v `var/mock-data/`
 - Ověřit názvy souborů (musí odpovídat pattern `{INT_ADR}-{year}.json`)
 
 ## Related
 
-- [INSYZ API Reference](../api/insyz-api.md)
+- [API portálu](../api.md#insyz-data)
 - [INSYZ Integration](../features/insyz-integration.md)
-- [INSYZ API](../api/insyz-api.md)
-- [Portal API](../api/portal-api.md)

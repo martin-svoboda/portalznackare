@@ -67,7 +67,7 @@ export const PartBSummary = ({
                     <div key={timGroup.EvCi_TIM} className={blockStyle}>
                         <h4 className={`font-medium ${textSize} flex items-center`}>
                             <IconMapPin size={16} className="mr-2" />
-                            <span dangerouslySetInnerHTML={{ __html: timGroup.Naz_TIM }} />
+                            <span>{replaceTextWithIcons(timGroup.Naz_TIM)}</span>
                             <span> (TIM {timGroup.EvCi_TIM})</span>
                         </h4>
                         
@@ -106,7 +106,7 @@ export const PartBSummary = ({
                                                     {itemStatus?.Zachovalost ? (
                                                         <span>{statusOptions[itemStatus.Zachovalost] || itemStatus.Zachovalost}</span>
                                                     ) : (
-                                                        <span dangerouslySetInnerHTML={{ __html: '<span class="text-red-500 font-bold">chybí stav</span>' }} />
+                                                        <span className="text-red-500 font-bold">chybí stav</span>
                                                     )}
                                                 </td>
                                                 <td className={`${smallTextSize} py-2 pr-4`}>
@@ -120,7 +120,7 @@ export const PartBSummary = ({
                                                                 />
                                                             </span>
                                                         ) : (
-                                                            <span dangerouslySetInnerHTML={{ __html: '<span class="text-red-500 font-bold">chybí rok</span>' }} />
+                                                            <span className="text-red-500 font-bold">chybí rok</span>
                                                         )
                                                     ) : (
                                                         <span className="text-gray-400">—</span>
@@ -137,7 +137,7 @@ export const PartBSummary = ({
                                                                 />
                                                             </span>
                                                         ) : (
-                                                            <span dangerouslySetInnerHTML={{ __html: '<span class="text-red-500 font-bold">chybí orientace</span>' }} />
+                                                            <span className="text-red-500 font-bold">chybí orientace</span>
                                                         )
                                                     ) : (
                                                         <span className="text-gray-400">—</span>
@@ -156,7 +156,7 @@ export const PartBSummary = ({
                             {timReport?.Souhlasi_STP !== undefined && timReport?.Souhlasi_STP !== null ? (
                                 <span>{timReport.Souhlasi_STP ? 'ANO' : 'NE'}</span>
                             ) : (
-                                <span dangerouslySetInnerHTML={{ __html: '<span class="text-red-500 font-bold">neuvedeno</span>' }} />
+                                <span className="text-red-500 font-bold">neuvedeno</span>
                             )}
                         </div>
 
@@ -256,7 +256,7 @@ export const PartBSummary = ({
                             <p>{formData.Koment_Usek}</p>
                         </div>
                     ) : (
-                        <span dangerouslySetInnerHTML={{ __html: '<span class="text-yellow-600 font-bold">Bez komentáře k úseku</span>' }} />
+                        <span className="text-yellow-600 font-bold">Bez komentáře k úseku</span>
                     )}
                 </div>
                 
@@ -276,7 +276,7 @@ export const PartBSummary = ({
                     {formData.Souhlasi_Mapa ? (
                         <span>{formData.Souhlasi_Mapa}</span>
                     ) : (
-                        <span dangerouslySetInnerHTML={{ __html: '<span class="text-red-500 font-bold">neuvedeno</span>' }} />
+                        <span className="text-red-500 font-bold">neuvedeno</span>
                     )}
                 </div>
                 <div className={`${smallTextSize} flex justify-between`}>
@@ -284,7 +284,7 @@ export const PartBSummary = ({
                     {formData.Souhlasi_Mapy_com ? (
                         <span>{formData.Souhlasi_Mapy_com}</span>
                     ) : (
-                        <span dangerouslySetInnerHTML={{ __html: '<span class="text-red-500 font-bold">neuvedeno</span>' }} />
+                        <span className="text-red-500 font-bold">neuvedeno</span>
                     )}
                 </div>
 
