@@ -290,10 +290,10 @@ jobs:
           echo "Index page returned HTTP $INDEX_CODE"
           
           echo "Testing INSYZ PDO connection..."
-          MSSQL_RESPONSE=$(curl -s -H "X-Healthcheck-Token: $HEALTHCHECK_TOKEN" https://dev.portalznackare.cz/api/test/mssql-connection || echo "curl_failed")
-          MSSQL_CODE=$(curl -s -o /dev/null -w "%{http_code}" -H "X-Healthcheck-Token: $HEALTHCHECK_TOKEN" https://dev.portalznackare.cz/api/test/mssql-connection || echo "000")
-          echo "INSYZ connection test returned HTTP $MSSQL_CODE"
-          echo "Response: $MSSQL_RESPONSE"
+          # Tělo odpovědi obsahuje host/DB/uživatele MSSQL – do logu Actions jen HTTP kód a pole "status"
+          MSSQL_CODE=$(curl -s -o /tmp/mssql.json -w "%{http_code}" -H "X-Healthcheck-Token: $HEALTHCHECK_TOKEN" https://dev.portalznackare.cz/api/test/mssql-connection || echo "000")
+          echo "INSYZ connection test returned HTTP $MSSQL_CODE ($(grep -o '"status":"[a-z_]*"' /tmp/mssql.json 2>/dev/null || echo 'bez status'))"
+          rm -f /tmp/mssql.json
           
           # Test API monitoring logs
           echo "Testing API monitoring logs..."
@@ -320,10 +320,10 @@ jobs:
         run: |
           sleep 10
           echo "Testing INSYZ PDO connection..."
-          MSSQL_RESPONSE=$(curl -s -H "X-Healthcheck-Token: $HEALTHCHECK_TOKEN" https://portalznackare.cz/api/test/mssql-connection || echo "curl_failed")
-          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -H "X-Healthcheck-Token: $HEALTHCHECK_TOKEN" https://portalznackare.cz/api/test/mssql-connection || echo "000")
-          echo "INSYZ connection test returned HTTP $HTTP_CODE"
-          echo "Response: $MSSQL_RESPONSE"
+          # Tělo odpovědi obsahuje host/DB/uživatele MSSQL – do logu Actions jen HTTP kód a pole "status"
+          HTTP_CODE=$(curl -s -o /tmp/mssql.json -w "%{http_code}" -H "X-Healthcheck-Token: $HEALTHCHECK_TOKEN" https://portalznackare.cz/api/test/mssql-connection || echo "000")
+          echo "INSYZ connection test returned HTTP $HTTP_CODE ($(grep -o '"status":"[a-z_]*"' /tmp/mssql.json 2>/dev/null || echo 'bez status'))"
+          rm -f /tmp/mssql.json
           
           if [ "$HTTP_CODE" != "200" ]; then
             echo "⚠️ PROD INSYZ connection test failed, but continuing deployment"
