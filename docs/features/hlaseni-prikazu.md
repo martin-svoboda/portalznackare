@@ -57,7 +57,7 @@ const App = () => {
 - **Doprava** - Cestovní segmenty s real-time kalkulací  
 - **Ubytování** - Noclehárny s příložkami
 - **Výdaje** - Vedlejší náklady
-- **Řidič** - SPZ vozidel a hlavní řidič pro zvýšenou sazbu
+- **Řidič** - SPZ vozidel a hlavní řidič pro zvýšenou sazbu (SPZ se předvyplní z `RZ_Auta` řidiče jen jednou pro skupinu+řidiče, pak ji lze libovolně smazat/přepsat)
 
 #### Cestovní segmenty
 Podporované dopravní prostředky:

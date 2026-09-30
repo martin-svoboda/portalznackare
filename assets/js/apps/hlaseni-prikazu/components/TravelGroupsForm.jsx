@@ -275,41 +275,38 @@ export const TravelGroupsForm = ({
         }
     }, []); // Run only once on mount
 
-    // Auto-fill SPZ when driver is set but SPZ is empty - works for any team member
+    // Předvyplnění SPZ z INSYZ (RZ_Auta řidiče) – jen JEDNOU pro každou dvojici skupina+řidič.
+    // Uživatel musí mít možnost SPZ smazat a přepsat, proto se prázdné pole znovu nevyplňuje.
+    const spzPredvyplneno = React.useRef(new Set());
     React.useEffect(() => {
         const usersDetails = data.usersDetails || {};
+        const kVyplneni = {};
 
-        // Check if any group needs SPZ auto-fill
-        const needsSPZFill = formData.Skupiny_Cest?.some(group => {
-            if (!group.Ridic || (group.SPZ && group.SPZ.trim() !== '')) return false;
+        (formData.Skupiny_Cest || []).forEach(group => {
+            if (!group.Ridic) return;
+            const klic = `${group.id}-${group.Ridic}`;
+            if (spzPredvyplneno.current.has(klic)) return;
             const driverData = usersDetails[group.Ridic];
-            if (!driverData) return false;
+            if (!driverData) return; // detaily řidiče ještě nejsou načtené – zkusit později
+            spzPredvyplneno.current.add(klic);
+
             // usersDetails[INT_ADR] vrací přímo objekt s daty, ne pole
             const userData = Array.isArray(driverData) ? driverData[0]?.[0] : driverData;
-            return userData?.RZ_Auta && userData.RZ_Auta.trim() !== '';
+            const rzAuta = userData?.RZ_Auta?.trim();
+            if (rzAuta && (!group.SPZ || group.SPZ.trim() === '')) {
+                kVyplneni[group.id] = rzAuta;
+            }
         });
 
-        if (needsSPZFill) {
+        if (Object.keys(kVyplneni).length > 0) {
             setFormData(prev => ({
                 ...prev,
-                Skupiny_Cest: (prev.Skupiny_Cest || []).map(group => {
-                    // Only update if driver is selected, SPZ is empty, and driver has RZ_Auta
-                    if (group.Ridic && (!group.SPZ || group.SPZ.trim() === '')) {
-                        const driverData = usersDetails[group.Ridic];
-                        if (!driverData) return group;
-
-                        // usersDetails[INT_ADR] vrací přímo objekt s daty, ne pole
-                        const userData = Array.isArray(driverData) ? driverData[0]?.[0] : driverData;
-
-                        if (userData?.RZ_Auta && userData.RZ_Auta.trim() !== '') {
-                            return { ...group, SPZ: userData.RZ_Auta };
-                        }
-                    }
-                    return group;
-                })
+                Skupiny_Cest: (prev.Skupiny_Cest || []).map(group =>
+                    kVyplneni[group.id] ? { ...group, SPZ: kVyplneni[group.id] } : group
+                )
             }));
         }
-    }, [data.usersDetails, formData.Skupiny_Cest?.map(g => `${g.id}-${g.Ridic}-${g.SPZ}`).join(',')]); // Run when users details load or driver/SPZ changes
+    }, [data.usersDetails, formData.Skupiny_Cest?.map(g => `${g.id}-${g.Ridic}`).join(',')]); // Run when users details load or driver changes
 
     // Auto-set first driver to have higher rate when Zvysena_Sazba is true or when drivers change
     React.useEffect(() => {
