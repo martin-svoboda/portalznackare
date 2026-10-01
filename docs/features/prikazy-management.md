@@ -94,8 +94,9 @@ public function enrichPrikazDetail(array $detail): array {
     $detail['predmety'] = array_map(function($predmet) {
         $predmet['Znacka_HTML'] = $this->znackaService->znacka(...); // SVG značky
         $predmet['Tim_HTML'] = $this->timService->timPreview(...);   // TIM náhled
-        // náhled se generuje, když je vyplněný Radek1, Radek2 NEBO Radek3 –
+        // náhled se generuje, když TimService::getItemLines vrátí aspoň jeden řádek –
         // u doplňkových směrovek nechává INSYZ Radek1 prázdný (TIM BN393a)
+        $predmet['Radky_Textu'] = ...;  // tytéž řádky (escapované) pro PDF kontrolního formuláře
         $predmet['Naz_TIM'] = $this->replaceIconsInText(...);        // Dopravní ikony
         return $predmet;
     }, $detail['predmety']);

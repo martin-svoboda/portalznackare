@@ -59,10 +59,16 @@ switch ($tvar) {
 
 ### 2. **TimService** - TIM náhledy
 
+**Řádky textu (`getItemLines`, INSYZ-308/328)** – sdílí náhled TIM i PDF kontrolního formuláře:
+- směrovky `S/D/O/Z` a TMN `M`: `Radek1` → `Meziradek_12` → `Radek2` → `Meziradek_23` → `Radek3`, meziřádky 1:1 bez km – na směrovce menším písmem vlevo, na TMN stejně velké jako řádky 2 a 3
+- TMN: výška jen jednou z `Nadmorska_vyska` (INSYZ ji posílá i v `Radek2`/`Meziradek_12`)
+- TVM `V`: jen `Radek1` (název) + `Meziradek_12` (měřítko); `Radek3` je servisní poznámka INSYZ
+- tabulky (`T/B/I/Q/P`) zatím jen `Radek1–3`; `Zahlavi`, `Pojmenovani`, `Pomocny_radek` se zatím nezobrazují
+
 ```php
 // src/Service/TimService.php
 public function timPreview(array $item): string {
-    $lines = $this->getItemLines($item);        // Texty z Radek1, Radek2, Radek3
+    $lines = $this->getItemLines($item);        // Radek1–3 + meziřádky (viz níže)
     $showArrow = ($item['Druh_Predmetu'] ?? '') === "S" || "D";
     $direction = $item['Smerovani'] ?? '';      // P = pravá, L = levá
     

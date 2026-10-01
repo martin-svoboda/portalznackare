@@ -162,17 +162,19 @@ class DataEnricherService {
 				// Náhledy TIM – stačí jakýkoli vyplněný řádek. INSYZ nechává Radek1 prázdný
 				// třeba u doplňkových směrovek (INSYZ-280, TIM BN393a), a podle Radek1 samotného
 				// by takový předmět zůstal bez náhledu.
-				$maText = false;
-				foreach ( [ 'Radek1', 'Radek2', 'Radek3' ] as $radek ) {
-					if ( '' !== trim( (string) ( $predmet[ $radek ] ?? '' ) ) ) {
-						$maText = true;
-						break;
-					}
-				}
+				$radky = $this->timService->getItemLines( $predmet );
 
-				if ( $maText ) {
+				if ( $radky ) {
 					$predmet['Tim_HTML'] = $this->timService->timPreview( $predmet, $forPdf );
 				}
+
+				// Řádky textu včetně meziřádků pro PDF kontrolního formuláře – stejné pořadí
+				// a pravidla jako náhled TIM, text už escapovaný s ikonami
+				$predmet['Radky_Textu'] = array_map( fn ( $radek ) => [
+					'text'      => $this->replaceIconsInText( $radek['text'], $forPdf ),
+					'km'        => $radek['km'] ? (float) $radek['km'] : null,
+					'meziradek' => $radek['meziradek'],
+				], $radky );
 
 				// Název TIM s ikonami
 				if ( isset( $predmet['Naz_TIM'] ) ) {

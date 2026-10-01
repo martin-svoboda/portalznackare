@@ -110,28 +110,63 @@ class TimService
     }
 
     /**
-     * Získá řádky z TIM položky
-     * 1:1 převod z getItemLines funkce.
+     * Typy předmětů, u kterých se zobrazují meziřádky (Meziradek_12 mezi Radek1 a Radek2,
+     * Meziradek_23 mezi Radek2 a Radek3) – INSYZ-308: meziřádky se zobrazují 1:1.
+     * Tabulky (T, B, I, Q, P) mají texty uložené nestandardně, ty zatím zůstávají jen na Radek1–3.
      */
-    private function getItemLines(array $item): array
+    private const PREDMETY_S_MEZIRADKY = ['S', 'D', 'O', 'Z', 'M'];
+
+    /**
+     * Řádky textu předmětu v pořadí, jak jsou na tabulce (náhled TIM i PDF kontrolního formuláře).
+     * Vrací surový text z INSYZ (neescapovaný) – escapuje až replaceIconsInText při vykreslení.
+     *
+     * @return array<int, array{text: string, km: ?string, meziradek: bool}>
+     */
+    public function getItemLines(array $item): array
     {
+        $druh = $item['Druh_Predmetu'] ?? '';
+        $text = fn (string $pole): string => trim((string) ($item[$pole] ?? ''));
         $lines = [];
 
-        for ($i = 1; $i <= 3; ++$i ) {
-            $text = isset($item["Radek{$i}"]) ? trim($item["Radek{$i}"]) : null;
-            $km = isset($item["KM{$i}"]) && (float) $item["KM{$i}"] > 0 ? $this->formatKm($item["KM{$i}"]) : null;
+        // TVM (INSYZ-328): název mapy a měřítko. Radek3 nese servisní poznámku pro INSYZ
+        // („!! NEOBJEDNÁVAT PŘES INSYZ !!“), na náhled nepatří.
+        if ('V' === $druh) {
+            foreach (['Radek1' => false, 'Meziradek_12' => true] as $pole => $meziradek) {
+                if ('' !== $text($pole)) {
+                    $lines[] = ['text' => $text($pole), 'km' => null, 'meziradek' => $meziradek];
+                }
+            }
 
-			if ( ($item['Druh_Predmetu'] ?? '') === 'M' && 2 === $i && !empty($item['Nadmorska_vyska'])) {
-				$vyska = rtrim(rtrim(trim($item['Nadmorska_vyska']), '0'), '.');
-				$lines[] = ['text' => $vyska . ' m n.m.', 'km' => ''];
+            return $lines;
+        }
 
-				// Pokud originální Radek2 už obsahuje výšku, přeskočit (zamezení duplicity)
-				if ($text && (str_contains($text, $vyska) || str_contains($text, 'm n.m.') || str_contains($text, 'm n. m.'))) {
-					continue;
-				}
-			}
-            if ($text) {
-                $lines[] = ['text' => $text, 'km' => $km];
+        $sMeziradky = in_array($druh, self::PREDMETY_S_MEZIRADKY, true);
+        $vyska = 'M' === $druh && !empty($item['Nadmorska_vyska'])
+            ? rtrim(rtrim(trim($item['Nadmorska_vyska']), '0'), '.')
+            : null;
+        // U TMN INSYZ posílá výšku i v Radek2 / Meziradek_12 – vykresluje se jednou z Nadmorska_vyska
+        $jeVyska = fn (string $t): bool => null !== $vyska
+            && (str_contains($t, $vyska) || str_contains($t, 'm n.m.') || str_contains($t, 'm n. m.'));
+
+        for ($i = 1; $i <= 3; ++$i) {
+            $radek = $text("Radek{$i}");
+            $km = isset($item["KM{$i}"]) && (float) $item["KM{$i}"] > 0 ? (string) $item["KM{$i}"] : null;
+
+            if (null !== $vyska && 2 === $i) {
+                $lines[] = ['text' => $vyska.' m n.m.', 'km' => null, 'meziradek' => false];
+
+                if ($jeVyska($radek)) {
+                    $radek = '';
+                }
+            }
+
+            if ('' !== $radek) {
+                $lines[] = ['text' => $radek, 'km' => $km, 'meziradek' => false];
+            }
+
+            $meziradek = $sMeziradky && $i < 3 ? $text('Meziradek_'.$i.($i + 1)) : '';
+            if ('' !== $meziradek && !$jeVyska($meziradek)) {
+                $lines[] = ['text' => $meziradek, 'km' => null, 'meziradek' => true];
             }
         }
 
@@ -373,18 +408,27 @@ class TimService
                 // Velikost textu
                 $textSize = ($item['Druh_Predmetu'] ?? '') === 'M' ? (0 === $idx ? '20px' : '12px') : '14px';
                 $fontWeight = '400';
+                // Meziřádek je bez km. Na směrovce („dále po červené“) drobnějším písmem zarovnaný vlevo,
+                // na TVM (měřítko) drobnějším písmem na střed, na TMN stejně velký jako řádky 2 a 3.
+                $jeMeziradek = $line['meziradek'];
+                $meziradekVlevo = $jeMeziradek && in_array($item['Druh_Predmetu'] ?? '', ['S', 'D', 'O', 'Z'], true);
+                if ($jeMeziradek && ($item['Druh_Predmetu'] ?? '') !== 'M') {
+                    $textSize = '11px';
+                }
+                $km = $line['km'] ? $this->formatKm($line['km']) : null;
+                $jeNazevTmn = ($item['Druh_Predmetu'] ?? '') === 'M' && 0 === $idx && !$jeMeziradek;
 
                 if ($forPdf) {
-                    $html .= '<div style="display: block; text-align: center; width: 100%; min-height: 16px; position: relative;">';
+                    $html .= '<div style="display: block; text-align: '.($meziradekVlevo ? 'left' : 'center').'; width: 100%; min-height: 16px; position: relative;">';
                 } else {
                     $height = 16;
-                    if (($item['Druh_Predmetu'] ?? '') === 'M' && 0 === $idx) {
+                    if ($jeNazevTmn) {
                         $height = 20;
                     }
-                    $html .= '<div style="display: flex; justify-content: '.($line['km'] ? 'space-between' : 'center').'; width: 100%; min-height: '.$height.'px; position: relative; align-items: center;">';
+                    $html .= '<div style="display: flex; justify-content: '.($km ? 'space-between' : ($meziradekVlevo ? 'flex-start' : 'center')).'; width: 100%; min-height: '.$height.'px; position: relative; align-items: center;">';
                 }
 
-                if ($line['km']) {
+                if ($km) {
                     // Text s kilometráží
                     if ($forPdf) {
                         $html .= '<div style="display: inline-block; width: 70%; text-align: left;">';
@@ -398,8 +442,8 @@ class TimService
                     $html .= '</span>';
                     $html .= '</div>';
                     $html .= '</div>';
-                    $html .= '<div style="display: inline-block; width: 30%; text-align: right;"><span style="font-size: '.$textSize.'; color: black;">'.$line['km'].' km</span></div>';
-                } elseif (($item['Druh_Predmetu'] ?? '') === 'M' && 0 === $idx) {
+                    $html .= '<div style="display: inline-block; width: 30%; text-align: right;"><span style="font-size: '.$textSize.'; color: black;">'.$km.' km</span></div>';
+                } elseif ($jeNazevTmn) {
                     // Speciální případ pro M typ, první řádek
                     if ($forPdf) {
                         $html .= '<div style="display: block; width: 100%;">';

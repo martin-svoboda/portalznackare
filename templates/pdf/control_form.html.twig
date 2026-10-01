@@ -33,12 +33,8 @@
             font-weight: bold;
         }
 
-        /* Tabulky úseků i TIM v Oswaldu regular (vizuální Tim_HTML náhled je v PDF vypnutý) */
-        .lined-table,
-        .lined-table th {
-            font-family: 'Oswald', 'DejaVu Sans', sans-serif;
-            font-weight: normal;
-        }
+        /* Tabulky úseků i TIM v základním DejaVu Sans z body – condensed Oswald je v tisku
+           při 7pt nečitelný. Arial/Helvetica v DomPDF neumí českou diakritiku (č, ř). */
 
         h1 {
             font-size: 14pt;
@@ -226,17 +222,9 @@
                                             <br><span style="line-height: 2">{{ item.Znacka_HTML|raw }}  {{ item.Barva_Kod }}</span>
                                         {% endif %}
                                     </td>
-                                    <td style="width: 27%; font-size: 7pt; line-height: 1;{% if item.Cinnost == 'odinstalace' %} text-decoration: line-through;{% endif %}">
-                                        {{ item.Radek1|default('')|raw }}{% if item.KM1|default('') and (item.KM1 + 0) > 0 %} {{ (item.KM1 + 0) }} km{% endif %}
-                                        {% set skip_radek2 = false %}
-                                        {% if item.Druh_Predmetu is same as('M') and item.Nadmorska_vyska|default('') %}
-                                            {% set vyska = item.Nadmorska_vyska|trim|trim('0')|trim('.') %}
-                                            <br>{{ vyska }} m n.m.
-                                            {% set r2 = item.Radek2|default('') %}
-                                            {% set skip_radek2 = r2 and (vyska in r2 or 'm n.m.' in r2 or 'm n. m.' in r2) %}
-                                        {% endif %}
-                                        {% if item.Radek2|default('') and not skip_radek2 %}<br>{{ item.Radek2|raw }}{% if item.KM2|default('') and (item.KM2 + 0) > 0 %} {{ (item.KM2 + 0) }} km{% endif %}{% endif %}
-                                        {% if item.Radek3|default('') %}<br>{{ item.Radek3|raw }}{% if item.KM3|default('') and (item.KM3 + 0) > 0 %} {{ (item.KM3 + 0) }} km{% endif %}{% endif %}
+                                    <td style="width: 27%; font-size: 7pt; line-height: 1.25;{% if item.Cinnost == 'odinstalace' %} text-decoration: line-through;{% endif %}">
+                                        {# Řádky i meziřádky připravuje DataEnricherService (TimService::getItemLines) – stejně jako náhled TIM #}
+                                        {% for radek in item.Radky_Textu|default([]) %}{% if not loop.first %}<br>{% endif %}{% if radek.meziradek and item.Druh_Predmetu is not same as('M') %}<span style="font-size: 6pt;">{{ radek.text|raw }}</span>{% else %}{{ radek.text|raw }}{% if radek.km %} {{ radek.km }} km{% endif %}{% endif %}{% endfor %}
                                     </td>
                                     <td style="width: 8%; font-size: 7pt;">
                                         {{ item.Cinnost == 'odinstalace' ? 'Odinstalace' : 'Instalace' }}
@@ -325,17 +313,9 @@
                                             <br><span style="line-height: 2">{{ item.Znacka_HTML|raw }}  {{ item.Barva_Kod }}</span>
                                         {% endif %}
                                     </td>
-                                    <td style="width: 23%; font-size: 7pt; line-height: 1;">
-                                        {{ item.Radek1|default('')|raw }}{% if item.KM1|default('') and (item.KM1 + 0) > 0 %} {{ (item.KM1 + 0) }} km{% endif %}
-                                        {% set skip_radek2 = false %}
-                                        {% if item.Druh_Predmetu is same as('M') and item.Nadmorska_vyska|default('') %}
-                                            {% set vyska = item.Nadmorska_vyska|trim|trim('0')|trim('.') %}
-                                            <br>{{ vyska }} m n.m.
-                                            {% set r2 = item.Radek2|default('') %}
-                                            {% set skip_radek2 = r2 and (vyska in r2 or 'm n.m.' in r2 or 'm n. m.' in r2) %}
-                                        {% endif %}
-                                        {% if item.Radek2|default('') and not skip_radek2 %}<br>{{ item.Radek2|raw }}{% if item.KM2|default('') and (item.KM2 + 0) > 0 %} {{ (item.KM2 + 0) }} km{% endif %}{% endif %}
-                                        {% if item.Radek3|default('') %}<br>{{ item.Radek3|raw }}{% if item.KM3|default('') and (item.KM3 + 0) > 0 %} {{ (item.KM3 + 0) }} km{% endif %}{% endif %}
+                                    <td style="width: 23%; font-size: 7pt; line-height: 1.25;">
+                                        {# Řádky i meziřádky připravuje DataEnricherService (TimService::getItemLines) – stejně jako náhled TIM #}
+                                        {% for radek in item.Radky_Textu|default([]) %}{% if not loop.first %}<br>{% endif %}{% if radek.meziradek and item.Druh_Predmetu is not same as('M') %}<span style="font-size: 6pt;">{{ radek.text|raw }}</span>{% else %}{{ radek.text|raw }}{% if radek.km %} {{ radek.km }} km{% endif %}{% endif %}{% endfor %}
                                     </td>
                                     <td style="width: 5%; color: #999;">
                                         {% if item.Zachovalost|default('') %}
