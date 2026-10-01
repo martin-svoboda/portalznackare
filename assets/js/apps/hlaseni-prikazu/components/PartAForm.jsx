@@ -163,6 +163,8 @@ export const PartAForm = ({
 
     // Vícedenní hlášení - zobrazení nocležného a soft varování
     const vicedenni = pocetCestovnichDnu(formData.Skupiny_Cest) >= 2;
+    // Vyplněný nocleh nikdy neskrývat (jinak u jednodenního hlášení nejde smazat a blokuje odeslání)
+    const zobrazitNoclezne = vicedenni || (formData.Noclezne || []).length > 0;
     const vicedenniVarovani = detekujVicedenniProblemy(formData.Skupiny_Cest, formData.Noclezne);
 
 
@@ -198,7 +200,7 @@ export const PartAForm = ({
             )}
 
             {/* Accommodation */}
-            {vicedenni && (
+            {zobrazitNoclezne && (
             <ErrorBoundary sectionName="Nocležné">
                 <div className="card">
                 <div className="card__content">

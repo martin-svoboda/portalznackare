@@ -124,7 +124,7 @@ Stravné i časové náhrady se počítají **za každý kalendářní den samos
 - **bez noclehu** = samostatné dny s návratem (scénář I) – každý den se tiéruje podle svého okna;
 - **s noclehem** (i 0 Kč) = souvislý pobyt (scénář II) – přechod přes půlnoc: den odjezdu → 24:00, plné mezidny 24 h, den návratu 00:00 → příjezd. Uzavřený okruh (návrat kam vyjel) se počítá skutečným oknem.
 
-Jádro je čistý modul [`utils/vicedenniVypocet.js`](../../assets/js/apps/hlaseni-prikazu/utils/vicedenniVypocet.js) (`budujUcetniDny`), pokrytý jednotkovými testy (Vitest, `assets/js/**/*.test.js`, spouští `ddev npm run test`). `calculateWorkDays` doplňuje `Misto_Od/Misto_Do/Uzavreny`; `calculateCompensation` vrací navíc `Ucetni_Dny` (rozpad po dnech pro souhrn). Nocležné se v části A zobrazí jen u 2+ denních hlášení, doprovázené soft varováními (`detekujVicedenniProblemy`). Detaily: [spec](../superpowers/specs/2026-07-26-vicedenni-stravne-nahrady-hlaseni-design.md).
+Jádro je čistý modul [`utils/vicedenniVypocet.js`](../../assets/js/apps/hlaseni-prikazu/utils/vicedenniVypocet.js) (`budujUcetniDny`), pokrytý jednotkovými testy (Vitest, `assets/js/**/*.test.js`, spouští `ddev npm run test`). `calculateWorkDays` doplňuje `Misto_Od/Misto_Do/Uzavreny`; `calculateCompensation` vrací navíc `Ucetni_Dny` (rozpad po dnech pro souhrn). Nocležné se v části A zobrazí u 2+ denních hlášení, doprovázené soft varováními (`detekujVicedenniProblemy`); je-li nocleh vyplněný, zobrazí se vždy. Nocleh u jednodenního hlášení je blokující chyba `nocleh_jednodenni` (`validatePartA`) – koncept uložit jde, odeslat ne (např. dočasně smazaná skupina cest). Detaily: [spec](../superpowers/specs/2026-07-26-vicedenni-stravne-nahrady-hlaseni-design.md).
 
 ## 🔄 Workflow procesu
 

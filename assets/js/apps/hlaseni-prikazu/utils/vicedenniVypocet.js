@@ -205,12 +205,8 @@ export function detekujVicedenniProblemy(skupinyCest, noclezne) {
     const warnings = [];
     if (dny.length === 0) return warnings;
 
-    if (dny.length < 2) {
-        if (noclehSet.size > 0) {
-            warnings.push({ typ: 'nocleh_jednodenni', text: 'Máš vyplněný nocleh, ale všechny cesty jsou ve stejný den.' });
-        }
-        return warnings;
-    }
+    // Nocleh u jednodenního hlášení je blokující chyba (validatePartA), ne varování
+    if (dny.length < 2) return warnings;
 
     const prvni = dny[0].Datum;
     const posledni = dny[dny.length - 1].Datum;

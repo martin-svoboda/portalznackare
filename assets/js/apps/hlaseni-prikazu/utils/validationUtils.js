@@ -364,9 +364,13 @@ const validateTripOverlapsInternal = (travelGroups) => {
  */
 const validateExpenseDetails = (formData) => {
     const details = [];
-    
+
+    // Jednodenní hlášení nocleh mít nesmí (blokuje validatePartA) – detaily jednotlivých
+    // noclehů pak nehlásíme, jediná správná akce je nocleh smazat.
+    const noclezneKKontrole = pocetCestovnichDnu(formData.Skupiny_Cest) >= 2 ? (formData.Noclezne || []) : [];
+
     // Validace ubytování
-    (formData.Noclezne || []).forEach((noc, index) => {
+    noclezneKKontrole.forEach((noc, index) => {
         const expenseId = `ubytování ${index + 1}`;
         
         if (!noc.Datum) {
@@ -621,6 +625,16 @@ export const validatePartA = (formData, head) => {
         });
     }
     
+    // Nocleh u jednodenního hlášení – typicky hlášení založené před zavedením vícedenních
+    // příkazů, nebo cesty zkrácené na jeden den. Sekce Nocležné se v tom případě zobrazí
+    // (PartAForm), aby šel nocleh smazat; uložit koncept jde, odeslat ne.
+    if ((formData.Noclezne || []).length > 0 && pocetCestovnichDnu(formData.Skupiny_Cest) < 2) {
+        errors.push({
+            type: 'nocleh_jednodenni',
+            message: 'U jednodenního hlášení nelze uplatnit nocleh – smažte ho v sekci Nocležné.'
+        });
+    }
+
     // Validace minimálního počtu jízd za den
     const tripsValidation = validateMinimumTripsPerDay(formData, head);
     if (!tripsValidation.isValid) {

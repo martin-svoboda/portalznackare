@@ -154,9 +154,9 @@ describe('detekce vícedenních problémů', () => {
         ]), [{ Datum: '2026-04-20' }]);
         expect(w.some(x => x.typ === 'nocleh_mimo')).toBe(true);
     });
-    it('nocleh u jednodenního → varování', () => {
+    it('nocleh u jednodenního → žádné varování (řeší blokující chyba ve validatePartA)', () => {
         const w = detekujVicedenniProblemy(skup([seg('2026-04-05', '08:00', '17:00', 'Praha', 'Praha')]), [{ Datum: '2026-04-05' }]);
-        expect(w.some(x => x.typ === 'nocleh_jednodenni')).toBe(true);
+        expect(w).toEqual([]);
     });
     it('pocetCestovnichDnu počítá unikátní data', () => {
         expect(pocetCestovnichDnu(skup([
