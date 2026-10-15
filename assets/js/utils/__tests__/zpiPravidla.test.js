@@ -70,13 +70,27 @@ describe('seskupTimyZpi', () => {
         expect(servisniTim.items[0].Popis).toBe('A taky popis');
     });
 
-    it('položky řadí servis → odinstalace → instalace', () => {
+    it('položky řadí instalace → odinstalace → servis (INSYZ-280, varianta A)', () => {
         const timy = seskupTimyZpi(
             [...predmety, { EvCi_TIM: 'BN195', Co_Provest: 'Instalovat', ID_PREDMETY: '3' }],
             [{ EvCi_TIM: 'BN195', TIM_Text: 'servis', Popis: '' }]
         );
-        const cinnosti = timy.find(t => t.EvCi_TIM === 'BN195').items.map(i => i.Cinnost);
-        expect(cinnosti).toEqual(['servis', 'odinstalace', 'instalace', 'instalace']);
+        const polozky = timy.find(t => t.EvCi_TIM === 'BN195').items;
+        expect(polozky.map(i => i.Cinnost)).toEqual(['instalace', 'instalace', 'odinstalace', 'servis']);
+        // v rámci jedné činnosti zůstává pořadí z INSYZ
+        expect(polozky.map(i => i.ID_PREDMETY)).toEqual(['1', '3', '2', 'servis']);
+    });
+
+    it('TIMy řadí podle evidenčního čísla, ne podle pořadí z INSYZ (INSYZ-280, varianta A)', () => {
+        const timy = seskupTimyZpi([
+            { EvCi_TIM: 'KL012', Co_Provest: 'Instalovat' },
+            { EvCi_TIM: 'BN136', Co_Provest: 'Instalovat' },
+            { EvCi_TIM: 'BN077', Co_Provest: 'Instalovat' }
+        ], [
+            { EvCi_TIM: 'BN010', TIM_Text: 'servis' }
+        ]);
+
+        expect(timy.map(t => t.EvCi_TIM)).toEqual(['BN010', 'BN077', 'BN136', 'KL012']);
     });
 
     it('servisní TIM použije souřadnice ze svého řádku (INSYZ-280, GPS doplněny 23. 9. 2026)', () => {

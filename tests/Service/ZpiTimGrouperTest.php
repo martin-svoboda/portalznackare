@@ -39,18 +39,38 @@ class ZpiTimGrouperTest extends TestCase
         $this->assertCount(1, $timy[1]['items']);
     }
 
-    public function testPoradiCinnostiServisOdinstalaceInstalace(): void
+    public function testPoradiCinnostiInstalaceOdinstalaceServis(): void
     {
         $timy = $this->grouper->seskup([
-            $this->predmet('BN010', 'a', 'instalace'),
             $this->predmet('BN010', 'b', 'odinstalace'),
+            $this->predmet('BN010', 'a', 'instalace'),
+            $this->predmet('BN010', 'c', 'instalace'),
         ], [
             ['EvCi_TIM' => 'BN010', 'Naz_TIM' => 'TIM BN010', 'TIM_Text' => 'Spravit lištu'],
         ]);
 
         $this->assertSame(
-            ['servis', 'odinstalace', 'instalace'],
+            ['instalace', 'instalace', 'odinstalace', 'servis'],
             array_column($timy[0]['items'], 'Cinnost')
+        );
+        // v rámci jedné činnosti zůstává pořadí z INSYZ
+        $this->assertSame('a', $timy[0]['items'][0]['Predmet_Index']);
+        $this->assertSame('c', $timy[0]['items'][1]['Predmet_Index']);
+    }
+
+    public function testTimySeRadiPodleEvidencnihoCisla(): void
+    {
+        $timy = $this->grouper->seskup([
+            $this->predmet('KL012', 'a', 'instalace'),
+            $this->predmet('BN136', 'a', 'instalace'),
+            $this->predmet('BN077', 'a', 'instalace'),
+        ], [
+            ['EvCi_TIM' => 'BN010', 'TIM_Text' => 'servis'],
+        ]);
+
+        $this->assertSame(
+            ['BN010', 'BN077', 'BN136', 'KL012'],
+            array_column($timy, 'EvCi_TIM')
         );
     }
 
@@ -81,6 +101,9 @@ class ZpiTimGrouperTest extends TestCase
             ['EvCi_TIM' => 'BN071', 'Predmet_Index' => 'b', 'Co_Provest' => 'Instalovat'],
         ], []);
 
-        $this->assertSame(['odinstalace', 'instalace'], array_column($timy[0]['items'], 'Cinnost'));
+        $this->assertSame(
+            ['b' => 'instalace', 'a' => 'odinstalace'],
+            array_column($timy[0]['items'], 'Cinnost', 'Predmet_Index')
+        );
     }
 }

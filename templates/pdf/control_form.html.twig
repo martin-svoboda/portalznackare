@@ -195,19 +195,6 @@
                     </tr>
                     </thead>
                     <tbody>
-                    {% for item in servis %}
-                        <tr class="no-break">
-                            <td colspan="{{ dva_sloupce ? 6 : 2 }}" style="font-size: 7pt; line-height: 1.2;">
-                                {% if item.TIM_Text|default('') %}<strong>{{ item.TIM_Text }}</strong>{% endif %}
-                                {% if item.Popis|default('') %}<br>{{ item.Popis|nl2br }}{% endif %}
-                                {% if item.Stav_Udrz_Naz|default('') %}<br>Stav údržby: {{ item.Stav_Udrz_Naz }}{% endif %}
-                                {% if item.TIM_Text|default('') is empty and item.Popis|default('') is empty %}Servisní zásah bez bližšího popisu{% endif %}
-                            </td>
-                            <td style="width: 8%; font-size: 7pt;">Servis</td>
-                            <td style="width: 8%; color: #999;">ANO / NE</td>
-                        </tr>
-                    {% endfor %}
-
                     {# Servisní TIM žádné předměty nemá – bez pojistky by 0..-1 sáhlo mimo pole #}
                     {% set half = ((predmety_timu|length) / 2)|round(0, 'ceil') %}
                     {% set col1 = predmety_timu|slice(0, half) %}
@@ -234,6 +221,20 @@
                                     <td colspan="4"></td>
                                 {% endif %}
                             {% endfor %}
+                        </tr>
+                    {% endfor %}
+
+                    {# Servis jde za předměty – pořadí instalace → odinstalace → servis (INSYZ-280, varianta A) #}
+                    {% for item in servis %}
+                        <tr class="no-break">
+                            <td colspan="{{ dva_sloupce ? 6 : 2 }}" style="font-size: 7pt; line-height: 1.2;">
+                                {% if item.TIM_Text|default('') %}<strong>{{ item.TIM_Text }}</strong>{% endif %}
+                                {% if item.Popis|default('') %}<br>{{ item.Popis|nl2br }}{% endif %}
+                                {% if item.Stav_Udrz_Naz|default('') %}<br>Stav údržby: {{ item.Stav_Udrz_Naz }}{% endif %}
+                                {% if item.TIM_Text|default('') is empty and item.Popis|default('') is empty %}Servisní zásah bez bližšího popisu{% endif %}
+                            </td>
+                            <td style="width: 8%; font-size: 7pt;">Servis</td>
+                            <td style="width: 8%; color: #999;">ANO / NE</td>
                         </tr>
                     {% endfor %}
                     </tbody>

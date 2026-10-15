@@ -145,6 +145,7 @@ na serveru v každém volání `/api/portal/report`, ne jen v UI. Viz
 Tým značkařů (`teamMembers`) řídí členy skupin cest, plátce nocležného/výdajů i výpočet náhrad:
 - **Nové hlášení** → tým z živé hlavičky příkazu (`extractTeamMembers`, sloty `INT_ADR_1..3`).
 - **Existující hlášení** → tým z uloženého snapshotu `reportData.znackari` (zazálohuje se při každém uložení v `useFormSaving`).
+  U editovatelného hlášení (`draft`/`rejected`) se příznak vedoucího vždy přebírá z živé hlavičky INSYZ (`syncLeaderFromHead` v `utils/teamUtils.js`) – shodně se serverem, který vedoucího ověřuje podle hlavičky.
 
 Když se po vzniku hlášení změní složení značkařů v příkazu (přidání/odebrání), snapshot je zastaralý. `App.jsx` proto detekuje nesoulad (`teamMismatch`) a pod hlavičkou zobrazí komponentu **`TeamMismatchWarning`** s výpisem *Přidáni / Odebráni* a tlačítkem **„Načíst aktuální složení z příkazu"**:
 - Tým se sjednotí s aktuální hlavičkou a draft se uloží (`handleSyncTeam`).
@@ -425,7 +426,8 @@ středové pravidlo, komentář ke značkařskému úseku a průběh trasy. ZP-I
 jen úkol, položku a stav provedení, k tomu komentář a fotky TIMu a počet TIMů
 započítaných do náhrady.
 
-- TIMy s položkami v pořadí **servis → odinstalace → instalace**
+- TIMy seřazené podle evidenčního čísla (BN077, BN136, KL012…), uvnitř TIMu položky v pořadí
+  **instalace → odinstalace → servis** (INSYZ-280, varianta A). Stejně řadí detail příkazu i PDF
 - U instalace náhled tabulky/směrovky (`Tim_HTML`, recyklace ze ZP-O), u odinstalace
   **přeškrtnutý**, u servisu krátký text (`TIM_Text`) i rozšířený popis (`Popis`, 1000 znaků)
 - Stav každé položky: **Provedena / Neprovedena / Odložena**, ukládané jako kódy číselníku

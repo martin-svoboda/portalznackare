@@ -6,12 +6,13 @@ namespace App\Service;
  * Seskupení TIMů příkazu ZP-I pro tisk kontrolního formuláře (INSYZ-282).
  *
  * PHP obdoba `seskupTimyZpi()` z frontendu: seznam TIMů je sjednocení TIMů s předměty
- * a TIMů ze servisního datasetu (servisní TIM žádné předměty nemá), uvnitř TIMu jdou
- * položky v pořadí servis → odinstalace → instalace (INSYZ-280 bod 5.2).
+ * a TIMů ze servisního datasetu (servisní TIM žádné předměty nemá). TIMy jsou seřazené
+ * podle evidenčního čísla, uvnitř TIMu jdou položky v pořadí instalace → odinstalace → servis
+ * (INSYZ-280 bod 3, varianta A).
  */
 class ZpiTimGrouper
 {
-    private const PORADI_CINNOSTI = ['servis', 'odinstalace', 'instalace'];
+    private const PORADI_CINNOSTI = ['instalace', 'odinstalace', 'servis'];
 
     /**
      * @param array $predmety   předměty příkazu (obohacené, s klíčem Cinnost)
@@ -65,6 +66,9 @@ class ZpiTimGrouper
                 <=> array_search($b['Cinnost'], self::PORADI_CINNOSTI, true));
             $timy[$evCiTim] = $tim;
         }
+
+        // Přirozené řazení (BN077 < BN136) shodné s frontendem (localeCompare numeric)
+        uksort($timy, 'strnatcmp');
 
         return array_values($timy);
     }

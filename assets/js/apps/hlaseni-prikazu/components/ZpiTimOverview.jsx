@@ -21,8 +21,8 @@ import {
  * Část B hlášení pro příkazy ZP-I (INSYZ-280 bod 5).
  *
  * Ukazuje TIMy příkazu – sjednocení TIMů z předmětů a ze servisního datasetu, protože
- * servisní TIM je samostatný TIM bez předmětů. Uvnitř TIMu jdou položky v pořadí
- * servis → odinstalace → instalace.
+ * servisní TIM je samostatný TIM bez předmětů. TIMy jdou podle evidenčního čísla, uvnitř
+ * TIMu položky v pořadí instalace → odinstalace → servis.
  */
 export const ZpiTimOverview = ({
     formData,

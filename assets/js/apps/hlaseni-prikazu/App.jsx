@@ -14,6 +14,7 @@ import {api} from '../../utils/api';
 import {log} from '../../utils/debug';
 import {parseTariffRatesFromAPI, calculateExecutionDate} from './utils/compensationCalculator';
 import {computeTimMismatch} from './utils/timMismatch';
+import {syncLeaderFromHead} from './utils/teamUtils';
 import {jeServisniTimDataset} from '../../utils/prikaz';
 
 const App = () => {
@@ -192,6 +193,10 @@ const App = () => {
                         INT_ADR: parseInt(member.INT_ADR), // Ensure number type
                         isLeader: member.Je_Vedouci === "1" || member.Je_Vedouci === true
                     }));
+                    // Editovatelné hlášení: vedoucího vzít z živé hlavičky INSYZ (snapshot může být zastaralý)
+                    if (['draft', 'rejected'].includes(reportData.state || 'draft')) {
+                        teamMembers = syncLeaderFromHead(teamMembers, orderData.head);
+                    }
                 } else {
                     // Extract from order head
                     teamMembers = extractTeamMembers(orderData.head);

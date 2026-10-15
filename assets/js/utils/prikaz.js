@@ -260,10 +260,13 @@ export function cinnostPredmetu(predmet) {
 }
 
 /**
- * Pořadí činností v části B (INSYZ-280 bod 5.2):
- * „Pokud je činností více, prosím zobrazovat po TIMech v pořadí servis, odinstalace, instalace."
+ * Pořadí v části B (INSYZ-280 bod 3, varianta A dohodnutá 8. 10. 2026): po TIMech seřazených
+ * podle evidenčního čísla, uvnitř TIMu instalace → odinstalace → servis.
  */
-const PORADI_CINNOSTI = ['servis', 'odinstalace', 'instalace'];
+const PORADI_CINNOSTI = ['instalace', 'odinstalace', 'servis'];
+
+// Přirozené řazení (BN077 < BN136) shodné s PHP strnatcmp v ZpiTimGrouper
+const porovnejEvCiTim = (a, b) => a.EvCi_TIM.localeCompare(b.EvCi_TIM, 'en', { numeric: true });
 
 /**
  * Seskupí TIMy příkazu ZP-I pro zobrazení v hlášení.
@@ -275,7 +278,7 @@ const PORADI_CINNOSTI = ['servis', 'odinstalace', 'instalace'];
  *
  * @param {Array} predmety - `predmety` z ZP_Detail
  * @param {Array} servisTimy - dataset ZP_ServTIM (viz jeServisniTimDataset)
- * @returns {Array} TIMy s položkami setříděnými servis → odinstalace → instalace
+ * @returns {Array} TIMy seřazené podle EvCi_TIM, položky instalace → odinstalace → servis
  */
 export function seskupTimyZpi(predmety, servisTimy = []) {
     const timy = new Map();
@@ -344,7 +347,7 @@ export function seskupTimyZpi(predmety, servisTimy = []) {
                 (a, b) => PORADI_CINNOSTI.indexOf(a.Cinnost) - PORADI_CINNOSTI.indexOf(b.Cinnost)
             )
         };
-    });
+    }).sort(porovnejEvCiTim);
 }
 
 /**
