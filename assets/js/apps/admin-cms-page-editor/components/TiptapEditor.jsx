@@ -21,6 +21,7 @@ import Highlight from '@tiptap/extension-highlight';
 // Custom extensions
 import DownloadBlock from '../extensions/DownloadBlock.js';
 import ImageExtended from '../extensions/ImageExtended.js';
+import CollapsibleBlock from '../extensions/CollapsibleBlock.js';
 
 
 // Icons
@@ -52,6 +53,7 @@ import {
     IconLayoutAlignLeft,
     IconLayoutAlignCenter,
     IconLayoutAlignRight, IconTableColumn, IconTableRow, IconBorderNone,
+    IconSquarePlus,
 } from '@tabler/icons-react';
 
 // Shared components
@@ -114,6 +116,7 @@ function TiptapEditor({ content, onChange, pageId }) {
             }),
             ImageExtended,
             DownloadBlock,
+            CollapsibleBlock,
             Table.configure({
                 resizable: true,
             }),
@@ -405,6 +408,14 @@ function TiptapEditor({ content, onChange, pageId }) {
                     title="Soubor ke stažení"
                 >
                     <IconDownload size={18} />
+                </ToolbarButton>
+
+                <ToolbarButton
+                    onClick={() => editor.chain().focus().toggleCollapsible().run()}
+                    active={editor.isActive('collapsible')}
+                    title="Sbalitelný blok – označený text se na webu skryje pod rozbalovací nadpis (znovu klik blok zruší)"
+                >
+                    <IconSquarePlus size={18} />
                 </ToolbarButton>
                 </div>
 

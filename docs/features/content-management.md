@@ -160,6 +160,7 @@ public function restore(int $userId): static
 - Odkazy: URL odkazy
 - Obrázky: URL obrázků (inline) přes Media Picker
 - **Download Blocks: Soubory ke stažení (PDF, DOC, XLS, atd.) přes File Picker**
+- Sbalitelný blok: skrytý text pod rozbalovacím nadpisem [+] (INSYZ-366)
 - Undo/Redo: Historie změn
 
 **Výstup:** Čisté HTML uložené v `content` TEXT sloupci
@@ -169,6 +170,21 @@ public function restore(int $userId): static
 - `Link` - URL odkazy s custom styling
 - `Image` - Inline obrázky s data-file-id tracking
 - `DownloadBlock` - Custom node pro downloadable files
+- `CollapsibleBlock` - sbalitelný blok (INSYZ-366), viz níže
+
+#### Sbalitelný blok (INSYZ-366)
+
+Tlačítko se čtvercem a plusem v toolbaru zabalí bloky v označení (nebo blok s kurzorem)
+do sbalitelného bloku s nadpisem „Zobrazit více“; opakovaný klik blok zruší a obsah ponechá.
+Enter v nadpisu skočí do obsahu.
+
+- Ukládá se jako nativní `<details class="collapsible"><summary class="collapsible__summary">…</summary>
+  <div class="collapsible__content">…</div></details>` – na webu se rozbaluje bez JavaScriptu.
+- V editoru se kreslí jako `div` (node view), takže je vždy rozbalený a jde upravovat;
+  čárkovaný okraj (`.collapsible--editor`) odlišuje skrytou část.
+- Rozšíření [`CollapsibleBlock.js`](../../assets/js/apps/admin-cms-page-editor/extensions/CollapsibleBlock.js),
+  styly [`collapsible.scss`](../../assets/css/components/collapsible.scss).
+- Za blok na konci stránky doplní editor prázdný odstavec (TrailingNode ze StarterKitu), aby šlo psát dál.
 
 #### WordPress-Style Media Picker
 
