@@ -39,3 +39,24 @@ describe('validatePartA – nocleh u jednodenního hlášení', () => {
         expect(typy).toContain('missing_accommodation_facility');
     });
 });
+
+import { validatePartB } from '../validationUtils.js';
+
+describe('validatePartB – řidič pro náhradu ZP-I (INSYZ-371)', () => {
+    const head = { Druh_ZP: 'S' };
+    const predmety = [{ EvCi_TIM: 'BN100', ID_PREDMETY: 1, Co_Provest: 'Instalovat' }];
+    const stavy = { Stavy_Tim: { BN100: { Predmety: { 1: { Provedeni: 3 } } } } };
+    const upozorneni = (formData) => validatePartB(formData, head, predmety).warnings.map(w => w.type);
+
+    it('jel-li někdo autem a řidič není vybrán → upozornění', () => {
+        expect(upozorneni({ ...stavy, Skupiny_Cest: [{ Ridic: 100 }] })).toContain('no_driver_zpi');
+    });
+
+    it('vybraný řidič → bez upozornění', () => {
+        expect(upozorneni({ ...stavy, Skupiny_Cest: [{ Ridic: 100 }], Hlavni_Ridic: 100 })).not.toContain('no_driver_zpi');
+    });
+
+    it('bez auta není koho vybrat → bez upozornění', () => {
+        expect(upozorneni({ ...stavy, Skupiny_Cest: [{ Ridic: null }] })).not.toContain('no_driver_zpi');
+    });
+});

@@ -21,7 +21,7 @@ import {
     getAttachmentsAsArray,
     setAttachmentsFromArray
 } from '../utils/attachmentUtils';
-import { calculateExecutionDate } from '../utils/compensationCalculator';
+import { calculateExecutionDate, urciHlavnihoRidice } from '../utils/compensationCalculator';
 import { toISODateString } from '../../../utils/dateUtils';
 import { validateTimeConflicts, groupHasTimeConflict, memberHasTimeConflictInGroup, validateTripOverlapsWithinGroup, groupHasTripOverlap } from '../utils/validationUtils';
 
@@ -238,6 +238,9 @@ export const TravelGroupsForm = ({
         return member?.name || member?.Znackar || `Člen ${intAdr}`;
     };
 
+    // ZP-I: hlavní řidič dostává 2/3 náhrady za instalaci, vybírá se i bez zvýšené sazby
+    const jeZpi = head?.Druh_ZP === 'S';
+
     // Handle higher rate change for radio buttons - nastavit hlavního řidiče
     const handleHigherRateChange = React.useCallback((selectedDriverIntAdr) => {
         setFormData(prev => ({
@@ -308,17 +311,6 @@ export const TravelGroupsForm = ({
         }
     }, [data.usersDetails, formData.Skupiny_Cest?.map(g => `${g.id}-${g.Ridic}`).join(',')]); // Run when users details load or driver changes
 
-    // Auto-set first driver to have higher rate when Zvysena_Sazba is true or when drivers change
-    React.useEffect(() => {
-        if (formData.Zvysena_Sazba && uniqueDrivers.length > 0) {
-            const hasValidMainDriver = formData.Hlavni_Ridic && uniqueDrivers.some(d => d.INT_ADR == formData.Hlavni_Ridic);
-
-            // If no valid main driver is set, set the first one
-            if (!hasValidMainDriver) {
-                handleHigherRateChange(uniqueDrivers[0].INT_ADR);
-            }
-        }
-    }, [formData.Zvysena_Sazba, uniqueDrivers, handleHigherRateChange]); // Remove formData.Hlavni_Ridic dependency to avoid loop
 
     const travelGroups = formData.Skupiny_Cest || [];
 
@@ -368,6 +360,20 @@ export const TravelGroupsForm = ({
 
         return Array.from(driverMap.values());
     }, [travelGroups, teamMembers]);
+
+    // Automatický výběr hlavního řidiče (INSYZ-371) – pravidla v urciHlavnihoRidice.
+    // Musí být až za uniqueDrivers, jinak by v závislostech efektu bylo undefined.
+    React.useEffect(() => {
+        const novy = urciHlavnihoRidice({
+            zvysenaSazba: !!formData.Zvysena_Sazba,
+            jeZpi,
+            ridici: uniqueDrivers,
+            aktualni: formData.Hlavni_Ridic,
+        });
+        if (novy !== undefined) {
+            handleHigherRateChange(novy);
+        }
+    }, [formData.Zvysena_Sazba, jeZpi, uniqueDrivers, formData.Hlavni_Ridic, handleHigherRateChange]);
 
 
     return (
@@ -903,11 +909,13 @@ export const TravelGroupsForm = ({
                 </button>
             </div>
 
-            {/* Radio button group pro zvýšenou sazbu - zobrazit pouze když je příkaz se zvýšenou sazbou */}
-            {formData.Zvysena_Sazba && uniqueDrivers.length > 0 && (
+            {/* Výběr hlavního řidiče – zvýšená sazba cestovného a/nebo u ZP-I 2/3 náhrady za instalaci */}
+            {(formData.Zvysena_Sazba || jeZpi) && uniqueDrivers.length > 0 && (
                 <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                     <h5 className="font-medium text-sm mb-3">
-                        Přiřazení zvýšené sazby cestovného ({tariffRates?.jizdneZvysene || 0} Kč/km)
+                        {formData.Zvysena_Sazba
+                            ? `Přiřazení zvýšené sazby cestovného (${tariffRates?.jizdneZvysene || 0} Kč/km)`
+                            : 'Řidič pro náhradu za instalaci'}
                     </h5>
 
                     <div className="space-y-2">
@@ -938,7 +946,11 @@ export const TravelGroupsForm = ({
                     </div>
 
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
-                        Standardní sazba: {tariffRates?.jizdne || 0} Kč/km • Hlavní řidič dostane zvýšenou sazbu na všechny své AUV jízdy
+                        {formData.Zvysena_Sazba && (
+                            <>Standardní sazba: {tariffRates?.jizdne || 0} Kč/km • Hlavní řidič dostane zvýšenou sazbu na všechny své AUV jízdy</>
+                        )}
+                        {formData.Zvysena_Sazba && jeZpi && ' • '}
+                        {jeZpi && 'Vybraný řidič dostane 2/3 náhrady za instalaci, zbytek se rozdělí mezi ostatní'}
                     </p>
                 </div>
             )}

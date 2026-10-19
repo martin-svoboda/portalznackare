@@ -188,3 +188,59 @@ describe('ZP-I: náhrada jen pro kvalifikované (INSYZ-280 bod 1)', () => {
         expect(c.Nahrada_Skupiny).toBe(600);
     });
 });
+
+import { calculateTransportCosts, maZvysenouSazbu, urciHlavnihoRidice } from '../compensationCalculator.js';
+
+describe('zvýšená sazba jen s příznakem příkazu (INSYZ-371)', () => {
+    const jizda = {
+        Skupiny_Cest: [{
+            Cestujci: [100, 200], Ridic: 100,
+            Cesty: [{ Druh_Dopravy: 'AUV', Kilometry: 10 }],
+        }],
+        Hlavni_Ridic: 100,
+    };
+
+    it('řidič zvolený u ZP-I bez zvýšené sazby jede za standardní sazbu', () => {
+        expect(maZvysenouSazbu(jizda, 100)).toBe(false);
+        expect(calculateTransportCosts(jizda, tariffRates, 100)).toBe(60);
+    });
+
+    it('se zvýšenou sazbou ji dostane jen hlavní řidič', () => {
+        const zvysena = { ...jizda, Zvysena_Sazba: true };
+        expect(maZvysenouSazbu(zvysena, 100)).toBe(true);
+        expect(maZvysenouSazbu(zvysena, 200)).toBe(false);
+        expect(calculateTransportCosts(zvysena, tariffRates, 100)).toBe(90);
+    });
+});
+
+describe('urciHlavnihoRidice (INSYZ-371)', () => {
+    const r = (...ids) => ids.map(INT_ADR => ({ INT_ADR }));
+
+    it('ZP-I s jediným řidičem ho zvolí automaticky', () => {
+        expect(urciHlavnihoRidice({ jeZpi: true, ridici: r(100), aktualni: null })).toBe(100);
+    });
+
+    it('ZP-I s více řidiči nechá výběr na uživateli', () => {
+        expect(urciHlavnihoRidice({ jeZpi: true, ridici: r(100, 200), aktualni: null })).toBeUndefined();
+    });
+
+    it('platná volba zůstává', () => {
+        expect(urciHlavnihoRidice({ jeZpi: true, ridici: r(100, 200), aktualni: 200 })).toBeUndefined();
+    });
+
+    it('volba řidiče, který už neřídí, se u ZP-I s více řidiči zruší', () => {
+        expect(urciHlavnihoRidice({ jeZpi: true, ridici: r(100, 200), aktualni: 300 })).toBeNull();
+    });
+
+    it('zvýšená sazba si jako dosud vezme prvního řidiče', () => {
+        expect(urciHlavnihoRidice({ zvysenaSazba: true, ridici: r(100, 200), aktualni: null })).toBe(100);
+    });
+
+    it('ZP-O bez zvýšené sazby řidiče neurčuje', () => {
+        expect(urciHlavnihoRidice({ ridici: r(100), aktualni: null })).toBeUndefined();
+    });
+
+    it('bez řidičů (jen veřejná doprava) nic nemění', () => {
+        expect(urciHlavnihoRidice({ jeZpi: true, ridici: [], aktualni: null })).toBeUndefined();
+    });
+});

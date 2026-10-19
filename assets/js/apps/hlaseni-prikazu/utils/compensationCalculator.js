@@ -215,10 +215,36 @@ export function findApplicableTariff(workHours, tariffs) {
 }
 
 /**
+ * Má uživatel zvýšenou sazbu jízdného? Jen hlavní řidič a jen když ji příkaz má
+ * (`Zvysena_Sazba` z hlavičky). U ZP-I se `Hlavni_Ridic` vybírá i bez zvýšené sazby –
+ * určuje, kdo dostane 2/3 náhrady za instalaci (INSYZ-371).
+ */
+export function maZvysenouSazbu(formData, userIntAdr) {
+    return !!formData.Zvysena_Sazba && formData.Hlavni_Ridic == userIntAdr;
+}
+
+/**
+ * Koho automaticky nastavit jako `Hlavni_Ridic` (INSYZ-371).
+ *
+ * - zvýšená sazba: jako dosud první řidič, dokud uživatel nevybere jiného
+ * - ZP-I bez zvýšené sazby: jediného řidiče zvolí sám, z více řidičů vybírá uživatel;
+ *   volba řidiče, který už žádnou skupinu neřídí, se zruší
+ *
+ * @returns {number|null|undefined} nový INT_ADR, null = zrušit volbu, undefined = beze změny
+ */
+export function urciHlavnihoRidice({ zvysenaSazba = false, jeZpi = false, ridici = [], aktualni = null }) {
+    if ((!zvysenaSazba && !jeZpi) || ridici.length === 0) return undefined;
+    if (aktualni && ridici.some(r => r.INT_ADR == aktualni)) return undefined;
+
+    if (zvysenaSazba || ridici.length === 1) return ridici[0].INT_ADR;
+    return aktualni ? null : undefined;
+}
+
+/**
  * Výpočet dopravních nákladů pro konkrétního uživatele - jen celková částka
  * Auto jízdné: pouze řidiči skupiny
  * Veřejná doprava: všem cestujícím skupiny
- * Respektuje Hlavni_Ridic pro zvýšenou sazbu napříč všemi skupinami
+ * Zvýšenou sazbu dostane na všechny své AUV jízdy hlavní řidič (maZvysenouSazbu)
  */
 export function calculateTransportCosts(formData, tariffRates, userIntAdr = null) {
     if (!userIntAdr || !formData.Skupiny_Cest) return 0;
@@ -235,7 +261,7 @@ export function calculateTransportCosts(formData, tariffRates, userIntAdr = null
         const isUserDriverOfGroup = group.Ridic === userIntAdr;
         
         // Zkontrolovat zda je uživatel hlavním řidičem (dostane zvýšenou sazbu na všechny AUV jízdy)
-        const isUserMainDriver = formData.Hlavni_Ridic == userIntAdr;
+        const isUserMainDriver = maZvysenouSazbu(formData, userIntAdr);
         
         group.Cesty?.forEach(segment => {
             if (!segment || !segment.Druh_Dopravy) return;
@@ -279,7 +305,7 @@ export function calculateTransportDetails(formData, tariffRates, userIntAdr = nu
         const isUserDriverOfGroup = group.Ridic === userIntAdr;
         
         // Zkontrolovat zda je uživatel hlavním řidičem (dostane zvýšenou sazbu na všechny AUV jízdy)
-        const isUserMainDriver = formData.Hlavni_Ridic == userIntAdr;
+        const isUserMainDriver = maZvysenouSazbu(formData, userIntAdr);
         
         group.Cesty?.forEach(segment => {
             if (!segment || !segment.Druh_Dopravy) return;
@@ -396,7 +422,7 @@ export function calculateCompensation(formData, tariffRates, userIntAdr = null, 
         .reduce((sum, exp) => sum + (exp.Castka || 0), 0);
     
     // Zkontrolovat zda má uživatel zvýšenou sazbu v nějaké skupině
-    const hasHigherRate = formData.Hlavni_Ridic == userIntAdr;
+    const hasHigherRate = maZvysenouSazbu(formData, userIntAdr);
     
     const total = transportCosts + mealAllowance + workAllowance + accommodationCosts + additionalExpenses;
     

@@ -57,7 +57,7 @@ const App = () => {
 - **Doprava** - Cestovní segmenty s real-time kalkulací  
 - **Ubytování** - Noclehárny s příložkami
 - **Výdaje** - Vedlejší náklady
-- **Řidič** - SPZ vozidel a hlavní řidič pro zvýšenou sazbu (SPZ se předvyplní z `RZ_Auta` řidiče jen jednou pro skupinu+řidiče, pak ji lze libovolně smazat/přepsat)
+- **Řidič** - SPZ vozidel a hlavní řidič pro zvýšenou sazbu, u ZP-I i pro 2/3 náhrady (SPZ se předvyplní z `RZ_Auta` řidiče jen jednou pro skupinu+řidiče, pak ji lze libovolně smazat/přepsat)
 
 #### Cestovní segmenty
 Podporované dopravní prostředky:
@@ -70,6 +70,12 @@ Podporované dopravní prostředky:
 
 #### Hlavní řidič a zvýšená sazba
 **Klíčová změna (2025-08-06):** Globální výběr místo per skupina
+
+Výběr hlavního řidiče (`Hlavni_Ridic`) se zobrazí, když má příkaz zvýšenou sazbu (`Zvysena_Sazba`
+z hlavičky) **nebo je to ZP-I** – tam řidič dostává 2/3 náhrady za instalaci i bez zvýšené sazby
+(INSYZ-371). Zvýšenou sazbu jízdného dostane jen hlavní řidič a jen při `Zvysena_Sazba`
+(`maZvysenouSazbu`). Automatický výběr řeší `urciHlavnihoRidice`: při zvýšené sazbě první řidič,
+u ZP-I bez ní jen jediný řidič (z více vybírá uživatel; volba řidiče, který už neřídí, se zruší).
 
 ```jsx
 // Zobrazuje unikátní řidiče napříč skupinami
@@ -110,8 +116,8 @@ export function calculateCompensation(formData, priceList, userIntAdr) {
         total: 0
     };
     
-    // Hlavní řidič = zvýšená sazba na VŠECHNY AUV jízdy
-    const isUserMainDriver = formData.Hlavni_Ridic === userIntAdr;
+    // Hlavní řidič = zvýšená sazba na VŠECHNY AUV jízdy (jen když ji příkaz má)
+    const isUserMainDriver = maZvysenouSazbu(formData, userIntAdr);
     const rate = isUserMainDriver ? priceList.jizdneZvysene : priceList.jizdne;
     
     // Kalkulace podle sazeb KČT
@@ -460,7 +466,8 @@ Vybere se **nejvyšší sazba, jejíž podmínky jsou splněné**. Pět TIMů od
 
 **Rozdělení:** 2/3 značkaři označenému jako řidič (`Hlavni_Ridic`), zbylá 1/3 rovnoměrně
 mezi ostatní; zaokrouhlovací rozdíl připadne řidiči, aby součet seděl na celkovou částku.
-Když řidič určený není, dělí se rovným dílem a validace na to upozorní.
+Když řidič určený není, dělí se rovným dílem a validace na to upozorní (jen pokud někdo jel
+autem – bez auta není koho vybrat). Řidič se u ZP-I vybírá vždy, ne jen při zvýšené sazbě (INSYZ-371).
 
 **Kvalifikace:** stejně jako u ZP-O je náhrada podmíněná kvalifikací (`maNarokNaNahrady`,
 ZZ/VZ/IZ/ZT) — potvrdil Michal Markoš 13. 9. 2026 v INSYZ-280. Do rozpočítání vstupují
@@ -477,7 +484,7 @@ Stravné a jízdné se počítají beze změny přes denní engine
 `validateZpiItems` v [`utils/validationUtils.js`](../../assets/js/apps/hlaseni-prikazu/utils/validationUtils.js):
 
 - **Chyba** (blokuje odeslání): některá položka nemá stav provedení — hláška jmenuje TIMy
-- **Upozornění**: žádný TIM není proveden (náhrada bude nulová); není určen řidič
+- **Upozornění**: žádný TIM není proveden (náhrada bude nulová); není vybrán řidič (jen když někdo jel autem)
 - `validateRenewedSections` se pro ZP-I nespouští — ZP-I úseky nemá
 
 ### XML do INSYZ
