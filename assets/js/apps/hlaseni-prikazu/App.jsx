@@ -14,7 +14,7 @@ import {api} from '../../utils/api';
 import {log} from '../../utils/debug';
 import {parseTariffRatesFromAPI, calculateExecutionDate} from './utils/compensationCalculator';
 import {computeTimMismatch} from './utils/timMismatch';
-import {syncLeaderFromHead} from './utils/teamUtils';
+import {syncLeaderFromHead, ridicZHlavicky} from './utils/teamUtils';
 import {jeServisniTimDataset} from '../../utils/prikaz';
 
 const App = () => {
@@ -163,7 +163,19 @@ const App = () => {
                     try {
                         // Vytvořit prázdný report pomocí API
                         const defaultData = createDefaultFormData();
-                        
+
+                        // Řidič a SPZ z INSYZ jako předvýběr první skupiny cest (INSYZ-371)
+                        const tymPrikazu = extractTeamMembers(orderData.head);
+                        const {Ridic, SPZ} = ridicZHlavicky(orderData.head, tymPrikazu);
+                        if (Ridic) {
+                            Object.assign(defaultData.Skupiny_Cest[0], {
+                                Cestujci: tymPrikazu.map(m => m.INT_ADR),
+                                Ridic,
+                                SPZ
+                            });
+                            defaultData.Hlavni_Ridic = Ridic;
+                        }
+
                         const response = await api.prikazy.saveReport({
                             id_zp: prikazId,
                             cislo_zp: orderData.head?.Cislo_ZP || '',

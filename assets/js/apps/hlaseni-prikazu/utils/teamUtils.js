@@ -27,3 +27,21 @@ export function syncLeaderFromHead(teamMembers, head) {
         return { ...member, isLeader, Je_Vedouci: isLeader };
     });
 }
+
+/**
+ * Řidič příkazu z hlavičky INSYZ (`Ridic_INT_ADR`, `RZ_Auta`) pro předvyplnění nového
+ * hlášení (INSYZ-371). Jen předvýběr – řídit nakonec může někdo jiný, uživatel ho změní.
+ * Bez řidiče (`Ridic` = 0) nebo s řidičem mimo tým nic nepředvyplní – u ZP-I se pak
+ * náhrada dělí rovným dílem, dokud uživatel hlavního řidiče nevybere.
+ *
+ * @param {Object} head - hlavička příkazu z INSYZ
+ * @param {Array} teamMembers - členové týmu (s INT_ADR)
+ * @returns {{Ridic: number|null, SPZ: string}}
+ */
+export function ridicZHlavicky(head, teamMembers) {
+    const intAdr = parseInt(head?.Ridic_INT_ADR, 10);
+    const jeVTymu = intAdr > 0 && (teamMembers || []).some(m => parseInt(m.INT_ADR, 10) === intAdr);
+    if (!jeVTymu) return { Ridic: null, SPZ: '' };
+
+    return { Ridic: intAdr, SPZ: (head.RZ_Auta || '').trim() };
+}

@@ -77,6 +77,11 @@ z hlavičky) **nebo je to ZP-I** – tam řidič dostává 2/3 náhrady za insta
 (`maZvysenouSazbu`). Automatický výběr řeší `urciHlavnihoRidice`: při zvýšené sazbě první řidič,
 u ZP-I bez ní jen jediný řidič (z více vybírá uživatel; volba řidiče, který už neřídí, se zruší).
 
+Nové hlášení předvyplní řidiče první skupiny, `Hlavni_Ridic` a SPZ z hlavičky `ZP_Detail`
+(`Ridic_INT_ADR`, `RZ_Auta`; `ridicZHlavicky` v `utils/teamUtils.js`). Je to jen předvýběr –
+řídit může nakonec někdo jiný, uživatel řidiče změní. Při `Ridic` = 0 se nic nepředvyplní
+a u ZP-I se náhrada dělí rovným dílem, dokud uživatel řidiče nevybere. Už založená hlášení se nemění.
+
 ```jsx
 // Zobrazuje unikátní řidiče napříč skupinami
 const uniqueDrivers = useMemo(() => {
@@ -559,4 +564,4 @@ ddev exec npx vitest run          # node_modules má linuxové binárky, na host
 **Propojené funkcionality:** [File Management](file-management.md) | [INSYZ Integration](insyz-integration.md)  
 **API Reference:** [../api.md](../api.md#hlášení-a-pdf)  
 **Technical details:** [../development/background-jobs.md](../development/background-jobs.md)  
-**Aktualizováno:** 2026-09-20 (ZP-I: kvalifikace u náhrad, souhrn části B, kontrolní formulář PDF po TIMech)
+**Aktualizováno:** 2026-10-26 (INSYZ-371: předvýběr řidiče a SPZ z hlavičky ZP_Detail)
