@@ -80,7 +80,7 @@ u ZP-I bez ní jen jediný řidič (z více vybírá uživatel; volba řidiče, 
 Nové hlášení předvyplní řidiče první skupiny, `Hlavni_Ridic` a SPZ z hlavičky `ZP_Detail`
 (`Ridic_INT_ADR`, `RZ_Auta`; `ridicZHlavicky` v `utils/teamUtils.js`). Je to jen předvýběr –
 řídit může nakonec někdo jiný, uživatel řidiče změní. Při `Ridic` = 0 se nic nepředvyplní
-a u ZP-I se náhrada dělí rovným dílem, dokud uživatel řidiče nevybere. Už založená hlášení se nemění.
+a u ZP-I bere 2/3 náhrady vedoucí, dokud uživatel řidiče nevybere. Už založená hlášení se nemění.
 
 ```jsx
 // Zobrazuje unikátní řidiče napříč skupinami
@@ -471,8 +471,8 @@ Vybere se **nejvyšší sazba, jejíž podmínky jsou splněné**. Pět TIMů od
 
 **Rozdělení:** 2/3 značkaři označenému jako řidič (`Hlavni_Ridic`), zbylá 1/3 rovnoměrně
 mezi ostatní; zaokrouhlovací rozdíl připadne řidiči, aby součet seděl na celkovou částku.
-Když řidič určený není, dělí se rovným dílem a validace na to upozorní (jen pokud někdo jel
-autem – bez auta není koho vybrat). Řidič se u ZP-I vybírá vždy, ne jen při zvýšené sazbě (INSYZ-371).
+Když řidič určený není, bere 2/3 vedoucí (fallback shodný s INSYZ, `prijemceDvouTretinZpi`)
+a validace na to upozorní (jen pokud někdo jel autem – bez auta není koho vybrat). Řidič se u ZP-I vybírá vždy, ne jen při zvýšené sazbě (INSYZ-371).
 
 **Kvalifikace:** stejně jako u ZP-O je náhrada podmíněná kvalifikací (`maNarokNaNahrady`,
 ZZ/VZ/IZ/ZT) — potvrdil Michal Markoš 13. 9. 2026 v INSYZ-280. Do rozpočítání vstupují

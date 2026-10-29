@@ -69,6 +69,20 @@ export function vypocetNahradyZpi(formData, hodinyPrace, tarify) {
 }
 
 /**
+ * Komu připadnou 2/3 náhrady za instalaci: hlavní řidič, a když není určený, vedoucí
+ * (fallback shodný s INSYZ, INSYZ-371).
+ *
+ * @param {number|string|null} hlavniRidic - formData.Hlavni_Ridic
+ * @param {Array} clenove - členové týmu [{ INT_ADR, isLeader }]
+ * @returns {number|string|null} INT_ADR příjemce 2/3
+ */
+export function prijemceDvouTretinZpi(hlavniRidic, clenove) {
+    if (hlavniRidic) return hlavniRidic;
+
+    return (clenove || []).find(clen => clen.isLeader)?.INT_ADR ?? null;
+}
+
+/**
  * Rozpočítá náhradu mezi členy skupiny (INSYZ-280 bod 2.2):
  * 2/3 řidiči, zbylá 1/3 rovnoměrně mezi ostatní členy.
  *

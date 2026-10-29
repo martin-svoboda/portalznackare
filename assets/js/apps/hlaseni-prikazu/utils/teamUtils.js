@@ -31,8 +31,8 @@ export function syncLeaderFromHead(teamMembers, head) {
 /**
  * Řidič příkazu z hlavičky INSYZ (`Ridic_INT_ADR`, `RZ_Auta`) pro předvyplnění nového
  * hlášení (INSYZ-371). Jen předvýběr – řídit nakonec může někdo jiný, uživatel ho změní.
- * Bez řidiče (`Ridic` = 0) nebo s řidičem mimo tým nic nepředvyplní – u ZP-I se pak
- * náhrada dělí rovným dílem, dokud uživatel hlavního řidiče nevybere.
+ * Bez řidiče (`Ridic` = 0) nebo s řidičem mimo tým nic nepředvyplní – u ZP-I pak
+ * bere 2/3 náhrady vedoucí, dokud uživatel hlavního řidiče nevybere.
  *
  * @param {Object} head - hlavička příkazu z INSYZ
  * @param {Array} teamMembers - členové týmu (s INT_ADR)

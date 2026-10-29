@@ -1,7 +1,7 @@
 import {toISODateString} from '../../../utils/dateUtils.js';
 import {log} from '../../../utils/debug';
 import { budujUcetniDny, naIsoDatum } from './vicedenniVypocet.js';
-import { vypocetNahradyZpi, rozpocitejNahraduZpi } from './zpiVypocet.js';
+import { vypocetNahradyZpi, rozpocitejNahraduZpi, prijemceDvouTretinZpi } from './zpiVypocet.js';
 
 /**
  * Kvalifikace opravňující k náhradě za práci (dohodnuto s INSYZ):
@@ -401,7 +401,7 @@ export function calculateCompensation(formData, tariffRates, userIntAdr = null, 
         const podily = rozpocitejNahraduZpi(
             zpiNahrada.Nahrada_Celkem,
             opravneniClenove,
-            formData.Hlavni_Ridic
+            prijemceDvouTretinZpi(formData.Hlavni_Ridic, options.teamMembers)
         );
         workAllowance = podily[userIntAdr] || 0;
         // U ZP-I nemá smysl rozpad náhrady po dnech – náhrada patří příkazu, ne dni

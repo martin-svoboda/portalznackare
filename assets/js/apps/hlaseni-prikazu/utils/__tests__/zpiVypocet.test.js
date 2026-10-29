@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'fs';
 import path from 'path';
-import { najdiInstalacniTarif, vypocetNahradyZpi, rozpocitejNahraduZpi } from '../zpiVypocet';
+import { najdiInstalacniTarif, vypocetNahradyZpi, rozpocitejNahraduZpi, prijemceDvouTretinZpi } from '../zpiVypocet';
 import { parseTariffRatesFromAPI } from '../compensationCalculator';
 import { STAV_PROVEDENI } from '../../../../utils/stavProvedeni';
 
@@ -99,5 +99,19 @@ describe('rozpocitejNahraduZpi', () => {
 
     it('nulová náhrada nikoho nezvýhodní', () => {
         expect(rozpocitejNahraduZpi(0, clenove, 100)).toEqual({});
+    });
+});
+
+describe('prijemceDvouTretinZpi (INSYZ-371)', () => {
+    const clenove = [{ INT_ADR: 100 }, { INT_ADR: 200, isLeader: true }];
+
+    it('určený řidič má přednost před vedoucím', () => {
+        expect(prijemceDvouTretinZpi(100, clenove)).toBe(100);
+    });
+
+    it('bez řidiče připadne vedoucímu, bez vedoucího nikomu', () => {
+        expect(prijemceDvouTretinZpi(null, clenove)).toBe(200);
+        expect(prijemceDvouTretinZpi(null, [{ INT_ADR: 100 }])).toBeNull();
+        expect(prijemceDvouTretinZpi(null, undefined)).toBeNull();
     });
 });

@@ -182,6 +182,15 @@ describe('ZP-I: náhrada jen pro kvalifikované (INSYZ-280 bod 1)', () => {
         expect(podil(nikdo, 300)).toBe(0);
     });
 
+    it('bez určeného řidiče bere 2/3 vedoucí (INSYZ-371)', () => {
+        const bezRidice = { ...zpiFormData, Hlavni_Ridic: null };
+        const sVedoucim = { ...options, teamMembers: [{ INT_ADR: 100 }, { INT_ADR: 200, isLeader: true }, { INT_ADR: 300 }] };
+        const p = intAdr => calculateCompensation(bezRidice, zpiTariffs, intAdr, vsichni, sVedoucim).Nahrada_Prace;
+        expect(p(200)).toBe(400);
+        expect(p(100)).toBe(100);
+        expect(p(300)).toBe(100);
+    });
+
     it('počet TIMů a částka za skupinu zůstávají v podkladech pro souhrn', () => {
         const c = calculateCompensation(zpiFormData, zpiTariffs, 100, bezJednoho, options);
         expect(c.Pocet_TIMu).toBe(3);

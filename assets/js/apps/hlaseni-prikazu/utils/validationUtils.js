@@ -791,12 +791,12 @@ const validateZpiItems = (formData, predmety, servisTimy, errors, warnings) => {
         });
     }
 
-    // Bez auta není koho vybrat – náhrada se pak dělí rovným dílem a upozornění by jen mátlo
+    // Bez auta není koho vybrat – 2/3 pak bere vedoucí a upozornění by jen mátlo
     const nekdoRidil = (formData.Skupiny_Cest || []).some(skupina => skupina.Ridic);
     if (nekdoRidil && !formData.Hlavni_Ridic) {
         warnings.push({
             type: 'no_driver_zpi',
-            message: 'Není vybrán řidič pro náhradu za instalaci – náhrada se rozdělí rovným dílem místo 2/3 řidiči'
+            message: 'Není vybrán řidič pro náhradu za instalaci – 2/3 náhrady dostane vedoucí'
         });
     }
 };
