@@ -83,8 +83,13 @@ class XmlGenerationService
         // Zachovat základní údaje
         if (isset($reportData['id_zp'])) $result['id_zp'] = $reportData['id_zp'];
         if (isset($reportData['cislo_zp'])) $result['cislo_zp'] = $reportData['cislo_zp'];
-        if (isset($reportData['znackari'])) $result['znackari'] = $reportData['znackari'];
-        
+        if (isset($reportData['znackari'])) {
+            $result['znackari'] = $this->oznacHlavnihoRidice(
+                $reportData['znackari'],
+                $reportData['data_a']['Hlavni_Ridic'] ?? null
+            );
+        }
+
         // Přidat Datum_Provedeni z data_a (důležitý údaj)
         if (isset($reportData['data_a']['Datum_Provedeni'])) {
             $result['Datum_Provedeni'] = $reportData['data_a']['Datum_Provedeni'];
@@ -115,6 +120,25 @@ class XmlGenerationService
         return $result;
     }
     
+    /**
+     * Ke každému značkaři doplní Je_Hlavni_Ridic (1/0) podle data_a.Hlavni_Ridic (INSYZ-403),
+     * obdobně jako Je_Vedouci. Bez určeného hlavního řidiče mají všichni 0 – fallback
+     * na vedoucího si dělá INSYZ sám.
+     */
+    private function oznacHlavnihoRidice(array $znackari, mixed $hlavniRidic): array
+    {
+        $hlavniRidic = (int) $hlavniRidic;
+
+        return array_map(function ($znackar) use ($hlavniRidic) {
+            if (!is_array($znackar)) {
+                return $znackar;
+            }
+            $jeHlavni = $hlavniRidic > 0 && (int) ($znackar['INT_ADR'] ?? 0) === $hlavniRidic;
+
+            return $this->insertAfterKey($znackar, 'Je_Vedouci', 'Je_Hlavni_Ridic', $jeHlavni ? '1' : '0');
+        }, $znackari);
+    }
+
     /**
      * Speciální případy pro názvy elementů a objekty s ID
      */

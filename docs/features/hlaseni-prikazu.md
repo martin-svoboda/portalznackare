@@ -524,7 +524,9 @@ Struktura je stejná jako u ZP-O, liší se jen data (dohodnuto s Michalem Marko
 - `Cinnost` je navíc oproti ZP-O; dělá XML čitelné bez znalosti `Co_Provest`
 - `metadata` (interní stopa aplikace) se do XML nevkládají na žádné úrovni
 - `Obnovene_Useky` zůstává jako prázdný element (ZP-I úseky nemá)
-- **Řidič** je v `Vyuctovani` poznat podle `Zvysena_Sazba` a `SPZ` u konkrétního značkaře
+- **Řidič** je v `Vyuctovani` poznat podle `Zvysena_Sazba` a `SPZ` u konkrétního značkaře;
+  **hlavního řidiče** (`Hlavni_Ridic`) nese `<znackari>` jako `Je_Hlavni_Ridic` 1/0 vedle
+  `Je_Vedouci` (INSYZ-403). Bez určeného řidiče mají všichni 0 – fallback na vedoucího řeší INSYZ.
 
 ### Mimo rozsah
 

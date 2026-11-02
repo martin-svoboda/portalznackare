@@ -137,6 +137,30 @@ class XmlGenerationServiceTest extends TestCase
         $this->assertMatchesRegularExpression('#<Znackar id="1990">.*?<SPZ>1CH0879</SPZ>.*?</Znackar>#s', $xml);
     }
 
+    public function testHlavniRidicVZnackarich(): void
+    {
+        // INSYZ-403: hlavní řidič označený u značkaře obdobně jako Je_Vedouci
+        $data = $this->sampleReportData();
+        $data['znackari'] = [
+            ['INT_ADR' => 1955, 'Znackar' => 'Vedoucí', 'Je_Vedouci' => true],
+            ['INT_ADR' => 1990, 'Znackar' => 'Řidič', 'Je_Vedouci' => false],
+        ];
+        $data['data_a']['Hlavni_Ridic'] = '1990';
+
+        $xml = $this->makeService()->generateReportXml($data);
+
+        $this->assertMatchesRegularExpression('#<Znackar id="1955">.*?<Je_Vedouci>1</Je_Vedouci>\s*<Je_Hlavni_Ridic>0</Je_Hlavni_Ridic>.*?</Znackar>#s', $xml);
+        $this->assertMatchesRegularExpression('#<Znackar id="1990">.*?<Je_Hlavni_Ridic>1</Je_Hlavni_Ridic>.*?</Znackar>#s', $xml);
+    }
+
+    public function testBezHlavnihoRidiceMajiVsichniNulu(): void
+    {
+        $xml = $this->makeService()->generateReportXml($this->sampleReportData());
+
+        $this->assertStringContainsString('<Je_Hlavni_Ridic>0</Je_Hlavni_Ridic>', $xml);
+        $this->assertStringNotContainsString('<Je_Hlavni_Ridic>1</Je_Hlavni_Ridic>', $xml);
+    }
+
     public function testNeplatneUsekIdNejdeDoXml(): void
     {
         // Chybná data z INSYZ (N/A) nesmí protéct jako <Usek id="N/A"> – ID úseku je číselné.
