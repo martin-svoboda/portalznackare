@@ -7,6 +7,9 @@ import { useEffect, useRef } from 'react';
 import { useDebounce } from './useDebounce';
 import { log } from '../../../utils/debug';
 
+// Za jak dlouho po načtení se formulář považuje za ustálený (výchozí stav pro porovnání)
+const BASELINE_SETTLE_MS = 1000;
+
 export function useAutoSave(data, saveFn, options = {}) {
     const {
         enabled = true,
@@ -19,18 +22,28 @@ export function useAutoSave(data, saveFn, options = {}) {
     
     // Reference na poslední uložená data
     const lastSavedData = useRef(null);
-    const isFirstRender = useRef(true);
+    const latestData = useRef(data);
+    latestData.current = data;
+    const baselineReady = useRef(!skipInitial);
 
+    // Výchozí stav (skipInitial) se vezme chvíli po načtení, až doběhnou automatické
+    // úpravy formuláře (dokončení částí, předvyplnění). Dřív se bral až z první debounced
+    // hodnoty – změna uživatele během prvních `delay` ms v ní zmizela a neuložila se.
     useEffect(() => {
-        // Přeskočit pokud není povoleno nebo nemáme data
-        if (!enabled || !debouncedData) {
+        if (!enabled || baselineReady.current) {
             return;
         }
+        const handler = setTimeout(() => {
+            lastSavedData.current = JSON.stringify(latestData.current);
+            baselineReady.current = true;
+        }, BASELINE_SETTLE_MS);
 
-        // Přeskočit první render pokud je nastaveno
-        if (skipInitial && isFirstRender.current) {
-            isFirstRender.current = false;
-            lastSavedData.current = JSON.stringify(debouncedData);
+        return () => clearTimeout(handler);
+    }, [enabled]);
+
+    useEffect(() => {
+        // Přeskočit pokud není povoleno, nemáme data nebo ještě není výchozí stav
+        if (!enabled || !debouncedData || !baselineReady.current) {
             return;
         }
 
@@ -57,12 +70,12 @@ export function useAutoSave(data, saveFn, options = {}) {
                 log.error('useAutoSave: Chyba při automatickém ukládání', error);
             });
         }
-    }, [debouncedData, enabled, saveFn, skipInitial, delay]);
+    }, [debouncedData, enabled, saveFn, delay]);
 
     // Cleanup při unmount
     useEffect(() => {
         return () => {
-            isFirstRender.current = true;
+            baselineReady.current = !skipInitial;
             lastSavedData.current = null;
         };
     }, []);
