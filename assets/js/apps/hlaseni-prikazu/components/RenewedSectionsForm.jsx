@@ -3,6 +3,7 @@ import {IconRoute, IconInfoCircle} from '@tabler/icons-react';
 import {renderHtmlContent, replaceTextWithIcons} from "../../../utils/htmlUtils";
 import {getUsekId, isValidUsek} from "../../../utils/prikaz";
 import {STAV_PROVEDENI, jeProvedena} from "../../../utils/stavProvedeni";
+import {ProvedeniToggle} from './ProvedeniToggle';
 
 export const RenewedSectionsForm = ({
                                         useky = [],
@@ -185,40 +186,11 @@ export const RenewedSectionsForm = ({
                                                 <div className="md:hidden text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">
                                                     Obnoven
                                                 </div>
-                                                <div className="inline-flex rounded-md overflow-hidden border border-gray-300 dark:border-gray-600">
-                                                    <button
-                                                        type="button"
-                                                        className={`px-3 py-1.5 text-sm font-medium transition-colors ${
-                                                            !provedena
-                                                                ? 'bg-red-600 text-white'
-                                                                : 'bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
-                                                        }`}
-                                                        onClick={() => handleSectionRenewalChange(
-                                                            usekId,
-                                                            'Usek_Obnoven',
-                                                            STAV_PROVEDENI.NEPROVEDENA
-                                                        )}
-                                                        disabled={disabled}
-                                                    >
-                                                        Ne
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        className={`px-3 py-1.5 text-sm font-medium transition-colors ${
-                                                            provedena
-                                                                ? 'bg-green-600 text-white'
-                                                                : 'bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
-                                                        }`}
-                                                        onClick={() => handleSectionRenewalChange(
-                                                            usekId,
-                                                            'Usek_Obnoven',
-                                                            STAV_PROVEDENI.PROVEDENA
-                                                        )}
-                                                        disabled={disabled}
-                                                    >
-                                                        Ano
-                                                    </button>
-                                                </div>
+                                                <ProvedeniToggle
+                                                    provedena={provedena}
+                                                    onChange={(stav) => handleSectionRenewalChange(usekId, 'Usek_Obnoven', stav)}
+                                                    disabled={disabled}
+                                                />
                                             </div>
 
                                         </div>

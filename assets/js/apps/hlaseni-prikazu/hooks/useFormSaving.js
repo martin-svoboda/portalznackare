@@ -188,6 +188,8 @@ export const useFormSaving = (formData, head, prikazId, reportLoaded = false, us
                         });
                         return serializedStavyTim;
                     })(),
+                    // ZP-J: stav provedení činností (INSYZ-219); jiné typy příkazů je nemají
+                    ...(formData.Cinnosti ? { Cinnosti: formData.Cinnosti } : {}),
                     Koment_Usek: formData.Koment_Usek,
                     Prilohy_Usek: convertAttachmentsToIds(formData.Prilohy_Usek || {}),
                     Obnovene_Useky: formData.Obnovene_Useky || {},
@@ -387,6 +389,8 @@ export const useFormSaving = (formData, head, prikazId, reportLoaded = false, us
                         });
                         return serializedStavyTim;
                     })(),
+                    // ZP-J: stav provedení činností (INSYZ-219); jiné typy příkazů je nemají
+                    ...(formData.Cinnosti ? { Cinnosti: formData.Cinnosti } : {}),
                     Koment_Usek: formData.Koment_Usek,
                     Prilohy_Usek: convertAttachmentsToIds(formData.Prilohy_Usek || {}),
                     Obnovene_Useky: formData.Obnovene_Useky || {},

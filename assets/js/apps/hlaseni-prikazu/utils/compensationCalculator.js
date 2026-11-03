@@ -2,6 +2,7 @@ import {toISODateString} from '../../../utils/dateUtils.js';
 import {log} from '../../../utils/debug';
 import { budujUcetniDny, naIsoDatum } from './vicedenniVypocet.js';
 import { vypocetNahradyZpi, rozpocitejNahraduZpi, prijemceDvouTretinZpi } from './zpiVypocet.js';
+import { jeProvedenaNejakaCinnost } from './zpjCinnosti.js';
 
 /**
  * Kvalifikace opravňující k náhradě za práci (dohodnuto s INSYZ):
@@ -405,6 +406,12 @@ export function calculateCompensation(formData, tariffRates, userIntAdr = null, 
         );
         workAllowance = podily[userIntAdr] || 0;
         // U ZP-I nemá smysl rozpad náhrady po dnech – náhrada patří příkazu, ne dni
+        ucetniDny.forEach(den => { den.Nahrada = 0; });
+    }
+
+    // ZP-J: náhrady jen při aspoň jedné provedené činnosti (INSYZ-396, Michal 29. 10. 2026)
+    if (options.head?.Druh_ZP === 'J' && !jeProvedenaNejakaCinnost(formData.Cinnosti)) {
+        workAllowance = 0;
         ucetniDny.forEach(den => { den.Nahrada = 0; });
     }
 

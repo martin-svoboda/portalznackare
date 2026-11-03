@@ -154,6 +154,7 @@ class XmlGenerationService
             'Prilohy_Usek' => ['element' => 'Priloha', 'idField' => 'id'],
             'Prilohy_Mapa' => ['element' => 'Priloha', 'idField' => 'id'],
             'Obnovene_Useky' => ['element' => 'Usek', 'idField' => null], // klíč je ID
+            'Cinnosti' => ['element' => 'Cinnost', 'idField' => null], // ZP-J, klíč je ID_ZP_JCCin
             'Vyuctovani' => ['element' => 'Znackar', 'idField' => null], // klíč je INT_ADR
         ];
     }
@@ -306,6 +307,11 @@ class XmlGenerationService
                 // Usek_Obnoven → kód číselníku StavProvedeniEnum (3=Provedena, 2=Neprovedena,
                 // 0=nevyhodnoceno). Zvládne i starý boolean formát (true→3, false→2).
                 $item['Usek_Obnoven'] = StavProvedeniEnum::normalize($item['Usek_Obnoven'] ?? null)->value;
+            }
+
+            if ($key === 'Cinnosti') {
+                // ZP-J (INSYZ-219): stav provedení činnosti stejným číselníkem jako u ZP-I
+                $item['Provedeni'] = StavProvedeniEnum::normalize($item['Provedeni'] ?? null)->value;
             }
 
             if ($key === 'Vyuctovani') {

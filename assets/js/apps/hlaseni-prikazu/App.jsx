@@ -16,6 +16,7 @@ import {parseTariffRatesFromAPI, calculateExecutionDate} from './utils/compensat
 import {computeTimMismatch} from './utils/timMismatch';
 import {syncLeaderFromHead, ridicZHlavicky} from './utils/teamUtils';
 import {jeServisniTimDataset} from '../../utils/prikaz';
+import {sestavCinnostiZpj} from './utils/zpjCinnosti';
 
 const App = () => {
     // Get prikaz ID and user from HTML data attributes
@@ -45,6 +46,7 @@ const App = () => {
         predmety: [],
         useky: [],
         servisTimy: [],
+        cinnosti: [],
         formData: null, // Will be initialized after counter is ready
         usersDetails: {},
         teamMembers: [],
@@ -277,6 +279,11 @@ const App = () => {
                     formData.Zvysena_Sazba = true;
                 }
 
+                // ZP-J: činnosti podle aktuálního seznamu z INSYZ, uložené stavy zůstávají (INSYZ-219)
+                if (orderData.head?.Druh_ZP === 'J') {
+                    formData.Cinnosti = sestavCinnostiZpj(orderData.cinnosti, formData.Cinnosti);
+                }
+
                 // Předvyplnění stavů předmětů z INSYZ dat (Rok_Vyroby, Smerovani)
                 // Pouze pokud Stavy_Tim je prázdný (nové hlášení nebo bez uložených stavů).
                 // Jen pro ZP-O – jde o pole zpětné vazby k předmětům, která ZP-I nemá;
@@ -379,6 +386,7 @@ const App = () => {
                     servisTimy: orderData.servis_timy?.length
                         ? orderData.servis_timy
                         : (jeServisniTimDataset(orderData.useky) ? orderData.useky : []),
+                    cinnosti: orderData.cinnosti || [],
                     formData,
                     teamMembers,
                     usersDetails: usersDetails || prev.usersDetails,

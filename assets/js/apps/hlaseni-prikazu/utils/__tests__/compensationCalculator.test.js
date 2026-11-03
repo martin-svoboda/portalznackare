@@ -108,6 +108,19 @@ describe('per-den agregace náhrad (kvalifikovaný) + 24h pobyt', () => {
         expect(c.Stravne).toBe(800);
     });
 
+    it('ZP-J: náhrady jen s aspoň jednou provedenou činností (INSYZ-396)', () => {
+        const zpj = { head: { Druh_ZP: 'J' } };
+        const bezProvedeni = { ...triDny, Cinnosti: { 586: { ID_Cinnost: '7', Provedeni: 2 } } };
+        const sProvedenim = { ...triDny, Cinnosti: { 586: { ID_Cinnost: '7', Provedeni: 3 } } };
+
+        const c0 = calculateCompensation(bezProvedeni, tariffRates, 100, usersDetails, zpj);
+        expect(c0.Nahrada_Prace).toBe(0);
+        expect(c0.Ucetni_Dny.map(d => d.Nahrada)).toEqual([0, 0, 0]);
+        expect(c0.Stravne).toBe(800);
+
+        expect(calculateCompensation(sProvedenim, tariffRates, 100, usersDetails, zpj).Nahrada_Prace).toBe(900);
+    });
+
     it('Cas_Prace má štíhlý tvar (bez Misto_*/Uzavreny) kvůli INSYZ XML', () => {
         const c = calculateCompensation(triDny, tariffRates, 100, usersDetails);
         expect(Object.keys(c.Cas_Prace[0]).sort()).toEqual(['Cas', 'Datum', 'Do', 'Od']);

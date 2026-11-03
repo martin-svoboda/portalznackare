@@ -13,6 +13,8 @@ import { CompensationSummary } from './CompensationSummary';
 import { PartBSummary } from './PartBSummary';
 import { ZpiPartBSummary } from './ZpiPartBSummary';
 import { ZpiTimOverview } from './ZpiTimOverview';
+import {ZpjCinnostiForm} from './ZpjCinnostiForm';
+import {ZpjPartBSummary} from './ZpjPartBSummary';
 import { AdvancedFileUpload } from '../../../components/shared/forms/AdvancedFileUpload';
 import { getAttachmentsAsArray, setAttachmentsFromArray } from '../utils/attachmentUtils';
 import { calculateExecutionDate } from '../utils/compensationCalculator';
@@ -55,6 +57,7 @@ export const StepContent = ({
     const head = data.head;
     const useky = data.useky;
     const servisTimy = data.servisTimy;
+    const cinnosti = data.cinnosti;
     const predmety = data.predmety;
     const tariffRates = data.tariffRates;
     const teamMembers = data.teamMembers;
@@ -203,53 +206,63 @@ export const StepContent = ({
                     />
                 ) : (
                     <div className="space-y-6">
-                        <h4 className="text-lg font-semibold">Hlášení o značkařské činnosti</h4>
-
-                        <div>
-                            <label className="form__label font-medium mb-2 block">
-                                Hlášení o provedené činnosti
-                            </label>
-                            <p className="text-sm text-gray-600 mb-2">
-                                Popište provedenou značkařskou činnost, stav značení, případné problémy a
-                                návrhy na zlepšení.
-                            </p>
-                            <textarea
-                                className="form__textarea"
-                                placeholder="Popište provedenou značkařskou činnost..."
-                                value={formData.Koment_Usek || ""}
-                                onChange={(e) => setFormData(prev => ({
-                                    ...prev,
-                                    Koment_Usek: e.target.value
-                                }))}
-                                rows={6}
+                        {head?.Druh_ZP === "J" && (
+                            <ZpjCinnostiForm
+                                formData={formData}
+                                setFormData={setFormData}
+                                cinnosti={cinnosti}
                                 disabled={disabled}
                             />
-                        </div>
+                        )}
 
-                        <div>
-                            <label className="form__label font-medium mb-2 block">
-                                Fotografické přílohy
-                            </label>
-                            <p className="text-sm text-gray-600 mb-2">
-                                Přiložte fotografie dokumentující provedenou činnost, stav značení,
-                                problémová místa apod.
-                            </p>
-                            <AdvancedFileUpload
-                                id="hlaseni-route-attachments"
-                                files={getAttachmentsAsArray(formData.Prilohy_Usek || {})}
-                                onFilesChange={(files) => setFormData(prev => ({
-                                    ...prev,
-                                    Prilohy_Usek: setAttachmentsFromArray(files)
-                                }))}
-                                maxFiles={20}
-                                accept="image/jpeg,image/png,image/heic,application/pdf"
-                                disabled={disabled}
-                                maxSize={15}
-                                storagePath={storagePath}
-                                // File usage tracking
-                                usageType="reports"
-                                entityId={reportId}
-                            />
+                        {/* Hlášení a fotky za celý příkaz – karta jako komentář k úseku u ZP-O */}
+                        <div className="card">
+                            <div className="card__content">
+                                <h4 className="text-lg font-semibold mb-4">Hlášení o značkařské činnosti</h4>
+
+                                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                                    Popište provedenou značkařskou činnost, stav značení, případné problémy a
+                                    návrhy na zlepšení.
+                                </p>
+
+                                <label htmlFor="activity-report" className="form__label sr-only">
+                                    Hlášení o značkařské činnosti
+                                </label>
+                                <textarea
+                                    id="activity-report"
+                                    className="form__textarea mb-4"
+                                    placeholder="Popište provedenou značkařskou činnost..."
+                                    value={formData.Koment_Usek || ""}
+                                    onChange={(e) => setFormData(prev => ({
+                                        ...prev,
+                                        Koment_Usek: e.target.value
+                                    }))}
+                                    rows={6}
+                                    disabled={disabled}
+                                />
+
+                                <div>
+                                    <label className="form__label mb-2 block font-medium">
+                                        Fotografické přílohy
+                                    </label>
+                                    <AdvancedFileUpload
+                                        id="hlaseni-route-attachments"
+                                        files={getAttachmentsAsArray(formData.Prilohy_Usek || {})}
+                                        onFilesChange={(files) => setFormData(prev => ({
+                                            ...prev,
+                                            Prilohy_Usek: setAttachmentsFromArray(files)
+                                        }))}
+                                        maxFiles={20}
+                                        accept="image/jpeg,image/png,image/heic,application/pdf"
+                                        disabled={disabled}
+                                        maxSize={15}
+                                        storagePath={storagePath}
+                                        // File usage tracking
+                                        usageType="reports"
+                                        entityId={reportId}
+                                    />
+                                </div>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -352,6 +365,11 @@ export const StepContent = ({
                                     predmety={predmety}
                                     servisTimy={servisTimy}
                                     compact={false}
+                                />
+                            ) : head?.Druh_ZP === "J" ? (
+                                <ZpjPartBSummary
+                                    formData={formData}
+                                    cinnosti={cinnosti}
                                 />
                             ) : (
                                 <PartBSummary

@@ -161,6 +161,25 @@ class XmlGenerationServiceTest extends TestCase
         $this->assertStringNotContainsString('<Je_Hlavni_Ridic>1</Je_Hlavni_Ridic>', $xml);
     }
 
+    public function testCinnostiZpj(): void
+    {
+        // INSYZ-219: činnosti ZP-J klíčované ID_ZP_JCCin, Provedeni jako u ZP-I
+        $data = $this->sampleReportData();
+        $data['data_b'] = [
+            'Cinnosti' => [
+                '586' => ['ID_Cinnost' => '7', 'Provedeni' => 3],
+                '620' => ['ID_Cinnost' => '14', 'Provedeni' => 2],
+            ],
+            'Koment_Usek' => 'Revize provedena',
+        ];
+
+        $xml = $this->makeService()->generateReportXml($data);
+
+        $this->assertMatchesRegularExpression('#<Cinnosti>\s*<Cinnost id="586">\s*<ID_Cinnost>7</ID_Cinnost>\s*<Provedeni>3</Provedeni>\s*</Cinnost>#s', $xml);
+        $this->assertMatchesRegularExpression('#<Cinnost id="620">.*?<Provedeni>2</Provedeni>#s', $xml);
+        $this->assertStringContainsString('<Koment_Usek>Revize provedena</Koment_Usek>', $xml);
+    }
+
     public function testNeplatneUsekIdNejdeDoXml(): void
     {
         // Chybná data z INSYZ (N/A) nesmí protéct jako <Usek id="N/A"> – ID úseku je číselné.

@@ -9,6 +9,7 @@ import { toISODateString } from '../../../utils/dateUtils';
 import { getUsekId, isValidUsek, seskupTimyZpi, pocetProvedenychTimu } from '../../../utils/prikaz';
 import { stavTimu } from './zpiStavy';
 import { jeProvedena } from '../../../utils/stavProvedeni';
+import { pocetCinnostiBezStavu, jeProvedenaNejakaCinnost } from './zpjCinnosti';
 
 /**
  * Typy předmětů (Druh_Predmetu), u kterých se nesbírá ani nevyžaduje letopočet (Rok_Vyroby)
@@ -737,6 +738,9 @@ export const validatePartB = (formData, head, predmety, useky = [], servisTimy =
         validateZpiItems(formData, predmety, servisTimy, errors, warnings);
     } else {
         // Ostatní typy - validace hlášení o činnosti
+        if (head.Druh_ZP === "J") {
+            validateZpjCinnosti(formData, errors, warnings);
+        }
         validateActivityReport(formData, errors, warnings);
     }
 
@@ -904,6 +908,28 @@ const validateTimItems = (formData, predmety, errors, warnings) => {
 /**
  * Validace hlášení o činnosti pro ostatní typy příkazů
  */
+/**
+ * Validace činností ZP-J (INSYZ-219): každá činnost musí mít stav provedení.
+ * Bez jediné provedené činnosti nevzniká nárok na náhrady (INSYZ-396) – jen upozornění.
+ */
+const validateZpjCinnosti = (formData, errors, warnings) => {
+    const cinnosti = formData.Cinnosti || {};
+    if (Object.keys(cinnosti).length === 0) return;
+
+    const bezStavu = pocetCinnostiBezStavu(cinnosti);
+    if (bezStavu > 0) {
+        errors.push({
+            type: 'missing_zpj_state',
+            message: `U ${bezStavu} ${bezStavu === 1 ? 'činnosti' : 'činností'} chybí stav provedení`
+        });
+    } else if (!jeProvedenaNejakaCinnost(cinnosti)) {
+        warnings.push({
+            type: 'no_completed_zpj',
+            message: 'Žádná činnost není provedená – náhrady za práci budou nulové'
+        });
+    }
+};
+
 const validateActivityReport = (formData, errors, warnings) => {
     // Required: Koment_Usek
     if (!formData.Koment_Usek || formData.Koment_Usek.trim().length === 0) {

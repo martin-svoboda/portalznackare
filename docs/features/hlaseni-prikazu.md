@@ -189,6 +189,10 @@ onClick(submitForApproval): {
 }
 ```
 
+**Automatické ukládání** (`hooks/useAutoSave.js`): koncept se uloží 3 s po poslední změně.
+Výchozí stav pro porovnání se bere ~1 s po načtení (po automatických úpravách formuláře),
+takže samotné otevření hlášení nic neukládá, ale změna hned po otevření se neztratí.
+
 ## 📤 INSYZ Submission - Asynchronní zpracování
 
 Trvalý systemd worker (`portal-messenger-prod` / `-dev`) konzumuje frontu zpráv z `messenger_messages` a posílá hlášení do INSYZ přes stored procedure `trasy.ZP_Zapis_XML`. Kompletní popis architektury, retry policy a troubleshootingu: [docs/development/background-jobs.md](../development/background-jobs.md).
@@ -561,9 +565,29 @@ ddev exec npx vitest run          # node_modules má linuxové binárky, na host
 - `assets/js/apps/hlaseni-prikazu/utils/__tests__/compensationCalculator.test.js` — mj. kvalifikační brána u ZP-I
 - `tests/Service/ZpiTimGrouperTest.php` — seskupení TIMů pro PDF (`ddev exec php bin/phpunit`)
 
+## 🧭 Hlášení ZP-J (jiná činnost, INSYZ-219)
+
+- **Data:** činnosti příkazu chodí z `ZP_Detail` ve slotu úseků (enricher → `cinnosti`, viz
+  [prikazy-management.md](prikazy-management.md)): `ID_ZP_JCCin` (ID řádku), `ID_Cinnost`,
+  `Popis_Cinnosti`, `Vykon` (km, jen informativně), `Uziti_v_ZPJ`. Ukazuje se vše, co přijde,
+  i staré činnosti „– pomocník".
+- **Část B:** karta „Činnosti příkazu" ve stejném rozložení jako obnova úseků u ZP-O
+  (činnost / výkon / přepínač Ne/Ano – sdílený `ProvedeniToggle`, výchozí Ne) a karta s hlášením
+  `Koment_Usek` + fotkami `Prilohy_Usek` (`ZpjCinnostiForm`, souhrn `ZpjPartBSummary`). Zadání
+  a poznámka k ZP jsou v hlavičce příkazu, v části B se neopakují.
+- **Ukládání:** `formData.Cinnosti` = `{ [ID_ZP_JCCin]: { ID_Cinnost, Provedeni } }`, při načtení
+  se sestaví podle aktuálního seznamu z INSYZ (`sestavCinnostiZpj`, uložené stavy zůstávají).
+- **Validace:** bez provedené činnosti jen upozornění (náhrady budou nulové).
+- **Náhrady:** časové náhrady jen při aspoň jedné provedené činnosti (INSYZ-396), jinak 0.
+  OTZ a km počítá jen INSYZ.
+- **XML:** `<Cinnosti><Cinnost id="ID_ZP_JCCin"><ID_Cinnost/><Provedeni/></Cinnost></Cinnosti>`
+  + `<Koment_Usek>` a `<Prilohy_Usek>` jako u ostatních typů.
+- **Testy:** `utils/__tests__/zpjCinnosti.test.js`, ZP-J v `compensationCalculator.test.js`,
+  `testCinnostiZpj` v `tests/Service/XmlGenerationServiceTest.php`.
+
 ---
 
 **Propojené funkcionality:** [File Management](file-management.md) | [INSYZ Integration](insyz-integration.md)  
 **API Reference:** [../api.md](../api.md#hlášení-a-pdf)  
 **Technical details:** [../development/background-jobs.md](../development/background-jobs.md)  
-**Aktualizováno:** 2026-10-26 (INSYZ-371: předvýběr řidiče a SPZ z hlavičky ZP_Detail)
+**Aktualizováno:** 2026-11-02 (INSYZ-219: část B a XML pro ZP-J; INSYZ-403: Je_Hlavni_Ridic)
