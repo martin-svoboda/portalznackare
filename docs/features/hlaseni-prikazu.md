@@ -582,6 +582,8 @@ ddev exec npx vitest run          # node_modules má linuxové binárky, na host
   OTZ a km počítá jen INSYZ.
 - **XML:** `<Cinnosti><Cinnost id="ID_ZP_JCCin"><ID_Cinnost/><Provedeni/></Cinnost></Cinnosti>`
   + `<Koment_Usek>` a `<Prilohy_Usek>` jako u ostatních typů.
+- **PDF kontrolní formulář (INSYZ-359):** sekce Poznámka do ZP, Zadání činnosti, Činnosti a volné
+  místo na Poznámky (`templates/pdf/control_form.html.twig`).
 - **Testy:** `utils/__tests__/zpjCinnosti.test.js`, ZP-J v `compensationCalculator.test.js`,
   `testCinnostiZpj` v `tests/Service/XmlGenerationServiceTest.php`.
 

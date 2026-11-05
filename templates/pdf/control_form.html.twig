@@ -94,16 +94,31 @@
 <div class="header-info" style="display:inline-block; width: 73%">
     <h1>Kontrolní formulář {{ head.Cislo_ZP ?? '' }}</h1>
     {{ head.Druh_ZP_Naz ?? '' }}
-    {% if head.Popis_ZP ?? false %}
-        {{ head.Popis_ZP|raw }}
-    {% endif %}
-    {% if head.Poznamka_ZP ?? false %}
-        {{ head.Poznamka_ZP }}
+    {# ZP-J má zadání a poznámku ve vlastních sekcích pod hlavičkou (INSYZ-359) #}
+    {% if head.Druh_ZP is not same as('J') %}
+        {% if head.Popis_ZP ?? false %}
+            {{ head.Popis_ZP|raw }}
+        {% endif %}
+        {% if head.Poznamka_ZP ?? false %}
+            {{ head.Poznamka_ZP }}
+        {% endif %}
     {% endif %}
 </div>
 <div style="display:inline-block; width: 25%; height: 50px; border: 1px solid #000; padding: 1mm; font-size: 8pt;">
     Datum
 </div>
+
+{# Poznámka a zadání u ZP-J (INSYZ-359) #}
+{% if head.Druh_ZP is same as('J') %}
+    {% if head.Poznamka_ZP ?? false %}
+        <h2>Poznámka do ZP</h2>
+        <div>{{ head.Poznamka_ZP|nl2br }}</div>
+    {% endif %}
+    {% if head.Popis_ZP ?? false %}
+        <h2>Zadání činnosti</h2>
+        <div>{{ head.Popis_ZP|raw|nl2br }}</div>
+    {% endif %}
+{% endif %}
 
 {# Činnosti k vykázání (ZP-J) #}
 {% if cinnosti is defined and cinnosti is not empty %}
@@ -126,6 +141,12 @@
         {% endfor %}
         </tbody>
     </table>
+{% endif %}
+
+{# Volné místo na poznámky k hlášení ZP-J (INSYZ-359) #}
+{% if head.Druh_ZP is same as('J') %}
+    <h2>Poznámky</h2>
+    <div style="height: 50mm; border: 1px solid #000;"></div>
 {% endif %}
 
 {# Úseky #}

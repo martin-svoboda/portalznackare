@@ -32,7 +32,7 @@ export function isValidUsek(usek) {
 export function getPrikazDescription(druhZP) {
     const descriptions = {
         'O': 'k obnově turistické značené trasy',
-        'J': 'k jiné turistické činnosti',
+        'J': 'k jiné značkařské činnosti',
         'S': 'k instalaci turistických předmětů',
         'N': 'k osazení a demontáži nosných prvků'
     };
