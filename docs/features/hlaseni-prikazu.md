@@ -75,7 +75,9 @@ Výběr hlavního řidiče (`Hlavni_Ridic`) se zobrazí, když má příkaz zvý
 z hlavičky) **nebo je to ZP-I** – tam řidič dostává 2/3 náhrady za instalaci i bez zvýšené sazby
 (INSYZ-371). Zvýšenou sazbu jízdného dostane jen hlavní řidič a jen při `Zvysena_Sazba`
 (`maZvysenouSazbu`). Automatický výběr řeší `urciHlavnihoRidice`: při zvýšené sazbě první řidič,
-u ZP-I bez ní jen jediný řidič (z více vybírá uživatel; volba řidiče, který už neřídí, se zruší).
+bez ní jediný řidič – u **všech druhů příkazů**, protože INSYZ eviduje na příkazu jen jednoho řidiče
+a čte ho z `Je_Hlavni_Ridic` (INSYZ-397). Z více řidičů bez zvýšené sazby vybírá uživatel jen u ZP-I,
+jinde zůstane neurčený; volba řidiče, který už neřídí, se zruší.
 
 Nové hlášení předvyplní řidiče první skupiny, `Hlavni_Ridic` a SPZ z hlavičky `ZP_Detail`
 (`Ridic_INT_ADR`, `RZ_Auta`; `ridicZHlavicky` v `utils/teamUtils.js`). Je to jen předvýběr –
@@ -169,6 +171,7 @@ Když se po vzniku hlášení změní složení značkařů v příkazu (přidá
 1. Cestovní segmenty (odkud, kam, čas, doprava)
 2. Ubytování (místo, zařízení, částka, kdo platil)
 3. Vedlejší výdaje (popis, částka, kdo platil)  
+   – plátce (`Zaplatil`) je INT_ADR jako číslo; výpočet ho porovnává přes `jePlatcem` (odolné i vůči řetězci, INSYZ-397)  
 4. Řidič a vozidlo (pokud auto segment)
 5. TIM hodnocení nebo textové hlášení činnosti
 
@@ -592,4 +595,4 @@ ddev exec npx vitest run          # node_modules má linuxové binárky, na host
 **Propojené funkcionality:** [File Management](file-management.md) | [INSYZ Integration](insyz-integration.md)  
 **API Reference:** [../api.md](../api.md#hlášení-a-pdf)  
 **Technical details:** [../development/background-jobs.md](../development/background-jobs.md)  
-**Aktualizováno:** 2026-11-02 (INSYZ-219: část B a XML pro ZP-J; INSYZ-403: Je_Hlavni_Ridic)
+**Aktualizováno:** 2026-11-22 (INSYZ-397: jediný řidič jako hlavní, plátce výdajů číselně)

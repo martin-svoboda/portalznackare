@@ -361,19 +361,18 @@ export const TravelGroupsForm = ({
         return Array.from(driverMap.values());
     }, [travelGroups, teamMembers]);
 
-    // Automatický výběr hlavního řidiče (INSYZ-371) – pravidla v urciHlavnihoRidice.
+    // Automatický výběr hlavního řidiče (INSYZ-371, INSYZ-397) – pravidla v urciHlavnihoRidice.
     // Musí být až za uniqueDrivers, jinak by v závislostech efektu bylo undefined.
     React.useEffect(() => {
         const novy = urciHlavnihoRidice({
             zvysenaSazba: !!formData.Zvysena_Sazba,
-            jeZpi,
             ridici: uniqueDrivers,
             aktualni: formData.Hlavni_Ridic,
         });
         if (novy !== undefined) {
             handleHigherRateChange(novy);
         }
-    }, [formData.Zvysena_Sazba, jeZpi, uniqueDrivers, formData.Hlavni_Ridic, handleHigherRateChange]);
+    }, [formData.Zvysena_Sazba, uniqueDrivers, formData.Hlavni_Ridic, handleHigherRateChange]);
 
 
     return (

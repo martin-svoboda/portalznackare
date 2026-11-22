@@ -258,11 +258,42 @@ describe('urciHlavnihoRidice (INSYZ-371)', () => {
         expect(urciHlavnihoRidice({ zvysenaSazba: true, ridici: r(100, 200), aktualni: null })).toBe(100);
     });
 
-    it('ZP-O bez zvýšené sazby řidiče neurčuje', () => {
-        expect(urciHlavnihoRidice({ ridici: r(100), aktualni: null })).toBeUndefined();
+    it('ZP-O/ZP-J bez zvýšené sazby: jediný řidič je hlavní (INSYZ-397)', () => {
+        expect(urciHlavnihoRidice({ ridici: r(100), aktualni: null })).toBe(100);
+    });
+
+    it('ZP-O/ZP-J: při změně jediného řidiče se hlavní řidič přepne', () => {
+        expect(urciHlavnihoRidice({ ridici: r(200), aktualni: 100 })).toBe(200);
+    });
+
+    it('ZP-O/ZP-J s více řidiči bez zvýšené sazby nikoho neurčí', () => {
+        expect(urciHlavnihoRidice({ ridici: r(100, 200), aktualni: null })).toBeUndefined();
     });
 
     it('bez řidičů (jen veřejná doprava) nic nemění', () => {
         expect(urciHlavnihoRidice({ jeZpi: true, ridici: [], aktualni: null })).toBeUndefined();
+    });
+});
+
+describe('plátce nocležného a vedlejších výdajů jako řetězec (INSYZ-397)', () => {
+    // Výběr „Uhradil“ dřív ukládal INT_ADR jako řetězec a výdaj pak ve vyúčtování chyběl
+    const sPlatci = {
+        ...dvaDny,
+        Noclezne: [{ id: 1, Castka: 300, Zaplatil: '200' }],
+        Vedlejsi_Vydaje: [{ id: 2, Polozka: 'Barva', Castka: 47, Zaplatil: '200' }],
+    };
+
+    it('položky dostane plátce i při INT_ADR v řetězci', () => {
+        const c = calculateCompensation(sPlatci, tariffRates, 200, null);
+        expect(c.Vedlejsi_Vydaje_Celkem).toBe(47);
+        expect(c.Vedlejsi_Vydaje).toEqual([{ id: 2, Popis: 'Barva', Kc: 47 }]);
+        expect(c.Noclezne_Celkem).toBe(300);
+        expect(c.Noclezne).toHaveLength(1);
+    });
+
+    it('ostatní členové je nedostanou', () => {
+        const c = calculateCompensation(sPlatci, tariffRates, 100, null);
+        expect(c.Vedlejsi_Vydaje_Celkem).toBe(0);
+        expect(c.Noclezne_Celkem).toBe(0);
     });
 });

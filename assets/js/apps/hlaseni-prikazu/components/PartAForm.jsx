@@ -277,7 +277,7 @@ export const PartAForm = ({
                                                     name={`accommodation-paidby-${accommodation.id}`}
                                                     className="form__select"
                                                     value={accommodation.Zaplatil || ""}
-                                                    onChange={(e) => updateAccommodation(accommodation.id, { Zaplatil: e.target.value })}
+                                                    onChange={(e) => updateAccommodation(accommodation.id, { Zaplatil: parseInt(e.target.value, 10) || "" })}
                                                     disabled={disabled}
                                                     required={true}
                                                 >
@@ -405,7 +405,7 @@ export const PartAForm = ({
                                                     name={`expense-paidby-${expense.id}`}
                                                     className="form__select"
                                                     value={expense.Zaplatil || ""}
-                                                    onChange={(e) => updateExpense(expense.id, { Zaplatil: e.target.value })}
+                                                    onChange={(e) => updateExpense(expense.id, { Zaplatil: parseInt(e.target.value, 10) || "" })}
                                                     disabled={disabled}
                                                     required={true}
                                                 >

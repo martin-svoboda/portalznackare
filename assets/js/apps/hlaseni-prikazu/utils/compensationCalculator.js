@@ -216,6 +216,16 @@ export function findApplicableTariff(workHours, tariffs) {
 }
 
 /**
+ * Zaplatil tuto položku (nocležné, vedlejší výdaj) daný značkař? INT_ADR se porovnává
+ * číselně – výběr „Uhradil“ i JSON z DB ho mohou mít jako řetězec a přísné === by
+ * položku z vyúčtování tiše vypustilo (INSYZ-397, výdaj chyběl v XML).
+ */
+export function jePlatcem(polozka, userIntAdr) {
+    const intAdr = Number(userIntAdr);
+    return intAdr > 0 && Number(polozka?.Zaplatil) === intAdr;
+}
+
+/**
  * Má uživatel zvýšenou sazbu jízdného? Jen hlavní řidič a jen když ji příkaz má
  * (`Zvysena_Sazba` z hlavičky). U ZP-I se `Hlavni_Ridic` vybírá i bez zvýšené sazby –
  * určuje, kdo dostane 2/3 náhrady za instalaci (INSYZ-371).
@@ -225,16 +235,18 @@ export function maZvysenouSazbu(formData, userIntAdr) {
 }
 
 /**
- * Koho automaticky nastavit jako `Hlavni_Ridic` (INSYZ-371).
+ * Koho automaticky nastavit jako `Hlavni_Ridic` (INSYZ-371, INSYZ-397).
  *
  * - zvýšená sazba: jako dosud první řidič, dokud uživatel nevybere jiného
- * - ZP-I bez zvýšené sazby: jediného řidiče zvolí sám, z více řidičů vybírá uživatel;
+ * - jediný řidič: u všech druhů příkazů je hlavním řidičem on – INSYZ eviduje na příkazu
+ *   jen jednoho řidiče a čte ho z `Je_Hlavni_Ridic` (Michal Markoš, INSYZ-397, 22. 11. 2026)
+ * - více řidičů bez zvýšené sazby: vybírá uživatel (výběr je zatím jen u ZP-I);
  *   volba řidiče, který už žádnou skupinu neřídí, se zruší
  *
  * @returns {number|null|undefined} nový INT_ADR, null = zrušit volbu, undefined = beze změny
  */
-export function urciHlavnihoRidice({ zvysenaSazba = false, jeZpi = false, ridici = [], aktualni = null }) {
-    if ((!zvysenaSazba && !jeZpi) || ridici.length === 0) return undefined;
+export function urciHlavnihoRidice({ zvysenaSazba = false, ridici = [], aktualni = null }) {
+    if (ridici.length === 0) return undefined;
     if (aktualni && ridici.some(r => r.INT_ADR == aktualni)) return undefined;
 
     if (zvysenaSazba || ridici.length === 1) return ridici[0].INT_ADR;
@@ -420,12 +432,12 @@ export function calculateCompensation(formData, tariffRates, userIntAdr = null, 
     
     // Ubytování - pouze pro toho kdo platil
     const accommodationCosts = (formData.Noclezne || [])
-        .filter(acc => acc.Zaplatil === userIntAdr)
+        .filter(acc => jePlatcem(acc, userIntAdr))
         .reduce((sum, acc) => sum + (acc.Castka || 0), 0);
     
     // Vedlejší výdaje - pouze pro toho kdo platil   
     const additionalExpenses = (formData.Vedlejsi_Vydaje || [])
-        .filter(exp => exp.Zaplatil === userIntAdr)
+        .filter(exp => jePlatcem(exp, userIntAdr))
         .reduce((sum, exp) => sum + (exp.Castka || 0), 0);
     
     // Zkontrolovat zda má uživatel zvýšenou sazbu v nějaké skupině
@@ -474,7 +486,7 @@ export function calculateCompensation(formData, tariffRates, userIntAdr = null, 
     
     // Připravit detaily vedlejších výdajů z existujících dat
     const vedlejsiVydajeDetails = (formData.Vedlejsi_Vydaje || [])
-        .filter(exp => exp.Zaplatil === userIntAdr && exp.Castka > 0)
+        .filter(exp => jePlatcem(exp, userIntAdr) && exp.Castka > 0)
         .map(exp => ({
             id: exp.id,
             Popis: exp.Polozka || "Neurčeno",
@@ -483,7 +495,7 @@ export function calculateCompensation(formData, tariffRates, userIntAdr = null, 
     
     // Připravit detaily nocležného z existujících dat
     const noclezneDetails = (formData.Noclezne || [])
-        .filter(acc => acc.Zaplatil === userIntAdr && acc.Castka > 0)
+        .filter(acc => jePlatcem(acc, userIntAdr) && acc.Castka > 0)
         .map(acc => ({
             id: acc.id,
             Datum: acc.Datum ? toISODateString(acc.Datum) : "",
@@ -593,6 +605,6 @@ export function canUserEditExpense(user, expense, isLeader) {
     if (!user) return false;
     
     // Člen může editovat jen svoje výdaje
-    return expense.Zaplatil === user.INT_ADR;
+    return jePlatcem(expense, user.INT_ADR);
 }
 
