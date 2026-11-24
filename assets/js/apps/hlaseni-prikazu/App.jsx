@@ -17,6 +17,7 @@ import {computeTimMismatch} from './utils/timMismatch';
 import {syncLeaderFromHead, ridicZHlavicky} from './utils/teamUtils';
 import {jeServisniTimDataset} from '../../utils/prikaz';
 import {sestavCinnostiZpj} from './utils/zpjCinnosti';
+import {naIsoDatum} from './utils/vicedenniVypocet';
 
 const App = () => {
     // Get prikaz ID and user from HTML data attributes
@@ -348,9 +349,11 @@ const App = () => {
                     usersDetails = insyzBootstrap.usersDetails || {};
                 } else {
                     try {
-                        // Načti detaily pro všechny značkaře paralelně
+                        // Načti detaily pro všechny značkaře paralelně. Datum provedení
+                        // umožní backendu u nekvalifikovaných načíst čerstvou kvalifikaci.
+                        const kvalifikaceK = naIsoDatum(calculateExecutionDate(formData));
                         const detailsPromises = teamMembers.map(member =>
-                            api.insyz.user(member.INT_ADR, prikazId)
+                            api.insyz.user(member.INT_ADR, prikazId, kvalifikaceK)
                                 .then(detail => ({ intAdr: member.INT_ADR, detail }))
                                 .catch(error => {
                                     log.error(`Chyba při načítání detailů uživatele ${member.INT_ADR}`, error);
@@ -563,9 +566,10 @@ const App = () => {
         // kvalifikaci (ZZ → zvýšená sazba) hned, bez nutnosti reloadu stránky.
         if (addedAdrs.length > 0) {
             try {
+                const kvalifikaceK = naIsoDatum(calculateExecutionDate(appData.formData));
                 const details = await Promise.all(
                     addedAdrs.map(adr =>
-                        api.insyz.user(adr, prikazId)
+                        api.insyz.user(adr, prikazId, kvalifikaceK)
                             .then(detail => ({ adr, detail }))
                             .catch(() => null)
                     )

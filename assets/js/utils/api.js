@@ -157,7 +157,7 @@ export const api = {
 
     insyz: {
         // Profil kolegy z týmu jen s id_zp společného příkazu (server vrátí zúžená data)
-        user: (int_adr = '', id_zp = '') => api.get('/insyz/user', {int_adr, id_zp}),
+        user: (int_adr = '', id_zp = '', kvalifikace_k = '') => api.get('/insyz/user', {int_adr, id_zp, kvalifikace_k}),
         sazby: (date) => api.get('/insyz/sazby', {date}),
         submitReport: (xmlData) => api.post('/insyz/submit-report', {xml_data: xmlData}, {
             showSuccess: true,

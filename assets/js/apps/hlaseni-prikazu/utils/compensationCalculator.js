@@ -14,11 +14,14 @@ export const KVALIFIKACE_S_NAROKEM_NA_NAHRADY = ['ZZ', 'VZ', 'IZ', 'ZT'];
 
 /**
  * Kontrola, zda má uživatel kvalifikaci opravňující k náhradě za práci.
+ * Kvalifikace platí od data získání (Datum_Kval) – stejně jako v INSYZ:
+ * `ISNULL(DATUM, '1900-01-01') <= @Dat_Prov` (Honza 24. 11. 2026). Bez data = platí vždy.
  * @param {Object} usersDetails - Data uživatelů z API (usersDetails[INT_ADR])
  * @param {number} userIntAdr - INT_ADR uživatele ke kontrole
+ * @param {string|Date|null} datumProvedeni - datum provedení ZP; bez něj se datum nekontroluje
  * @returns {boolean}
  */
-export function maNarokNaNahrady(usersDetails, userIntAdr) {
+export function maNarokNaNahrady(usersDetails, userIntAdr, datumProvedeni = null) {
     if (!usersDetails || !userIntAdr) {
         return false;
     }
@@ -34,7 +37,12 @@ export function maNarokNaNahrady(usersDetails, userIntAdr) {
         return false;
     }
 
-    return kvalifikace.some(kval => KVALIFIKACE_S_NAROKEM_NA_NAHRADY.includes(kval.Zkratka_Kval));
+    const datum = datumProvedeni ? naIsoDatum(datumProvedeni) : '';
+
+    return kvalifikace.some(kval =>
+        KVALIFIKACE_S_NAROKEM_NA_NAHRADY.includes(kval.Zkratka_Kval)
+        && (!datum || !kval.Datum_Kval || naIsoDatum(kval.Datum_Kval) <= datum)
+    );
 }
 
 /**
@@ -371,7 +379,9 @@ export function calculateCompensation(formData, tariffRates, userIntAdr = null, 
     const jeZpi = options.head?.Druh_ZP === 'S';
 
     // Kontrola kvalifikace - uživatel musí mít kvalifikaci opravňující k náhradám
-    const maNarok = maNarokNaNahrady(usersDetails, userIntAdr);
+    // Datum provedení = nejpozdější den z úseků, stejné jako Datum_Provedeni posílané do INSYZ
+    const datumProvedeni = calculateExecutionDate(formData);
+    const maNarok = maNarokNaNahrady(usersDetails, userIntAdr, datumProvedeni);
 
     log.info('calculateCompensation: kontrola nároku na náhrady', {
         userIntAdr,
@@ -410,7 +420,7 @@ export function calculateCompensation(formData, tariffRates, userIntAdr = null, 
         // Částka za skupinu je daná počtem provedených TIMů a dělí se jen mezi ty, kdo nárok mají –
         // podíl nekvalifikovaného člena tedy připadne ostatním, nepropadá.
         const opravneniClenove = (options.teamMembers || [])
-            .filter(clen => maNarokNaNahrady(usersDetails, clen.INT_ADR));
+            .filter(clen => maNarokNaNahrady(usersDetails, clen.INT_ADR, datumProvedeni));
         const podily = rozpocitejNahraduZpi(
             zpiNahrada.Nahrada_Celkem,
             opravneniClenove,

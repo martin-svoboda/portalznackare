@@ -29,7 +29,7 @@ describe('calculateWorkDays obohacení', () => {
     });
 });
 
-import { calculateCompensation } from '../compensationCalculator.js';
+import { calculateCompensation, maNarokNaNahrady } from '../compensationCalculator.js';
 
 const tariffRates = {
     jizdne: 6, jizdneZvysene: 9,
@@ -295,5 +295,34 @@ describe('plátce nocležného a vedlejších výdajů jako řetězec (INSYZ-397
         const c = calculateCompensation(sPlatci, tariffRates, 100, null);
         expect(c.Vedlejsi_Vydaje_Celkem).toBe(0);
         expect(c.Noclezne_Celkem).toBe(0);
+    });
+});
+
+describe('kvalifikace k datu provedení (INSYZ: ISNULL(Datum_Kval) <= Dat_Prov)', () => {
+    const detail = (datum) => ({ 100: [null, null, [{ Zkratka_Kval: 'ZZ', Datum_Kval: datum }]] });
+
+    it('získaná před datem provedení i ve stejný den → nárok', () => {
+        expect(maNarokNaNahrady(detail('2026-03-01'), 100, '2026-04-05')).toBe(true);
+        expect(maNarokNaNahrady(detail('2026-04-05T00:00:00'), 100, '2026-04-05')).toBe(true);
+    });
+
+    it('získaná až po datu provedení → bez nároku', () => {
+        expect(maNarokNaNahrady(detail('2026-04-06'), 100, '2026-04-05')).toBe(false);
+    });
+
+    it('bez Datum_Kval platí vždy (jako ISNULL → 1900-01-01)', () => {
+        expect(maNarokNaNahrady(detail(null), 100, '2026-04-05')).toBe(true);
+    });
+
+    it('vícedenní příkaz: rozhoduje poslední den (= Datum_Provedeni do INSYZ)', () => {
+        const formData = {
+            Skupiny_Cest: [{ Cestujci: [100], Cesty: [
+                { Datum: '2026-04-05', Cas_Odjezdu: '08:00', Cas_Prijezdu: '18:00', Misto_Odjezdu: 'Praha', Misto_Prijezdu: 'Brno', Druh_Dopravy: 'P' },
+                { Datum: '2026-04-06', Cas_Odjezdu: '08:00', Cas_Prijezdu: '18:00', Misto_Odjezdu: 'Brno', Misto_Prijezdu: 'Praha', Druh_Dopravy: 'P' },
+            ] }],
+            Noclezne: [], Vedlejsi_Vydaje: [],
+        };
+        expect(calculateCompensation(formData, tariffRates, 100, detail('2026-04-06')).Nahrada_Prace).toBeGreaterThan(0);
+        expect(calculateCompensation(formData, tariffRates, 100, detail('2026-04-07')).Nahrada_Prace).toBe(0);
     });
 });

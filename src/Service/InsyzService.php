@@ -286,7 +286,7 @@ class InsyzService
      * Získá kompletní multidataset uživatele z INSYZ
      * Vrací pole datasetů: [0] = hlavička uživatele, [1+] = další sekce
      */
-    public function getUser(int $intAdr): array
+    public function getUser(int $intAdr, ?string $kvalifikaceKDatu = null): array
     {
         if ($this->useTestData()) {
             // Mock data už jsou ve správném formátu multidatasetu
@@ -294,10 +294,43 @@ class InsyzService
             return $this->getTestData('user/' . $intAdr, [$intAdr], $intAdr);
         }
 
-        return $this->cacheService->getCachedUserData($intAdr, function($intAdr) {
+        $nacti = function($intAdr) {
             // Předej INT_ADR explicitně pro logování (důležité během login flow)
             return $this->connect("trasy.ZNACKAR_DETAIL", [$intAdr], true, $intAdr);
-        });
+        };
+        $datasets = $this->cacheService->getCachedUserData($intAdr, $nacti);
+
+        // Kdo podle dat v cache nemá k datu provedení kvalifikaci s nárokem na náhrady,
+        // tomu detail načteme čerstvý – kvalifikace mohla být mezitím zapsána (i zpětně).
+        // U kvalifikovaných se znovu neověřuje (kvalifikace je v podstatě doživotní).
+        if ($kvalifikaceKDatu !== null && !self::maKvalifikaciKDatu($datasets, $kvalifikaceKDatu)) {
+            $this->cacheService->invalidateUserCache($intAdr);
+            $datasets = $this->cacheService->getCachedUserData($intAdr, $nacti);
+        }
+
+        return $datasets;
+    }
+
+    /** Kvalifikace opravňující k náhradám – shodně s KVALIFIKACE_S_NAROKEM_NA_NAHRADY ve frontendu */
+    private const KVALIFIKACE_S_NAROKEM = ['ZZ', 'VZ', 'IZ', 'ZT'];
+
+    /**
+     * Má značkař k datu kvalifikaci s nárokem na náhrady? Pravidlo jako v INSYZ:
+     * ISNULL(Datum_Kval, '1900-01-01') <= datum provedení.
+     */
+    public static function maKvalifikaciKDatu(array $datasets, string $datum): bool
+    {
+        $datum = substr($datum, 0, 10);
+        foreach ($datasets[2] ?? [] as $kval) {
+            if (!in_array($kval['Zkratka_Kval'] ?? null, self::KVALIFIKACE_S_NAROKEM, true)) {
+                continue;
+            }
+            $od = $kval['Datum_Kval'] ?? null;
+            if (!$od || substr((string) $od, 0, 10) <= $datum) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -310,9 +343,9 @@ class InsyzService
      * Bez adresy, kontaktů, data narození, bankovního účtu, odpracovaných hodin a seminářů.
      * Struktura datasetů zůstává stejná (index 0 = hlavička, 2 = kvalifikace).
      */
-    public function getUserForTeam(int $intAdr): array
+    public function getUserForTeam(int $intAdr, ?string $kvalifikaceKDatu = null): array
     {
-        $datasets = $this->getUser($intAdr);
+        $datasets = $this->getUser($intAdr, $kvalifikaceKDatu);
         $pick = static fn(array $row, array $keys): array => array_intersect_key($row, array_flip($keys));
 
         $hlavicka = $datasets[0][0] ?? null;
@@ -320,7 +353,7 @@ class InsyzService
         return [
             $hlavicka ? [$pick($hlavicka, ['INT_ADR', 'Titul_Pred', 'Jmeno', 'Prijmeni', 'Titul_Za', 'RZ_Auta'])] : [],
             [],
-            array_map(fn(array $k) => $pick($k, ['INT_ADR', 'Zkratka_Kval', 'Kvalifikace']), $datasets[2] ?? []),
+            array_map(fn(array $k) => $pick($k, ['INT_ADR', 'Zkratka_Kval', 'Kvalifikace', 'Datum_Kval']), $datasets[2] ?? []),
             [],
             [],
         ];

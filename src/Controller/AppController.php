@@ -186,11 +186,12 @@ class AppController extends AbstractController
         // 4) Detaily členů týmu – jen zúžený profil (jméno, SPZ, kvalifikace); stránka je
         //    dostupná anonymně přes insyz-hash, osobní údaje do ní nepatří
         $usersDetails = [];
+        $kvalifikaceKDatu = $this->resolveExecutionDate($report, $orderData);
         foreach (($report->getTeamMembers() ?: []) as $member) {
             $intAdr = (int) ($member['INT_ADR'] ?? 0);
             if ($intAdr > 0 && !isset($usersDetails[$intAdr])) {
                 try {
-                    $usersDetails[$intAdr] = $insyzService->getUserForTeam($intAdr);
+                    $usersDetails[$intAdr] = $insyzService->getUserForTeam($intAdr, $kvalifikaceKDatu);
                 } catch (\Throwable $e) {
                     // detail jednoho uživatele není kritický
                 }

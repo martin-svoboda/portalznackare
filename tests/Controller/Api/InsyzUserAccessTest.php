@@ -113,7 +113,7 @@ class InsyzUserAccessTest extends TestCase
 
         $this->assertSame([['INT_ADR' => '4134', 'Jmeno' => 'Jan', 'Prijmeni' => 'Novák', 'RZ_Auta' => '1A2 3456']], $zuzeny[0]);
         $this->assertSame([], $zuzeny[1]);
-        $this->assertSame([['INT_ADR' => '4134', 'Zkratka_Kval' => 'ZZ', 'Kvalifikace' => 'Značkař']], $zuzeny[2]);
+        $this->assertSame([['INT_ADR' => '4134', 'Zkratka_Kval' => 'ZZ', 'Kvalifikace' => 'Značkař', 'Datum_Kval' => '2010-01-01']], $zuzeny[2]);
         $this->assertSame([], $zuzeny[3]);
         $json = json_encode($zuzeny);
         foreach (['Ulice_cp', 'Telefon', 'eMail', 'Datum_narozeni', 'Bankovni_Ucet', 'Odpracovano', 'Seminar'] as $pole) {

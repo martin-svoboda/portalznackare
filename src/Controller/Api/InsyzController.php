@@ -66,11 +66,15 @@ class InsyzController extends AbstractController
         $vlastni = (int) $user->getIntAdr();
         $intAdr = (int) ($request->query->get('int_adr') ?: $vlastni);
         $isAdmin = $this->isAdmin($user);
+        // Datum provedení ZP z hlášení – u značkaře bez kvalifikace k tomuto datu se detail
+        // načte čerstvý mimo cache (viz InsyzService::getUser)
+        $kvalifikaceKDatu = (string) $request->query->get('kvalifikace_k', '');
+        $kvalifikaceKDatu = preg_match('/^\d{4}-\d{2}-\d{2}$/', $kvalifikaceKDatu) ? $kvalifikaceKDatu : null;
 
         try {
             // Vlastní profil a admin – plná data
             if ($intAdr === $vlastni || $isAdmin) {
-                return new JsonResponse($this->insyzService->getUser($intAdr));
+                return new JsonResponse($this->insyzService->getUser($intAdr, $kvalifikaceKDatu));
             }
 
             // Kolega z týmu – jen s id_zp příkazu, na kterém jsou oba; zúžený profil
@@ -79,7 +83,7 @@ class InsyzController extends AbstractController
                 return new JsonResponse(['error' => 'K profilu tohoto značkaře nemáte přístup'], Response::HTTP_FORBIDDEN);
             }
 
-            return new JsonResponse($this->insyzService->getUserForTeam($intAdr));
+            return new JsonResponse($this->insyzService->getUserForTeam($intAdr, $kvalifikaceKDatu));
         } catch (PrikazAccessDeniedException) {
             return new JsonResponse(['error' => 'K profilu tohoto značkaře nemáte přístup'], Response::HTTP_FORBIDDEN);
         } catch (Exception $e) {

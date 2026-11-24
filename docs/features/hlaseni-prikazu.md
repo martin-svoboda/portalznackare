@@ -132,6 +132,14 @@ export function calculateCompensation(formData, priceList, userIntAdr) {
 }
 ```
 
+### Kvalifikace pro náhrady (k datu provedení)
+Náhrada za práci jen pro kvalifikace ZZ/VZ/IZ/ZT získané **nejpozději k datu provedení** – stejně jako INSYZ
+(`ISNULL(Datum_Kval, '1900-01-01') <= @Dat_Prov`, potvrdil Honza 24. 11. 2026). Datum provedení = nejpozdější den
+úseků (`calculateExecutionDate`, totéž jako `Datum_Provedeni` do XML). Frontend `maNarokNaNahrady`, backend
+`InsyzService::maKvalifikaciKDatu`. Detail značkaře se drží 30 min v cache; komu podle cache kvalifikace k datu
+chybí, tomu `getUser(int_adr, kvalifikace_k)` načte detail čerstvý z INSYZ (kvalifikace mohla být zapsána dodatečně
+i zpětně). U kvalifikovaných se znovu neověřuje.
+
 ### Vícedenní stravné a náhrady (od 2026-07)
 Stravné i časové náhrady se počítají **za každý kalendářní den samostatně** a sčítají (potvrzeno KČT). Rozlišení scénářů řídí **nocleh**:
 - **bez noclehu** = samostatné dny s návratem (scénář I) – každý den se tiéruje podle svého okna;

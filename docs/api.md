@@ -34,7 +34,7 @@ Controller `InsyzController` → `InsyzService` (MSSQL, lokálně mock data). Pr
 
 | Metoda | Cesta | Přístup | Parametry | Popis |
 |---|---|---|---|---|
-| GET | `/api/insyz/user` | přihlášený | query `int_adr` (volitelně), `id_zp` | Profil značkaře. Vlastní / admin = plná data; kolega z týmu jen s `id_zp` společného příkazu (zúžený profil), jinak 403 |
+| GET | `/api/insyz/user` | přihlášený | query `int_adr` (volitelně), `id_zp`, `kvalifikace_k` (YYYY-MM-DD, volitelně) | Profil značkaře. Vlastní / admin = plná data; kolega z týmu jen s `id_zp` společného příkazu (zúžený profil), jinak 403. S `kvalifikace_k` se u značkaře bez kvalifikace k tomuto datu obejde cache |
 | GET | `/api/insyz/prikazy` | přihlášený | query `year`, `raw`, `int_adr` (jen `ROLE_SUPER_ADMIN`) | Seznam příkazů uživatele (obohacený, `raw` = surová data) |
 | GET | `/api/insyz/prikaz/{id}` | člen týmu příkazu nebo admin | query `raw` | Detail příkazu (`head`, `predmety`, `useky`…); cizí příkaz 403 |
 | GET | `/api/insyz/zp-useky/{id}` | člen týmu příkazu nebo admin | – | Úseky příkazu (`trasy.ZP_Useky`); cizí příkaz 403 |
